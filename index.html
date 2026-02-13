@@ -6,18 +6,82 @@
     <title>The Fish Tank</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="theme-ocean">
     <header>
-        <h1>The Fish Tank</h1>
-        <nav><a href="battle.html">Tank Battle</a></nav>
+        <h1 id="page-title">The Fish Tank</h1>
+        <nav>
+            <a data-view="fishtank" class="active">Fish Tank</a>
+            <a data-view="battle">Tank Battle</a>
+        </nav>
     </header>
-    <div id="tank">
+    <div id="tank" class="active">
         <div class="sandy-bottom"></div>
         <div class="plant plant-1"></div>
         <div class="plant plant-2"></div>
         <div class="plant plant-3"></div>
     </div>
-    <p class="hint">Click to add a fish</p>
+    <div id="arena">
+        <div class="muddy-ground"></div>
+        <div class="mound mound-1"></div>
+        <div class="mound mound-2"></div>
+        <div class="mound mound-3"></div>
+    </div>
+    <p class="hint" id="hint">Click to add a fish</p>
     <script src="js/tank.js"></script>
+    <script src="js/battle.js"></script>
+    <script>
+    (() => {
+        const views = {
+            fishtank: {
+                el: document.getElementById('tank'),
+                app: window.FishTankApp,
+                title: 'The Fish Tank',
+                hint: 'Click to add a fish',
+                theme: 'theme-ocean'
+            },
+            battle: {
+                el: document.getElementById('arena'),
+                app: window.BattleApp,
+                title: 'The Tank Battle',
+                hint: 'Click to deploy a tank',
+                theme: 'theme-battle'
+            }
+        };
+
+        const h1 = document.getElementById('page-title');
+        const hint = document.getElementById('hint');
+        const navLinks = document.querySelectorAll('nav a[data-view]');
+        let current = null;
+
+        function switchView(name) {
+            if (current === name) return;
+
+            if (current) {
+                views[current].el.classList.remove('active');
+                views[current].app.stop();
+            }
+
+            const view = views[name];
+            document.body.className = view.theme;
+            view.el.classList.add('active');
+            h1.textContent = view.title;
+            document.title = view.title;
+            hint.textContent = view.hint;
+            view.app.start();
+
+            navLinks.forEach(a => a.classList.toggle('active', a.dataset.view === name));
+            current = name;
+        }
+
+        navLinks.forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchView(a.dataset.view);
+            });
+        });
+
+        switchView('fishtank');
+    })();
+    </script>
 </body>
 </html>
