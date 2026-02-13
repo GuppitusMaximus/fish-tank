@@ -60,7 +60,8 @@ def main():
     date_dir = now.strftime("%Y-%m-%d")
     filename = now.strftime("%H") + "00.json"
 
-    out_dir = os.path.join("the-snake-tank", "data", date_dir)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(script_dir, "data", date_dir)
     os.makedirs(out_dir, exist_ok=True)
 
     out_path = os.path.join(out_dir, filename)
