@@ -1,18 +1,21 @@
-(() => {
+window.BattleApp = (() => {
   const arena = document.getElementById('arena');
   const tanks = [];
   const projectiles = [];
+  let initialized = false;
+  let running = false;
+  let animFrameId = 0;
+  let lastTime = 0;
 
   const palettes = [
-    ['#4a6b35', '#6b8f4a', '#3a5528'],   // forest green
-    ['#6b6040', '#8a805a', '#4a4228'],   // olive drab
-    ['#5a5a5a', '#7a7a7a', '#3a3a3a'],   // gunmetal
-    ['#6a5030', '#8a7050', '#4a3018'],   // desert tan
-    ['#3a5060', '#5a7888', '#2a3840'],   // steel blue
-    ['#705838', '#907850', '#504020'],   // mud brown
+    ['#4a6b35', '#6b8f4a', '#3a5528'],
+    ['#6b6040', '#8a805a', '#4a4228'],
+    ['#5a5a5a', '#7a7a7a', '#3a3a3a'],
+    ['#6a5030', '#8a7050', '#4a3018'],
+    ['#3a5060', '#5a7888', '#2a3840'],
+    ['#705838', '#907850', '#504020'],
   ];
 
-  // Guppy pilot colors (bright fish inside the dome)
   const guppyPalettes = [
     ['#e8734a', '#f4a87a', '#c95530'],
     ['#4a90d9', '#7ab8f5', '#3068a8'],
@@ -26,7 +29,7 @@
     return a + Math.random() * (b - a);
   }
 
-  function createTankSVG(tankColors, guppyColors, facingLeft) {
+  function createTankSVG(tankColors, guppyColors) {
     const [hull, hullLight, hullDark] = tankColors;
     const [fishBody, fishBelly, fishAccent] = guppyColors;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -88,7 +91,7 @@
       this.el.style.width = this.width + 'px';
       this.el.style.height = this.height + 'px';
 
-      this.svg = createTankSVG(this.tankColors, this.guppyColors, this.facingLeft);
+      this.svg = createTankSVG(this.tankColors, this.guppyColors);
       this.el.appendChild(this.svg);
       this.turret = this.svg.querySelector('.turret');
 
@@ -103,13 +106,9 @@
       const groundY = rect.height - 50 - this.height;
       const maxX = rect.width - this.width;
 
-      // Horizontal movement
       this.x += this.speedX * dt * 60;
-
-      // Vertical bobble for rough terrain
       this.y = groundY + Math.sin(time * this.bobbleSpeed + this.bobbleOffset) * 2;
 
-      // Bounce off edges
       if (this.x <= 0) {
         this.x = 0;
         this.speedX = Math.abs(this.speedX);
@@ -119,18 +118,14 @@
       }
 
       this.facingLeft = this.speedX < 0;
-
-      // Aim turret at nearest enemy
       this.aimTurret();
 
-      // Fire projectile
       this.fireTimer -= dt;
       if (this.fireTimer <= 0) {
         this.fireAtNearest();
         this.fireTimer = this.fireCooldown + randomBetween(-0.5, 0.5);
       }
 
-      // Dust particles
       this.dustTimer -= dt;
       if (this.dustTimer <= 0) {
         this.spawnDust();
@@ -182,7 +177,6 @@
       const ty = target.y + 26;
       const angle = Math.atan2(ty - cy, tx - cx);
 
-      // Barrel tip offset
       const bx = cx + Math.cos(angle) * 40;
       const by = cy + Math.sin(angle) * 40;
 
@@ -190,7 +184,6 @@
     }
 
     spawnDust() {
-      const rect = arena.getBoundingClientRect();
       const dust = document.createElement('div');
       dust.className = 'dust';
       const size = randomBetween(4, 10);
@@ -213,7 +206,6 @@
 
     destroy() {
       this.alive = false;
-      // Smoke puff
       for (let i = 0; i < 5; i++) {
         const smoke = document.createElement('div');
         smoke.className = 'destroy-smoke';
@@ -227,7 +219,6 @@
         arena.appendChild(smoke);
         setTimeout(() => smoke.remove(), 1000);
       }
-      // Fade out tank
       this.el.style.transition = 'opacity 0.6s';
       this.el.style.opacity = '0';
       setTimeout(() => {
@@ -264,21 +255,19 @@
       this.x += Math.cos(this.angle) * this.speed * dt;
       this.y += Math.sin(this.angle) * this.speed * dt;
 
-      // Check bounds
       const rect = arena.getBoundingClientRect();
       if (this.x < -10 || this.x > rect.width + 10 || this.y < -10 || this.y > rect.height + 10) {
         this.remove();
         return;
       }
 
-      // Check hit on tanks
       for (const tank of tanks) {
         if (tank === this.owner || !tank.alive) continue;
         const tx = tank.x + tank.width / 2;
         const ty = tank.y + tank.height / 2;
         const dx = this.x - tx;
         const dy = this.y - ty;
-        if (dx * dx + dy * dy < 900) { // ~30px radius
+        if (dx * dx + dy * dy < 900) {
           this.hit(tank);
           return;
         }
@@ -314,9 +303,8 @@
     setTimeout(() => exp.remove(), 400);
   }
 
-  // Animation loop
-  let lastTime = 0;
   function loop(timestamp) {
+    if (!running) return;
     const time = timestamp / 1000;
     const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0.016;
     lastTime = timestamp;
@@ -332,28 +320,39 @@
       }
     }
 
-    requestAnimationFrame(loop);
+    animFrameId = requestAnimationFrame(loop);
   }
-  requestAnimationFrame(loop);
 
-  // Click to deploy
-  arena.addEventListener('click', (e) => {
-    const rect = arena.getBoundingClientRect();
-    const x = e.clientX - rect.left - 50;
-    const groundY = rect.height - 50 - 60;
-    tanks.push(new Tank(Math.max(0, Math.min(x, rect.width - 100)), groundY));
-  });
+  function init() {
+    arena.addEventListener('click', (e) => {
+      const rect = arena.getBoundingClientRect();
+      const x = e.clientX - rect.left - 50;
+      const groundY = rect.height - 50 - 60;
+      tanks.push(new Tank(Math.max(0, Math.min(x, rect.width - 100)), groundY));
+    });
 
-  // Initial tanks
-  function addInitialTanks() {
     const rect = arena.getBoundingClientRect();
     const groundY = rect.height - 50 - 60;
-    const count = 4;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 4; i++) {
       const x = randomBetween(20, rect.width - 120);
       tanks.push(new Tank(x, groundY));
     }
   }
 
-  addInitialTanks();
+  function start() {
+    if (!initialized) {
+      initialized = true;
+      init();
+    }
+    running = true;
+    lastTime = 0;
+    animFrameId = requestAnimationFrame(loop);
+  }
+
+  function stop() {
+    running = false;
+    cancelAnimationFrame(animFrameId);
+  }
+
+  return { start, stop };
 })();

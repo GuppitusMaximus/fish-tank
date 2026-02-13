@@ -1,6 +1,11 @@
-(() => {
+window.FishTankApp = (() => {
   const tank = document.getElementById('tank');
   const fishes = [];
+  let initialized = false;
+  let running = false;
+  let animFrameId = 0;
+  let lastTime = 0;
+  let bubbleInterval = null;
 
   // Color palettes: [body, belly, fin/tail accent]
   const palettes = [
@@ -73,16 +78,13 @@
     update(dt, time) {
       const rect = tank.getBoundingClientRect();
       const maxX = rect.width - this.size;
-      const maxY = rect.height - this.size * 0.55 - 40; // above sandy bottom
+      const maxY = rect.height - this.size * 0.55 - 40;
 
-      // Horizontal movement
       this.x += this.speedX * dt * 60;
 
-      // Vertical wobble
       this.speedY = Math.sin(time * this.wobbleSpeed + this.wobbleOffset) * this.wobbleAmp;
       this.y += this.speedY * dt * 60;
 
-      // Bounce off edges
       if (this.x <= 0) {
         this.x = 0;
         this.speedX = Math.abs(this.speedX);
@@ -91,11 +93,9 @@
         this.speedX = -Math.abs(this.speedX);
       }
 
-      // Clamp vertical
       if (this.y < 10) this.y = 10;
       if (this.y > maxY) this.y = maxY;
 
-      // Face direction of travel
       this.facingLeft = this.speedX < 0;
 
       this.updateDOM();
@@ -107,7 +107,6 @@
     }
   }
 
-  // Bubble system
   function spawnBubble() {
     const rect = tank.getBoundingClientRect();
     const bubble = document.createElement('div');
@@ -126,12 +125,8 @@
     setTimeout(() => bubble.remove(), duration * 1000);
   }
 
-  // Spawn bubbles periodically
-  setInterval(spawnBubble, 800);
-
-  // Animation loop
-  let lastTime = 0;
   function loop(timestamp) {
+    if (!running) return;
     const time = timestamp / 1000;
     const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0.016;
     lastTime = timestamp;
@@ -140,28 +135,44 @@
       fish.update(dt, time);
     }
 
-    requestAnimationFrame(loop);
+    animFrameId = requestAnimationFrame(loop);
   }
-  requestAnimationFrame(loop);
 
-  // Add fish on click
-  tank.addEventListener('click', (e) => {
-    const rect = tank.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    fishes.push(new Fish(x, y));
-  });
+  function init() {
+    tank.addEventListener('click', (e) => {
+      const rect = tank.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      fishes.push(new Fish(x, y));
+    });
 
-  // Initial fish
-  function addInitialFish() {
     const rect = tank.getBoundingClientRect();
-    const count = 6;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 6; i++) {
       const x = randomBetween(40, rect.width - 80);
       const y = randomBetween(30, rect.height - 100);
       fishes.push(new Fish(x, y));
     }
   }
 
-  addInitialFish();
+  function start() {
+    if (!initialized) {
+      initialized = true;
+      init();
+    }
+    running = true;
+    lastTime = 0;
+    animFrameId = requestAnimationFrame(loop);
+    bubbleInterval = setInterval(spawnBubble, 800);
+  }
+
+  function stop() {
+    running = false;
+    cancelAnimationFrame(animFrameId);
+    if (bubbleInterval) {
+      clearInterval(bubbleInterval);
+      bubbleInterval = null;
+    }
+  }
+
+  return { start, stop };
 })();
