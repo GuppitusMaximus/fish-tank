@@ -1,0 +1,211 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    background: #0a0e06;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #b8c8a0;
+    overflow: hidden;
+}
+
+header {
+    padding: 1rem;
+    text-align: center;
+    width: 100%;
+}
+
+h1 {
+    font-size: 1.4rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+nav {
+    margin-top: 0.3rem;
+}
+
+nav a {
+    color: #b8c8a0;
+    text-decoration: none;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.35;
+    transition: opacity 0.3s;
+}
+
+nav a:hover {
+    opacity: 0.7;
+}
+
+/* Arena */
+#arena {
+    position: relative;
+    width: 94vw;
+    max-width: 1200px;
+    height: calc(100vh - 6rem);
+    background: linear-gradient(180deg, #111a0a 0%, #1a2610 40%, #1e2e14 100%);
+    border: 1px solid rgba(100, 140, 80, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: crosshair;
+}
+
+/* Muddy ground */
+.muddy-ground {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: linear-gradient(180deg, #2e1f0a 0%, #3a2810 40%, #4a3418 100%);
+    border-radius: 0 0 11px 11px;
+}
+
+/* Terrain mounds */
+.mound {
+    position: absolute;
+    bottom: 40px;
+    border-radius: 50% 50% 0 0;
+    background: linear-gradient(180deg, #2a1e0c 0%, #3a2810 100%);
+}
+
+.mound-1 {
+    left: 8%;
+    width: 120px;
+    height: 28px;
+}
+
+.mound-2 {
+    right: 15%;
+    width: 160px;
+    height: 22px;
+}
+
+.mound-3 {
+    left: 48%;
+    width: 90px;
+    height: 18px;
+}
+
+/* Tank */
+.tank {
+    position: absolute;
+    pointer-events: none;
+}
+
+.tank svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Projectile */
+.projectile {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #ffe060, #ff8800);
+    box-shadow: 0 0 6px 2px rgba(255, 160, 0, 0.5);
+    pointer-events: none;
+}
+
+/* Explosion */
+.explosion {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle, rgba(255, 200, 50, 0.9), rgba(255, 100, 20, 0.6), transparent 70%);
+    animation: explode 0.4s ease-out forwards;
+}
+
+@keyframes explode {
+    0% {
+        transform: translate(-50%, -50%) scale(0.2);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+}
+
+/* Destroyed tank smoke */
+.destroy-smoke {
+    position: absolute;
+    pointer-events: none;
+    animation: smoke-up 1s ease-out forwards;
+}
+
+@keyframes smoke-up {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translate(-50%, -80px) scale(2);
+        opacity: 0;
+    }
+}
+
+/* Dust particles */
+.dust {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(160, 130, 80, 0.5), rgba(120, 100, 60, 0.15));
+    pointer-events: none;
+    animation: dust-rise linear forwards;
+}
+
+@keyframes dust-rise {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(-30px) scale(1.3);
+        opacity: 0;
+    }
+}
+
+/* Hint */
+.hint {
+    padding: 0.6rem;
+    font-size: 0.75rem;
+    opacity: 0.35;
+    letter-spacing: 0.08em;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    h1 {
+        font-size: 1rem;
+    }
+
+    #arena {
+        width: 98vw;
+        height: calc(100vh - 5rem);
+        border-radius: 8px;
+    }
+
+    .muddy-ground {
+        height: 35px;
+        border-radius: 0 0 7px 7px;
+    }
+
+    .mound-1 { width: 80px; height: 20px; }
+    .mound-2 { width: 110px; height: 16px; }
+    .mound-3 { width: 60px; height: 14px; }
+}
