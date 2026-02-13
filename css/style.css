@@ -1,0 +1,234 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    background: #060e1a;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #c0d8f0;
+    overflow: hidden;
+}
+
+header {
+    padding: 1rem;
+    text-align: center;
+    width: 100%;
+}
+
+h1 {
+    font-size: 1.4rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+/* Tank */
+#tank {
+    position: relative;
+    width: 94vw;
+    max-width: 1200px;
+    height: calc(100vh - 6rem);
+    background: linear-gradient(180deg, #0b1a30 0%, #0d2240 40%, #0f2a50 100%);
+    border: 1px solid rgba(100, 160, 220, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: crosshair;
+}
+
+/* Sandy bottom */
+.sandy-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(180deg, #2a1f0e 0%, #3d2e16 40%, #4a3820 100%);
+    border-radius: 0 0 11px 11px;
+}
+
+/* Seaweed plants */
+.plant {
+    position: absolute;
+    bottom: 30px;
+    width: 8px;
+    border-radius: 4px;
+    animation: sway 3s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+
+.plant::before,
+.plant::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    border-radius: 4px;
+    background: inherit;
+}
+
+.plant-1 {
+    left: 12%;
+    height: 80px;
+    background: #1a5c3a;
+}
+
+.plant-1::before {
+    height: 55px;
+    bottom: 10px;
+    left: 8px;
+    transform: rotate(12deg);
+}
+
+.plant-1::after {
+    height: 40px;
+    bottom: 5px;
+    left: -8px;
+    transform: rotate(-8deg);
+}
+
+.plant-2 {
+    right: 18%;
+    height: 100px;
+    background: #16704a;
+    animation-delay: -1s;
+}
+
+.plant-2::before {
+    height: 70px;
+    bottom: 15px;
+    left: 9px;
+    transform: rotate(10deg);
+}
+
+.plant-2::after {
+    height: 50px;
+    bottom: 8px;
+    left: -9px;
+    transform: rotate(-14deg);
+}
+
+.plant-3 {
+    left: 55%;
+    height: 65px;
+    background: #1a5c3a;
+    animation-delay: -2s;
+}
+
+.plant-3::before {
+    height: 45px;
+    bottom: 8px;
+    left: 7px;
+    transform: rotate(15deg);
+}
+
+.plant-3::after {
+    height: 35px;
+    bottom: 4px;
+    left: -7px;
+    transform: rotate(-10deg);
+}
+
+@keyframes sway {
+    0%, 100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+}
+
+/* Fish */
+.fish {
+    position: absolute;
+    pointer-events: none;
+    transition: none;
+}
+
+.fish-body {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.fish svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.fish .fin {
+    animation: fin-wave 0.6s ease-in-out infinite alternate;
+    transform-origin: 70% 50%;
+}
+
+@keyframes fin-wave {
+    0% { transform: rotate(-8deg) scaleY(0.9); }
+    100% { transform: rotate(8deg) scaleY(1.1); }
+}
+
+.fish .tail {
+    animation: tail-wave 0.4s ease-in-out infinite alternate;
+    transform-origin: 100% 50%;
+}
+
+@keyframes tail-wave {
+    0% { transform: rotate(-12deg); }
+    100% { transform: rotate(12deg); }
+}
+
+/* Bubbles */
+.bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(180, 220, 255, 0.4), rgba(100, 160, 220, 0.1));
+    border: 1px solid rgba(150, 200, 240, 0.2);
+    pointer-events: none;
+    animation: rise linear forwards;
+}
+
+@keyframes rise {
+    0% {
+        transform: translateX(0) scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: translateX(15px) scale(1.05);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateX(-10px) scale(1.1);
+        opacity: 0;
+    }
+}
+
+/* Hint */
+.hint {
+    padding: 0.6rem;
+    font-size: 0.75rem;
+    opacity: 0.35;
+    letter-spacing: 0.08em;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    h1 {
+        font-size: 1rem;
+    }
+
+    #tank {
+        width: 98vw;
+        height: calc(100vh - 5rem);
+        border-radius: 8px;
+    }
+
+    .sandy-bottom {
+        height: 30px;
+        border-radius: 0 0 7px 7px;
+    }
+
+    .plant-1 { height: 60px; }
+    .plant-2 { height: 75px; }
+    .plant-3 { height: 50px; }
+}
