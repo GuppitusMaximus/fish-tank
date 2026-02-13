@@ -10,12 +10,15 @@
     <header>
         <h1 id="page-title">The Fish Tank</h1>
         <nav>
-            <a data-view="fishtank" class="active">Fish Tank</a>
+            <a data-view="home" class="active">Home</a>
+            <a data-view="fishtank">Fish Tank</a>
             <a data-view="battle">Tank Battle</a>
             <a data-view="fighter">Fighter Fish</a>
         </nav>
     </header>
-    <div id="tank" class="active">
+    <main id="home" class="active">
+    </main>
+    <div id="tank">
         <div class="sandy-bottom"></div>
         <div class="plant plant-1"></div>
         <div class="plant plant-2"></div>
@@ -32,13 +35,20 @@
         <div class="cloud cloud-2"></div>
         <div class="cloud cloud-3"></div>
     </div>
-    <p class="hint" id="hint">Click to add a fish</p>
+    <p class="hint" id="hint"></p>
     <script src="js/tank.js"></script>
     <script src="js/battle.js"></script>
     <script src="js/fighter.js"></script>
     <script>
     (() => {
         const views = {
+            home: {
+                el: document.getElementById('home'),
+                app: null,
+                title: 'The Fish Tank',
+                hint: '',
+                theme: 'theme-ocean'
+            },
             fishtank: {
                 el: document.getElementById('tank'),
                 app: window.FishTankApp,
@@ -72,7 +82,7 @@
 
             if (current) {
                 views[current].el.classList.remove('active');
-                views[current].app.stop();
+                if (views[current].app) views[current].app.stop();
             }
 
             const view = views[name];
@@ -81,20 +91,25 @@
             h1.textContent = view.title;
             document.title = view.title;
             hint.textContent = view.hint;
-            view.app.start();
+            if (view.app) view.app.start();
 
-            navLinks.forEach(a => a.classList.toggle('active', a.dataset.view === name));
+            navLinks.forEach(a => {
+                const isActive = a.dataset.view === name;
+                a.classList.toggle('active', isActive);
+                a.style.display = isActive ? 'none' : '';
+            });
             current = name;
         }
 
-        navLinks.forEach(a => {
-            a.addEventListener('click', (e) => {
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('[data-view]');
+            if (link) {
                 e.preventDefault();
-                switchView(a.dataset.view);
-            });
+                switchView(link.dataset.view);
+            }
         });
 
-        switchView('fishtank');
+        switchView('home');
     })();
     </script>
 </body>
