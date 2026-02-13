@@ -12,6 +12,7 @@
         <nav>
             <a data-view="fishtank" class="active">Fish Tank</a>
             <a data-view="battle">Tank Battle</a>
+            <a data-view="fighter">Fighter Fish</a>
         </nav>
     </header>
     <div id="tank" class="active">
@@ -26,9 +27,15 @@
         <div class="mound mound-2"></div>
         <div class="mound mound-3"></div>
     </div>
+    <div id="sky">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2"></div>
+        <div class="cloud cloud-3"></div>
+    </div>
     <p class="hint" id="hint">Click to add a fish</p>
     <script src="js/tank.js"></script>
     <script src="js/battle.js"></script>
+    <script src="js/fighter.js"></script>
     <script>
     (() => {
         const views = {
@@ -45,6 +52,13 @@
                 title: 'The Tank Battle',
                 hint: 'Click to deploy a tank',
                 theme: 'theme-battle'
+            },
+            fighter: {
+                el: document.getElementById('sky'),
+                app: window.FighterApp,
+                title: 'Fighter Fish',
+                hint: 'Click to scramble a fighter',
+                theme: 'theme-sky'
             }
         };
 
