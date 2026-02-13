@@ -24,6 +24,11 @@ body.theme-battle {
     color: #b8c8a0;
 }
 
+body.theme-sky {
+    background: #0a1628;
+    color: #a0c8e8;
+}
+
 header {
     padding: 1rem;
     text-align: center;
@@ -63,7 +68,7 @@ nav a.active {
 }
 
 /* ========== Views ========== */
-#tank, #arena {
+#tank, #arena, #sky {
     display: none;
     position: relative;
     width: 94vw;
@@ -74,7 +79,7 @@ nav a.active {
     cursor: crosshair;
 }
 
-#tank.active, #arena.active {
+#tank.active, #arena.active, #sky.active {
     display: block;
 }
 
@@ -354,6 +359,76 @@ nav a.active {
     }
 }
 
+/* ========== Fighter Sky ========== */
+#sky {
+    background: linear-gradient(180deg, #1a3a5c 0%, #2a5a8a 40%, #3a70a0 100%);
+    border: 1px solid rgba(120, 180, 240, 0.15);
+}
+
+.cloud {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+    pointer-events: none;
+}
+
+.cloud-1 { top: 12%; left: 10%; width: 180px; height: 60px; border-radius: 60px; }
+.cloud-2 { top: 35%; right: 12%; width: 220px; height: 50px; border-radius: 50px; }
+.cloud-3 { top: 65%; left: 40%; width: 150px; height: 45px; border-radius: 45px; }
+
+/* Fighter planes */
+.plane {
+    position: absolute;
+    pointer-events: none;
+}
+
+.plane svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.plane .propeller {
+    animation: spin 0.1s linear infinite;
+    transform-origin: 100px 25px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Missile */
+.missile {
+    position: absolute;
+    width: 10px;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #ff8800, #ffe060);
+    box-shadow: 0 0 8px 2px rgba(255, 160, 0, 0.6);
+    pointer-events: none;
+}
+
+/* Contrail */
+.contrail {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.4), rgba(200, 220, 240, 0.1));
+    pointer-events: none;
+    animation: contrail-fade linear forwards;
+}
+
+@keyframes contrail-fade {
+    0% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
 /* ========== Hint ========== */
 .hint {
     padding: 0.6rem;
@@ -368,7 +443,7 @@ nav a.active {
         font-size: 1rem;
     }
 
-    #tank, #arena {
+    #tank, #arena, #sky {
         width: 98vw;
         height: calc(100vh - 5rem);
         border-radius: 8px;
