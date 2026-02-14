@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Predict next-hour temperatures using the trained model.
 
-Loads the most recent 3 readings from data/weather.db, builds a feature
-vector, and prints predicted indoor and outdoor temperatures.
+Loads the most recent 24 readings from data/weather.db, builds a feature
+vector using all available Netatmo sensor data, and prints predicted indoor
+and outdoor temperatures.
 
 Usage:
     python predict.py
@@ -25,13 +26,18 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor.joblib")
 
-LOOKBACK = 3
+LOOKBACK = 24
 
 TREND_MAP = {"down": -1, "stable": 0, "up": 1}
 
 FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
-    "humidity_outdoor", "noise", "pressure", "temp_trend", "pressure_trend",
+    "humidity_outdoor", "noise", "pressure", "pressure_absolute",
+    "temp_indoor_min", "temp_indoor_max", "temp_outdoor_min", "temp_outdoor_max",
+    "hours_since_min_temp_indoor", "hours_since_max_temp_indoor",
+    "hours_since_min_temp_outdoor", "hours_since_max_temp_outdoor",
+    "temp_trend", "pressure_trend", "temp_outdoor_trend",
+    "wifi_status", "battery_percent", "rf_status",
 ]
 
 
@@ -59,8 +65,22 @@ def predict(output_path=None, predictions_dir=None):
     df = df.iloc[::-1].reset_index(drop=True)
 
     # Encode trends
-    for col in ("temp_trend", "pressure_trend"):
+    for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
         df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
+
+    # Engineer relative timestamp features
+    for prefix, src_col in [
+        ("hours_since_min_temp_indoor", "date_min_temp_indoor"),
+        ("hours_since_max_temp_indoor", "date_max_temp_indoor"),
+        ("hours_since_min_temp_outdoor", "date_min_temp_outdoor"),
+        ("hours_since_max_temp_outdoor", "date_max_temp_outdoor"),
+    ]:
+        df[prefix] = (df["timestamp"] - df[src_col].fillna(df["timestamp"])) / 3600.0
+
+    # Fill missing device health values
+    df["wifi_status"] = df["wifi_status"].fillna(0)
+    df["battery_percent"] = df["battery_percent"].fillna(100)
+    df["rf_status"] = df["rf_status"].fillna(0)
 
     # Build feature vector
     feature_vector = df[FEATURE_COLS].values.flatten().reshape(1, -1)
