@@ -32,6 +32,13 @@ jobs:
       - name: Rebuild dataset
         run: python BackEnds/the-snake-tank/build_dataset.py
 
+      - name: Validate previous prediction
+        run: |
+          python BackEnds/the-snake-tank/validate_prediction.py \
+            --prediction FrontEnds/the-fish-tank/data/prediction.json \
+            --history FrontEnds/the-fish-tank/data/prediction-history.json \
+            || true
+
       - name: Run temperature prediction
         run: python BackEnds/the-snake-tank/predict.py --output FrontEnds/the-fish-tank/data/prediction.json || true
 
@@ -39,7 +46,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add BackEnds/the-snake-tank/data/ FrontEnds/the-fish-tank/data/prediction.json
+          git add BackEnds/the-snake-tank/data/ FrontEnds/the-fish-tank/data/prediction.json FrontEnds/the-fish-tank/data/prediction-history.json
           git diff --cached --quiet && echo "No new data to commit" && exit 0
           git commit -m "Add weather data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push
