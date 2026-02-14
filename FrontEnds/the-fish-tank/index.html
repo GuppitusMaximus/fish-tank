@@ -11,14 +11,22 @@
     <header>
         <h1 id="page-title">The Fish Tank</h1>
         <nav>
-            <a data-view="home" class="active">Home</a>
-            <a data-view="fishtank">Fish Tank</a>
-            <a data-view="battle">Tank Battle</a>
-            <a data-view="fighter">Fighter Fish</a>
+            <a data-view="home">Home</a>
+            <div class="nav-dropdown">
+                <a class="nav-dropdown-toggle">Fish Games</a>
+                <div class="nav-dropdown-menu">
+                    <a data-view="fishtank">Fish Tank</a>
+                    <a data-view="battle">Tank Battle</a>
+                    <a data-view="fighter">Fighter Fish</a>
+                </div>
+            </div>
+            <a data-view="weather">Potter Weather Predictions</a>
         </nav>
     </header>
     <main id="home" class="active">
     </main>
+    <div id="weather">
+    </div>
     <div id="tank">
         <div class="sandy-bottom"></div>
         <div class="plant plant-1"></div>
@@ -46,8 +54,15 @@
         const views = {
             home: {
                 el: document.getElementById('home'),
-                app: window.WeatherApp,
+                app: null,
                 title: 'The Fish Tank',
+                hint: '',
+                theme: 'theme-ocean'
+            },
+            weather: {
+                el: document.getElementById('weather'),
+                app: window.WeatherApp,
+                title: 'Potter Weather Predictions',
                 hint: '',
                 theme: 'theme-ocean'
             },
@@ -95,19 +110,38 @@
             hint.textContent = view.hint;
             if (view.app) view.app.start();
 
+            const gameViews = ['fishtank', 'battle', 'fighter'];
             navLinks.forEach(a => {
-                const isActive = a.dataset.view === name;
-                a.classList.toggle('active', isActive);
-                a.style.display = isActive ? 'none' : '';
+                a.classList.toggle('active', a.dataset.view === name);
             });
+            const dropdownToggle = document.querySelector('.nav-dropdown-toggle');
+            if (dropdownToggle) {
+                dropdownToggle.classList.toggle('active', gameViews.includes(name));
+            }
+
+            var menu = document.querySelector('.nav-dropdown-menu');
+            if (menu) menu.classList.remove('open');
+
             current = name;
         }
 
         document.addEventListener('click', (e) => {
+            const toggle = e.target.closest('.nav-dropdown-toggle');
+            const menu = document.querySelector('.nav-dropdown-menu');
+            if (toggle) {
+                e.preventDefault();
+                menu.classList.toggle('open');
+                return;
+            }
             const link = e.target.closest('[data-view]');
             if (link) {
                 e.preventDefault();
+                if (menu) menu.classList.remove('open');
                 switchView(link.dataset.view);
+                return;
+            }
+            if (menu && !e.target.closest('.nav-dropdown')) {
+                menu.classList.remove('open');
             }
         });
 

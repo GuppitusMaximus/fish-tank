@@ -1,5 +1,5 @@
 window.WeatherApp = (() => {
-  const container = document.getElementById('home');
+  const container = document.getElementById('weather');
 
   function deltaClass(delta) {
     const abs = Math.abs(delta);
