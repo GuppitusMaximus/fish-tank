@@ -35,6 +35,9 @@ jobs:
       - name: Train prediction model
         run: python BackEnds/the-snake-tank/train_model.py
 
+      - name: Run prediction
+        run: python BackEnds/the-snake-tank/predict.py --predictions-dir BackEnds/the-snake-tank/data/predictions || true
+
       - name: Commit and push data
         run: |
           git config user.name "github-actions[bot]"
