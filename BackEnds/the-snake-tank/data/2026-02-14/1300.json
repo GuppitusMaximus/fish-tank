@@ -6,9 +6,9 @@
         "date_setup": 1770498755,
         "last_setup": 1770498755,
         "type": "NAMain",
-        "last_status_store": 1771073431,
+        "last_status_store": 1771074642,
         "firmware": 300,
-        "wifi_status": 21,
+        "wifi_status": 22,
         "reachable": true,
         "co2_calibrating": false,
         "data_type": [
@@ -32,18 +32,18 @@
         "home_id": "redacted",
         "home_name": "My Home",
         "dashboard_data": {
-          "time_utc": 1771073429,
-          "Temperature": 21.7,
-          "CO2": 460,
+          "time_utc": 1771074640,
+          "Temperature": 21.2,
+          "CO2": 466,
           "Humidity": 28,
-          "Noise": 61,
+          "Noise": 60,
           "Pressure": 1013.4,
           "AbsolutePressure": 987.2,
-          "min_temp": 21.3,
+          "min_temp": 21.2,
           "max_temp": 22.2,
           "date_max_temp": 1771050410,
-          "date_min_temp": 1771065856,
-          "temp_trend": "stable",
+          "date_min_temp": 1771074640,
+          "temp_trend": "down",
           "pressure_trend": "down"
         },
         "modules": [
@@ -58,17 +58,17 @@
             "battery_percent": 100,
             "reachable": true,
             "firmware": 53,
-            "last_message": 1771073431,
-            "last_seen": 1771073431,
-            "rf_status": 58,
+            "last_message": 1771074636,
+            "last_seen": 1771074610,
+            "rf_status": 59,
             "battery_vp": 6104,
             "dashboard_data": {
-              "time_utc": 1771073380,
-              "Temperature": -6.8,
-              "Humidity": 71,
+              "time_utc": 1771074610,
+              "Temperature": -6.6,
+              "Humidity": 72,
               "min_temp": -9.7,
-              "max_temp": -6.8,
-              "date_max_temp": 1771073124,
+              "max_temp": -6.6,
+              "date_max_temp": 1771074610,
               "date_min_temp": 1771053127,
               "temp_trend": "stable"
             }
@@ -90,6 +90,6 @@
     }
   },
   "status": "ok",
-  "time_exec": 0.04268693923950195,
-  "time_server": 1771074019
+  "time_exec": 0.029567956924438477,
+  "time_server": 1771074993
 }
