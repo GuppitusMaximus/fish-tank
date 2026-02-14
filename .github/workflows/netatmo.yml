@@ -26,11 +26,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: gh secret set NETATMO_REFRESH_TOKEN --body "$(cat new_refresh_token.txt)"
 
+      - name: Install ML dependencies
+        run: pip install pandas scikit-learn joblib
+
+      - name: Rebuild dataset
+        run: python BackEnds/the-snake-tank/build_dataset.py
+
+      - name: Run temperature prediction
+        run: python BackEnds/the-snake-tank/predict.py --output FrontEnds/the-fish-tank/data/prediction.json || true
+
       - name: Commit and push data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add BackEnds/the-snake-tank/data/
+          git add BackEnds/the-snake-tank/data/ FrontEnds/the-fish-tank/data/prediction.json
           git diff --cached --quiet && echo "No new data to commit" && exit 0
           git commit -m "Add weather data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push

@@ -6,8 +6,11 @@ vector, and prints predicted indoor and outdoor temperatures.
 
 Usage:
     python predict.py
+    python predict.py --output prediction.json
 """
 
+import argparse
+import json
 import os
 import sqlite3
 import sys
@@ -31,7 +34,7 @@ FEATURE_COLS = [
 ]
 
 
-def predict():
+def predict(output_path=None):
     if not os.path.exists(MODEL_PATH):
         print(f"Error: model not found at {MODEL_PATH}")
         print("Run train_model.py first.")
@@ -64,7 +67,8 @@ def predict():
     model = joblib.load(MODEL_PATH)
     prediction = model.predict(feature_vector)[0]
 
-    last_ts = df["timestamp"].iloc[-1]
+    last_row = df.iloc[-1]
+    last_ts = int(last_row["timestamp"])
     last_dt = datetime.fromtimestamp(last_ts, tz=timezone.utc)
     last_str = last_dt.strftime("%Y-%m-%d %H:%M UTC")
 
@@ -73,6 +77,31 @@ def predict():
     print(f"  Indoor:  {prediction[0]:.1f}\u00b0C")
     print(f"  Outdoor: {prediction[1]:.1f}\u00b0C")
 
+    if output_path:
+        result = {
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "last_reading": {
+                "timestamp": last_ts,
+                "date": last_dt.strftime("%Y-%m-%d"),
+                "hour": last_dt.hour,
+                "temp_indoor": round(float(last_row["temp_indoor"]), 1),
+                "temp_outdoor": round(float(last_row["temp_outdoor"]), 1),
+            },
+            "prediction": {
+                "temp_indoor": round(float(prediction[0]), 1),
+                "temp_outdoor": round(float(prediction[1]), 1),
+            },
+        }
+
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(result, f, indent=2)
+            f.write("\n")
+        print(f"Prediction written to {output_path}")
+
 
 if __name__ == "__main__":
-    predict()
+    parser = argparse.ArgumentParser(description="Predict next-hour temperatures")
+    parser.add_argument("--output", help="Path to write prediction JSON file")
+    args = parser.parse_args()
+    predict(output_path=args.output)
