@@ -15,6 +15,32 @@ window.WeatherApp = (() => {
 
   var use24h = localStorage.getItem('timeFormat') === '24h';
 
+  var units = ['C', 'F', 'K'];
+  var currentUnit = localStorage.getItem('tempUnit') || 'C';
+
+  function convertTemp(celsius) {
+    if (currentUnit === 'F') return (celsius * 9 / 5) + 32;
+    if (currentUnit === 'K') return celsius + 273.15;
+    return celsius;
+  }
+
+  function formatTemp(celsius) {
+    var val = convertTemp(celsius);
+    var suffix = currentUnit === 'K' ? ' K' : '\u00b0' + currentUnit;
+    return val.toFixed(1) + suffix;
+  }
+
+  function convertDelta(delta) {
+    if (currentUnit === 'F') return delta * 9 / 5;
+    return delta;
+  }
+
+  function formatDeltaTemp(delta) {
+    var val = convertDelta(delta);
+    var sign = val > 0 ? '+' : '';
+    return sign + val.toFixed(1) + '\u00b0';
+  }
+
   function formatTime(date) {
     var hours = date.getHours();
     var minutes = date.getMinutes();
@@ -45,8 +71,8 @@ window.WeatherApp = (() => {
       '<h2>Current Reading</h2>' +
       '<div class="card-time">' + formatDateTime(time) + '</div>' +
       '<div class="temp-row">' +
-        '<div class="temp-block"><span class="temp-label">Indoor</span><span class="temp-value">' + current.temp_indoor.toFixed(1) + '\u00b0C</span></div>' +
-        '<div class="temp-block"><span class="temp-label">Outdoor</span><span class="temp-value">' + current.temp_outdoor.toFixed(1) + '\u00b0C</span></div>' +
+        '<div class="temp-block"><span class="temp-label">Indoor</span><span class="temp-value">' + formatTemp(current.temp_indoor) + '</span></div>' +
+        '<div class="temp-block"><span class="temp-label">Outdoor</span><span class="temp-value">' + formatTemp(current.temp_outdoor) + '</span></div>' +
       '</div>' +
     '</div>';
   }
@@ -59,8 +85,8 @@ window.WeatherApp = (() => {
       '<h2>Next Hour Forecast</h2>' +
       '<div class="card-time">' + timeStr + '</div>' +
       '<div class="temp-row">' +
-        '<div class="temp-block"><span class="temp-label">Indoor</span><span class="temp-value">' + pred.temp_indoor.toFixed(1) + '\u00b0C</span></div>' +
-        '<div class="temp-block"><span class="temp-label">Outdoor</span><span class="temp-value">' + pred.temp_outdoor.toFixed(1) + '\u00b0C</span></div>' +
+        '<div class="temp-block"><span class="temp-label">Indoor</span><span class="temp-value">' + formatTemp(pred.temp_indoor) + '</span></div>' +
+        '<div class="temp-block"><span class="temp-label">Outdoor</span><span class="temp-value">' + formatTemp(pred.temp_outdoor) + '</span></div>' +
       '</div>' +
     '</div>';
   }
@@ -75,12 +101,12 @@ window.WeatherApp = (() => {
         : new Date(h.date + 'T' + (h.hour < 10 ? '0' : '') + h.hour + ':00:00Z');
       return '<tr>' +
         '<td>' + formatDateTime(time) + '</td>' +
-        '<td>' + h.actual_indoor.toFixed(1) + '\u00b0</td>' +
-        '<td>' + h.predicted_indoor.toFixed(1) + '\u00b0</td>' +
-        '<td class="' + deltaClass(h.delta_indoor) + '">' + formatDelta(h.delta_indoor) + '</td>' +
-        '<td>' + h.actual_outdoor.toFixed(1) + '\u00b0</td>' +
-        '<td>' + h.predicted_outdoor.toFixed(1) + '\u00b0</td>' +
-        '<td class="' + deltaClass(h.delta_outdoor) + '">' + formatDelta(h.delta_outdoor) + '</td>' +
+        '<td>' + formatTemp(h.actual_indoor) + '</td>' +
+        '<td>' + formatTemp(h.predicted_indoor) + '</td>' +
+        '<td class="' + deltaClass(h.delta_indoor) + '">' + formatDeltaTemp(h.delta_indoor) + '</td>' +
+        '<td>' + formatTemp(h.actual_outdoor) + '</td>' +
+        '<td>' + formatTemp(h.predicted_outdoor) + '</td>' +
+        '<td class="' + deltaClass(h.delta_outdoor) + '">' + formatDeltaTemp(h.delta_outdoor) + '</td>' +
       '</tr>';
     }).join('');
 
@@ -101,10 +127,12 @@ window.WeatherApp = (() => {
 
   function render(data) {
     var btnLabel = use24h ? '24h' : '12h';
+    var unitLabel = currentUnit === 'K' ? 'K' : '\u00b0' + currentUnit;
     container.innerHTML =
       '<div class="dashboard">' +
         '<div class="dash-controls">' +
           '<button id="time-format-toggle" class="format-toggle" title="Switch time format">' + btnLabel + '</button>' +
+          '<button id="unit-toggle" class="format-toggle" title="Switch temperature unit">' + unitLabel + '</button>' +
         '</div>' +
         '<div class="dash-cards">' +
           renderCurrent(data.current) +
@@ -117,6 +145,13 @@ window.WeatherApp = (() => {
     document.getElementById('time-format-toggle').addEventListener('click', function() {
       use24h = !use24h;
       localStorage.setItem('timeFormat', use24h ? '24h' : '12h');
+      render(data);
+    });
+
+    document.getElementById('unit-toggle').addEventListener('click', function() {
+      var idx = units.indexOf(currentUnit);
+      currentUnit = units[(idx + 1) % units.length];
+      localStorage.setItem('tempUnit', currentUnit);
       render(data);
     });
   }
