@@ -1,0 +1,95 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1771064948,
+        "firmware": 300,
+        "wifi_status": 22,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "altitude": 221,
+          "city": "redacted",
+          "country": "US",
+          "timezone": "America/New_York",
+          "location": [
+            0.0,
+            0.0
+          ]
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "My Home",
+        "dashboard_data": {
+          "time_utc": 1771064946,
+          "Temperature": 21.7,
+          "CO2": 380,
+          "Humidity": 28,
+          "Noise": 67,
+          "Pressure": 1013.2,
+          "AbsolutePressure": 987,
+          "min_temp": 21.4,
+          "max_temp": 22.2,
+          "date_max_temp": 1771050410,
+          "date_min_temp": 1771058285,
+          "temp_trend": "stable",
+          "pressure_trend": "down"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1771064945,
+            "last_seen": 1771064919,
+            "rf_status": 58,
+            "battery_vp": 6108,
+            "dashboard_data": {
+              "time_utc": 1771064919,
+              "Temperature": -7.6,
+              "Humidity": 70,
+              "min_temp": -9.7,
+              "max_temp": -7.6,
+              "date_max_temp": 1771063689,
+              "date_min_temp": 1771053127,
+              "temp_trend": "up"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.048388004302978516,
+  "time_server": 1771065172
+}
