@@ -19,6 +19,7 @@
     <main id="home" class="active">
         <div id="weather-widget">
             <h2>Temperature Forecast</h2>
+            <button id="unit-toggle" title="Switch temperature unit">°C</button>
             <div class="weather-predictions">
                 <div class="prediction-card">
                     <span class="prediction-label">Indoor</span>
@@ -147,6 +148,7 @@
             }
         });
 
+        window.WeatherWidget.init();
         switchView('home');
     })();
     </script>
