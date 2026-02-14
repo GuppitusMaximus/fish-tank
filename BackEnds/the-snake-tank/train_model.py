@@ -117,13 +117,13 @@ def train():
     print(f"Built {len(X)} sliding windows (lookback={LOOKBACK}h)")
 
     if len(X) == 0:
-        print("Error: No valid training windows. Need at least 25 consecutive hourly readings.")
-        print(f"Database has {len(df)} readings. Collect more data first.")
-        sys.exit(1)
+        print("Not enough data: No valid training windows. Need at least 25 consecutive hourly readings.")
+        print(f"Database has {len(df)} readings. Collect more data and retrain later.")
+        sys.exit(0)
 
     if len(X) < 2:
-        print("Error: Need at least 2 training windows. Collect more data first.")
-        sys.exit(1)
+        print("Not enough data: Need at least 2 training windows. Collect more data and retrain later.")
+        sys.exit(0)
 
     if len(X) < 10:
         print(f"WARNING: Only {len(X)} samples available. Model quality will be poor.")
