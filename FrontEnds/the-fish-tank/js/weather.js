@@ -81,6 +81,7 @@ window.WeatherApp = (() => {
     if (!pred) return '<div class="dash-card"><p>No prediction available yet</p></div>';
     var forTime = pred.prediction_for ? new Date(pred.prediction_for) : null;
     var timeStr = forTime ? formatTime(forTime) : 'Next hour';
+    var modelStr = pred.model_version ? '<div class="card-meta">Model v' + pred.model_version + '</div>' : '';
     return '<div class="dash-card">' +
       '<h2>Next Hour Forecast</h2>' +
       '<div class="card-time">' + timeStr + '</div>' +
@@ -88,6 +89,7 @@ window.WeatherApp = (() => {
         '<div class="temp-block"><span class="temp-label">Indoor</span><span class="temp-value">' + formatTemp(pred.temp_indoor) + '</span></div>' +
         '<div class="temp-block"><span class="temp-label">Outdoor</span><span class="temp-value">' + formatTemp(pred.temp_outdoor) + '</span></div>' +
       '</div>' +
+      modelStr +
     '</div>';
   }
 
@@ -101,6 +103,7 @@ window.WeatherApp = (() => {
         : new Date(h.date + 'T' + (h.hour < 10 ? '0' : '') + h.hour + ':00:00Z');
       return '<tr>' +
         '<td>' + formatDateTime(time) + '</td>' +
+        '<td>' + (h.model_version ? 'v' + h.model_version : '\u2014') + '</td>' +
         '<td>' + formatTemp(h.actual_indoor) + '</td>' +
         '<td>' + formatTemp(h.predicted_indoor) + '</td>' +
         '<td class="' + deltaClass(h.delta_indoor) + '">' + formatDeltaTemp(h.delta_indoor) + '</td>' +
@@ -115,7 +118,7 @@ window.WeatherApp = (() => {
       '<div class="table-scroll">' +
       '<table id="history-table">' +
         '<thead><tr>' +
-          '<th>Time</th>' +
+          '<th>Time</th><th>Model</th>' +
           '<th>Indoor</th><th>Predicted</th><th>\u0394</th>' +
           '<th>Outdoor</th><th>Predicted</th><th>\u0394</th>' +
         '</tr></thead>' +
