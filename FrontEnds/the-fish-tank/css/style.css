@@ -439,10 +439,13 @@ nav a.active {
 
 /* ========== Weather Widget ========== */
 #home {
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     flex-direction: column;
     min-height: calc(100vh - 6rem);
+    padding-top: 4rem;
+    overflow-y: auto;
+    max-height: calc(100vh - 4rem);
 }
 
 #weather-widget {
@@ -493,6 +496,67 @@ nav a.active {
     opacity: 0.25;
 }
 
+/* ========== Prediction History ========== */
+#prediction-history {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    width: 100%;
+    max-width: 720px;
+}
+
+#prediction-history h3 {
+    font-size: 0.75rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.4;
+    margin-bottom: 1rem;
+}
+
+#history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+}
+
+#history-table thead th {
+    font-size: 0.6rem;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.35;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid currentColor;
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+#history-table tbody td {
+    padding: 0.35rem 0.5rem;
+    opacity: 0.7;
+}
+
+#history-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+#history-table .error-low { color: #6ec87a; }
+#history-table .error-mid { color: #d4b645; }
+#history-table .error-high { color: #d46a5a; }
+
+.history-meta {
+    margin-top: 0.8rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    opacity: 0.25;
+}
+
+.history-empty {
+    font-size: 0.7rem;
+    opacity: 0.3;
+    padding: 1rem 0;
+}
+
 /* ========== Hint ========== */
 .hint {
     padding: 0.6rem;
@@ -538,6 +602,10 @@ nav a.active {
 
     .prediction-temp {
         font-size: 2.2rem;
+    }
+
+    #prediction-history {
+        overflow-x: auto;
     }
 
 }

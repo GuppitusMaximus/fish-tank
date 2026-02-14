@@ -31,6 +31,25 @@
             </div>
             <p class="weather-meta" id="weather-meta"></p>
         </div>
+        <div id="prediction-history">
+            <h3>Prediction Accuracy</h3>
+            <table id="history-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Indoor Predicted</th>
+                        <th>Indoor Actual</th>
+                        <th>Error</th>
+                        <th>Outdoor Predicted</th>
+                        <th>Outdoor Actual</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                </tbody>
+            </table>
+            <p class="history-meta" id="history-meta"></p>
+        </div>
     </main>
     <div id="tank">
         <div class="sandy-bottom"></div>
@@ -107,7 +126,10 @@
             document.title = view.title;
             hint.textContent = view.hint;
             if (view.app) view.app.start();
-            if (name === 'home') window.WeatherWidget.loadForecast();
+            if (name === 'home') {
+                window.WeatherWidget.loadForecast();
+                window.WeatherWidget.loadHistory();
+            }
 
             navLinks.forEach(a => {
                 const isActive = a.dataset.view === name;
