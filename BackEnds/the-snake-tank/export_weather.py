@@ -30,13 +30,15 @@ def read_json(path):
 
 
 def extract_temps(weather_data):
-    """Extract indoor and outdoor temps from a raw weather JSON.
+    """Extract indoor and outdoor temps and timestamp from a raw weather JSON.
 
-    Returns (indoor, outdoor) or None if data is missing/malformed.
+    Returns (indoor, outdoor, time_utc) or None if temp data is missing/malformed.
+    time_utc may be None if the timestamp field is missing.
     """
     try:
         device = weather_data["body"]["devices"][0]
         indoor = device["dashboard_data"]["Temperature"]
+        time_utc = device["dashboard_data"].get("time_utc")
         outdoor = None
         for module in device.get("modules", []):
             if module.get("type") == "NAModule1":
@@ -44,7 +46,7 @@ def extract_temps(weather_data):
                 break
         if outdoor is None:
             return None
-        return (indoor, outdoor)
+        return (indoor, outdoor, time_utc)
     except (KeyError, IndexError, TypeError):
         return None
 
@@ -98,16 +100,19 @@ def export(output_path, hours):
         if temps is None:
             continue
 
-        indoor, outdoor = temps
+        indoor, outdoor, time_utc = temps
 
         # Set current to the most recent reading
         if not current_found:
-            result["current"] = {
+            current_obj = {
                 "date": date_str,
                 "hour": hour,
                 "temp_indoor": round(indoor, 1),
                 "temp_outdoor": round(outdoor, 1),
             }
+            if time_utc:
+                current_obj["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            result["current"] = current_obj
             current_found = True
 
             # Next prediction: from the current hour's prediction file (predicts H+1)
@@ -129,7 +134,7 @@ def export(output_path, hours):
         pred_data = get_prediction_for_hour(date_str, hour)
         if pred_data and "prediction" in pred_data:
             pred = pred_data["prediction"]
-            result["history"].append({
+            entry = {
                 "date": date_str,
                 "hour": hour,
                 "actual_indoor": round(indoor, 1),
@@ -138,7 +143,10 @@ def export(output_path, hours):
                 "predicted_outdoor": round(pred["temp_outdoor"], 1),
                 "delta_indoor": round(indoor - pred["temp_indoor"], 1),
                 "delta_outdoor": round(outdoor - pred["temp_outdoor"], 1),
-            })
+            }
+            if time_utc:
+                entry["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            result["history"].append(entry)
 
     # Write output
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
