@@ -449,8 +449,29 @@ nav a.active {
 }
 
 #weather-widget {
+    position: relative;
     text-align: center;
     padding: 2rem;
+}
+
+#unit-toggle {
+    position: absolute;
+    top: 1.8rem;
+    right: 0;
+    background: none;
+    border: 1px solid currentColor;
+    border-radius: 1rem;
+    color: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.7rem;
+    cursor: pointer;
+    opacity: 0.35;
+    transition: opacity 0.2s;
+}
+
+#unit-toggle:hover {
+    opacity: 0.6;
 }
 
 #weather-widget h2 {
