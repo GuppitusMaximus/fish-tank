@@ -124,11 +124,14 @@ def export(output_path, hours):
                 if not prediction_for:
                     next_hour = dt + timedelta(hours=1)
                     prediction_for = next_hour.strftime("%Y-%m-%dT%H:00:00Z")
-                result["next_prediction"] = {
+                next_pred = {
                     "prediction_for": prediction_for,
                     "temp_indoor": round(pred["temp_indoor"], 1),
                     "temp_outdoor": round(pred["temp_outdoor"], 1),
                 }
+                if latest_pred.get("model_version") is not None:
+                    next_pred["model_version"] = latest_pred["model_version"]
+                result["next_prediction"] = next_pred
 
         # Build history: find prediction FOR this hour (made at hour-1)
         pred_data = get_prediction_for_hour(date_str, hour)
@@ -144,6 +147,8 @@ def export(output_path, hours):
                 "delta_indoor": round(indoor - pred["temp_indoor"], 1),
                 "delta_outdoor": round(outdoor - pred["temp_outdoor"], 1),
             }
+            if pred_data.get("model_version") is not None:
+                entry["model_version"] = pred_data["model_version"]
             if time_utc:
                 entry["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             result["history"].append(entry)
