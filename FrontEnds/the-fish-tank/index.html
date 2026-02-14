@@ -40,12 +40,13 @@
     <script src="js/tank.js"></script>
     <script src="js/battle.js"></script>
     <script src="js/fighter.js"></script>
+    <script src="js/weather.js"></script>
     <script>
     (() => {
         const views = {
             home: {
                 el: document.getElementById('home'),
-                app: null,
+                app: window.WeatherApp,
                 title: 'The Fish Tank',
                 hint: '',
                 theme: 'theme-ocean'
