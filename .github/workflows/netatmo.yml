@@ -33,7 +33,7 @@ jobs:
         run: python BackEnds/the-snake-tank/build_dataset.py
 
       - name: Train prediction model
-        run: python BackEnds/the-snake-tank/train_model.py
+        run: python BackEnds/the-snake-tank/train_model.py || true
 
       - name: Run prediction
         run: python BackEnds/the-snake-tank/predict.py --predictions-dir BackEnds/the-snake-tank/data/predictions || true
