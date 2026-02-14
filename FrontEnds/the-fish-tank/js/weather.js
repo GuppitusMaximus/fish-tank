@@ -109,14 +109,24 @@ window.WeatherApp = (() => {
       '</div>';
   }
 
+  var RAW_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/weather.json';
+
   function start() {
-    fetch('data/weather.json')
+    fetch(RAW_URL)
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
       })
       .then(render)
-      .catch(renderError);
+      .catch(function() {
+        fetch('data/weather.json')
+          .then(function(res) {
+            if (!res.ok) throw new Error(res.status);
+            return res.json();
+          })
+          .then(render)
+          .catch(renderError);
+      });
   }
 
   function stop() {}
