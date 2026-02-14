@@ -32,6 +32,9 @@ jobs:
       - name: Rebuild dataset
         run: python BackEnds/the-snake-tank/build_dataset.py
 
+      - name: Train prediction model
+        run: python BackEnds/the-snake-tank/train_model.py
+
       - name: Validate previous prediction
         run: |
           python BackEnds/the-snake-tank/validate_prediction.py \
