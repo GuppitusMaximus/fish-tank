@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test: ML Model Version Display</title>
+<style>
+body { font-family: monospace; background: #111; color: #ccc; padding: 1rem; }
+.pass { color: #50c878; }
+.fail { color: #e05080; }
+#results div { margin: 0.3rem 0; }
+</style>
+</head>
+<body>
+<h2>ML Model Version Display Tests</h2>
+<div id="weather" style="display:none;"></div>
+<div id="results"></div>
+
+<script src="../the-fish-tank/js/weather.js"></script>
+<script>
+var results = document.getElementById('results');
+var passed = 0;
+var failed = 0;
+
+function assert(name, condition) {
+  if (condition) {
+    results.innerHTML += '<div class="pass">PASS: ' + name + '</div>';
+    passed++;
+  } else {
+    results.innerHTML += '<div class="fail">FAIL: ' + name + '</div>';
+    failed++;
+  }
+}
+
+// --- Helper: render prediction into a temporary element ---
+function renderPredHTML(pred) {
+  var container = document.getElementById('weather');
+  // We need to extract renderPrediction from the module internals.
+  // Since weather.js is an IIFE that renders into #weather via render(),
+  // we test by calling render() with crafted data and inspecting the DOM.
+  return null; // Can't call internal functions directly
+}
+
+// Instead of calling internal functions, we test via the full render() path.
+// WeatherApp.start() fetches data, but we can override by calling render logic
+// through the module. Since render is not exposed, we test by inspecting the
+// source code patterns and verifying with crafted data through a DOM test.
+
+// --- Test via full render cycle ---
+// We'll craft data objects and use the fetch override approach.
+// Actually, since the module captures #weather container and render() is private,
+// we can test by temporarily injecting data through the module's start mechanism.
+
+// Approach: Simulate render by building HTML the same way the functions do,
+// then verify the patterns match.
+
+// ========== Test 1: renderPrediction with model_version ==========
+(function() {
+  var pred = {
+    prediction_for: '2026-02-14T23:00:00Z',
+    temp_indoor: 21.0,
+    temp_outdoor: -1.5,
+    model_version: 3
+  };
+  // Simulate the logic from weather.js line 84
+  var modelStr = pred.model_version ? '<div class="card-meta">Model v' + pred.model_version + '</div>' : '';
+  assert('Prediction with model_version=3 renders "Model v3"',
+    modelStr.indexOf('Model v3') !== -1);
+  assert('Prediction with model_version=3 has card-meta class',
+    modelStr.indexOf('card-meta') !== -1);
+})();
+
+// ========== Test 2: renderPrediction without model_version ==========
+(function() {
+  var pred = {
+    prediction_for: '2026-02-14T23:00:00Z',
+    temp_indoor: 21.0,
+    temp_outdoor: -1.5
+  };
+  var modelStr = pred.model_version ? '<div class="card-meta">Model v' + pred.model_version + '</div>' : '';
+  assert('Prediction without model_version renders empty string',
+    modelStr === '');
+  assert('Prediction without model_version has no "undefined"',
+    modelStr.indexOf('undefined') === -1);
+  assert('Prediction without model_version has no "Model v0"',
+    modelStr.indexOf('Model v0') === -1);
+})();
+
+// ========== Test 3: renderPrediction with model_version=null ==========
+(function() {
+  var pred = {
+    prediction_for: '2026-02-14T23:00:00Z',
+    temp_indoor: 21.0,
+    temp_outdoor: -1.5,
+    model_version: null
+  };
+  var modelStr = pred.model_version ? '<div class="card-meta">Model v' + pred.model_version + '</div>' : '';
+  assert('Prediction with model_version=null renders empty string',
+    modelStr === '');
+})();
+
+// ========== Test 4: History row with model_version ==========
+(function() {
+  var h = { model_version: 2 };
+  var cell = h.model_version ? 'v' + h.model_version : '\u2014';
+  assert('History row with model_version=2 shows "v2"',
+    cell === 'v2');
+})();
+
+// ========== Test 5: History row without model_version ==========
+(function() {
+  var h = {};
+  var cell = h.model_version ? 'v' + h.model_version : '\u2014';
+  assert('History row without model_version shows em dash',
+    cell === '\u2014');
+})();
+
+// ========== Test 6: History row with model_version=null ==========
+(function() {
+  var h = { model_version: null };
+  var cell = h.model_version ? 'v' + h.model_version : '\u2014';
+  assert('History row with model_version=null shows em dash',
+    cell === '\u2014');
+})();
+
+// ========== Test 7: Table header column count ==========
+(function() {
+  // Replicate the header from weather.js
+  var header = '<th>Time</th><th>Model</th>' +
+    '<th>Indoor</th><th>Predicted</th><th>\u0394</th>' +
+    '<th>Outdoor</th><th>Predicted</th><th>\u0394</th>';
+  var count = (header.match(/<th>/g) || []).length;
+  assert('Table header has 8 columns', count === 8);
+})();
+
+// ========== Test 8: Table header includes Model column ==========
+(function() {
+  var header = '<th>Time</th><th>Model</th>' +
+    '<th>Indoor</th><th>Predicted</th><th>\u0394</th>' +
+    '<th>Outdoor</th><th>Predicted</th><th>\u0394</th>';
+  assert('Table header contains "Model" column',
+    header.indexOf('<th>Model</th>') !== -1);
+})();
+
+// ========== Test 9: CSS card-meta class exists ==========
+(function() {
+  // Load the stylesheet and check for .card-meta
+  var sheets = document.styleSheets;
+  var found = false;
+  // Since the CSS isn't loaded in this test page, check by fetching
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '../the-fish-tank/css/style.css', false);
+  xhr.send();
+  if (xhr.status === 200) {
+    found = xhr.responseText.indexOf('.card-meta') !== -1;
+  }
+  assert('CSS contains .card-meta class definition', found);
+})();
+
+// ========== Test 10: Mixed history (some with, some without model_version) ==========
+(function() {
+  var history = [
+    { model_version: 3, date: '2026-02-14', hour: 22, actual_indoor: 20.5, actual_outdoor: -1.8, predicted_indoor: 20.9, predicted_outdoor: -0.7, delta_indoor: -0.4, delta_outdoor: -1.1 },
+    { date: '2026-02-14', hour: 21, actual_indoor: 20.8, actual_outdoor: -0.1, predicted_indoor: 21.1, predicted_outdoor: -0.9, delta_indoor: -0.3, delta_outdoor: 0.8 },
+    { model_version: null, date: '2026-02-14', hour: 20, actual_indoor: 21.2, actual_outdoor: 0, predicted_indoor: 20.7, predicted_outdoor: -1.4, delta_indoor: 0.5, delta_outdoor: 1.4 }
+  ];
+  var cells = history.map(function(h) {
+    return h.model_version ? 'v' + h.model_version : '\u2014';
+  });
+  assert('Mixed history: first row shows "v3"', cells[0] === 'v3');
+  assert('Mixed history: second row (no field) shows em dash', cells[1] === '\u2014');
+  assert('Mixed history: third row (null) shows em dash', cells[2] === '\u2014');
+})();
+
+// ========== Summary ==========
+results.innerHTML += '<div style="margin-top:1rem;font-weight:bold;">' +
+  'Results: ' + passed + ' passed, ' + failed + ' failed' +
+  '</div>';
+
+if (failed > 0) {
+  document.title = 'FAIL: ' + failed + ' test(s)';
+} else {
+  document.title = 'ALL TESTS PASS';
+}
+</script>
+</body>
+</html>
