@@ -452,6 +452,30 @@ nav a.active {
     padding: 1rem 0;
 }
 
+.dash-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+}
+
+.format-toggle {
+    background: rgba(100, 160, 220, 0.08);
+    border: 1px solid rgba(100, 160, 220, 0.2);
+    color: inherit;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s, border-color 0.2s;
+}
+
+.format-toggle:hover {
+    opacity: 0.8;
+    border-color: rgba(100, 160, 220, 0.4);
+}
+
 .dash-cards {
     display: flex;
     gap: 1rem;
