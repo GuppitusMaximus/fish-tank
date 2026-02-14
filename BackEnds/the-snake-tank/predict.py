@@ -15,7 +15,7 @@ import json
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import joblib
 import numpy as np
@@ -88,6 +88,7 @@ def predict(output_path=None, predictions_dir=None):
             "temp_outdoor": round(float(last_row["temp_outdoor"]), 1),
         },
         "prediction": {
+            "prediction_for": (last_dt + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "temp_indoor": round(float(prediction[0]), 1),
             "temp_outdoor": round(float(prediction[1]), 1),
         },
