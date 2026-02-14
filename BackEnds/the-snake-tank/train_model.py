@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Train a temperature prediction model from weather station data.
 
-Loads readings from data/weather.db, builds 3-hour sliding window features,
-and trains a RandomForestRegressor to predict the next hour's indoor and
-outdoor temperatures.
+Loads readings from data/weather.db, builds 24-hour sliding window features
+using all available Netatmo sensor data (22 features), and trains a
+RandomForestRegressor to predict the next hour's indoor and outdoor temperatures.
 
 Usage:
     python train_model.py
@@ -26,14 +26,19 @@ DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor.joblib")
 
-LOOKBACK = 3  # hours of history
+LOOKBACK = 24  # hours of history
 MAX_GAP = 5400  # max seconds between consecutive readings (1.5h, allows for timing drift)
 
 TREND_MAP = {"down": -1, "stable": 0, "up": 1}
 
 FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
-    "humidity_outdoor", "noise", "pressure", "temp_trend", "pressure_trend",
+    "humidity_outdoor", "noise", "pressure", "pressure_absolute",
+    "temp_indoor_min", "temp_indoor_max", "temp_outdoor_min", "temp_outdoor_max",
+    "hours_since_min_temp_indoor", "hours_since_max_temp_indoor",
+    "hours_since_min_temp_outdoor", "hours_since_max_temp_outdoor",
+    "temp_trend", "pressure_trend", "temp_outdoor_trend",
+    "wifi_status", "battery_percent", "rf_status",
 ]
 
 TARGET_COLS = ["temp_indoor", "temp_outdoor"]
@@ -47,8 +52,20 @@ def load_readings():
 
 
 def encode_trends(df):
-    for col in ("temp_trend", "pressure_trend"):
+    for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
         df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
+    return df
+
+
+def engineer_features(df):
+    """Convert absolute timestamps to relative hours-since features."""
+    for prefix, src_col in [
+        ("hours_since_min_temp_indoor", "date_min_temp_indoor"),
+        ("hours_since_max_temp_indoor", "date_max_temp_indoor"),
+        ("hours_since_min_temp_outdoor", "date_min_temp_outdoor"),
+        ("hours_since_max_temp_outdoor", "date_max_temp_outdoor"),
+    ]:
+        df[prefix] = (df["timestamp"] - df[src_col].fillna(df["timestamp"])) / 3600.0
     return df
 
 
@@ -88,17 +105,29 @@ def train():
     print(f"Loaded {len(df)} readings from database")
 
     df = encode_trends(df)
+    df = engineer_features(df)
+
+    # Fill missing device health values with sensible defaults
+    df["wifi_status"] = df["wifi_status"].fillna(0)
+    df["battery_percent"] = df["battery_percent"].fillna(100)
+    df["rf_status"] = df["rf_status"].fillna(0)
+
     X, y = build_windows(df)
 
     print(f"Built {len(X)} sliding windows (lookback={LOOKBACK}h)")
 
+    if len(X) == 0:
+        print("Error: No valid training windows. Need at least 25 consecutive hourly readings.")
+        print(f"Database has {len(df)} readings. Collect more data first.")
+        sys.exit(1)
+
+    if len(X) < 2:
+        print("Error: Need at least 2 training windows. Collect more data first.")
+        sys.exit(1)
+
     if len(X) < 10:
         print(f"WARNING: Only {len(X)} samples available. Model quality will be poor.")
         print("As more hourly data accumulates, retrain for better results.")
-
-    if len(X) < 2:
-        print("Error: Need at least 2 samples to train. Collect more data first.")
-        sys.exit(1)
 
     model = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42))
 
