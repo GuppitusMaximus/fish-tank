@@ -17,6 +17,20 @@
         </nav>
     </header>
     <main id="home" class="active">
+        <div id="weather-widget">
+            <h2>Temperature Forecast</h2>
+            <div class="weather-predictions">
+                <div class="prediction-card">
+                    <span class="prediction-label">Indoor</span>
+                    <span class="prediction-temp" id="pred-indoor">--°C</span>
+                </div>
+                <div class="prediction-card">
+                    <span class="prediction-label">Outdoor</span>
+                    <span class="prediction-temp" id="pred-outdoor">--°C</span>
+                </div>
+            </div>
+            <p class="weather-meta" id="weather-meta"></p>
+        </div>
     </main>
     <div id="tank">
         <div class="sandy-bottom"></div>
@@ -36,6 +50,7 @@
         <div class="cloud cloud-3"></div>
     </div>
     <p class="hint" id="hint"></p>
+    <script src="js/weather.js"></script>
     <script src="js/tank.js"></script>
     <script src="js/battle.js"></script>
     <script src="js/fighter.js"></script>
@@ -92,6 +107,7 @@
             document.title = view.title;
             hint.textContent = view.hint;
             if (view.app) view.app.start();
+            if (name === 'home') window.WeatherWidget.loadForecast();
 
             navLinks.forEach(a => {
                 const isActive = a.dataset.view === name;
