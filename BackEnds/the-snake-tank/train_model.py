@@ -9,9 +9,11 @@ Usage:
     python train_model.py
 """
 
+import json
 import os
 import sqlite3
 import sys
+from datetime import datetime, timezone
 
 import joblib
 import numpy as np
@@ -25,6 +27,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor.joblib")
+META_PATH = os.path.join(MODEL_DIR, "model_meta.json")
+PREV_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_prev.joblib")
 
 LOOKBACK = 24  # hours of history
 MAX_GAP = 5400  # max seconds between consecutive readings (1.5h, allows for timing drift)
@@ -95,6 +99,15 @@ def build_windows(df):
     return np.array(X), np.array(y)
 
 
+def read_meta():
+    """Read existing model metadata, returning defaults if not found."""
+    try:
+        with open(META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
+
+
 def train():
     if not os.path.exists(DB_PATH):
         print(f"Error: database not found at {DB_PATH}")
@@ -155,8 +168,31 @@ def train():
     model.fit(X, y)
 
     os.makedirs(MODEL_DIR, exist_ok=True)
+
+    # Preserve previous model for fallback
+    if os.path.exists(MODEL_PATH):
+        import shutil
+        shutil.copy2(MODEL_PATH, PREV_MODEL_PATH)
+        print(f"Previous model backed up to {PREV_MODEL_PATH}")
+
+    # Save new model
     joblib.dump(model, MODEL_PATH)
-    print(f"\nModel saved to {MODEL_PATH}")
+    print(f"Model saved to {MODEL_PATH}")
+
+    # Write model metadata with incremented version
+    meta = read_meta()
+    new_version = meta.get("version", 0) + 1
+    new_meta = {
+        "version": new_version,
+        "trained_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "sample_count": len(X),
+        "mae_indoor": round(mae_indoor, 4),
+        "mae_outdoor": round(mae_outdoor, 4),
+    }
+    with open(META_PATH, "w") as f:
+        json.dump(new_meta, f, indent=2)
+        f.write("\n")
+    print(f"Model metadata written (version {new_version})")
 
 
 if __name__ == "__main__":

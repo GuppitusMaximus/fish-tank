@@ -25,6 +25,8 @@ import pandas as pd
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor.joblib")
+META_PATH = os.path.join(SCRIPT_DIR, "models", "model_meta.json")
+PREV_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_prev.joblib")
 
 LOOKBACK = 24
 
@@ -39,6 +41,15 @@ FEATURE_COLS = [
     "temp_trend", "pressure_trend", "temp_outdoor_trend",
     "wifi_status", "battery_percent", "rf_status",
 ]
+
+
+def read_meta():
+    """Read model metadata, returning defaults if not found."""
+    try:
+        with open(META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
 
 
 def predict(output_path=None, predictions_dir=None):
@@ -85,8 +96,22 @@ def predict(output_path=None, predictions_dir=None):
     # Build feature vector
     feature_vector = df[FEATURE_COLS].values.flatten().reshape(1, -1)
 
-    model = joblib.load(MODEL_PATH)
-    prediction = model.predict(feature_vector)[0]
+    meta = read_meta()
+    model_version = meta.get("version", 0)
+
+    # Try current model, fall back to previous on failure
+    try:
+        model = joblib.load(MODEL_PATH)
+        prediction = model.predict(feature_vector)[0]
+    except Exception as e:
+        print(f"Warning: current model failed ({e}), trying previous model...")
+        if not os.path.exists(PREV_MODEL_PATH):
+            print("Error: no previous model available for fallback")
+            sys.exit(1)
+        model = joblib.load(PREV_MODEL_PATH)
+        prediction = model.predict(feature_vector)[0]
+        model_version = max(model_version - 1, 1)
+        print(f"Fallback prediction succeeded using model v{model_version}")
 
     last_row = df.iloc[-1]
     last_ts = int(last_row["timestamp"])
@@ -100,6 +125,7 @@ def predict(output_path=None, predictions_dir=None):
 
     result = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "model_version": model_version,
         "last_reading": {
             "timestamp": last_ts,
             "date": last_dt.strftime("%Y-%m-%d"),
