@@ -75,7 +75,46 @@ def get_prediction_for_hour(date_str, hour):
     return pred
 
 
-def export(output_path, hours):
+def load_validated_history(history_path, hours):
+    """Load prediction history from validated prediction-history.json."""
+    data = read_json(history_path)
+    if not data:
+        return None
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    history = []
+    for entry in data:
+        for_hour_str = entry.get("for_hour")
+        if not for_hour_str:
+            continue
+        try:
+            for_hour_dt = datetime.strptime(for_hour_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if for_hour_dt < cutoff:
+            continue
+
+        record = {
+            "date": for_hour_dt.strftime("%Y-%m-%d"),
+            "hour": for_hour_dt.hour,
+            "actual_indoor": entry["actual"]["temp_indoor"],
+            "actual_outdoor": entry["actual"]["temp_outdoor"],
+            "predicted_indoor": entry["predicted"]["temp_indoor"],
+            "predicted_outdoor": entry["predicted"]["temp_outdoor"],
+            "delta_indoor": round(entry["actual"]["temp_indoor"] - entry["predicted"]["temp_indoor"], 1),
+            "delta_outdoor": round(entry["actual"]["temp_outdoor"] - entry["predicted"]["temp_outdoor"], 1),
+        }
+        if entry.get("model_version") is not None:
+            record["model_version"] = entry["model_version"]
+        if entry.get("model_type") is not None:
+            record["model_type"] = entry["model_type"]
+        record["timestamp"] = for_hour_str
+        history.append(record)
+
+    return history
+
+
+def export(output_path, hours, history_path=None):
     now = datetime.now(timezone.utc)
     result = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -136,26 +175,33 @@ def export(output_path, hours):
                 result["next_prediction"] = next_pred
 
         # Build history: find prediction FOR this hour (made at hour-1)
-        pred_data = get_prediction_for_hour(date_str, hour)
-        if pred_data and "prediction" in pred_data:
-            pred = pred_data["prediction"]
-            entry = {
-                "date": date_str,
-                "hour": hour,
-                "actual_indoor": round(indoor, 1),
-                "actual_outdoor": round(outdoor, 1),
-                "predicted_indoor": round(pred["temp_indoor"], 1),
-                "predicted_outdoor": round(pred["temp_outdoor"], 1),
-                "delta_indoor": round(indoor - pred["temp_indoor"], 1),
-                "delta_outdoor": round(outdoor - pred["temp_outdoor"], 1),
-            }
-            if pred_data.get("model_version") is not None:
-                entry["model_version"] = pred_data["model_version"]
-            if pred_data.get("model_type") is not None:
-                entry["model_type"] = pred_data["model_type"]
-            if time_utc:
-                entry["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            result["history"].append(entry)
+        if not history_path:
+            pred_data = get_prediction_for_hour(date_str, hour)
+            if pred_data and "prediction" in pred_data:
+                pred = pred_data["prediction"]
+                entry = {
+                    "date": date_str,
+                    "hour": hour,
+                    "actual_indoor": round(indoor, 1),
+                    "actual_outdoor": round(outdoor, 1),
+                    "predicted_indoor": round(pred["temp_indoor"], 1),
+                    "predicted_outdoor": round(pred["temp_outdoor"], 1),
+                    "delta_indoor": round(indoor - pred["temp_indoor"], 1),
+                    "delta_outdoor": round(outdoor - pred["temp_outdoor"], 1),
+                }
+                if pred_data.get("model_version") is not None:
+                    entry["model_version"] = pred_data["model_version"]
+                if pred_data.get("model_type") is not None:
+                    entry["model_type"] = pred_data["model_type"]
+                if time_utc:
+                    entry["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                result["history"].append(entry)
+
+    # Use validated history if available
+    if history_path:
+        validated = load_validated_history(history_path, hours)
+        if validated is not None:
+            result["history"] = validated
 
     # Write output
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -173,5 +219,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export weather dashboard data")
     parser.add_argument("--output", required=True, help="Output path for weather.json")
     parser.add_argument("--hours", type=int, default=24, help="Hours of history to scan (default: 24)")
+    parser.add_argument("--history", help="Path to prediction-history.json for validated history")
     args = parser.parse_args()
-    export(args.output, args.hours)
+    export(args.output, args.hours, args.history)
