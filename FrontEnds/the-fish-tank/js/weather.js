@@ -413,10 +413,139 @@ window.WeatherApp = (() => {
   var manifestLoaded = false;
   var activeSubtab = 'dashboard';
 
+  var workflowLoaded = false;
+  var workflowData = null;
+  var countdownInterval = null;
+
+  var WORKFLOW_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/workflow.json';
+
+  function loadWorkflow() {
+    var el = document.getElementById('subtab-workflow');
+    if (el) el.innerHTML = '<p class="browse-loading">Loading workflow data\u2026</p>';
+
+    fetch(WORKFLOW_URL)
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+      })
+      .catch(function() {
+        return fetch('data/workflow.json')
+          .then(function(res) {
+            if (!res.ok) throw new Error(res.status);
+            return res.json();
+          });
+      })
+      .then(function(data) {
+        workflowData = data;
+        renderWorkflow();
+      })
+      .catch(function() {
+        if (el) el.innerHTML = '<p class="dash-error">Workflow data unavailable</p>';
+      });
+  }
+
+  function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(function() {
+      var el = document.getElementById('workflow-countdown');
+      if (!el || !workflowData || !workflowData.schedule) return;
+      var next = new Date(workflowData.schedule.next_run).getTime();
+      var now = Date.now();
+      var diff = next - now;
+      if (diff <= 0) {
+        var overdue = Math.floor(Math.abs(diff) / 60000);
+        el.textContent = overdue === 0 ? 'Due now' : 'Overdue by ' + overdue + 'm';
+      } else {
+        var h = Math.floor(diff / 3600000);
+        var m = Math.floor((diff % 3600000) / 60000);
+        var s = Math.floor((diff % 60000) / 1000);
+        el.textContent = h + 'h ' + m + 'm ' + s + 's';
+      }
+    }, 1000);
+  }
+
+  function renderWorkflow() {
+    var el = document.getElementById('subtab-workflow');
+    if (!el || !workflowData) return;
+
+    var html = '';
+
+    // Status banner
+    var latest = workflowData.latest;
+    if (latest) {
+      var status = latest.conclusion || latest.status || 'unknown';
+      var statusLabel = status === 'success' ? 'Success' : status === 'failure' ? 'Failed' : status === 'in_progress' ? 'In Progress' : status === 'cancelled' ? 'Cancelled' : status;
+      var trigger = latest.event === 'schedule' ? 'Scheduled' : 'Manual';
+      var time = latest.created_at ? formatDateTime(new Date(latest.created_at)) : '\u2014';
+
+      html += '<div class="dash-card">' +
+        '<h2>Latest Run</h2>' +
+        '<div class="data-field"><span class="data-label">Status</span><span class="data-value"><span class="status-dot ' + status + '"></span> ' + statusLabel + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Trigger</span><span class="data-value">' + trigger + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Time</span><span class="data-value">' + time + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Duration</span><span class="data-value">' + (latest.duration_display || '\u2014') + '</span></div>' +
+        (latest.html_url ? '<a class="workflow-link" href="' + latest.html_url + '" target="_blank" rel="noopener">View on GitHub \u2192</a>' : '') +
+      '</div>';
+    }
+
+    // Next run countdown
+    if (workflowData.schedule) {
+      var nextTime = formatDateTime(new Date(workflowData.schedule.next_run));
+      html += '<div class="dash-card">' +
+        '<h2>Next Scheduled Run</h2>' +
+        '<div class="data-field"><span class="data-label">Scheduled</span><span class="data-value">' + nextTime + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Countdown</span><span class="countdown-value" id="workflow-countdown">\u2014</span></div>' +
+      '</div>';
+    }
+
+    // Stats card
+    var stats = workflowData.stats;
+    if (stats) {
+      var rateClass = stats.success_rate > 95 ? 'delta-low' : stats.success_rate > 80 ? 'delta-mid' : 'delta-high';
+      html += '<div class="dash-card">' +
+        '<h2>Stats (' + stats.period_hours + 'h)</h2>' +
+        '<div class="data-field"><span class="data-label">Success Rate</span><span class="data-value ' + rateClass + '">' + stats.success_rate + '%</span></div>' +
+        '<div class="data-field"><span class="data-label">Avg Duration</span><span class="data-value">' + (stats.avg_duration_display || '\u2014') + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Total Runs</span><span class="data-value">' + stats.total_runs + '</span></div>' +
+        (stats.failure_count > 0 ? '<div class="data-field"><span class="data-label">Failures</span><span class="data-value delta-high">' + stats.failure_count + '</span></div>' : '') +
+      '</div>';
+    }
+
+    // Run history table
+    var runs = workflowData.runs;
+    if (runs && runs.length > 0) {
+      var rows = runs.map(function(r) {
+        var conclusion = r.conclusion || 'unknown';
+        var statusCls = conclusion === 'success' ? 'delta-low' : conclusion === 'failure' ? 'delta-high' : 'delta-mid';
+        var label = conclusion === 'success' ? 'Success' : conclusion === 'failure' ? 'Failed' : conclusion === 'cancelled' ? 'Cancelled' : conclusion;
+        var trigger = r.event === 'schedule' ? 'Scheduled' : 'Manual';
+        var time = r.created_at ? formatDateTime(new Date(r.created_at)) : '\u2014';
+        return '<tr>' +
+          '<td>' + time + '</td>' +
+          '<td>' + (r.duration_display || '\u2014') + '</td>' +
+          '<td class="' + statusCls + '">' + label + '</td>' +
+          '<td>' + trigger + '</td>' +
+        '</tr>';
+      }).join('');
+
+      html += '<div class="history-section">' +
+        '<h2>Run History</h2>' +
+        '<div class="table-scroll">' +
+        '<table id="workflow-table">' +
+          '<thead><tr><th>Time</th><th>Duration</th><th>Status</th><th>Trigger</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+        '</div>' +
+      '</div>';
+    }
+
+    el.innerHTML = html;
+    startCountdown();
+  }
+
   function render(data) {
     var btnLabel = use24h ? '24h' : '12h';
     var unitLabel = currentUnit === 'K' ? 'K' : '\u00b0' + currentUnit;
-    var dashActive = activeSubtab === 'dashboard';
     container.innerHTML =
       '<div class="dashboard">' +
         '<div class="dash-controls">' +
@@ -424,10 +553,11 @@ window.WeatherApp = (() => {
           '<button id="unit-toggle" class="format-toggle" title="Switch temperature unit">' + unitLabel + '</button>' +
         '</div>' +
         '<div class="dash-subnav">' +
-          '<button class="subnav-btn' + (dashActive ? ' active' : '') + '" data-subtab="dashboard">Dashboard</button>' +
-          '<button class="subnav-btn' + (!dashActive ? ' active' : '') + '" data-subtab="browse">Browse Data</button>' +
+          '<button class="subnav-btn' + (activeSubtab === 'dashboard' ? ' active' : '') + '" data-subtab="dashboard">Dashboard</button>' +
+          '<button class="subnav-btn' + (activeSubtab === 'browse' ? ' active' : '') + '" data-subtab="browse">Browse Data</button>' +
+          '<button class="subnav-btn' + (activeSubtab === 'workflow' ? ' active' : '') + '" data-subtab="workflow">Workflow</button>' +
         '</div>' +
-        '<div class="dash-subtab" id="subtab-dashboard"' + (!dashActive ? ' style="display:none"' : '') + '>' +
+        '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
           '<div class="dash-cards">' +
             renderCurrent(data.current) +
             renderPrediction(data.next_prediction) +
@@ -435,11 +565,14 @@ window.WeatherApp = (() => {
           renderHistory(data.history) +
           '<div class="dash-updated">Last updated: ' + formatDateTime(new Date(data.generated_at)) + '</div>' +
         '</div>' +
-        '<div class="dash-subtab" id="subtab-browse"' + (dashActive ? ' style="display:none"' : '') + '></div>' +
+        '<div class="dash-subtab" id="subtab-browse"' + (activeSubtab !== 'browse' ? ' style="display:none"' : '') + '></div>' +
+        '<div class="dash-subtab" id="subtab-workflow"' + (activeSubtab !== 'workflow' ? ' style="display:none"' : '') + '></div>' +
       '</div>';
 
-    if (!dashActive && manifest) {
+    if (activeSubtab === 'browse' && manifest) {
       renderBrowse();
+    } else if (activeSubtab === 'workflow' && workflowData) {
+      renderWorkflow();
     }
 
     document.getElementById('time-format-toggle').addEventListener('click', function() {
@@ -463,11 +596,21 @@ window.WeatherApp = (() => {
         subnavBtns.forEach(function(b) { b.classList.toggle('active', b === btn); });
         document.getElementById('subtab-dashboard').style.display = target === 'dashboard' ? '' : 'none';
         document.getElementById('subtab-browse').style.display = target === 'browse' ? '' : 'none';
+        document.getElementById('subtab-workflow').style.display = target === 'workflow' ? '' : 'none';
+        if (target !== 'workflow' && countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
         if (target === 'browse' && !manifestLoaded) {
           manifestLoaded = true;
           loadManifest();
         } else if (target === 'browse' && manifest) {
           renderBrowse();
+        } else if (target === 'workflow' && !workflowLoaded) {
+          workflowLoaded = true;
+          loadWorkflow();
+        } else if (target === 'workflow' && workflowData) {
+          renderWorkflow();
         }
       });
     });
@@ -505,6 +648,12 @@ window.WeatherApp = (() => {
     activeSubtab = 'dashboard';
     browseState.selectedHour = null;
     browseState.currentData = null;
+    workflowLoaded = false;
+    workflowData = null;
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
   }
 
   return { start: start, stop: stop };
