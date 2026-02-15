@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Fetch weather data from a Netatmo station and save the raw JSON response."""
 
+import argparse
+import glob
 import json
 import os
 import sys
@@ -8,6 +10,54 @@ import urllib.request
 import urllib.error
 import urllib.parse
 from datetime import datetime, timezone
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, "data")
+
+
+def scrub_pii(data):
+    """Remove personally identifiable information from Netatmo API response."""
+    if "body" not in data:
+        return data
+
+    user = data["body"].get("user")
+    if user and "mail" in user:
+        user["mail"] = "redacted"
+
+    for device in data["body"].get("devices", []):
+        if "_id" in device:
+            device["_id"] = "redacted"
+        if "home_id" in device:
+            device["home_id"] = "redacted"
+        if "home_name" in device:
+            device["home_name"] = "redacted"
+
+        place = device.get("place")
+        if place:
+            tz = place.get("timezone")
+            device["place"] = {"timezone": tz} if tz else {}
+
+        for module in device.get("modules", []):
+            if "_id" in module:
+                module["_id"] = "redacted"
+
+    return data
+
+
+def scrub_existing():
+    """Scrub PII from all existing data files."""
+    pattern = os.path.join(DATA_DIR, "*", "*.json")
+    for path in sorted(glob.glob(pattern)):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            data = scrub_pii(data)
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
+                f.write("\n")
+            print(f"Scrubbed: {path}")
+        except (json.JSONDecodeError, KeyError):
+            print(f"Skipped: {path}")
 
 
 def refresh_access_token(client_id, client_secret, refresh_token):
@@ -55,25 +105,36 @@ def main():
     data = get_stations_data(access_token)
     print("Station data received.")
 
+    # --- Scrub PII before saving ---
+    data = scrub_pii(data)
+
     # --- Save to the-snake-tank/data/{YYYY-MM-DD}/{HH}00.json ---
     now = datetime.now(timezone.utc)
     date_dir = now.strftime("%Y-%m-%d")
     filename = now.strftime("%H") + "00.json"
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    out_dir = os.path.join(script_dir, "data", date_dir)
+    out_dir = os.path.join(DATA_DIR, date_dir)
     os.makedirs(out_dir, exist_ok=True)
 
     out_path = os.path.join(out_dir, filename)
     with open(out_path, "w") as f:
         json.dump(data, f, indent=2)
+        f.write("\n")
 
     print(f"Saved weather data to {out_path}")
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Fetch Netatmo weather data")
+    parser.add_argument("--scrub-existing", action="store_true",
+                        help="Scrub PII from all existing data files and exit")
+    args = parser.parse_args()
+
+    if args.scrub_existing:
+        scrub_existing()
+    else:
+        try:
+            main()
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
