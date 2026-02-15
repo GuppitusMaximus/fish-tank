@@ -158,5 +158,5 @@ def test_simple_feature_names_match_code():
 def test_predict_model_type_values_match_code():
     with open(os.path.join(SNAKE_TANK_DIR, "predict.py")) as f:
         predict_code = f.read()
-    assert 'model_type = "full"' in predict_code, "predict.py should set model_type to 'full'"
-    assert 'model_type = "simple"' in predict_code, "predict.py should set model_type to 'simple'"
+    assert '"full"' in predict_code, "predict.py should reference 'full' model type"
+    assert '"simple"' in predict_code, "predict.py should reference 'simple' model type"

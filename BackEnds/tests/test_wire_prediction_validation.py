@@ -40,8 +40,8 @@ def test_validate_accepts_predictions_dir():
             capture_output=True, text=True, timeout=30,
         )
         assert result.returncode == 0, f"Script failed: {result.stderr}"
-        assert ("Found best prediction:" in result.stdout or
-                "No suitable prediction found" in result.stdout)
+        assert ("prediction(s) to validate" in result.stdout or
+                "No suitable predictions found" in result.stdout)
     finally:
         os.unlink(history_path)
 
@@ -49,21 +49,22 @@ def test_validate_accepts_predictions_dir():
 # --- Test 2: MAX_HISTORY is 168 and history is trimmed ---
 
 def test_max_history_constant():
-    """validate_prediction.py should have MAX_HISTORY = 168."""
+    """validate_prediction.py should have MAX_HISTORY_PER_MODEL = 168."""
     sys.path.insert(0, SCRIPT_DIR)
     try:
         import validate_prediction
-        assert hasattr(validate_prediction, "MAX_HISTORY")
-        assert validate_prediction.MAX_HISTORY == 168
+        assert hasattr(validate_prediction, "MAX_HISTORY_PER_MODEL")
+        assert validate_prediction.MAX_HISTORY_PER_MODEL == 168
     finally:
         sys.path.pop(0)
 
 
 def test_history_trimmed_to_max():
-    """History list should be trimmed to MAX_HISTORY after insertion."""
+    """History list should be trimmed per model type."""
     with open(VALIDATE_SCRIPT) as f:
         source = f.read()
-    assert "history = history[:MAX_HISTORY]" in source
+    assert "trim_history" in source
+    assert "MAX_HISTORY_PER_MODEL" in source
 
 
 # --- Test 3: Model metadata passed through ---
@@ -72,8 +73,8 @@ def test_model_metadata_in_comparison():
     """Comparison records should include model_version and model_type when present."""
     with open(VALIDATE_SCRIPT) as f:
         source = f.read()
-    assert 'comparison["model_version"]' in source
-    assert 'comparison["model_type"]' in source
+    assert '"model_version"' in source
+    assert '"model_type"' in source
 
 
 # --- Test 4: export_weather.py accepts --history ---
@@ -200,33 +201,33 @@ def test_workflow_graceful_failure():
 
 # --- Test 7: find_best_prediction edge cases ---
 
-def test_find_best_prediction_nonexistent_dir():
-    """find_best_prediction should return None for nonexistent directory."""
+def test_find_best_predictions_nonexistent_dir():
+    """find_best_predictions should return empty list for nonexistent directory."""
     sys.path.insert(0, SCRIPT_DIR)
     try:
-        from validate_prediction import find_best_prediction
-        assert find_best_prediction("/nonexistent/dir") is None
+        from validate_prediction import find_best_predictions
+        assert find_best_predictions("/nonexistent/dir") == []
     finally:
         sys.path.pop(0)
 
 
-def test_find_best_prediction_empty_dir():
-    """find_best_prediction should return None for empty directory."""
+def test_find_best_predictions_empty_dir():
+    """find_best_predictions should return empty list for empty directory."""
     sys.path.insert(0, SCRIPT_DIR)
     try:
-        from validate_prediction import find_best_prediction
+        from validate_prediction import find_best_predictions
         with tempfile.TemporaryDirectory() as tmpdir:
-            assert find_best_prediction(tmpdir) is None
+            assert find_best_predictions(tmpdir) == []
     finally:
         sys.path.pop(0)
 
 
-def test_find_best_prediction_picks_closest_to_60_min():
-    """find_best_prediction should pick the prediction closest to 60 min old."""
+def test_find_best_predictions_picks_closest_to_60_min():
+    """find_best_predictions should pick the prediction closest to 60 min old per model."""
     from datetime import datetime, timezone, timedelta
     sys.path.insert(0, SCRIPT_DIR)
     try:
-        from validate_prediction import find_best_prediction
+        from validate_prediction import find_best_predictions
         with tempfile.TemporaryDirectory() as tmpdir:
             now = datetime.now(timezone.utc)
             date_str = now.strftime("%Y-%m-%d")
@@ -236,19 +237,23 @@ def test_find_best_prediction_picks_closest_to_60_min():
             # Prediction made 55 min ago (closest to 60 min ideal)
             good_time = now - timedelta(minutes=55)
             with open(os.path.join(date_dir, "good.json"), "w") as f:
-                json.dump({"generated_at": good_time.strftime("%Y-%m-%dT%H:%M:%SZ")}, f)
+                json.dump({"generated_at": good_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                           "model_type": "simple"}, f)
 
             # Prediction made 35 min ago (within window but farther from ideal)
             ok_time = now - timedelta(minutes=35)
             with open(os.path.join(date_dir, "ok.json"), "w") as f:
-                json.dump({"generated_at": ok_time.strftime("%Y-%m-%dT%H:%M:%SZ")}, f)
+                json.dump({"generated_at": ok_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                           "model_type": "simple"}, f)
 
             # Prediction made 10 min ago (outside window)
             bad_time = now - timedelta(minutes=10)
             with open(os.path.join(date_dir, "bad.json"), "w") as f:
-                json.dump({"generated_at": bad_time.strftime("%Y-%m-%dT%H:%M:%SZ")}, f)
+                json.dump({"generated_at": bad_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                           "model_type": "simple"}, f)
 
-            result = find_best_prediction(tmpdir)
-            assert result == os.path.join(date_dir, "good.json")
+            results = find_best_predictions(tmpdir)
+            assert len(results) == 1
+            assert results[0] == os.path.join(date_dir, "good.json")
     finally:
         sys.path.pop(0)

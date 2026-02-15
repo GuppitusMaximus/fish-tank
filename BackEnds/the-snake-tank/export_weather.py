@@ -14,11 +14,17 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
+
+PROPERTY_META = {
+    "temp_indoor": {"label": "Indoor Temp", "unit": "°C", "format": "temperature"},
+    "temp_outdoor": {"label": "Outdoor Temp", "unit": "°C", "format": "temperature"},
+}
 
 
 def read_json(path):
@@ -49,6 +55,45 @@ def _find_latest_for_hour(directory, hour):
     """Find and read the latest JSON file for a given hour."""
     path = _find_latest_path_for_hour(directory, hour)
     return read_json(path) if path else None
+
+
+def _find_predictions_for_hour(predictions_dir, date_str, target_hour):
+    """Find all prediction files for a given hour, grouped by model type."""
+    day_dir = os.path.join(predictions_dir, date_str)
+    if not os.path.isdir(day_dir):
+        return []
+
+    results = []
+    for fname in sorted(os.listdir(day_dir)):
+        if not fname.endswith(".json"):
+            continue
+
+        # Match new format: HHMMSS_modeltype.json
+        match = re.match(r'^(\d{4,6})_(\w+)\.json$', fname)
+        if match:
+            file_hour = int(match.group(1)[:2])
+            model_type = match.group(2)
+        else:
+            # Match old format: HHMMSS.json (treat as "simple")
+            match = re.match(r'^(\d{4,6})\.json$', fname)
+            if not match:
+                continue
+            file_hour = int(match.group(1)[:2])
+            model_type = "simple"
+
+        if file_hour == target_hour:
+            path = os.path.join(day_dir, fname)
+            data = read_json(path)
+            if data:
+                data.setdefault("model_type", model_type)
+                results.append(data)
+
+    # Deduplicate: keep latest prediction per model_type
+    latest_by_model = {}
+    for pred in results:
+        mt = pred.get("model_type", "simple")
+        latest_by_model[mt] = pred  # sorted order means last is latest
+    return list(latest_by_model.values())
 
 
 def extract_temps(weather_data):
@@ -83,6 +128,14 @@ def read_prediction(date_str, hour):
     return _find_latest_for_hour(date_dir, hour)
 
 
+def read_predictions_all(date_str, hour):
+    """Read all model prediction files for the given date and hour.
+
+    Returns a list of prediction dicts, one per model.
+    """
+    return _find_predictions_for_hour(PREDICTIONS_DIR, date_str, hour)
+
+
 def get_prediction_for_hour(date_str, hour):
     """Find the prediction that targets the given hour.
 
@@ -95,6 +148,19 @@ def get_prediction_for_hour(date_str, hour):
     else:
         pred = read_prediction(date_str, hour - 1)
     return pred
+
+
+def get_predictions_for_hour_all(date_str, hour):
+    """Find all model predictions that target the given hour.
+
+    A prediction FOR hour H was generated at hour H-1.
+    Handle midnight crossover: if H=0, look at hour 23 of previous day.
+    """
+    if hour == 0:
+        prev_date = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+        return read_predictions_all(prev_date, 23)
+    else:
+        return read_predictions_all(date_str, hour - 1)
 
 
 def load_validated_history(history_path, hours):
@@ -175,9 +241,12 @@ def export(output_path, hours, history_path=None):
     now = datetime.now(timezone.utc)
     result = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "schema_version": 2,
+        "property_meta": PROPERTY_META,
         "current": None,
-        "next_prediction": None,
+        "predictions": [],
         "history": [],
+        "next_prediction": None,
     }
 
     # Scan backwards from current hour to find readings and build history
@@ -200,35 +269,47 @@ def export(output_path, hours, history_path=None):
         # Set current to the most recent reading
         if not current_found:
             current_obj = {
-                "date": date_str,
-                "hour": hour,
-                "temp_indoor": round(indoor, 1),
-                "temp_outdoor": round(outdoor, 1),
+                "readings": {
+                    "temp_indoor": round(indoor, 1),
+                    "temp_outdoor": round(outdoor, 1),
+                },
             }
             if time_utc:
                 current_obj["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             result["current"] = current_obj
             current_found = True
 
-            # Next prediction: from the current hour's prediction file (predicts H+1)
-            latest_pred = read_prediction(date_str, hour)
-            if latest_pred and "prediction" in latest_pred:
-                pred = latest_pred["prediction"]
-                # Compute prediction_for if not present
+            # Build predictions array from all available models
+            all_preds = read_predictions_all(date_str, hour)
+            for pred_data in all_preds:
+                if "prediction" not in pred_data:
+                    continue
+                pred = pred_data["prediction"]
                 prediction_for = pred.get("prediction_for")
                 if not prediction_for:
                     next_hour = dt + timedelta(hours=1)
                     prediction_for = next_hour.strftime("%Y-%m-%dT%H:00:00Z")
-                next_pred = {
+                pred_entry = {
+                    "model_type": pred_data.get("model_type", "simple"),
+                    "model_version": pred_data.get("model_version", 0),
                     "prediction_for": prediction_for,
-                    "temp_indoor": round(pred["temp_indoor"], 1),
-                    "temp_outdoor": round(pred["temp_outdoor"], 1),
+                    "values": {
+                        "temp_indoor": round(pred["temp_indoor"], 1),
+                        "temp_outdoor": round(pred["temp_outdoor"], 1),
+                    },
                 }
-                if latest_pred.get("model_version") is not None:
-                    next_pred["model_version"] = latest_pred["model_version"]
-                if latest_pred.get("model_type") is not None:
-                    next_pred["model_type"] = latest_pred["model_type"]
-                result["next_prediction"] = next_pred
+                result["predictions"].append(pred_entry)
+
+            # Backwards compat: next_prediction from first prediction (simple preferred)
+            if result["predictions"]:
+                first = result["predictions"][0]
+                result["next_prediction"] = {
+                    "prediction_for": first["prediction_for"],
+                    "temp_indoor": first["values"]["temp_indoor"],
+                    "temp_outdoor": first["values"]["temp_outdoor"],
+                    "model_version": first["model_version"],
+                    "model_type": first["model_type"],
+                }
 
         # Build history: find prediction FOR this hour (made at hour-1)
         if not history_path:
@@ -259,15 +340,22 @@ def export(output_path, hours, history_path=None):
         if validated is not None:
             result["history"] = validated
 
-    # Write output
+    # Write output atomically
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump(result, f, indent=2)
-        f.write("\n")
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(output_path)), suffix='.json')
+    try:
+        with os.fdopen(tmp_fd, 'w') as f:
+            json.dump(result, f, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, output_path)
+    except:
+        os.unlink(tmp_path)
+        raise
 
     print(f"Exported weather dashboard data to {output_path}")
     if result["current"]:
-        print(f"  Current: {result['current']['date']} hour {result['current']['hour']}")
+        print(f"  Current: indoor {result['current']['readings']['temp_indoor']}°C, outdoor {result['current']['readings']['temp_outdoor']}°C")
+    print(f"  Predictions: {len(result['predictions'])} model(s)")
     print(f"  History entries: {len(result['history'])}")
 
     manifest_dir = os.path.dirname(os.path.abspath(output_path))

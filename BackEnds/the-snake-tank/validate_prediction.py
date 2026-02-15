@@ -1,38 +1,40 @@
 #!/usr/bin/env python3
 """Validate the previous prediction against the actual reading that arrived.
 
-Compares the prediction from prediction.json with the most recent reading
-in weather.db, and appends the result to prediction-history.json.
+Compares predictions from the predictions directory with the most recent reading
+in weather.db, and appends the results to prediction-history.json.
+Handles multiple model types, validating each independently.
 
 Usage:
     python validate_prediction.py --prediction <path> --history <path>
+    python validate_prediction.py --predictions-dir <path> --history <path>
 """
 
 import argparse
 import json
 import os
+import re
 import sqlite3
 import sys
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
-MAX_HISTORY = 168  # 1 week of hourly predictions
+MAX_HISTORY_PER_MODEL = 168  # 1 week of hourly predictions per model
 
 
-def find_best_prediction(predictions_dir):
-    """Find the prediction that best matches the current reading.
+def find_best_predictions(predictions_dir):
+    """Find predictions that best match the current reading, one per model type.
 
-    Looks for a prediction whose 'prediction_for' time is closest to now,
-    and whose 'generated_at' is 30-90 minutes before now (so it was
-    predicting the current time window).
+    Looks for predictions whose 'generated_at' time is 30-90 minutes before now,
+    grouped by model type, keeping the one closest to 60 minutes old per model.
     """
     if not os.path.isdir(predictions_dir):
-        return None
+        return []
 
     now = datetime.now(timezone.utc)
-    best_path = None
-    best_diff = None
+    best_by_model = {}  # model_type -> (path, diff)
 
     date_dirs = sorted(
         [d for d in os.listdir(predictions_dir)
@@ -40,7 +42,6 @@ def find_best_prediction(predictions_dir):
         reverse=True,
     )
 
-    # Only check the two most recent date directories
     for date_dir in date_dirs[:2]:
         full_dir = os.path.join(predictions_dir, date_dir)
         files = sorted(
@@ -56,20 +57,23 @@ def find_best_prediction(predictions_dir):
                     data["generated_at"], "%Y-%m-%dT%H:%M:%SZ"
                 ).replace(tzinfo=timezone.utc)
 
-                # The prediction must have been made 30-90 min ago
                 age_minutes = (now - generated_at).total_seconds() / 60
                 if age_minutes < 30 or age_minutes > 90:
                     continue
 
-                # Pick the one closest to 60 minutes old (ideal timing)
+                # Determine model type from data or filename
+                model_type = data.get("model_type")
+                if not model_type:
+                    match = re.match(r'^\d{4,6}_(\w+)\.json$', fname)
+                    model_type = match.group(1) if match else "simple"
+
                 diff = abs(age_minutes - 60)
-                if best_diff is None or diff < best_diff:
-                    best_diff = diff
-                    best_path = fpath
+                if model_type not in best_by_model or diff < best_by_model[model_type][1]:
+                    best_by_model[model_type] = (fpath, diff)
             except (json.JSONDecodeError, KeyError, ValueError):
                 continue
 
-    return best_path
+    return [path for path, _ in best_by_model.values()]
 
 
 def load_prediction(path):
@@ -82,8 +86,12 @@ def load_prediction(path):
 def load_history(path):
     if not os.path.exists(path):
         return []
-    with open(path) as f:
-        return json.load(f)
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, ValueError):
+        return []
 
 
 def get_latest_reading():
@@ -100,26 +108,30 @@ def get_latest_reading():
     return dict(row)
 
 
-def validate(prediction_path, history_path):
-    prediction_data = load_prediction(prediction_path)
-    if prediction_data is None:
-        print("No prediction file found, skipping validation.")
-        return
+def trim_history(history):
+    """Trim history to MAX_HISTORY_PER_MODEL entries per model type."""
+    by_model = defaultdict(list)
+    for entry in history:
+        by_model[entry.get("model_type", "simple")].append(entry)
+    trimmed = []
+    for model_type, entries in by_model.items():
+        entries.sort(key=lambda e: e.get("for_hour", ""), reverse=True)
+        trimmed.extend(entries[:MAX_HISTORY_PER_MODEL])
+    trimmed.sort(key=lambda e: e.get("for_hour", ""), reverse=True)
+    return trimmed
 
+
+def validate_single(prediction_data, actual, history):
+    """Validate a single prediction against actual reading. Returns updated history or None."""
     predicted_at_str = prediction_data.get("generated_at")
     predicted = prediction_data.get("prediction")
     if not predicted_at_str or not predicted:
         print("Prediction file missing required fields, skipping.")
-        return
+        return None
 
     predicted_at = datetime.strptime(predicted_at_str, "%Y-%m-%dT%H:%M:%SZ").replace(
         tzinfo=timezone.utc
     )
-
-    actual = get_latest_reading()
-    if actual is None:
-        print("No readings in database, skipping validation.")
-        return
 
     actual_dt = datetime.fromtimestamp(actual["timestamp"], tz=timezone.utc)
     diff = actual_dt - predicted_at
@@ -130,10 +142,20 @@ def validate(prediction_path, history_path):
             f"Actual reading is {diff_minutes:.0f} min after prediction "
             f"(need 30-90 min window). Skipping validation."
         )
-        return
+        return None
+
+    model_type = prediction_data.get("model_type", "simple")
+    model_version = prediction_data.get("model_version")
 
     for_hour = predicted_at + timedelta(hours=1)
     for_hour_str = for_hour.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Check for duplicate — skip if we already have this model+hour
+    for entry in history:
+        if (entry.get("model_type", "simple") == model_type and
+                entry.get("for_hour") == for_hour_str):
+            print(f"Already validated {model_type} for {for_hour_str}, skipping.")
+            return None
 
     error_indoor = abs(actual["temp_indoor"] - predicted["temp_indoor"])
     error_outdoor = abs(actual["temp_outdoor"] - predicted["temp_outdoor"])
@@ -141,6 +163,7 @@ def validate(prediction_path, history_path):
     comparison = {
         "predicted_at": predicted_at_str,
         "for_hour": for_hour_str,
+        "model_type": model_type,
         "predicted": {
             "temp_indoor": predicted["temp_indoor"],
             "temp_outdoor": predicted["temp_outdoor"],
@@ -155,27 +178,10 @@ def validate(prediction_path, history_path):
         },
     }
 
-    if prediction_data.get("model_version") is not None:
-        comparison["model_version"] = prediction_data["model_version"]
-    if prediction_data.get("model_type") is not None:
-        comparison["model_type"] = prediction_data["model_type"]
+    if model_version is not None:
+        comparison["model_version"] = model_version
 
-    history = load_history(history_path)
-
-    # Check for duplicate — skip if we already have this prediction
-    if history and history[0].get("predicted_at") == predicted_at_str:
-        print("This prediction has already been validated, skipping.")
-        return
-
-    history.insert(0, comparison)
-    history = history[:MAX_HISTORY]
-
-    os.makedirs(os.path.dirname(os.path.abspath(history_path)), exist_ok=True)
-    with open(history_path, "w") as f:
-        json.dump(history, f, indent=2)
-        f.write("\n")
-
-    print("Validation result:")
+    print(f"Validation result ({model_type}):")
     print(f"  Predicted at:  {predicted_at_str}")
     print(f"  For hour:      {for_hour_str}")
     print(f"  Indoor:  predicted {predicted['temp_indoor']:.1f}, "
@@ -184,7 +190,44 @@ def validate(prediction_path, history_path):
     print(f"  Outdoor: predicted {predicted['temp_outdoor']:.1f}, "
           f"actual {actual['temp_outdoor']:.1f}, "
           f"error {error_outdoor:.1f}")
-    print(f"  History written to {history_path}")
+
+    return comparison
+
+
+def validate(prediction_paths, history_path):
+    actual = get_latest_reading()
+    if actual is None:
+        print("No readings in database, skipping validation.")
+        return
+
+    history = load_history(history_path)
+    new_entries = []
+
+    for prediction_path in prediction_paths:
+        prediction_data = load_prediction(prediction_path)
+        if prediction_data is None:
+            print(f"No prediction file at {prediction_path}, skipping.")
+            continue
+
+        print(f"Validating: {prediction_path}")
+        comparison = validate_single(prediction_data, actual, history)
+        if comparison:
+            new_entries.append(comparison)
+            # Add to history so subsequent checks see it for dedup
+            history.insert(0, comparison)
+
+    if not new_entries:
+        print("No new validations to record.")
+        return
+
+    history = trim_history(history)
+
+    os.makedirs(os.path.dirname(os.path.abspath(history_path)), exist_ok=True)
+    with open(history_path, "w") as f:
+        json.dump(history, f, indent=2)
+        f.write("\n")
+
+    print(f"History written to {history_path} ({len(new_entries)} new entries, {len(history)} total)")
 
 
 if __name__ == "__main__":
@@ -193,17 +236,19 @@ if __name__ == "__main__":
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--prediction", help="Path to a specific prediction file")
-    group.add_argument("--predictions-dir", help="Auto-find latest prediction in this directory")
+    group.add_argument("--predictions-dir", help="Auto-find latest predictions in this directory")
     parser.add_argument(
         "--history", required=True, help="Path to prediction-history.json"
     )
     args = parser.parse_args()
 
-    prediction_path = args.prediction
     if args.predictions_dir:
-        prediction_path = find_best_prediction(args.predictions_dir)
-        if prediction_path is None:
-            print("No suitable prediction found (need one 30-90 min old), skipping.")
+        prediction_paths = find_best_predictions(args.predictions_dir)
+        if not prediction_paths:
+            print("No suitable predictions found (need ones 30-90 min old), skipping.")
             sys.exit(0)
-        print(f"Found best prediction: {prediction_path}")
-    validate(prediction_path, args.history)
+        print(f"Found {len(prediction_paths)} prediction(s) to validate")
+    else:
+        prediction_paths = [args.prediction]
+
+    validate(prediction_paths, args.history)
