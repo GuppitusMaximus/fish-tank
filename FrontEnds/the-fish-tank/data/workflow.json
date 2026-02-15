@@ -1,21 +1,37 @@
 {
-  "generated_at": "2026-02-15T23:20:54Z",
+  "generated_at": "2026-02-15T23:40:27Z",
   "schedule": {
     "cron": "0,20,40 * * * *",
-    "next_run": "2026-02-15T23:40:00Z"
+    "next_run": "2026-02-16T00:00:00Z"
   },
   "latest": {
-    "id": 22045002635,
-    "status": "completed",
-    "conclusion": "success",
+    "id": 22045277559,
+    "status": "in_progress",
+    "conclusion": null,
     "event": "workflow_dispatch",
-    "created_at": "2026-02-15T23:20:12Z",
-    "updated_at": "2026-02-15T23:20:47Z",
-    "duration_seconds": 35,
-    "duration_display": "0m 35s",
-    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22045002635"
+    "created_at": "2026-02-15T23:40:11Z",
+    "updated_at": "2026-02-15T23:40:15Z",
+    "duration_seconds": null,
+    "duration_display": null,
+    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22045277559"
   },
   "runs": [
+    {
+      "id": 22045277559,
+      "conclusion": null,
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-15T23:40:11Z",
+      "duration_seconds": null,
+      "duration_display": null
+    },
+    {
+      "id": 22045277305,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-15T23:40:10Z",
+      "duration_seconds": 11,
+      "duration_display": "0m 11s"
+    },
     {
       "id": 22045002635,
       "conclusion": "success",
@@ -599,21 +615,13 @@
       "created_at": "2026-02-14T02:30:36Z",
       "duration_seconds": 11,
       "duration_display": "0m 11s"
-    },
-    {
-      "id": 22006539407,
-      "conclusion": "success",
-      "event": "schedule",
-      "created_at": "2026-02-13T23:36:04Z",
-      "duration_seconds": 11,
-      "duration_display": "0m 11s"
     }
   ],
   "stats": {
-    "total_runs": 74,
-    "success_count": 68,
-    "failure_count": 6,
-    "success_rate": 91.9,
+    "total_runs": 75,
+    "success_count": 67,
+    "failure_count": 7,
+    "success_rate": 89.3,
     "avg_duration_seconds": 32,
     "avg_duration_display": "0m 32s",
     "period_hours": 48
