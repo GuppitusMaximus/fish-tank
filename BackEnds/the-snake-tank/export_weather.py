@@ -30,6 +30,27 @@ def read_json(path):
         return None
 
 
+def _find_latest_path_for_hour(directory, hour):
+    """Find the latest JSON file for a given hour in a directory.
+    Matches both old HH00.json and new HHMMSS.json formats."""
+    if not os.path.isdir(directory):
+        return None
+    prefix = f"{hour:02d}"
+    candidates = sorted(
+        [f for f in os.listdir(directory)
+         if f.startswith(prefix) and f.endswith(".json")
+         and re.match(r"^\d{4,6}\.json$", f)],
+        reverse=True,
+    )
+    return os.path.join(directory, candidates[0]) if candidates else None
+
+
+def _find_latest_for_hour(directory, hour):
+    """Find and read the latest JSON file for a given hour."""
+    path = _find_latest_path_for_hour(directory, hour)
+    return read_json(path) if path else None
+
+
 def extract_temps(weather_data):
     """Extract indoor and outdoor temps and timestamp from a raw weather JSON.
 
@@ -58,8 +79,8 @@ def read_prediction(date_str, hour):
     The prediction file at hour H was generated at hour H and predicts H+1.
     Returns the parsed prediction dict or None.
     """
-    path = os.path.join(PREDICTIONS_DIR, date_str, f"{hour:02d}00.json")
-    return read_json(path)
+    date_dir = os.path.join(PREDICTIONS_DIR, date_str)
+    return _find_latest_for_hour(date_dir, hour)
 
 
 def get_prediction_for_hour(date_str, hour):
@@ -118,7 +139,7 @@ def load_validated_history(history_path, hours):
 def generate_manifest(output_dir):
     """Generate data-index.json listing all available readings and predictions."""
     date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-    hour_re = re.compile(r"^(\d{4})\.json$")
+    hour_re = re.compile(r"^(\d{4,6})\.json$")
 
     def scan_dir(base_dir):
         index = {}
@@ -165,11 +186,10 @@ def export(output_path, hours, history_path=None):
         dt = now - timedelta(hours=i)
         date_str = dt.strftime("%Y-%m-%d")
         hour = dt.hour
-        weather_path = os.path.join(DATA_DIR, date_str, f"{hour:02d}00.json")
-        weather = read_json(weather_path)
-
-        if weather is None:
+        weather_path = _find_latest_path_for_hour(os.path.join(DATA_DIR, date_str), hour)
+        if weather_path is None:
             continue
+        weather = read_json(weather_path)
 
         temps = extract_temps(weather)
         if temps is None:
