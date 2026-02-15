@@ -44,11 +44,13 @@ def export(output_path, hours):
     cutoff = now - timedelta(hours=hours)
     generated_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Compute next run as next :00 UTC boundary
-    if now.minute == 0 and now.second == 0:
-        next_run = now + timedelta(hours=1)
+    # Compute next run as next :00/:20/:40 UTC boundary
+    remainder = now.minute % 20
+    if remainder == 0 and now.second == 0:
+        next_run = now + timedelta(minutes=20)
     else:
-        next_run = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        minutes_until = 20 - remainder
+        next_run = now.replace(second=0, microsecond=0) + timedelta(minutes=minutes_until)
     next_run_str = next_run.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     token = os.environ.get("GH_TOKEN")
@@ -58,7 +60,7 @@ def export(output_path, hours):
         print("Warning: GH_TOKEN not set, writing minimal output")
         minimal = {
             "generated_at": generated_at,
-            "schedule": {"cron": "0 * * * *", "next_run": next_run_str},
+            "schedule": {"cron": "0,20,40 * * * *", "next_run": next_run_str},
             "latest": None,
             "runs": [],
             "stats": None,
@@ -72,7 +74,7 @@ def export(output_path, hours):
         print(f"Warning: API call failed ({e}), writing minimal output")
         minimal = {
             "generated_at": generated_at,
-            "schedule": {"cron": "0 * * * *", "next_run": next_run_str},
+            "schedule": {"cron": "0,20,40 * * * *", "next_run": next_run_str},
             "latest": None,
             "runs": [],
             "stats": None,
@@ -144,7 +146,7 @@ def export(output_path, hours):
 
     result = {
         "generated_at": generated_at,
-        "schedule": {"cron": "0 * * * *", "next_run": next_run_str},
+        "schedule": {"cron": "0,20,40 * * * *", "next_run": next_run_str},
         "latest": latest,
         "runs": compact_runs,
         "stats": stats,
