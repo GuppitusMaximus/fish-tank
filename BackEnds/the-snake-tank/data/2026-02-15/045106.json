@@ -1,0 +1,88 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1771130960,
+        "firmware": 300,
+        "wifi_status": 21,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1771130958,
+          "Temperature": 18.9,
+          "CO2": 634,
+          "Humidity": 33,
+          "Noise": 75,
+          "Pressure": 1014.4,
+          "AbsolutePressure": 988.1,
+          "min_temp": 18.9,
+          "max_temp": 22.2,
+          "date_max_temp": 1771050410,
+          "date_min_temp": 1771130354,
+          "temp_trend": "stable",
+          "pressure_trend": "stable"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1771130957,
+            "last_seen": 1771130957,
+            "rf_status": 60,
+            "battery_vp": 6098,
+            "dashboard_data": {
+              "time_utc": 1771130957,
+              "Temperature": -3.8,
+              "Humidity": 72,
+              "min_temp": -9.7,
+              "max_temp": 0,
+              "date_max_temp": 1771100964,
+              "date_min_temp": 1771053127,
+              "temp_trend": "up"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.042057037353515625,
+  "time_server": 1771131066
+}
