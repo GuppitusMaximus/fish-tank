@@ -117,9 +117,11 @@ def export(output_path, hours):
             latest = dict(r)
             break
 
-    # Build compact runs array (strip fields the frontend doesn't need in the list)
+    # Build compact runs array — exclude the current in-progress run
     compact_runs = []
     for r in runs:
+        if r["id"] == current_run_id:
+            continue
         compact_runs.append({
             "id": r["id"],
             "conclusion": r["conclusion"],
