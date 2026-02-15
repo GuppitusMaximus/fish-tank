@@ -956,7 +956,13 @@ window.WeatherApp = (() => {
     if (!histContainer) return;
 
     if (historyState.sorted.length === 0) {
-      histContainer.innerHTML = '<div class="history-empty">No predictions match filters</div>';
+      histContainer.innerHTML = '<div class="history-section">' +
+        '<h2>Prediction History</h2>' +
+        buildHistoryFilters() +
+        '<div class="history-row-count">0 predictions match filters</div>' +
+        '<div class="history-empty">No predictions match current filters</div>' +
+        '</div>';
+      wireHistoryHandlers();
       return;
     }
 
