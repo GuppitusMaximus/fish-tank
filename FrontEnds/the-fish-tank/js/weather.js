@@ -482,7 +482,7 @@ window.WeatherApp = (() => {
     if (latest) {
       var status = latest.conclusion || latest.status || 'unknown';
       var statusLabel = status === 'success' ? 'Success' : status === 'failure' ? 'Failed' : status === 'in_progress' ? 'In Progress' : status === 'cancelled' ? 'Cancelled' : status;
-      var trigger = latest.event === 'schedule' ? 'Scheduled' : 'Manual';
+      var trigger = latest.event === 'schedule' || latest.event === 'workflow_dispatch' ? 'Scheduled' : latest.event;
       var time = latest.created_at ? formatDateTime(new Date(latest.created_at)) : '\u2014';
 
       html += '<div class="dash-card">' +
@@ -525,7 +525,7 @@ window.WeatherApp = (() => {
         var conclusion = r.conclusion || 'in_progress';
         var statusCls = conclusion === 'success' ? 'delta-low' : conclusion === 'failure' ? 'delta-high' : 'delta-mid';
         var label = conclusion === 'success' ? 'Success' : conclusion === 'failure' ? 'Failed' : conclusion === 'in_progress' ? 'In Progress' : conclusion === 'cancelled' ? 'Cancelled' : conclusion;
-        var trigger = r.event === 'schedule' ? 'Scheduled' : 'Manual';
+        var trigger = r.event === 'schedule' || r.event === 'workflow_dispatch' ? 'Scheduled' : r.event;
         var time = r.created_at ? formatDateTime(new Date(r.created_at)) : '\u2014';
         return '<tr>' +
           '<td>' + time + '</td>' +
