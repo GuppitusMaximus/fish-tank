@@ -21,6 +21,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-multi-model-dashboard-ui-report.md` | Comprehensive QA report for v2 multi-model dashboard — all 15 tests passed |
 | `qa-docs-frontend.md` | Documentation QA report |
 | `qa-report-dashboard-filter-search.md` | Filter search inputs QA report — all 8 tests passed (replaces dropdowns with autocomplete text inputs) |
+| `qa-report-fix-filter-disappear.md` | Fix filters disappearing on empty results — all 5 tests passed (filters persist when no predictions match) |
 
 ### Test Data
 
@@ -74,6 +75,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | Workflow trigger label mapping | \`qa-workflow-trigger-label.md\` |
 | **V2 Multi-Model Dashboard (all features)** | \`test_v2_multi_model_dashboard.js\` + \`qa-multi-model-dashboard-ui-report.md\` |
 | **Dashboard Filter Search (text inputs with autocomplete)** | \`qa-report-dashboard-filter-search.md\` |
+| **Fix: Filters disappearing on empty results** | \`qa-report-fix-filter-disappear.md\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -127,5 +129,6 @@ The following v2 features were verified:
 | \`qa-workflow-trigger-label\` | Completed | \`qa-workflow-trigger-label.md\` | — |
 | \`qa-multi-model-dashboard-ui\` | Completed | \`test_v2_multi_model_dashboard.js\`, \`qa-multi-model-dashboard-ui-report.md\`, \`test_v1_v2_data_samples.json\` | 2 bugs (previously filed, still open) |
 | \`qa-dashboard-filter-search\` | Completed | \`qa-report-dashboard-filter-search.md\` | — |
+| \`qa-fix-filter-disappear\` | Completed | \`qa-report-fix-filter-disappear.md\` | — |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
