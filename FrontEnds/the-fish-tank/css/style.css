@@ -943,7 +943,7 @@ nav a.active {
     align-items: center;
 }
 
-.history-filter-select,
+.history-filter-input,
 .history-filter-date {
     background: rgba(0, 20, 60, 0.6);
     color: #c8dcff;
@@ -951,6 +951,10 @@ nav a.active {
     padding: 6px 10px;
     border-radius: 4px;
     font-size: 0.75rem;
+}
+
+.history-filter-input::placeholder {
+    color: rgba(200, 220, 255, 0.4);
 }
 
 .history-row-count {
@@ -1097,7 +1101,7 @@ nav a.active {
 
     /* --- V2: Filter controls stack --- */
     .history-filters { flex-direction: column; }
-    .history-filter-select,
+    .history-filter-input,
     .history-filter-date {
         width: 100%;
         padding: 10px 12px;
