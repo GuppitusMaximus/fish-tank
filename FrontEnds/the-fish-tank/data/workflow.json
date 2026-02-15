@@ -1,21 +1,29 @@
 {
-  "generated_at": "2026-02-15T11:28:02Z",
+  "generated_at": "2026-02-15T13:02:40Z",
   "schedule": {
     "cron": "0 * * * *",
-    "next_run": "2026-02-15T12:00:00Z"
+    "next_run": "2026-02-15T14:00:00Z"
   },
   "latest": {
-    "id": 22034855614,
+    "id": 22036127173,
     "status": "completed",
     "conclusion": "success",
     "event": "schedule",
-    "created_at": "2026-02-15T11:27:24Z",
-    "updated_at": "2026-02-15T11:27:56Z",
+    "created_at": "2026-02-15T13:02:03Z",
+    "updated_at": "2026-02-15T13:02:35Z",
     "duration_seconds": 32,
     "duration_display": "0m 32s",
-    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22034855614"
+    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22036127173"
   },
   "runs": [
+    {
+      "id": 22036127173,
+      "conclusion": "success",
+      "event": "schedule",
+      "created_at": "2026-02-15T13:02:03Z",
+      "duration_seconds": 32,
+      "duration_display": "0m 32s"
+    },
     {
       "id": 22034855614,
       "conclusion": "success",
@@ -503,47 +511,15 @@
       "created_at": "2026-02-13T13:11:57Z",
       "duration_seconds": 11,
       "duration_display": "0m 11s"
-    },
-    {
-      "id": 21986398030,
-      "conclusion": "success",
-      "event": "workflow_dispatch",
-      "created_at": "2026-02-13T12:12:26Z",
-      "duration_seconds": 9,
-      "duration_display": "0m 9s"
-    },
-    {
-      "id": 21986370823,
-      "conclusion": "failure",
-      "event": "workflow_dispatch",
-      "created_at": "2026-02-13T12:11:30Z",
-      "duration_seconds": 12,
-      "duration_display": "0m 12s"
-    },
-    {
-      "id": 21986228559,
-      "conclusion": "failure",
-      "event": "workflow_dispatch",
-      "created_at": "2026-02-13T12:06:26Z",
-      "duration_seconds": 8,
-      "duration_display": "0m 8s"
-    },
-    {
-      "id": 21985383487,
-      "conclusion": "failure",
-      "event": "schedule",
-      "created_at": "2026-02-13T11:35:41Z",
-      "duration_seconds": 9,
-      "duration_display": "0m 9s"
     }
   ],
   "stats": {
-    "total_runs": 65,
+    "total_runs": 62,
     "success_count": 56,
-    "failure_count": 9,
-    "success_rate": 86.2,
-    "avg_duration_seconds": 27,
-    "avg_duration_display": "0m 27s",
+    "failure_count": 6,
+    "success_rate": 90.3,
+    "avg_duration_seconds": 28,
+    "avg_duration_display": "0m 28s",
     "period_hours": 48
   }
 }
