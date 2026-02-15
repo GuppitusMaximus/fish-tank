@@ -11,6 +11,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_dash_qa_frontend.sh` | Shell script | HTML structure, JS quality, and JSON data format for the weather dashboard |
 | `test_readme_update_frontend.sh` | Shell script | README accuracy — verifies documentation matches source code |
 | `test_model_version_display.html` | HTML test page | ML model version rendering in forecast card and history table |
+| `test_v2_multi_model_dashboard.js` | Node.js script | V2 schema detection, data-driven rendering, filtering, sorting, lazy loading, mobile responsive, Browse tab compatibility |
 
 ### Test Reports
 
@@ -28,6 +29,14 @@ bash tests/test_readme_update_frontend.sh
 ```
 
 Both scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
+
+**Node.js scripts** — run from the FrontEnds directory:
+
+```bash
+node tests/test_v2_multi_model_dashboard.js
+```
+
+The script reads the implementation files and validates the code structure, printing ✓/✗ for each check.
 
 **HTML test page** — open in a browser. The page loads `weather.js` and runs assertions in-browser:
 
@@ -54,6 +63,20 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | CSS `.card-meta` class existence | `test_model_version_display.html` |
 | README accuracy vs source code | `test_readme_update_frontend.sh` |
 | Workflow trigger label mapping | `qa-workflow-trigger-label.md` |
+| V2 schema detection and validation | `test_v2_multi_model_dashboard.js` |
+| V1 fallback rendering | `test_v2_multi_model_dashboard.js` |
+| Shared property utilities (getPropertyLabel, formatProperty, discoverHistoryProperties) | `test_v2_multi_model_dashboard.js` |
+| Dynamic current reading rendering | `test_v2_multi_model_dashboard.js` |
+| Per-model prediction cards | `test_v2_multi_model_dashboard.js` |
+| Empty predictions placeholder | `test_v2_multi_model_dashboard.js` |
+| Dynamic history table columns | `test_v2_multi_model_dashboard.js` |
+| History filtering (model type, version, date range) | `test_v2_multi_model_dashboard.js` |
+| History column sorting (asc/desc, default timestamp desc) | `test_v2_multi_model_dashboard.js` |
+| Lazy loading (50 rows, "Show more" button) | `test_v2_multi_model_dashboard.js` |
+| localStorage caching (5-min TTL) | `test_v2_multi_model_dashboard.js` |
+| Mobile responsive CSS (393px) | `test_v2_multi_model_dashboard.js` |
+| Browse tab v2 compatibility | `test_v2_multi_model_dashboard.js` |
+| No hardcoded field names in v2 path | `test_v2_multi_model_dashboard.js` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -100,6 +123,6 @@ The following features were verified during the `qa-multi-model-dashboard-ui` QA
 | `qa-model-versioning-frontend` | Completed | `test_model_version_display.html` | — |
 | `qa-readme-update-frontend` | Completed | `test_readme_update_frontend.sh` | — |
 | `qa-workflow-trigger-label` | Completed | `qa-workflow-trigger-label.md` | — |
-| `qa-multi-model-dashboard-ui` | Completed | Code inspection (no new test files) | 2 bugs in Planning/bugs/ |
+| `qa-multi-model-dashboard-ui` | Completed | `test_v2_multi_model_dashboard.js`, `test_v1_v2_data_samples.json` | 2 bugs in Planning/bugs/ |
 
 The `test_dash_qa_frontend.sh` script was created during earlier weather dashboard QA.
