@@ -131,6 +131,8 @@ def export(output_path, hours):
                 }
                 if latest_pred.get("model_version") is not None:
                     next_pred["model_version"] = latest_pred["model_version"]
+                if latest_pred.get("model_type") is not None:
+                    next_pred["model_type"] = latest_pred["model_type"]
                 result["next_prediction"] = next_pred
 
         # Build history: find prediction FOR this hour (made at hour-1)
@@ -149,6 +151,8 @@ def export(output_path, hours):
             }
             if pred_data.get("model_version") is not None:
                 entry["model_version"] = pred_data["model_version"]
+            if pred_data.get("model_type") is not None:
+                entry["model_type"] = pred_data["model_type"]
             if time_utc:
                 entry["timestamp"] = datetime.fromtimestamp(time_utc, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             result["history"].append(entry)
