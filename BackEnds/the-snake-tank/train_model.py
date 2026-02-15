@@ -30,6 +30,16 @@ MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor.joblib")
 META_PATH = os.path.join(MODEL_DIR, "model_meta.json")
 PREV_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_prev.joblib")
 
+SIMPLE_LOOKBACK = 3
+SIMPLE_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_simple.joblib")
+SIMPLE_META_PATH = os.path.join(MODEL_DIR, "simple_meta.json")
+
+SIMPLE_FEATURE_COLS = [
+    "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
+    "humidity_outdoor", "noise", "pressure",
+    "temp_trend", "pressure_trend",
+]
+
 LOOKBACK = 24  # hours of history
 MAX_GAP = 5400  # max seconds between consecutive readings (1.5h, allows for timing drift)
 
@@ -99,10 +109,44 @@ def build_windows(df):
     return np.array(X), np.array(y)
 
 
+def build_simple_windows(df):
+    """Build sliding windows for the simple 3-hour model."""
+    timestamps = df["timestamp"].values
+    features_matrix = df[SIMPLE_FEATURE_COLS].values
+
+    X, y = [], []
+
+    for i in range(SIMPLE_LOOKBACK, len(df)):
+        window_start = i - SIMPLE_LOOKBACK
+        contiguous = True
+        for j in range(window_start, i):
+            if timestamps[j + 1] - timestamps[j] > MAX_GAP:
+                contiguous = False
+                break
+        if not contiguous:
+            continue
+
+        feature_vector = features_matrix[window_start:i].flatten()
+        target = df[TARGET_COLS].values[i]
+        X.append(feature_vector)
+        y.append(target)
+
+    return np.array(X), np.array(y)
+
+
 def read_meta():
     """Read existing model metadata, returning defaults if not found."""
     try:
         with open(META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
+
+
+def read_simple_meta():
+    """Read existing simple model metadata, returning defaults if not found."""
+    try:
+        with open(SIMPLE_META_PATH) as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return {"version": 0}
@@ -132,11 +176,11 @@ def train():
     if len(X) == 0:
         print("Not enough data: No valid training windows. Need at least 25 consecutive hourly readings.")
         print(f"Database has {len(df)} readings. Collect more data and retrain later.")
-        sys.exit(0)
+        return
 
     if len(X) < 2:
         print("Not enough data: Need at least 2 training windows. Collect more data and retrain later.")
-        sys.exit(0)
+        return
 
     if len(X) < 10:
         print(f"WARNING: Only {len(X)} samples available. Model quality will be poor.")
@@ -195,5 +239,65 @@ def train():
     print(f"Model metadata written (version {new_version})")
 
 
+def train_simple():
+    """Train the simple 3-hour fallback model."""
+    print("\n--- Simple Model (3h fallback) ---")
+
+    if not os.path.exists(DB_PATH):
+        print("Skipping simple model: no database")
+        return
+
+    df = load_readings()
+    df = encode_trends(df)
+
+    X, y = build_simple_windows(df)
+
+    print(f"Built {len(X)} simple sliding windows (lookback={SIMPLE_LOOKBACK}h)")
+
+    if len(X) < 2:
+        print("Not enough data for simple model. Need at least 4 consecutive hourly readings.")
+        return
+
+    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42))
+
+    if len(X) < 50:
+        loo = LeaveOneOut()
+        y_pred = cross_val_predict(model, X, y, cv=loo)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        y = y_test
+
+    mae_indoor = mean_absolute_error(y[:, 0], y_pred[:, 0])
+    mae_outdoor = mean_absolute_error(y[:, 1], y_pred[:, 1])
+
+    print(f"  MAE indoor:  {mae_indoor:.2f}°C")
+    print(f"  MAE outdoor: {mae_outdoor:.2f}°C")
+
+    model.fit(X, y)
+
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    joblib.dump(model, SIMPLE_MODEL_PATH)
+    print(f"Simple model saved to {SIMPLE_MODEL_PATH}")
+
+    meta = read_simple_meta()
+    new_version = meta.get("version", 0) + 1
+    new_meta = {
+        "version": new_version,
+        "trained_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "sample_count": len(X),
+        "mae_indoor": round(mae_indoor, 4),
+        "mae_outdoor": round(mae_outdoor, 4),
+    }
+    with open(SIMPLE_META_PATH, "w") as f:
+        json.dump(new_meta, f, indent=2)
+        f.write("\n")
+    print(f"Simple model metadata written (version {new_version})")
+
+
 if __name__ == "__main__":
     train()
+    train_simple()

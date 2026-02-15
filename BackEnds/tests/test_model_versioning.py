@@ -317,32 +317,32 @@ class TestPredictionModelVersion:
 class TestPredictionFallback:
     """Test 4: Prediction fallback works when current model is corrupted."""
 
-    def test_fallback_to_previous_model(self, test_env):
-        """When current model is corrupted, prediction falls back to previous model."""
-        # Train twice to get both current and previous model
+    def test_fallback_to_simple_model(self, test_env):
+        """When full model is corrupted, prediction falls back to simple model."""
+        # Train to get both full and simple models
         wrapper = patch_script_dir(TRAIN_SCRIPT, test_env["snake_dir"])
         try:
-            run_script(wrapper)
             run_script(wrapper)
         finally:
             os.unlink(wrapper)
 
-        # Read current version
-        with open(test_env["meta_path"]) as f:
-            meta = json.load(f)
-        current_version = meta["version"]
+        # Read simple model version
+        simple_meta_path = os.path.join(test_env["model_dir"], "simple_meta.json")
+        with open(simple_meta_path) as f:
+            simple_meta = json.load(f)
+        simple_version = simple_meta["version"]
 
-        # Corrupt the current model
+        # Corrupt the full model
         with open(test_env["model_path"], "wb") as f:
             f.write(b"THIS IS GARBAGE DATA NOT A VALID JOBLIB FILE")
 
-        # Run prediction — should fall back to previous model
+        # Run prediction — should fall back to simple model
         output_path = os.path.join(test_env["snake_dir"], "test_fallback.json")
         pred_wrapper = patch_script_dir(PREDICT_SCRIPT, test_env["snake_dir"])
         try:
             rc, stdout, stderr = run_script(pred_wrapper, ["--output", output_path])
             assert rc == 0, f"Fallback prediction failed: {stdout}\n{stderr}"
-            assert "previous model" in stdout.lower() or "fallback" in stdout.lower(), (
+            assert "simple" in stdout.lower() or "fallback" in stdout.lower(), (
                 f"Expected fallback warning in output, got: {stdout}"
             )
         finally:
@@ -352,8 +352,11 @@ class TestPredictionFallback:
             pred = json.load(f)
 
         assert "model_version" in pred
-        assert pred["model_version"] == current_version - 1, (
-            f"Fallback model_version should be {current_version - 1}, got {pred['model_version']}"
+        assert pred["model_version"] == simple_version, (
+            f"Fallback model_version should be {simple_version}, got {pred['model_version']}"
+        )
+        assert pred.get("model_type") == "simple", (
+            f"Fallback model_type should be 'simple', got {pred.get('model_type')}"
         )
 
 
