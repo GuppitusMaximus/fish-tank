@@ -2,7 +2,7 @@
 
 **Plan:** qa-multi-model-dashboard-ui
 **Date:** 2026-02-15
-**Status:** PASS (with notes)
+**Status:** ✅ PASS (with 2 known bugs filed)
 
 ## Executive Summary
 
@@ -458,9 +458,39 @@ All multi-model dashboard UI features are correctly implemented:
 - ✓ Browse tab v2 compatibility with v1 fallback
 - ✓ No hardcoded property names in v2 rendering path
 
+## Known Bugs
+
+Two bugs were identified and filed in `Planning/bugs/`:
+
+### Bug 1: Date range filter has no default value (last 7 days)
+**File:** `Planning/bugs/multi-model-dashboard-ui-date-filter-no-default.md`
+**Severity:** Minor
+**Status:** Open
+
+The date range filter inputs start empty instead of defaulting to the last 7 days as specified in the plan. Users must manually set dates to filter history.
+
+**Location:** `weather.js` lines 671-672 (historyState initialization)
+
+**Impact:** Low — all history data is shown initially, but users can manually filter.
+
+### Bug 2: V2 history table hardcodes "temp_" prefix for properties
+**File:** `Planning/bugs/multi-model-dashboard-ui-hardcoded-temp-prefix.md`
+**Severity:** Major
+**Status:** Open
+
+The V2 history table prepends `"temp_"` when looking up property metadata and formatting values. This prevents supporting non-temperature properties (humidity, pressure, etc.) in the future.
+
+**Location:** `weather.js` lines 832, 852-853, 1028-1029
+
+**Impact:** Medium — currently hidden because backend only exports temperature properties. Will break when new property types are added.
+
 ## Recommendations
 
-None. The implementation is complete and correct.
+1. **Fix Bug 2 (hardcoded temp_ prefix) before adding new property types** — This is a blocker for future extensibility. The frontend should use property suffixes directly, not prepend "temp_".
+
+2. **Fix Bug 1 (date filter default) for better UX** — Defaulting to the last 7 days improves usability for users viewing recent predictions.
+
+3. **Consider end-to-end tests** — Current tests verify code structure only. Browser-based tests that render with sample data would catch visual/behavioral issues.
 
 ## Test Artifacts
 
