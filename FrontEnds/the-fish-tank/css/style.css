@@ -134,6 +134,14 @@ nav a.active {
     display: flex;
 }
 
+#weather.active {
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    max-height: calc(100vh - 4rem);
+    -webkit-overflow-scrolling: touch;
+}
+
 #tank, #arena, #sky {
     position: relative;
     width: 94vw;
@@ -868,52 +876,115 @@ nav a.active {
 
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
-    h1 {
-        font-size: 1rem;
-    }
-
-    #tank, #arena, #sky {
-        width: 98vw;
-        height: calc(100vh - 5rem);
-        border-radius: 8px;
-    }
-
-    .sandy-bottom {
-        height: 30px;
-        border-radius: 0 0 7px 7px;
-    }
-
-    .muddy-ground {
-        height: 35px;
-        border-radius: 0 0 7px 7px;
-    }
-
+    /* --- Existing rules (keep as-is) --- */
+    h1 { font-size: 1rem; }
+    #tank, #arena, #sky { width: 98vw; height: calc(100vh - 5rem); border-radius: 8px; }
+    .sandy-bottom { height: 30px; border-radius: 0 0 7px 7px; }
+    .muddy-ground { height: 35px; border-radius: 0 0 7px 7px; }
     .plant-1 { height: 60px; }
     .plant-2 { height: 75px; }
     .plant-3 { height: 50px; }
-
     .mound-1 { width: 80px; height: 20px; }
     .mound-2 { width: 110px; height: 16px; }
     .mound-3 { width: 60px; height: 14px; }
+    .dash-cards { flex-direction: column; }
+    .dashboard { width: 98vw; }
+    .table-scroll { margin: 0 -0.5rem; }
+    .browse-controls { gap: 8px; }
 
-    .dash-cards {
-        flex-direction: column;
+    /* --- Navigation: bigger tap targets --- */
+    nav {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    nav a, .nav-dropdown-toggle {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.6rem;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+    .nav-dropdown-menu a {
+        padding: 0.6rem 1rem;
+        font-size: 0.75rem;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
     }
 
-    .dashboard {
-        width: 98vw;
-    }
-
-    .table-scroll {
-        margin: 0 -0.5rem;
-    }
-
-    .browse-controls {
-        gap: 8px;
-    }
-
+    /* --- Sub-navigation: fill width evenly --- */
     .subnav-btn {
-        padding: 6px 14px;
+        flex: 1;
+        text-align: center;
+        padding: 10px 8px;
         font-size: 13px;
     }
+
+    /* --- Dashboard cards --- */
+    .dash-card { padding: 0.8rem; }
+    .temp-value { font-size: 1.5rem; }
+    .temp-row { gap: 1rem; }
+
+    /* --- Browse controls: bigger touch targets --- */
+    .browse-controls select {
+        padding: 10px 12px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+    .browse-btn {
+        padding: 8px 14px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+    .hour-btn {
+        min-width: 48px;
+        padding: 10px 8px;
+        font-size: 13px;
+        min-height: 44px;
+    }
+
+    /* --- Prediction history table: hide Model column --- */
+    #history-table th:nth-child(2),
+    #history-table td:nth-child(2) {
+        display: none;
+    }
+    #history-table { font-size: 0.75rem; }
+    #history-table th,
+    #history-table td { padding: 0.4rem 0.35rem; }
+
+    /* --- Workflow table --- */
+    #workflow-table { font-size: 0.75rem; }
+    #workflow-table th,
+    #workflow-table td { padding: 0.4rem 0.35rem; }
+    .workflow-history-scroll { max-height: 250px; }
+
+    /* --- Data fields (workflow cards, data browser) --- */
+    .data-field { gap: 0.5rem; }
+    .data-label { font-size: 12px; }
+    .data-value { font-size: 12px; text-align: right; }
+
+    /* --- Format toggle buttons --- */
+    .format-toggle {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.7rem;
+        min-height: 36px;
+    }
+
+    /* --- Raw JSON --- */
+    .raw-json { font-size: 11px; padding: 12px; max-height: 400px; }
+
+    /* --- Table scroll hint (fade on right edge) --- */
+    .table-scroll { position: relative; }
+    .table-scroll::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 20px;
+        background: linear-gradient(to left, rgba(6, 14, 26, 0.8), transparent);
+        pointer-events: none;
+    }
+    .table-scroll.scrolled-end::after { display: none; }
 }
