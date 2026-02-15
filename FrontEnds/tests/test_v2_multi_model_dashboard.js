@@ -301,22 +301,22 @@ test('History table dynamic columns', () => {
 
 // ========== Test 8: History filtering — model type ==========
 test('History filtering model type', () => {
-  // Check model type dropdown exists
+  // Check model type input with datalist exists
   assert(
-    /<select.*filter-model/.test(weatherJs),
-    'Model type filter dropdown exists'
+    /<input.*filter-model/.test(weatherJs) || /id="filter-model"/.test(weatherJs),
+    'Model type filter input exists'
   );
 
-  // Check "All" option
+  // Check datalist for model types
   assert(
-    /<option value="all">All Models<\/option>/.test(weatherJs),
-    'Has "All Models" option'
+    /<datalist.*model-type-list/.test(weatherJs) || /model-type-list/.test(weatherJs),
+    'Has model-type-list datalist'
   );
 
   // Check filtering logic
   assert(
-    /filterModel.*model_type/.test(weatherJs),
-    'Filters by model_type'
+    /entry\.model_type/.test(weatherJs) && /includes/.test(weatherJs),
+    'Filters by model_type using includes'
   );
 
   // Check row count updates
