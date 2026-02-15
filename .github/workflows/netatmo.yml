@@ -36,8 +36,10 @@ jobs:
       - name: Train prediction model
         run: python BackEnds/the-snake-tank/train_model.py || true
 
-      - name: Run prediction
-        run: python BackEnds/the-snake-tank/predict.py --predictions-dir BackEnds/the-snake-tank/data/predictions || true
+      - name: Run predictions
+        run: |
+          cd BackEnds/the-snake-tank
+          python predict.py --model-type all --predictions-dir data/predictions || true
 
       - name: Export weather dashboard data
         run: python BackEnds/the-snake-tank/export_weather.py --output FrontEnds/the-fish-tank/data/weather.json --history BackEnds/the-snake-tank/data/prediction-history.json || true

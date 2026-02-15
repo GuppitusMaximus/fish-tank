@@ -29,9 +29,9 @@ the-snake-tank/
 ├── fetch_weather.py        # Fetches data from Netatmo API, scrubs PII
 ├── build_dataset.py        # Builds SQLite DB from raw JSON
 ├── train_model.py          # Trains both full and simple models
-├── predict.py              # Runs predictions using trained model
-├── validate_prediction.py  # Validates predictions against actual readings
-├── export_weather.py       # Exports weather.json + data-index.json for frontend
+├── predict.py              # Runs predictions for one or all models
+├── validate_prediction.py  # Validates predictions against actual readings (multi-model)
+├── export_weather.py       # Exports v2 weather.json + data-index.json for frontend
 ├── export_workflow.py      # Exports workflow.json for frontend
 ├── requirements.txt        # Python dependencies (pandas, scikit-learn)
 ├── data/
@@ -40,15 +40,18 @@ the-snake-tank/
 │   │   └── ...
 │   ├── predictions/        # Timestamped prediction output files
 │   │   └── YYYY-MM-DD/
-│   │       └── HHMMSS.json
+│   │       ├── HHMMSS_simple.json  # Model-typed prediction files
+│   │       ├── HHMMSS_full.json
+│   │       └── HHMMSS.json         # Backwards-compat copy (simple model)
 │   ├── prediction-history.json  # Validated prediction accuracy history
 │   └── weather.db          # SQLite database (gitignored)
-└── models/
-    ├── temp_predictor.joblib        # Full 24h model (gitignored)
-    ├── temp_predictor_simple.joblib # Simple 3h fallback model
-    ├── temp_predictor_prev.joblib   # Previous full model backup (gitignored)
-    ├── model_meta.json              # Full model version metadata
-    └── simple_meta.json             # Simple model version metadata
+├── models/
+│   ├── temp_predictor.joblib        # Full 24h model (gitignored)
+│   ├── temp_predictor_simple.joblib # Simple 3h fallback model
+│   ├── temp_predictor_prev.joblib   # Previous full model backup (gitignored)
+│   ├── model_meta.json              # Full model version metadata
+│   └── simple_meta.json             # Simple model version metadata
+└── tests/                           # QA tests (in BackEnds/tests/)
 ```
 
 ## Workflow Trigger
@@ -151,13 +154,15 @@ The full model also backs up the previous version to `temp_predictor_prev.joblib
 
 ## Prediction Cascade
 
-`predict.py` attempts prediction in a fallback cascade:
+`predict.py` supports running one or both models via the `--model-type` flag:
 
-1. **Stage 1 — Full model:** Loads the 24h model and the most recent 24 readings. If the model exists and enough recent data is available, produces a prediction with `model_type: "full"`.
-2. **Stage 2 — Simple model:** If the full model fails or lacks data, loads the 3h model and the most recent 3 readings. Produces a prediction with `model_type: "simple"`.
-3. **Stage 3 — Error:** If both models fail, exits with an error.
+- `--model-type simple` — Run only the simple 3h model
+- `--model-type full` — Run only the full 24h model
+- `--model-type all` (default) — Run both models sequentially (simple first, then full)
 
-Predictions are saved to `data/predictions/{YYYY-MM-DD}/{HHMMSS}.json`.
+When `--model-type all` is used, both models run in sequence to avoid SQLite lock contention. Each model produces its own prediction file. If a model lacks sufficient data or fails, it is skipped and the other model still runs.
+
+Predictions are saved with model-typed filenames: `data/predictions/{YYYY-MM-DD}/{HHMMSS}_simple.json` and `HHMMSS_full.json`. For backwards compatibility, the simple model also writes an old-format `HHMMSS.json` copy.
 
 ### Output Format
 
@@ -185,23 +190,26 @@ Predictions are saved to `data/predictions/{YYYY-MM-DD}/{HHMMSS}.json`.
 |-----------------|----------------------------------------------------|
 | `generated_at`  | When the prediction was generated (UTC)            |
 | `model_version` | Version number of the model used                   |
-| `model_type`    | Which model produced the prediction (`full` or `simple`) |
+| `model_type`    | Which model produced the prediction (`"full"` or `"simple"`) |
 | `last_reading`  | Most recent sensor data used as input              |
 | `prediction`    | Predicted temperatures for the next hour           |
 
 ### Usage
 
 ```
-python predict.py                                        # Print to stdout
+python predict.py                                        # Run all models, print to stdout
+python predict.py --model-type simple                    # Run simple model only
+python predict.py --model-type all --predictions-dir data/predictions  # Run all, write timestamped files
 python predict.py --output prediction.json               # Write JSON file
-python predict.py --predictions-dir data/predictions     # Write timestamped file
 ```
 
 ## Prediction Validation
 
-`validate_prediction.py` compares each prediction against the actual reading that arrived. It matches predictions by age — looking for a prediction made 30–90 minutes ago (ideally ~60 minutes), so the "next hour" prediction lines up with the current reading.
+`validate_prediction.py` compares predictions against the actual reading that arrived. It finds all predictions made 30–90 minutes ago (ideally ~60 minutes), grouped by model type, and validates each independently. This means both the simple and full model predictions for the same hour are validated separately.
 
-Results are appended to `data/prediction-history.json`, which holds up to 168 entries (1 week of hourly predictions). The history is used by `export_weather.py` to build the accuracy history shown on the frontend dashboard.
+Duplicate detection keys on `(model_type, for_hour)` — a prediction is only validated once per model per hour.
+
+Results are appended to `data/prediction-history.json`, which holds up to 168 entries per model type (1 week of hourly predictions per model). The history is used by `export_weather.py` to build the accuracy history shown on the frontend dashboard.
 
 ### Usage
 
@@ -214,10 +222,15 @@ python validate_prediction.py --prediction path/to/specific.json --history data/
 
 ### `export_weather.py`
 
-Assembles a combined `weather.json` for the frontend dashboard containing:
-- Current sensor readings
-- Next-hour prediction
-- Recent prediction accuracy history (from validated `prediction-history.json`)
+Assembles a v2 `weather.json` for the frontend dashboard containing:
+- `schema_version: 2` — format version identifier
+- `property_meta` — labels, units, and format for each property (for dynamic frontend rendering)
+- `current.readings` — nested object with current sensor values
+- `predictions` — array of predictions, one per available model
+- `history` — flat-format prediction accuracy history with `model_type` and `model_version`
+- `next_prediction` — backwards-compatible flat prediction (from the first model in predictions)
+
+The v2 format supports auto-discovery of new models: when a new model type starts producing prediction files, it appears automatically in the `predictions` array without code changes. Uses atomic writes (temp file + rename) to prevent partial reads.
 
 Also generates a `data-index.json` manifest listing all available readings and prediction files by date, for use by the frontend data browser.
 
@@ -247,7 +260,7 @@ Run scripts individually:
 python fetch_weather.py      # Requires NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET, NETATMO_REFRESH_TOKEN
 python build_dataset.py      # Builds data/weather.db from data/*/*.json
 python train_model.py        # Trains both models → models/*.joblib
-python predict.py            # Prints predicted temperatures
+python predict.py --model-type all  # Run all models, print predicted temperatures
 python validate_prediction.py --predictions-dir data/predictions --history data/prediction-history.json
 python export_weather.py --output path/to/weather.json --history data/prediction-history.json
 python export_workflow.py --output path/to/workflow.json   # Requires GH_TOKEN

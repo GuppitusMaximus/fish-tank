@@ -504,22 +504,19 @@ class TestBackwardsCompatibility:
         with open(output_path) as f:
             export = json.load(f)
 
-        # next_prediction should NOT have model_version (since source doesn't)
+        # v2 format: next_prediction always includes model_version (defaults to 0)
         if export["next_prediction"] is not None:
-            assert "model_version" not in export["next_prediction"], (
-                "model_version should not appear when source prediction lacks it"
+            assert "model_version" in export["next_prediction"], (
+                "v2 next_prediction should always include model_version"
             )
-
-        # History entries should NOT have model_version
-        for entry in export["history"]:
-            assert "model_version" not in entry, (
-                "model_version should not appear in history when prediction lacks it"
+            assert export["next_prediction"]["model_version"] == 0, (
+                "model_version should default to 0 when source prediction lacks it"
             )
 
         # No null values for model_version
         raw = json.dumps(export)
         assert '"model_version": null' not in raw, (
-            "model_version should be omitted, not set to null"
+            "model_version should not be null"
         )
 
 
