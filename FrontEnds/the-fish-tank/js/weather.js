@@ -530,7 +530,7 @@ window.WeatherApp = (() => {
 
       html += '<div class="history-section">' +
         '<h2>Run History</h2>' +
-        '<div class="table-scroll">' +
+        '<div class="table-scroll workflow-history-scroll">' +
         '<table id="workflow-table">' +
           '<thead><tr><th>Time</th><th>Duration</th><th>Status</th><th>Trigger</th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
