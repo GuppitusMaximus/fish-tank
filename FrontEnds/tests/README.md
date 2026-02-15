@@ -11,7 +11,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_dash_qa_frontend.sh` | Shell script | HTML structure, JS quality, and JSON data format for the weather dashboard |
 | `test_readme_update_frontend.sh` | Shell script | README accuracy — verifies documentation matches source code |
 | `test_model_version_display.html` | HTML test page | ML model version rendering in forecast card and history table |
-| `test_v2_multi_model_dashboard.js` | Node.js script | Multi-model dashboard v2 schema detection, data-driven rendering, filtering, sorting, lazy loading (60 assertions) |
+| `test_v2_multi_model_dashboard.js` | Node.js script | Multi-model dashboard v2 schema detection, data-driven rendering, filtering, sorting, lazy loading (78 assertions) |
 
 ### Test Reports
 
@@ -84,21 +84,21 @@ The following v2 features were verified:
 
 | Feature | Status | Test Coverage |
 |---------|--------|---------------|
-| V1 fallback rendering | ✅ PASS | Schema detection, graceful fallback to v1 (5 assertions) |
-| V2 schema validation | ✅ PASS | Checks schema_version, current.readings, predictions array (5 assertions) |
-| Shared property utilities | ✅ PASS | getPropertyLabel(), formatProperty(), discoverHistoryProperties() (8 assertions) |
-| Dynamic current reading | ✅ PASS | Iterates current.readings dynamically, uses property utilities (6 assertions) |
-| Per-model prediction cards | ✅ PASS | Maps predictions array, renders card per model with badges (4 assertions) |
-| Empty predictions placeholder | ✅ PASS | Shows "No predictions available" when predictions array is empty (1 assertion) |
-| Dynamic history table columns | ✅ PASS | Discovers properties from history (actual_*, predicted_*, delta_*) (6 assertions) |
-| Model type filtering | ✅ PASS | Dropdown with "All Models" + dynamic model types (4 assertions) |
-| Date range filtering | ✅ PASS | Date inputs exist and filter logic works (4 assertions) |
-| Column sorting | ✅ PASS | Clickable headers, toggle asc/desc, default timestamp desc (5 assertions) |
-| Lazy loading (50 rows) | ✅ PASS | Initial 50 rows, "Show more" button, appends next 50 (4 assertions) |
-| localStorage caching (5 min TTL) | ✅ PASS | Cache key, TTL validation, graceful failure (6 assertions) |
-| Mobile responsive (393px) | ✅ PASS | Prediction cards stack, filters stack, Version column hidden (6 assertions) |
-| Browse tab compatibility | ✅ PASS | Handles v2 values object and v1 flat properties (4 assertions) |
-| No hardcoded field names in v2 | ⚠️  PASS* | V2 uses Object.keys, but hardcodes "temp_" prefix — see bug (3 assertions) |
+| V1 fallback rendering | ✅ PASS | Schema detection, graceful fallback to v1 (5/5 assertions) |
+| V2 schema validation | ✅ PASS | Checks schema_version, current.readings, predictions array (5/5 assertions) |
+| Shared property utilities | ✅ PASS | getPropertyLabel(), formatProperty(), discoverHistoryProperties() (8/8 assertions) |
+| Dynamic current reading | ✅ PASS | Iterates current.readings dynamically, uses property utilities (7/7 assertions) |
+| Per-model prediction cards | ✅ PASS | Maps predictions array, renders card per model with badges (6/6 assertions) |
+| Empty predictions placeholder | ✅ PASS | Shows "No predictions available" when predictions array is empty (3/3 assertions) |
+| Dynamic history table columns | ✅ PASS | Discovers properties from history (actual_*, predicted_*, delta_*) (6/6 assertions) |
+| Model type filtering | ✅ PASS | Dropdown with "All Models" + dynamic model types (4/4 assertions) |
+| Date range filtering | ✅ PASS | Date inputs exist and filter logic works (4/4 assertions) |
+| Column sorting | ✅ PASS | Clickable headers, toggle asc/desc, default timestamp desc (5/5 assertions) |
+| Lazy loading (50 rows) | ✅ PASS | Initial 50 rows, "Show more" button, appends next 50 (4/4 assertions) |
+| localStorage caching (5 min TTL) | ✅ PASS | Cache key, TTL validation, graceful failure (6/6 assertions) |
+| Mobile responsive (393px) | ✅ PASS | Prediction cards stack, filters stack, Version column hidden (6/6 assertions) |
+| Browse tab compatibility | ✅ PASS | Handles v2 values object and v1 flat properties (4/4 assertions) |
+| No hardcoded field names in v2 | ⚠️  PASS* | V2 uses Object.keys, but hardcodes "temp_" prefix — see bug (3/3 assertions) |
 
 **Known Bugs (both filed in Planning/bugs/):**
 - \`multi-model-dashboard-ui-date-filter-no-default.md\` — Severity: minor — Date range filter starts empty (should default to last 7 days)
