@@ -656,6 +656,153 @@ nav a.active {
     text-align: center;
 }
 
+/* ========== Weather Sub-navigation ========== */
+.dash-subnav {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+}
+
+.subnav-btn {
+    background: none;
+    border: none;
+    color: rgba(200, 220, 255, 0.6);
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+}
+
+.subnav-btn.active {
+    color: #c8dcff;
+    border-bottom-color: #6496ff;
+}
+
+/* ========== Data Browser ========== */
+.browse-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.browse-controls select {
+    background: rgba(0, 20, 60, 0.6);
+    color: #c8dcff;
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.browse-btn {
+    background: rgba(0, 20, 60, 0.4);
+    color: rgba(200, 220, 255, 0.6);
+    border: 1px solid rgba(100, 150, 255, 0.2);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.browse-btn.active {
+    background: rgba(100, 150, 255, 0.2);
+    color: #c8dcff;
+    border-color: rgba(100, 150, 255, 0.5);
+}
+
+.hour-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.hour-btn {
+    background: rgba(0, 20, 60, 0.4);
+    color: rgba(200, 220, 255, 0.5);
+    border: 1px solid rgba(100, 150, 255, 0.15);
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: monospace;
+    min-width: 40px;
+    text-align: center;
+}
+
+.hour-btn:hover {
+    border-color: rgba(100, 150, 255, 0.4);
+    color: #c8dcff;
+}
+
+.hour-btn.active {
+    background: rgba(100, 150, 255, 0.25);
+    color: #c8dcff;
+    border-color: #6496ff;
+}
+
+.browse-display {
+    min-height: 200px;
+}
+
+.browse-loading {
+    opacity: 0.4;
+    font-size: 0.85rem;
+}
+
+.raw-json {
+    background: rgba(0, 10, 30, 0.6);
+    border: 1px solid rgba(100, 150, 255, 0.15);
+    border-radius: 6px;
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: #a0c0ff;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.data-card {
+    background: rgba(0, 20, 60, 0.4);
+    border: 1px solid rgba(100, 150, 255, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.data-card h4 {
+    color: #6496ff;
+    margin: 0 0 12px 0;
+    font-size: 14px;
+}
+
+.data-field {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.08);
+}
+
+.data-field:last-child {
+    border-bottom: none;
+}
+
+.data-label {
+    color: rgba(200, 220, 255, 0.5);
+    font-size: 13px;
+}
+
+.data-value {
+    color: #c8dcff;
+    font-size: 13px;
+    font-family: monospace;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
     h1 {
@@ -696,5 +843,14 @@ nav a.active {
 
     .table-scroll {
         margin: 0 -0.5rem;
+    }
+
+    .browse-controls {
+        gap: 8px;
+    }
+
+    .subnav-btn {
+        padding: 6px 14px;
+        font-size: 13px;
     }
 }
