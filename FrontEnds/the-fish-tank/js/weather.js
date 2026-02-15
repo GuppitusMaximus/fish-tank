@@ -515,9 +515,9 @@ window.WeatherApp = (() => {
     var runs = workflowData.runs;
     if (runs && runs.length > 0) {
       var rows = runs.map(function(r) {
-        var conclusion = r.conclusion || 'unknown';
+        var conclusion = r.conclusion || 'in_progress';
         var statusCls = conclusion === 'success' ? 'delta-low' : conclusion === 'failure' ? 'delta-high' : 'delta-mid';
-        var label = conclusion === 'success' ? 'Success' : conclusion === 'failure' ? 'Failed' : conclusion === 'cancelled' ? 'Cancelled' : conclusion;
+        var label = conclusion === 'success' ? 'Success' : conclusion === 'failure' ? 'Failed' : conclusion === 'in_progress' ? 'In Progress' : conclusion === 'cancelled' ? 'Cancelled' : conclusion;
         var trigger = r.event === 'schedule' ? 'Scheduled' : 'Manual';
         var time = r.created_at ? formatDateTime(new Date(r.created_at)) : '\u2014';
         return '<tr>' +
