@@ -90,6 +90,34 @@ Tests for prediction validation wiring into the hourly pipeline (11 tests):
 - Validation step has `|| true` for graceful failure
 - `find_best_prediction` handles edge cases (nonexistent dir, empty dir, picks closest to 60 min)
 
+### `test_multi_model_export.py`
+
+**Plan:** `qa-multi-model-data-export`
+
+Tests for v2 multi-model weather.json schema structure (6 test functions covering Tests 1-4):
+
+- Schema version 2 in output
+- `property_meta` structure with `temp_indoor` and `temp_outdoor` entries (label, unit, format)
+- `current` object with `timestamp` (string) and `readings` (nested object with numeric temps)
+- `predictions` array with `model_type`, `model_version`, `prediction_for`, and nested `values` object
+- No duplicate model types in predictions array
+- `next_prediction` backwards compatibility (flat fields, no nested `values`, matches first prediction)
+- History entries include `model_type` and `model_version` with flat structure (no nested objects)
+
+### `test_multi_model_code.py`
+
+**Plan:** `qa-multi-model-data-export`
+
+Code-level validation for multi-model implementation details (Tests 7-12):
+
+- `_find_predictions_for_hour()` regex matches both old (`HHMMSS.json`) and new (`HHMMSS_modeltype.json`) formats
+- File discovery deduplicates by model_type and defaults old format to "simple"
+- Duplicate detection in `validate_prediction.py` keys on `(model_type, for_hour)` tuple
+- History trimming is per-model with `MAX_HISTORY_PER_MODEL=168` (336 total for 2 models)
+- `export_weather.py` uses atomic writes (`tempfile.mkstemp` + `os.replace`)
+- `PROPERTY_META` constant defined at module level with correct structure
+- All modified files (`export_weather.py`, `predict.py`, `validate_prediction.py`) pass syntax check
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -106,14 +134,18 @@ Manual verification report (not a pytest file). Documents that:
 
 | Area | Covered By |
 |------|-----------|
-| Code quality (syntax, imports, paths) | `test_code_quality.py` |
+| Code quality (syntax, imports, paths) | `test_code_quality.py`, `test_multi_model_code.py` |
 | Model training & metadata | `test_model_versioning.py`, `test_prediction_fallback.py` |
 | Model versioning & backup | `test_model_versioning.py` |
 | Prediction cascade (full → simple → error) | `test_model_versioning.py`, `test_prediction_fallback.py` |
 | `model_version` propagation | `test_model_versioning.py` |
-| `model_type` propagation | `test_prediction_fallback.py` |
-| Prediction validation pipeline | `test_wire_prediction_validation.py` |
-| Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py` |
+| `model_type` propagation | `test_prediction_fallback.py`, `test_multi_model_export.py` |
+| Multi-model prediction support | `test_multi_model_export.py`, `test_multi_model_code.py` |
+| Prediction validation pipeline | `test_wire_prediction_validation.py`, `test_multi_model_code.py` |
+| Export v2 schema (property_meta, nested readings) | `test_multi_model_export.py` |
+| File discovery (old & new formats) | `test_multi_model_code.py` |
+| Atomic writes | `test_multi_model_code.py` |
+| Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py`, `test_multi_model_export.py` |
 | README accuracy | `test_readme_accuracy.py` |
 | Workflow configuration | `test_wire_prediction_validation.py`, `qa-remove-github-cron.md` |
 
