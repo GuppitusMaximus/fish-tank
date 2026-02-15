@@ -1,20 +1,33 @@
 {
-  "generated_at": "2026-02-15T05:09:51Z",
+  "generated_at": "2026-02-15T05:23:58Z",
   "current": {
     "date": "2026-02-15",
     "hour": 5,
     "temp_indoor": 18.8,
     "temp_outdoor": -3.7,
-    "timestamp": "2026-02-15T04:59:24Z"
+    "timestamp": "2026-02-15T05:19:36Z"
   },
   "next_prediction": {
-    "prediction_for": "2026-02-15T05:59:24Z",
-    "temp_indoor": 20.8,
+    "prediction_for": "2026-02-15T06:19:36Z",
+    "temp_indoor": 20.9,
     "temp_outdoor": -3.2,
-    "model_version": 12,
+    "model_version": 13,
     "model_type": "simple"
   },
   "history": [
+    {
+      "date": "2026-02-15",
+      "hour": 5,
+      "actual_indoor": 18.8,
+      "actual_outdoor": -3.7,
+      "predicted_indoor": 20.9,
+      "predicted_outdoor": -3.2,
+      "delta_indoor": -2.1,
+      "delta_outdoor": -0.5,
+      "model_version": 8,
+      "model_type": "simple",
+      "timestamp": "2026-02-15T05:34:25Z"
+    },
     {
       "date": "2026-02-15",
       "hour": 4,
