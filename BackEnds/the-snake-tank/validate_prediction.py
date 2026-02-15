@@ -17,6 +17,27 @@ from datetime import datetime, timezone, timedelta
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
+MAX_HISTORY = 168  # 1 week of hourly predictions
+
+
+def find_latest_prediction(predictions_dir):
+    """Find the most recent prediction file in the predictions directory."""
+    if not os.path.isdir(predictions_dir):
+        return None
+    date_dirs = sorted(
+        [d for d in os.listdir(predictions_dir)
+         if os.path.isdir(os.path.join(predictions_dir, d))],
+        reverse=True,
+    )
+    for date_dir in date_dirs:
+        full_dir = os.path.join(predictions_dir, date_dir)
+        files = sorted(
+            [f for f in os.listdir(full_dir) if f.endswith(".json")],
+            reverse=True,
+        )
+        if files:
+            return os.path.join(full_dir, files[0])
+    return None
 
 
 def load_prediction(path):
@@ -102,6 +123,11 @@ def validate(prediction_path, history_path):
         },
     }
 
+    if prediction_data.get("model_version") is not None:
+        comparison["model_version"] = prediction_data["model_version"]
+    if prediction_data.get("model_type") is not None:
+        comparison["model_type"] = prediction_data["model_type"]
+
     history = load_history(history_path)
 
     # Check for duplicate — skip if we already have this prediction
@@ -110,6 +136,7 @@ def validate(prediction_path, history_path):
         return
 
     history.insert(0, comparison)
+    history = history[:MAX_HISTORY]
 
     os.makedirs(os.path.dirname(os.path.abspath(history_path)), exist_ok=True)
     with open(history_path, "w") as f:
@@ -132,9 +159,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Validate prediction against actual reading"
     )
-    parser.add_argument("--prediction", required=True, help="Path to prediction.json")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--prediction", help="Path to a specific prediction file")
+    group.add_argument("--predictions-dir", help="Auto-find latest prediction in this directory")
     parser.add_argument(
         "--history", required=True, help="Path to prediction-history.json"
     )
     args = parser.parse_args()
-    validate(args.prediction, args.history)
+
+    prediction_path = args.prediction
+    if args.predictions_dir:
+        prediction_path = find_latest_prediction(args.predictions_dir)
+        if prediction_path is None:
+            print("No prediction files found, skipping validation.")
+            sys.exit(0)
+        print(f"Found latest prediction: {prediction_path}")
+    validate(prediction_path, args.history)

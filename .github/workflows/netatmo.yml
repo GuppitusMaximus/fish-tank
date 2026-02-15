@@ -32,6 +32,9 @@ jobs:
       - name: Rebuild dataset
         run: python BackEnds/the-snake-tank/build_dataset.py
 
+      - name: Validate previous prediction
+        run: python BackEnds/the-snake-tank/validate_prediction.py --predictions-dir BackEnds/the-snake-tank/data/predictions --history BackEnds/the-snake-tank/data/prediction-history.json || true
+
       - name: Train prediction model
         run: python BackEnds/the-snake-tank/train_model.py || true
 
@@ -39,7 +42,7 @@ jobs:
         run: python BackEnds/the-snake-tank/predict.py --predictions-dir BackEnds/the-snake-tank/data/predictions || true
 
       - name: Export weather dashboard data
-        run: python BackEnds/the-snake-tank/export_weather.py --output FrontEnds/the-fish-tank/data/weather.json || true
+        run: python BackEnds/the-snake-tank/export_weather.py --output FrontEnds/the-fish-tank/data/weather.json --history BackEnds/the-snake-tank/data/prediction-history.json || true
 
       - name: Commit and push data
         run: |
