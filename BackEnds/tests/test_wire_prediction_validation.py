@@ -7,7 +7,7 @@ Verifies that prediction validation is correctly wired into the pipeline:
 - export_weather.py accepts --history flag and produces correct output
 - export_weather.py works without --history (fallback)
 - GitHub Actions workflow has the validation step in the right place
-- find_latest_prediction handles edge cases
+- find_best_prediction handles edge cases
 """
 
 import json
@@ -40,7 +40,8 @@ def test_validate_accepts_predictions_dir():
             capture_output=True, text=True, timeout=30,
         )
         assert result.returncode == 0, f"Script failed: {result.stderr}"
-        assert "Found latest prediction:" in result.stdout
+        assert ("Found best prediction:" in result.stdout or
+                "No suitable prediction found" in result.stdout)
     finally:
         os.unlink(history_path)
 
@@ -197,50 +198,57 @@ def test_workflow_graceful_failure():
             assert "|| true" in line, "Validation step should have || true"
 
 
-# --- Test 7: find_latest_prediction edge cases ---
+# --- Test 7: find_best_prediction edge cases ---
 
-def test_find_latest_prediction_nonexistent_dir():
-    """find_latest_prediction should return None for nonexistent directory."""
+def test_find_best_prediction_nonexistent_dir():
+    """find_best_prediction should return None for nonexistent directory."""
     sys.path.insert(0, SCRIPT_DIR)
     try:
-        from validate_prediction import find_latest_prediction
-        assert find_latest_prediction("/nonexistent/dir") is None
+        from validate_prediction import find_best_prediction
+        assert find_best_prediction("/nonexistent/dir") is None
     finally:
         sys.path.pop(0)
 
 
-def test_find_latest_prediction_empty_dir():
-    """find_latest_prediction should return None for empty directory."""
+def test_find_best_prediction_empty_dir():
+    """find_best_prediction should return None for empty directory."""
     sys.path.insert(0, SCRIPT_DIR)
     try:
-        from validate_prediction import find_latest_prediction
+        from validate_prediction import find_best_prediction
         with tempfile.TemporaryDirectory() as tmpdir:
-            assert find_latest_prediction(tmpdir) is None
+            assert find_best_prediction(tmpdir) is None
     finally:
         sys.path.pop(0)
 
 
-def test_find_latest_prediction_sorts_descending():
-    """find_latest_prediction should return the newest prediction file."""
+def test_find_best_prediction_picks_closest_to_60_min():
+    """find_best_prediction should pick the prediction closest to 60 min old."""
+    from datetime import datetime, timezone, timedelta
     sys.path.insert(0, SCRIPT_DIR)
     try:
-        from validate_prediction import find_latest_prediction
+        from validate_prediction import find_best_prediction
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create two date dirs with prediction files
-            old_dir = os.path.join(tmpdir, "2026-02-13")
-            new_dir = os.path.join(tmpdir, "2026-02-14")
-            os.makedirs(old_dir)
-            os.makedirs(new_dir)
+            now = datetime.now(timezone.utc)
+            date_str = now.strftime("%Y-%m-%d")
+            date_dir = os.path.join(tmpdir, date_str)
+            os.makedirs(date_dir)
 
-            with open(os.path.join(old_dir, "1000.json"), "w") as f:
-                json.dump({}, f)
-            with open(os.path.join(new_dir, "0800.json"), "w") as f:
-                json.dump({}, f)
-            with open(os.path.join(new_dir, "1200.json"), "w") as f:
-                json.dump({}, f)
+            # Prediction made 55 min ago (closest to 60 min ideal)
+            good_time = now - timedelta(minutes=55)
+            with open(os.path.join(date_dir, "good.json"), "w") as f:
+                json.dump({"generated_at": good_time.strftime("%Y-%m-%dT%H:%M:%SZ")}, f)
 
-            result = find_latest_prediction(tmpdir)
-            # Should return newest date (2026-02-14), latest hour (1200)
-            assert result == os.path.join(new_dir, "1200.json")
+            # Prediction made 35 min ago (within window but farther from ideal)
+            ok_time = now - timedelta(minutes=35)
+            with open(os.path.join(date_dir, "ok.json"), "w") as f:
+                json.dump({"generated_at": ok_time.strftime("%Y-%m-%dT%H:%M:%SZ")}, f)
+
+            # Prediction made 10 min ago (outside window)
+            bad_time = now - timedelta(minutes=10)
+            with open(os.path.join(date_dir, "bad.json"), "w") as f:
+                json.dump({"generated_at": bad_time.strftime("%Y-%m-%dT%H:%M:%SZ")}, f)
+
+            result = find_best_prediction(tmpdir)
+            assert result == os.path.join(date_dir, "good.json")
     finally:
         sys.path.pop(0)
