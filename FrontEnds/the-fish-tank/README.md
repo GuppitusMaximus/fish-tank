@@ -32,7 +32,7 @@ The weather dashboard supports two data formats: v1 (legacy hardcoded fields) an
 
 The dashboard has three sub-tabs:
 
-**Dashboard** — In v2 mode, the current reading section auto-discovers properties from `current.readings` and renders them with labels from `property_meta` (or title-cased fallbacks). It has a visually prominent design (larger text, accent border) to distinguish it from forecasts. Predictions render as individual cards per model, each showing a model type badge, version, and forecast values. The prediction history table dynamically discovers columns from flat `actual_*/predicted_*/delta_*` fields, supports filtering by model type, model version, and date range, sortable columns (click to toggle asc/desc), and lazy loading (50 rows at a time with "Show more").
+**Dashboard** — In v2 mode, the current reading section auto-discovers properties from `current.readings` and renders them with labels from `property_meta` (or title-cased fallbacks). It has a visually prominent design (larger text, accent border) to distinguish it from forecasts. Predictions render as individual cards per model, each showing a model type badge, version, and forecast values. The prediction history table dynamically discovers columns from flat `actual_*/predicted_*/delta_*` fields, supports filtering by model type (partial match) and model version (exact match) via searchable text inputs with autocomplete, date range filtering, sortable columns (click to toggle asc/desc), and lazy loading (50 rows at a time with "Show more").
 
 In v1 mode, the dashboard renders as before: two hardcoded temperature fields (indoor/outdoor) for the current reading and a single prediction card.
 
