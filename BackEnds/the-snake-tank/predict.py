@@ -189,7 +189,7 @@ def predict(output_path=None, predictions_dir=None):
         now = datetime.now(timezone.utc)
         date_dir = os.path.join(predictions_dir, now.strftime("%Y-%m-%d"))
         os.makedirs(date_dir, exist_ok=True)
-        filename = now.strftime("%H") + "00.json"
+        filename = now.strftime("%H%M%S") + ".json"
         pred_path = os.path.join(date_dir, filename)
         with open(pred_path, "w") as f:
             json.dump(result, f, indent=2)

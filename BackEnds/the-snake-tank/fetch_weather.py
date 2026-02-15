@@ -108,10 +108,10 @@ def main():
     # --- Scrub PII before saving ---
     data = scrub_pii(data)
 
-    # --- Save to the-snake-tank/data/{YYYY-MM-DD}/{HH}00.json ---
+    # --- Save to the-snake-tank/data/{YYYY-MM-DD}/{HHMMSS}.json ---
     now = datetime.now(timezone.utc)
     date_dir = now.strftime("%Y-%m-%d")
-    filename = now.strftime("%H") + "00.json"
+    filename = now.strftime("%H%M%S") + ".json"
 
     out_dir = os.path.join(DATA_DIR, date_dir)
     os.makedirs(out_dir, exist_ok=True)
