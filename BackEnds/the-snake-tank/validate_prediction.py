@@ -20,24 +20,56 @@ DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MAX_HISTORY = 168  # 1 week of hourly predictions
 
 
-def find_latest_prediction(predictions_dir):
-    """Find the most recent prediction file in the predictions directory."""
+def find_best_prediction(predictions_dir):
+    """Find the prediction that best matches the current reading.
+
+    Looks for a prediction whose 'prediction_for' time is closest to now,
+    and whose 'generated_at' is 30-90 minutes before now (so it was
+    predicting the current time window).
+    """
     if not os.path.isdir(predictions_dir):
         return None
+
+    now = datetime.now(timezone.utc)
+    best_path = None
+    best_diff = None
+
     date_dirs = sorted(
         [d for d in os.listdir(predictions_dir)
          if os.path.isdir(os.path.join(predictions_dir, d))],
         reverse=True,
     )
-    for date_dir in date_dirs:
+
+    # Only check the two most recent date directories
+    for date_dir in date_dirs[:2]:
         full_dir = os.path.join(predictions_dir, date_dir)
         files = sorted(
             [f for f in os.listdir(full_dir) if f.endswith(".json")],
             reverse=True,
         )
-        if files:
-            return os.path.join(full_dir, files[0])
-    return None
+        for fname in files:
+            fpath = os.path.join(full_dir, fname)
+            try:
+                with open(fpath) as f:
+                    data = json.load(f)
+                generated_at = datetime.strptime(
+                    data["generated_at"], "%Y-%m-%dT%H:%M:%SZ"
+                ).replace(tzinfo=timezone.utc)
+
+                # The prediction must have been made 30-90 min ago
+                age_minutes = (now - generated_at).total_seconds() / 60
+                if age_minutes < 30 or age_minutes > 90:
+                    continue
+
+                # Pick the one closest to 60 minutes old (ideal timing)
+                diff = abs(age_minutes - 60)
+                if best_diff is None or diff < best_diff:
+                    best_diff = diff
+                    best_path = fpath
+            except (json.JSONDecodeError, KeyError, ValueError):
+                continue
+
+    return best_path
 
 
 def load_prediction(path):
@@ -96,7 +128,7 @@ def validate(prediction_path, history_path):
     if diff_minutes < 30 or diff_minutes > 90:
         print(
             f"Actual reading is {diff_minutes:.0f} min after prediction "
-            f"(need 30–90 min). Skipping validation."
+            f"(need 30-90 min window). Skipping validation."
         )
         return
 
@@ -169,9 +201,9 @@ if __name__ == "__main__":
 
     prediction_path = args.prediction
     if args.predictions_dir:
-        prediction_path = find_latest_prediction(args.predictions_dir)
+        prediction_path = find_best_prediction(args.predictions_dir)
         if prediction_path is None:
-            print("No prediction files found, skipping validation.")
+            print("No suitable prediction found (need one 30-90 min old), skipping.")
             sys.exit(0)
-        print(f"Found latest prediction: {prediction_path}")
+        print(f"Found best prediction: {prediction_path}")
     validate(prediction_path, args.history)
