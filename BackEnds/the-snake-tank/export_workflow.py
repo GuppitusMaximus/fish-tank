@@ -109,19 +109,22 @@ def export(output_path, hours):
     # Sort newest first
     runs.sort(key=lambda r: r["created_at"], reverse=True)
 
-    # Build latest — skip the current run (it's still in_progress when we query)
+    # Override current run — if we reached this point, the workflow effectively succeeded
     current_run_id = int(os.environ.get("GITHUB_RUN_ID", "0"))
-    latest = None
     for r in runs:
-        if r["id"] != current_run_id:
-            latest = dict(r)
+        if r["id"] == current_run_id and r["status"] != "completed":
+            r["status"] = "completed"
+            r["conclusion"] = "success"
+            r["duration_seconds"] = int((now - parse_timestamp(r["created_at"])).total_seconds())
+            r["duration_display"] = format_duration(r["duration_seconds"])
+            r["updated_at"] = generated_at
             break
 
-    # Build compact runs array — exclude the current in-progress run
+    latest = dict(runs[0]) if runs else None
+
+    # Build compact runs array
     compact_runs = []
     for r in runs:
-        if r["id"] == current_run_id:
-            continue
         compact_runs.append({
             "id": r["id"],
             "conclusion": r["conclusion"],
@@ -131,10 +134,9 @@ def export(output_path, hours):
             "duration_display": r["duration_display"],
         })
 
-    # Compute stats — exclude the current in-progress run
-    other_runs = [r for r in runs if r["id"] != current_run_id]
-    completed = [r for r in other_runs if r["status"] == "completed"]
-    total_runs = len(other_runs)
+    # Compute stats
+    completed = [r for r in runs if r["status"] == "completed"]
+    total_runs = len(runs)
     success_count = sum(1 for r in completed if r["conclusion"] == "success")
     failure_count = sum(1 for r in completed if r["conclusion"] == "failure")
     durations = [r["duration_seconds"] for r in completed if r["duration_seconds"] is not None]
