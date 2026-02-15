@@ -18,7 +18,8 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | File | What It Documents |
 |------|-------------------|
 | `qa-workflow-trigger-label.md` | Verifies \`workflow_dispatch\` displays as "Scheduled" (not "Manual") |
-| `qa-multi-model-dashboard-ui-report.md` | Comprehensive QA report for v2 multi-model dashboard — all 15 tests passed |
+| `qa-multi-model-dashboard-ui-report.md` | Initial QA report for v2 multi-model dashboard (found 2 bugs, now fixed) |
+| `qa-multi-model-dashboard-ui-final.md` | **Final QA report for v2 multi-model dashboard — all 15 tests passed, 78 assertions, 0 bugs** |
 | `qa-docs-frontend.md` | Documentation QA report |
 | `qa-report-dashboard-filter-search.md` | Filter search inputs QA report — all 8 tests passed (replaces dropdowns with autocomplete text inputs) |
 | `qa-report-fix-filter-disappear.md` | Fix filters disappearing on empty results — all 5 tests passed (filters persist when no predictions match) |
@@ -79,10 +80,10 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
-**QA Run:** \`qa-multi-model-dashboard-ui\` (2026-02-15)
-**Result:** ✅ All 15 tests passed (60 automated assertions)
+**QA Run:** \`qa-multi-model-dashboard-ui\` (2026-02-15, final verification)
+**Result:** ✅ All 15 tests passed (78 automated assertions)
 **Test File:** \`test_v2_multi_model_dashboard.js\`
-**Report:** \`qa-multi-model-dashboard-ui-report.md\`
+**Report:** \`qa-multi-model-dashboard-ui-final.md\`
 
 The following v2 features were verified:
 
@@ -90,23 +91,21 @@ The following v2 features were verified:
 |---------|--------|---------------|
 | V1 fallback rendering | ✅ PASS | Schema detection, graceful fallback to v1 (5/5 assertions) |
 | V2 schema validation | ✅ PASS | Checks schema_version, current.readings, predictions array (5/5 assertions) |
-| Shared property utilities | ✅ PASS | getPropertyLabel(), formatProperty(), discoverHistoryProperties() (8/8 assertions) |
+| Shared property utilities | ✅ PASS | getPropertyLabel(), formatProperty(), discoverHistoryProperties() (7/7 assertions) |
 | Dynamic current reading | ✅ PASS | Iterates current.readings dynamically, uses property utilities (7/7 assertions) |
 | Per-model prediction cards | ✅ PASS | Maps predictions array, renders card per model with badges (6/6 assertions) |
 | Empty predictions placeholder | ✅ PASS | Shows "No predictions available" when predictions array is empty (3/3 assertions) |
 | Dynamic history table columns | ✅ PASS | Discovers properties from history (actual_*, predicted_*, delta_*) (6/6 assertions) |
-| Model type filtering | ✅ PASS | Dropdown with "All Models" + dynamic model types (4/4 assertions) |
+| Model type filtering | ✅ PASS | Text input with datalist autocomplete, dynamic model types (4/4 assertions) |
 | Date range filtering | ✅ PASS | Date inputs exist and filter logic works (4/4 assertions) |
 | Column sorting | ✅ PASS | Clickable headers, toggle asc/desc, default timestamp desc (5/5 assertions) |
 | Lazy loading (50 rows) | ✅ PASS | Initial 50 rows, "Show more" button, appends next 50 (4/4 assertions) |
 | localStorage caching (5 min TTL) | ✅ PASS | Cache key, TTL validation, graceful failure (6/6 assertions) |
 | Mobile responsive (393px) | ✅ PASS | Prediction cards stack, filters stack, Version column hidden (6/6 assertions) |
 | Browse tab compatibility | ✅ PASS | Handles v2 values object and v1 flat properties (4/4 assertions) |
-| No hardcoded field names in v2 | ⚠️  PASS* | V2 uses Object.keys, but hardcodes "temp_" prefix — see bug (3/3 assertions) |
+| No hardcoded field names in v2 | ✅ PASS | V2 uses Object.keys for all property iteration (3/3 assertions) |
 
-**Known Bugs (both filed in Planning/bugs/):**
-- \`multi-model-dashboard-ui-date-filter-no-default.md\` — Severity: minor — Date range filter starts empty (should default to last 7 days)
-- \`multi-model-dashboard-ui-hardcoded-temp-prefix.md\` — Severity: major — V2 history table prepends "temp_" to property suffixes, preventing future non-temperature properties
+**Bugs Found:** None (all previously identified bugs have been fixed)
 
 ### What's Not Yet Tested
 
@@ -127,7 +126,8 @@ The following v2 features were verified:
 | \`qa-model-versioning-frontend\` | Completed | \`test_model_version_display.html\` | — |
 | \`qa-readme-update-frontend\` | Completed | \`test_readme_update_frontend.sh\` | — |
 | \`qa-workflow-trigger-label\` | Completed | \`qa-workflow-trigger-label.md\` | — |
-| \`qa-multi-model-dashboard-ui\` | Completed | \`test_v2_multi_model_dashboard.js\`, \`qa-multi-model-dashboard-ui-report.md\`, \`test_v1_v2_data_samples.json\` | 2 bugs (previously filed, still open) |
+| \`qa-multi-model-dashboard-ui\` (initial) | Completed | \`test_v2_multi_model_dashboard.js\`, \`qa-multi-model-dashboard-ui-report.md\`, \`test_v1_v2_data_samples.json\` | 2 bugs (now fixed) |
+| \`qa-multi-model-dashboard-ui\` (final) | Completed | Updated \`test_v2_multi_model_dashboard.js\`, \`qa-multi-model-dashboard-ui-final.md\` | None (all tests pass) |
 | \`qa-dashboard-filter-search\` | Completed | \`qa-report-dashboard-filter-search.md\` | — |
 | \`qa-fix-filter-disappear\` | Completed | \`qa-report-fix-filter-disappear.md\` | — |
 
