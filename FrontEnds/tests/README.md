@@ -55,6 +55,32 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | README accuracy vs source code | `test_readme_update_frontend.sh` |
 | Workflow trigger label mapping | `qa-workflow-trigger-label.md` |
 
+### Multi-Model Dashboard UI (v2 Schema)
+
+The following features were verified during the `qa-multi-model-dashboard-ui` QA run. All were code-inspected and validated against the implementation:
+
+| Feature | Verified | Notes |
+|---------|----------|-------|
+| V1 fallback rendering | ✅ | weather.js:607-630 — Schema detection with graceful fallback |
+| V2 schema validation | ✅ | Checks schema_version, current.readings, predictions array |
+| Shared property utilities | ✅ | getPropertyLabel(), formatProperty(), discoverHistoryProperties() |
+| Dynamic current reading | ✅ | Iterates current.readings dynamically (not hardcoded) |
+| Per-model prediction cards | ✅ | Maps predictions array, renders card per model |
+| Empty predictions placeholder | ✅ | Shows "No predictions available" when predictions array is empty |
+| Dynamic history table columns | ✅ | Discovers properties from history entries (actual_*, predicted_*, delta_*) |
+| Model type filtering | ✅ | Dropdown with "All Models" + dynamic model types |
+| Date range filtering | ⚠️  | Inputs exist and work, but no default "last 7 days" — see bug report |
+| Column sorting | ✅ | Clickable headers, toggle asc/desc, default timestamp desc |
+| Lazy loading (50 rows) | ✅ | Initial 50 rows, "Show more" button, appends next 50 |
+| localStorage caching (5 min TTL) | ✅ | Cache key, TTL validation, graceful failure |
+| Mobile responsive (393px) | ✅ | Prediction cards stack, filters stack, Version column hidden |
+| Browse tab compatibility | ✅ | Handles v2 values object and v1 flat properties |
+| Hardcoded field names | ⚠️  | V1 functions clean, but V2 history hardcodes "temp_" prefix — see bug report |
+
+**Bugs filed:**
+- `multi-model-dashboard-ui-date-filter-no-default.md` — Date range filter has no default (last 7 days)
+- `multi-model-dashboard-ui-hardcoded-temp-prefix.md` — V2 history table hardcodes "temp_" prefix for properties
+
 ### What's Not Yet Tested
 
 - Fish Tank simulation (`tank.js`) — no tests exist
@@ -64,16 +90,16 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 - Theme system (theme-ocean, theme-battle, theme-sky)
 - Click-to-spawn interactions
 - CSS animations (bubbles, smoke, debris)
-- Mobile/responsive layout
 - Temperature unit toggle (C/F/K) end-to-end behavior
 - Time format toggle (12h/24h) end-to-end behavior
 
 ## QA Plans That Produced These Tests
 
-| Plan | Status | Tests Created |
-|------|--------|---------------|
-| `qa-model-versioning-frontend` | Completed | `test_model_version_display.html` |
-| `qa-readme-update-frontend` | Completed | `test_readme_update_frontend.sh` |
-| `qa-workflow-trigger-label` | Completed | `qa-workflow-trigger-label.md` |
+| Plan | Status | Tests Created | Bugs Filed |
+|------|--------|---------------|------------|
+| `qa-model-versioning-frontend` | Completed | `test_model_version_display.html` | — |
+| `qa-readme-update-frontend` | Completed | `test_readme_update_frontend.sh` | — |
+| `qa-workflow-trigger-label` | Completed | `qa-workflow-trigger-label.md` | — |
+| `qa-multi-model-dashboard-ui` | Completed | Code inspection (no new test files) | 2 bugs in Planning/bugs/ |
 
 The `test_dash_qa_frontend.sh` script was created during earlier weather dashboard QA.
