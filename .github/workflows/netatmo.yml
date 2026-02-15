@@ -44,11 +44,6 @@ jobs:
       - name: Export weather dashboard data
         run: python BackEnds/the-snake-tank/export_weather.py --output FrontEnds/the-fish-tank/data/weather.json --history BackEnds/the-snake-tank/data/prediction-history.json || true
 
-      - name: Export workflow status
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: python BackEnds/the-snake-tank/export_workflow.py --output FrontEnds/the-fish-tank/data/workflow.json || true
-
       - name: Commit and push data
         run: |
           git config user.name "github-actions[bot]"
