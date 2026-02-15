@@ -343,7 +343,9 @@ window.WeatherApp = (() => {
 
     var hours = browseState.selectedDate ? getHoursForDate(browseState.selectedDate) : [];
     var hourBtns = hours.map(function(h) {
-      var label = h.substring(0, 2) + ':' + h.substring(2);
+      var label = h.length === 6
+        ? h.substring(0, 2) + ':' + h.substring(2, 4) + ':' + h.substring(4)
+        : h.substring(0, 2) + ':' + h.substring(2);
       var cls = h === browseState.selectedHour ? ' active' : '';
       return '<button class="hour-btn' + cls + '" data-hour="' + h + '">' + label + '</button>';
     }).join('');
