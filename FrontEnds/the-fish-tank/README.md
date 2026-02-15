@@ -28,11 +28,15 @@ Three CSS themes applied via body class, switching automatically with the active
 
 ### Weather Dashboard
 
-The weather dashboard has three sub-tabs:
+The weather dashboard supports two data formats: v1 (legacy hardcoded fields) and v2 (data-driven multi-model). Version detection is automatic based on `schema_version` in `weather.json`. The v1 path is preserved as a fallback.
 
-**Dashboard** — Current indoor/outdoor temperature readings from a Netatmo weather station and a next-hour ML forecast with model version. A prediction history table shows past forecasts alongside actual readings with color-coded accuracy deltas (green < 1°, yellow 1-2°, pink > 2°).
+The dashboard has three sub-tabs:
 
-**Browse Data** — Explore raw weather station data and predictions by date and time. Select a data type (readings or predictions), pick a date, then choose an hour to view the data as formatted cards or raw JSON. Hour labels support precise HHMMSS timestamp filenames from the backend pipeline.
+**Dashboard** — In v2 mode, the current reading section auto-discovers properties from `current.readings` and renders them with labels from `property_meta` (or title-cased fallbacks). It has a visually prominent design (larger text, accent border) to distinguish it from forecasts. Predictions render as individual cards per model, each showing a model type badge, version, and forecast values. The prediction history table dynamically discovers columns from flat `actual_*/predicted_*/delta_*` fields, supports filtering by model type, model version, and date range, sortable columns (click to toggle asc/desc), and lazy loading (50 rows at a time with "Show more").
+
+In v1 mode, the dashboard renders as before: two hardcoded temperature fields (indoor/outdoor) for the current reading and a single prediction card.
+
+**Browse Data** — Explore raw weather station data and predictions by date and time. Select a data type (readings or predictions), pick a date, then choose an hour to view the data as formatted cards or raw JSON. Supports both v1 flat prediction fields and v2 `values` object format. Hour labels support precise HHMMSS timestamp filenames from the backend pipeline.
 
 **Workflow** — Monitor the GitHub Actions backend pipeline. Shows the latest run status with color-coded indicator, trigger type, and duration. A live countdown timer shows time until the next scheduled run. Stats card displays success rate, average duration, and failure count. A scrollable run history table lists recent runs with color-coded statuses.
 
@@ -40,7 +44,7 @@ User preferences persisted in localStorage:
 - Temperature unit toggle (Celsius, Fahrenheit, Kelvin)
 - Time format toggle (12h / 24h)
 
-Data is loaded from GitHub raw CDN with cache-busting query parameters to ensure fresh data, falling back to local files. The backend pipeline runs hourly via GitHub Actions.
+Data is loaded from GitHub raw CDN and cached in localStorage with a 5-minute TTL to reduce redundant requests. Falls back to local files when the CDN is unavailable. The backend pipeline runs every 20 minutes via GitHub Actions.
 
 ### Mobile Support
 
