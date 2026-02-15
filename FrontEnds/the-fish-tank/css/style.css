@@ -861,6 +861,11 @@ nav a.active {
   border-bottom: 1px solid rgba(100, 160, 220, 0.06);
 }
 
+.workflow-history-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
     h1 {
