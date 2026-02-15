@@ -109,10 +109,13 @@ def export(output_path, hours):
     # Sort newest first
     runs.sort(key=lambda r: r["created_at"], reverse=True)
 
-    # Build latest
+    # Build latest — skip the current run (it's still in_progress when we query)
+    current_run_id = int(os.environ.get("GITHUB_RUN_ID", "0"))
     latest = None
-    if runs:
-        latest = dict(runs[0])
+    for r in runs:
+        if r["id"] != current_run_id:
+            latest = dict(r)
+            break
 
     # Build compact runs array (strip fields the frontend doesn't need in the list)
     compact_runs = []
@@ -126,9 +129,10 @@ def export(output_path, hours):
             "duration_display": r["duration_display"],
         })
 
-    # Compute stats
-    completed = [r for r in runs if r["status"] == "completed"]
-    total_runs = len(runs)
+    # Compute stats — exclude the current in-progress run
+    other_runs = [r for r in runs if r["id"] != current_run_id]
+    completed = [r for r in other_runs if r["status"] == "completed"]
+    total_runs = len(other_runs)
     success_count = sum(1 for r in completed if r["conclusion"] == "success")
     failure_count = sum(1 for r in completed if r["conclusion"] == "failure")
     durations = [r["duration_seconds"] for r in completed if r["duration_seconds"] is not None]
