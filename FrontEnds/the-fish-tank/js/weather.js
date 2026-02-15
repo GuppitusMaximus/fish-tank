@@ -135,6 +135,11 @@ window.WeatherApp = (() => {
   var MANIFEST_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/data-index.json';
   var DATA_BASE_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/BackEnds/the-snake-tank/data';
 
+  function cacheBust(url) {
+    var sep = url.indexOf('?') === -1 ? '?' : '&';
+    return url + sep + '_t=' + Date.now();
+  }
+
   var manifest = null;
   var browseState = {
     dataType: 'readings',
@@ -145,7 +150,7 @@ window.WeatherApp = (() => {
   };
 
   function loadManifest() {
-    return fetch(MANIFEST_URL)
+    return fetch(cacheBust(MANIFEST_URL))
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
@@ -169,7 +174,7 @@ window.WeatherApp = (() => {
 
   function loadRawData(type, date, hour) {
     var path = type === 'predictions' ? '/predictions/' : '/';
-    var url = DATA_BASE_URL + path + date + '/' + hour + '.json';
+    var url = cacheBust(DATA_BASE_URL + path + date + '/' + hour + '.json');
     var localPath = '../../BackEnds/the-snake-tank/data' + path + date + '/' + hour + '.json';
 
     var display = document.querySelector('.browse-display');
@@ -425,7 +430,7 @@ window.WeatherApp = (() => {
     var el = document.getElementById('subtab-workflow');
     if (el) el.innerHTML = '<p class="browse-loading">Loading workflow data\u2026</p>';
 
-    fetch(WORKFLOW_URL)
+    fetch(cacheBust(WORKFLOW_URL))
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
@@ -628,7 +633,7 @@ window.WeatherApp = (() => {
   var RAW_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/weather.json';
 
   function start() {
-    fetch(RAW_URL)
+    fetch(cacheBust(RAW_URL))
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
