@@ -109,17 +109,6 @@ def export(output_path, hours):
     # Sort newest first
     runs.sort(key=lambda r: r["created_at"], reverse=True)
 
-    # Override current run — if we reached this point, the workflow effectively succeeded
-    current_run_id = int(os.environ.get("GITHUB_RUN_ID", "0"))
-    for r in runs:
-        if r["id"] == current_run_id and r["status"] != "completed":
-            r["status"] = "completed"
-            r["conclusion"] = "success"
-            r["duration_seconds"] = int((now - parse_timestamp(r["created_at"])).total_seconds())
-            r["duration_display"] = format_duration(r["duration_seconds"])
-            r["updated_at"] = generated_at
-            break
-
     latest = dict(runs[0]) if runs else None
 
     # Build compact runs array
