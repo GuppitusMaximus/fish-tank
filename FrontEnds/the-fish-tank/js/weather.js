@@ -547,6 +547,12 @@ window.WeatherApp = (() => {
     }
 
     el.innerHTML = html;
+    el.querySelectorAll('.table-scroll').forEach(function(scroll) {
+      scroll.addEventListener('scroll', function() {
+        var atEnd = scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 5;
+        scroll.classList.toggle('scrolled-end', atEnd);
+      });
+    });
     startCountdown();
   }
 
@@ -575,6 +581,13 @@ window.WeatherApp = (() => {
         '<div class="dash-subtab" id="subtab-browse"' + (activeSubtab !== 'browse' ? ' style="display:none"' : '') + '></div>' +
         '<div class="dash-subtab" id="subtab-workflow"' + (activeSubtab !== 'workflow' ? ' style="display:none"' : '') + '></div>' +
       '</div>';
+
+    container.querySelectorAll('.table-scroll').forEach(function(el) {
+      el.addEventListener('scroll', function() {
+        var atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5;
+        el.classList.toggle('scrolled-end', atEnd);
+      });
+    });
 
     if (activeSubtab === 'browse' && manifest) {
       renderBrowse();
