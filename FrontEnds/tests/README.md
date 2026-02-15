@@ -20,6 +20,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-workflow-trigger-label.md` | Verifies \`workflow_dispatch\` displays as "Scheduled" (not "Manual") |
 | `qa-multi-model-dashboard-ui-report.md` | Comprehensive QA report for v2 multi-model dashboard — all 15 tests passed |
 | `qa-docs-frontend.md` | Documentation QA report |
+| `qa-report-dashboard-filter-search.md` | Filter search inputs QA report — all 8 tests passed (replaces dropdowns with autocomplete text inputs) |
 
 ### Test Data
 
@@ -72,6 +73,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | README accuracy vs source code | \`test_readme_update_frontend.sh\` |
 | Workflow trigger label mapping | \`qa-workflow-trigger-label.md\` |
 | **V2 Multi-Model Dashboard (all features)** | \`test_v2_multi_model_dashboard.js\` + \`qa-multi-model-dashboard-ui-report.md\` |
+| **Dashboard Filter Search (text inputs with autocomplete)** | \`qa-report-dashboard-filter-search.md\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -124,5 +126,6 @@ The following v2 features were verified:
 | \`qa-readme-update-frontend\` | Completed | \`test_readme_update_frontend.sh\` | — |
 | \`qa-workflow-trigger-label\` | Completed | \`qa-workflow-trigger-label.md\` | — |
 | \`qa-multi-model-dashboard-ui\` | Completed | \`test_v2_multi_model_dashboard.js\`, \`qa-multi-model-dashboard-ui-report.md\`, \`test_v1_v2_data_samples.json\` | 2 bugs (previously filed, still open) |
+| \`qa-dashboard-filter-search\` | Completed | \`qa-report-dashboard-filter-search.md\` | — |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
