@@ -12,6 +12,7 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -114,6 +115,41 @@ def load_validated_history(history_path, hours):
     return history
 
 
+def generate_manifest(output_dir):
+    """Generate data-index.json listing all available readings and predictions."""
+    date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    hour_re = re.compile(r"^(\d{4})\.json$")
+
+    def scan_dir(base_dir):
+        index = {}
+        if not os.path.isdir(base_dir):
+            return index
+        for date_dir in sorted(os.listdir(base_dir), reverse=True):
+            full_path = os.path.join(base_dir, date_dir)
+            if not os.path.isdir(full_path) or not date_re.match(date_dir):
+                continue
+            hours = []
+            for f in sorted(os.listdir(full_path)):
+                m = hour_re.match(f)
+                if m:
+                    hours.append(m.group(1))
+            if hours:
+                index[date_dir] = hours
+        return index
+
+    manifest = {
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "readings": scan_dir(DATA_DIR),
+        "predictions": scan_dir(PREDICTIONS_DIR),
+    }
+
+    manifest_path = os.path.join(output_dir, "data-index.json")
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+        f.write("\n")
+    print(f"  Manifest: {manifest_path} ({sum(len(v) for v in manifest['readings'].values())} readings, {sum(len(v) for v in manifest['predictions'].values())} predictions)")
+
+
 def export(output_path, hours, history_path=None):
     now = datetime.now(timezone.utc)
     result = {
@@ -213,6 +249,9 @@ def export(output_path, hours, history_path=None):
     if result["current"]:
         print(f"  Current: {result['current']['date']} hour {result['current']['hour']}")
     print(f"  History entries: {len(result['history'])}")
+
+    manifest_dir = os.path.dirname(os.path.abspath(output_path))
+    generate_manifest(manifest_dir)
 
 
 if __name__ == "__main__":
