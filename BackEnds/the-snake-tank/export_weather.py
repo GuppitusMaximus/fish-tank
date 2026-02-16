@@ -10,9 +10,11 @@ Usage:
 """
 
 import argparse
+import gzip
 import json
 import os
 import re
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -550,6 +552,7 @@ def generate_manifest(output_dir):
 
     manifest = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "db_generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "readings": readings,
         "predictions": predictions,
         "public_stations": public_stations,
@@ -563,6 +566,141 @@ def generate_manifest(output_dir):
 
     total_pred = sum(len(h) for d in pred_dates.values() for h in d.values())
     print(f"  Manifest: {manifest_path} ({sum(len(v) for v in readings.values())} readings, {total_pred} predictions, {sum(len(v) for v in public_stations.values())} station files, {len(validation)} validation dates)")
+
+
+def build_frontend_db(output_dir):
+    """Build a clean SQLite database for frontend consumption.
+
+    Creates a new database with only the tables needed for Browse Data,
+    adds indexes for common query patterns, and compresses with gzip.
+    """
+    db_output = os.path.join(output_dir, "frontend.db.gz")
+    tmp_db = os.path.join(output_dir, "_frontend_tmp.db")
+
+    try:
+        conn = sqlite3.connect(tmp_db)
+        conn.execute("PRAGMA journal_mode=WAL")
+
+        # Attach the source database
+        conn.execute(f"ATTACH DATABASE ? AS source", (DB_PATH,))
+
+        # Create and populate tables
+        conn.executescript("""
+            CREATE TABLE readings (
+                timestamp INTEGER PRIMARY KEY,
+                date TEXT NOT NULL,
+                hour INTEGER NOT NULL,
+                temp_indoor REAL,
+                co2 INTEGER,
+                humidity_indoor INTEGER,
+                noise INTEGER,
+                pressure REAL,
+                pressure_absolute REAL,
+                temp_indoor_min REAL,
+                temp_indoor_max REAL,
+                date_min_temp_indoor INTEGER,
+                date_max_temp_indoor INTEGER,
+                temp_trend TEXT,
+                pressure_trend TEXT,
+                wifi_status INTEGER,
+                temp_outdoor REAL,
+                humidity_outdoor INTEGER,
+                temp_outdoor_min REAL,
+                temp_outdoor_max REAL,
+                date_min_temp_outdoor INTEGER,
+                date_max_temp_outdoor INTEGER,
+                temp_outdoor_trend TEXT,
+                battery_percent INTEGER,
+                rf_status INTEGER,
+                battery_vp INTEGER
+            );
+
+            CREATE TABLE predictions (
+                id INTEGER PRIMARY KEY,
+                generated_at TEXT NOT NULL,
+                model_type TEXT NOT NULL,
+                model_version INTEGER,
+                for_hour TEXT NOT NULL,
+                temp_indoor_predicted REAL,
+                temp_outdoor_predicted REAL,
+                last_reading_ts INTEGER,
+                last_reading_temp_indoor REAL,
+                last_reading_temp_outdoor REAL
+            );
+
+            CREATE TABLE prediction_history (
+                id INTEGER PRIMARY KEY,
+                predicted_at TEXT NOT NULL,
+                for_hour TEXT NOT NULL,
+                model_type TEXT NOT NULL,
+                model_version INTEGER,
+                predicted_indoor REAL,
+                predicted_outdoor REAL,
+                actual_indoor REAL,
+                actual_outdoor REAL,
+                error_indoor REAL,
+                error_outdoor REAL
+            );
+
+            CREATE TABLE public_stations (
+                id INTEGER PRIMARY KEY,
+                fetched_at TEXT NOT NULL,
+                station_id TEXT NOT NULL,
+                lat REAL,
+                lon REAL,
+                temperature REAL,
+                humidity INTEGER,
+                pressure REAL,
+                rain_60min REAL,
+                rain_24h REAL,
+                wind_strength INTEGER,
+                wind_angle INTEGER,
+                gust_strength INTEGER,
+                gust_angle INTEGER
+            );
+
+            CREATE TABLE _metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+        """)
+
+        # Copy data from source database
+        conn.execute("INSERT INTO readings SELECT * FROM source.readings")
+        conn.execute("INSERT INTO predictions SELECT * FROM source.predictions")
+        conn.execute("INSERT INTO prediction_history SELECT * FROM source.prediction_history")
+        conn.execute("INSERT INTO public_stations SELECT * FROM source.public_stations")
+
+        # Add metadata
+        generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        conn.execute("INSERT INTO _metadata VALUES ('schema_version', '1')", )
+        conn.execute("INSERT INTO _metadata VALUES ('generated_at', ?)", (generated_at,))
+
+        # Add indexes for common query patterns
+        conn.executescript("""
+            CREATE INDEX idx_readings_timestamp ON readings(timestamp);
+            CREATE INDEX idx_readings_date ON readings(date);
+            CREATE INDEX idx_predictions_model_ts ON predictions(model_type, for_hour);
+            CREATE INDEX idx_pred_hist_hour_model ON prediction_history(for_hour, model_type);
+            CREATE INDEX idx_pub_stations_fetched ON public_stations(fetched_at, station_id);
+        """)
+
+        conn.execute("DETACH DATABASE source")
+        conn.execute("VACUUM")
+        conn.commit()
+        conn.close()
+
+        # Gzip compress
+        with open(tmp_db, "rb") as f_in:
+            with gzip.open(db_output, "wb", compresslevel=9) as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        print(f"Frontend database exported: {db_output} "
+              f"({os.path.getsize(db_output)} bytes compressed)")
+
+    finally:
+        if os.path.exists(tmp_db):
+            os.unlink(tmp_db)
 
 
 def export(output_path, hours, history_path=None):
@@ -692,6 +830,7 @@ def export(output_path, hours, history_path=None):
 
     manifest_dir = os.path.dirname(os.path.abspath(output_path))
     generate_manifest(manifest_dir)
+    build_frontend_db(manifest_dir)
 
 
 if __name__ == "__main__":
