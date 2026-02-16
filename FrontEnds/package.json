@@ -1,0 +1,13 @@
+{
+  "name": "fishtank-frontends",
+  "private": true,
+  "description": "FishTank frontend — browser tests only (not a build tool)",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
