@@ -118,6 +118,21 @@ Code-level validation for multi-model implementation details (Tests 7-12):
 - `PROPERTY_META` constant defined at module level with correct structure
 - All modified files (`export_weather.py`, `predict.py`, `validate_prediction.py`) pass syntax check
 
+### `test_full_model_training.py`
+
+**Plan:** `qa-full-model-backend`
+
+Verifies full 24h model configuration and predictions after MAX_GAP=7200 change (7 tests):
+
+- Simple model file exists and is loadable with joblib
+- Simple model metadata is valid JSON with required fields (version, trained_at, sample_count, mae_indoor, mae_outdoor)
+- Simple model metadata has reasonable MAE values (< 10°C)
+- Full model loadable if it exists (gracefully skips if not yet trained due to insufficient data)
+- Full model metadata valid if full model exists
+- `MAX_GAP = 7200` correctly set in `train_model.py`
+- `predict.py --model-type all` runs without error
+- Simple prediction files (`*_simple.json`) produced with correct structure and model_type field
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -135,7 +150,7 @@ Manual verification report (not a pytest file). Documents that:
 | Area | Covered By |
 |------|-----------|
 | Code quality (syntax, imports, paths) | `test_code_quality.py`, `test_multi_model_code.py` |
-| Model training & metadata | `test_model_versioning.py`, `test_prediction_fallback.py` |
+| Model training & metadata | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_full_model_training.py` |
 | Model versioning & backup | `test_model_versioning.py` |
 | Prediction cascade (full → simple → error) | `test_model_versioning.py`, `test_prediction_fallback.py` |
 | `model_version` propagation | `test_model_versioning.py` |
@@ -148,6 +163,7 @@ Manual verification report (not a pytest file). Documents that:
 | Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py`, `test_multi_model_export.py` |
 | README accuracy | `test_readme_accuracy.py` |
 | Workflow configuration | `test_wire_prediction_validation.py`, `qa-remove-github-cron.md` |
+| MAX_GAP setting & full model readiness | `test_full_model_training.py` |
 
 ### Not Yet Covered
 
