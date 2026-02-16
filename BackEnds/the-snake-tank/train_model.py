@@ -339,6 +339,7 @@ def train():
         print("Using leave-one-out cross-validation (small dataset)")
         loo = LeaveOneOut()
         y_pred = cross_val_predict(model, X, y, cv=loo)
+        y_eval = y
     else:
         print("Using 80/20 train/test split")
         X_train, X_test, y_train, y_test = train_test_split(
@@ -346,10 +347,10 @@ def train():
         )
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        y = y_test
+        y_eval = y_test
 
-    mae_indoor = mean_absolute_error(y[:, 0], y_pred[:, 0])
-    mae_outdoor = mean_absolute_error(y[:, 1], y_pred[:, 1])
+    mae_indoor = mean_absolute_error(y_eval[:, 0], y_pred[:, 0])
+    mae_outdoor = mean_absolute_error(y_eval[:, 1], y_pred[:, 1])
 
     print(f"\nEvaluation:")
     print(f"  MAE indoor:  {mae_indoor:.2f}°C")
@@ -413,16 +414,17 @@ def train_simple():
     if len(X) < 50:
         loo = LeaveOneOut()
         y_pred = cross_val_predict(model, X, y, cv=loo)
+        y_eval = y
     else:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        y = y_test
+        y_eval = y_test
 
-    mae_indoor = mean_absolute_error(y[:, 0], y_pred[:, 0])
-    mae_outdoor = mean_absolute_error(y[:, 1], y_pred[:, 1])
+    mae_indoor = mean_absolute_error(y_eval[:, 0], y_pred[:, 0])
+    mae_outdoor = mean_absolute_error(y_eval[:, 1], y_pred[:, 1])
 
     print(f"  MAE indoor:  {mae_indoor:.2f}°C")
     print(f"  MAE outdoor: {mae_outdoor:.2f}°C")
@@ -478,16 +480,17 @@ def train_6hr_rc():
     if len(X) < 50:
         loo = LeaveOneOut()
         y_pred = cross_val_predict(model, X, y, cv=loo)
+        y_eval = y
     else:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        y = y_test
+        y_eval = y_test
 
-    mae_indoor = mean_absolute_error(y[:, 0], y_pred[:, 0])
-    mae_outdoor = mean_absolute_error(y[:, 1], y_pred[:, 1])
+    mae_indoor = mean_absolute_error(y_eval[:, 0], y_pred[:, 0])
+    mae_outdoor = mean_absolute_error(y_eval[:, 1], y_pred[:, 1])
 
     print(f"  MAE indoor:  {mae_indoor:.2f}\u00b0C")
     print(f"  MAE outdoor: {mae_outdoor:.2f}\u00b0C")
