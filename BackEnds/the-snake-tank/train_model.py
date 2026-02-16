@@ -34,6 +34,11 @@ SIMPLE_LOOKBACK = 3
 SIMPLE_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_simple.joblib")
 SIMPLE_META_PATH = os.path.join(MODEL_DIR, "simple_meta.json")
 
+RC_LOOKBACK = 6
+RC_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_6hr_rc.joblib")
+RC_META_PATH = os.path.join(MODEL_DIR, "6hr_rc_meta.json")
+HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
+
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
     "humidity_outdoor", "noise", "pressure",
@@ -147,6 +152,86 @@ def read_simple_meta():
     """Read existing simple model metadata, returning defaults if not found."""
     try:
         with open(SIMPLE_META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
+
+
+def load_prediction_errors(history_path):
+    """Load prediction errors from history, filtered to 3hrRaw/simple model.
+    Returns dict: hour_str -> (error_indoor, error_outdoor)"""
+    if not os.path.exists(history_path):
+        return {}
+    try:
+        with open(history_path) as f:
+            history = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    errors = {}
+    for entry in history:
+        mt = entry.get("model_type", "")
+        if mt not in ("3hrRaw", "simple"):
+            continue
+        hour_str = entry.get("for_hour", "")
+        err = entry.get("error", {})
+        if hour_str and err:
+            errors[hour_str] = (err.get("temp_indoor", 0.0), err.get("temp_outdoor", 0.0))
+    return errors
+
+
+def build_6hr_rc_windows(df, error_lookup):
+    """Build sliding windows for the 6hrRC model with error features."""
+    timestamps = df["timestamp"].values
+    features_matrix = df[SIMPLE_FEATURE_COLS].values
+
+    X, y = [], []
+
+    for i in range(RC_LOOKBACK, len(df)):
+        window_start = i - RC_LOOKBACK
+        contiguous = True
+        for j in range(window_start, i):
+            if timestamps[j + 1] - timestamps[j] > MAX_GAP:
+                contiguous = False
+                break
+        if not contiguous:
+            continue
+
+        # Base features: 9 features x 6 hours = 54
+        base_features = features_matrix[window_start:i].flatten()
+
+        # Error features: look up prediction errors for each lag hour
+        target_ts = timestamps[i]
+        error_indoor_lags = []
+        error_outdoor_lags = []
+        for lag in range(1, RC_LOOKBACK + 1):
+            lag_ts = timestamps[i - lag]
+            lag_dt = datetime.fromtimestamp(float(lag_ts), tz=timezone.utc)
+            lag_hour_str = lag_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            err = error_lookup.get(lag_hour_str, (0.0, 0.0))
+            error_indoor_lags.append(err[0])
+            error_outdoor_lags.append(err[1])
+
+        # Average errors (over non-zero entries)
+        nonzero_indoor = [e for e in error_indoor_lags if e != 0.0]
+        nonzero_outdoor = [e for e in error_outdoor_lags if e != 0.0]
+        avg_indoor = sum(nonzero_indoor) / len(nonzero_indoor) if nonzero_indoor else 0.0
+        avg_outdoor = sum(nonzero_outdoor) / len(nonzero_outdoor) if nonzero_outdoor else 0.0
+
+        error_features = error_indoor_lags + error_outdoor_lags + [avg_indoor, avg_outdoor]
+
+        feature_vector = np.concatenate([base_features, error_features])
+        target = df[TARGET_COLS].values[i]
+        X.append(feature_vector)
+        y.append(target)
+
+    return np.array(X) if X else np.array([]), np.array(y) if y else np.array([])
+
+
+def read_6hr_rc_meta():
+    """Read 6hrRC model metadata, returning defaults if not found."""
+    try:
+        with open(RC_META_PATH) as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return {"version": 0}
@@ -298,6 +383,69 @@ def train_simple():
     print(f"Simple model metadata written (version {new_version})")
 
 
+def train_6hr_rc():
+    """Train the 6hrRC residual correction model."""
+    print("\n--- 6hrRC Model (6h + residual correction) ---")
+
+    if not os.path.exists(DB_PATH):
+        print("Skipping 6hrRC model: no database")
+        return
+
+    df = load_readings()
+    df = encode_trends(df)
+
+    error_lookup = load_prediction_errors(HISTORY_PATH)
+    print(f"Loaded {len(error_lookup)} prediction error entries")
+
+    X, y = build_6hr_rc_windows(df, error_lookup)
+
+    print(f"Built {len(X)} 6hrRC sliding windows (lookback={RC_LOOKBACK}h, features=68)")
+
+    if len(X) < 2:
+        print("Not enough data for 6hrRC model. Need at least 7 consecutive hourly readings.")
+        return
+
+    model = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42))
+
+    if len(X) < 50:
+        loo = LeaveOneOut()
+        y_pred = cross_val_predict(model, X, y, cv=loo)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        y = y_test
+
+    mae_indoor = mean_absolute_error(y[:, 0], y_pred[:, 0])
+    mae_outdoor = mean_absolute_error(y[:, 1], y_pred[:, 1])
+
+    print(f"  MAE indoor:  {mae_indoor:.2f}\u00b0C")
+    print(f"  MAE outdoor: {mae_outdoor:.2f}\u00b0C")
+
+    model.fit(X, y)
+
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    joblib.dump(model, RC_MODEL_PATH)
+    print(f"6hrRC model saved to {RC_MODEL_PATH}")
+
+    meta = read_6hr_rc_meta()
+    new_version = meta.get("version", 0) + 1
+    new_meta = {
+        "version": new_version,
+        "trained_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "sample_count": int(len(X)),
+        "mae_indoor": round(mae_indoor, 4),
+        "mae_outdoor": round(mae_outdoor, 4),
+    }
+    with open(RC_META_PATH, "w") as f:
+        json.dump(new_meta, f, indent=2)
+        f.write("\n")
+    print(f"6hrRC model metadata written (version {new_version})")
+
+
 if __name__ == "__main__":
     train()
     train_simple()
+    train_6hr_rc()

@@ -32,6 +32,11 @@ SIMPLE_LOOKBACK = 3
 SIMPLE_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_simple.joblib")
 SIMPLE_META_PATH = os.path.join(SCRIPT_DIR, "models", "simple_meta.json")
 
+RC_LOOKBACK = 6
+RC_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_6hr_rc.joblib")
+RC_META_PATH = os.path.join(SCRIPT_DIR, "models", "6hr_rc_meta.json")
+HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
+
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
     "humidity_outdoor", "noise", "pressure",
@@ -71,6 +76,38 @@ def read_simple_meta():
         return {"version": 0}
 
 
+def read_6hr_rc_meta():
+    """Read 6hrRC model metadata, returning defaults if not found."""
+    try:
+        with open(RC_META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
+
+
+def _load_recent_errors(history_path):
+    """Load prediction errors from history for 3hrRaw/simple model.
+    Returns dict: hour_str -> (error_indoor, error_outdoor)"""
+    if not os.path.exists(history_path):
+        return {}
+    try:
+        with open(history_path) as f:
+            history = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    errors = {}
+    for entry in history:
+        mt = entry.get("model_type", "")
+        if mt not in ("3hrRaw", "simple"):
+            continue
+        hour_str = entry.get("for_hour", "")
+        err = entry.get("error", {})
+        if hour_str and err:
+            errors[hour_str] = (err.get("temp_indoor", 0.0), err.get("temp_outdoor", 0.0))
+    return errors
+
+
 def _run_full_model():
     """Run the full 24h model. Returns (prediction, model_version, last_row) or None."""
     if not os.path.exists(MODEL_PATH):
@@ -108,7 +145,7 @@ def _run_full_model():
         meta = read_meta()
         model = joblib.load(MODEL_PATH)
         prediction = model.predict(feature_vector)[0]
-        print("Using full 24h model")
+        print("Using 24hrRaw model")
         return (prediction, meta.get("version", 0), df.iloc[-1])
     except Exception as e:
         print(f"Full model failed: {e}")
@@ -140,10 +177,65 @@ def _run_simple_model():
         meta = read_simple_meta()
         model = joblib.load(SIMPLE_MODEL_PATH)
         prediction = model.predict(feature_vector)[0]
-        print("Using simple 3h model")
+        print("Using 3hrRaw model")
         return (prediction, meta.get("version", 0), df.iloc[-1])
     except Exception as e:
         print(f"Simple model failed: {e}")
+        return None
+
+
+def _run_6hr_rc_model():
+    """Run the 6hrRC residual correction model. Returns (prediction, model_version, last_row) or None."""
+    if not os.path.exists(RC_MODEL_PATH):
+        return None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql_query(
+            f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {RC_LOOKBACK}", conn
+        )
+        conn.close()
+
+        if len(df) < RC_LOOKBACK:
+            print("6hrRC model: not enough data")
+            return None
+
+        df = df.iloc[::-1].reset_index(drop=True)
+
+        for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
+            df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
+
+        # Base features: 9 x 6 = 54
+        base_features = df[SIMPLE_FEATURE_COLS].values.flatten()
+
+        # Error features from prediction history
+        error_lookup = _load_recent_errors(HISTORY_PATH)
+        timestamps = df["timestamp"].values
+        error_indoor_lags = []
+        error_outdoor_lags = []
+        for lag in range(1, RC_LOOKBACK + 1):
+            lag_ts = timestamps[RC_LOOKBACK - lag]
+            lag_dt = datetime.fromtimestamp(float(lag_ts), tz=timezone.utc)
+            lag_hour_str = lag_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            err = error_lookup.get(lag_hour_str, (0.0, 0.0))
+            error_indoor_lags.append(err[0])
+            error_outdoor_lags.append(err[1])
+
+        nonzero_indoor = [e for e in error_indoor_lags if e != 0.0]
+        nonzero_outdoor = [e for e in error_outdoor_lags if e != 0.0]
+        avg_indoor = sum(nonzero_indoor) / len(nonzero_indoor) if nonzero_indoor else 0.0
+        avg_outdoor = sum(nonzero_outdoor) / len(nonzero_outdoor) if nonzero_outdoor else 0.0
+
+        error_features = error_indoor_lags + error_outdoor_lags + [avg_indoor, avg_outdoor]
+
+        feature_vector = np.concatenate([base_features, error_features]).reshape(1, -1)
+
+        meta = read_6hr_rc_meta()
+        model = joblib.load(RC_MODEL_PATH)
+        prediction = model.predict(feature_vector)[0]
+        print("Using 6hrRC model")
+        return (prediction, meta.get("version", 0), df.iloc[-1])
+    except Exception as e:
+        print(f"6hrRC model failed: {e}")
         return None
 
 
@@ -186,7 +278,7 @@ def _write_prediction(result, predictions_dir, model_type):
     print(f"Prediction written to {typed_path}")
 
     # Backwards compat: also write old HHMMSS.json for simple model
-    if model_type == "simple":
+    if model_type == "3hrRaw":
         compat_filename = f"{timestamp}.json"
         compat_path = os.path.join(date_dir, compat_filename)
         with open(compat_path, "w") as f:
@@ -202,19 +294,23 @@ def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
 
     models_to_run = []
     if model_type_filter == "all":
-        models_to_run = ["simple", "full"]
-    elif model_type_filter == "simple":
-        models_to_run = ["simple"]
-    elif model_type_filter == "full":
-        models_to_run = ["full"]
+        models_to_run = ["3hrRaw", "24hrRaw", "6hrRC"]
+    elif model_type_filter == "3hrRaw":
+        models_to_run = ["3hrRaw"]
+    elif model_type_filter == "24hrRaw":
+        models_to_run = ["24hrRaw"]
 
     results = []
 
     for model_name in models_to_run:
-        if model_name == "full":
+        if model_name == "24hrRaw":
             out = _run_full_model()
-        else:
+        elif model_name == "3hrRaw":
             out = _run_simple_model()
+        elif model_name == "6hrRC":
+            out = _run_6hr_rc_model()
+        else:
+            continue
 
         if out is None:
             print(f"  {model_name} model: no prediction produced")
@@ -251,7 +347,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict next-hour temperatures")
     parser.add_argument("--output", help="Path to write prediction JSON file")
     parser.add_argument("--predictions-dir", help="Directory to store timestamped prediction files")
-    parser.add_argument("--model-type", choices=["simple", "full", "all"], default="all",
+    parser.add_argument("--model-type", choices=["3hrRaw", "24hrRaw", "6hrRC", "all"], default="all",
                         help="Which model to run predictions for")
     args = parser.parse_args()
     predict(output_path=args.output, predictions_dir=args.predictions_dir,
