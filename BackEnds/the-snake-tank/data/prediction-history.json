@@ -1,5 +1,23 @@
 [
   {
+    "predicted_at": "2026-02-16T11:00:38Z",
+    "for_hour": "2026-02-16T12:00:38Z",
+    "model_type": "24hrRaw",
+    "predicted": {
+      "temp_indoor": 20.4,
+      "temp_outdoor": -10.5
+    },
+    "actual": {
+      "temp_indoor": 21.3,
+      "temp_outdoor": -5.5
+    },
+    "error": {
+      "temp_indoor": 0.9,
+      "temp_outdoor": 5.0
+    },
+    "model_version": 30
+  },
+  {
     "predicted_at": "2026-02-16T10:40:35Z",
     "for_hour": "2026-02-16T11:40:35Z",
     "model_type": "24hrRaw",
