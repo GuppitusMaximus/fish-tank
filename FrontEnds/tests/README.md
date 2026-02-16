@@ -20,6 +20,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `run_multiselect_tests.sh` | Shell script | Opens `test_multiselect_include_mode.html` in default browser for visual verification |
 | `test_home_weather_load.js` | Node.js script | Verifies home weather summary loads on first visit without requiring weather tab visit: loadHomeSummary function exists, fetches from cache/RAW_URL, page load trigger, CTA text (10 assertions) |
 | `test_format_toolbar.sh` | Shell script | Verifies format toolbar implementation: toolbar HTML structure, CSS styles, event handlers, localStorage persistence, old controls removed (31 assertions) |
+| `qa-weather-home-overlap.js` | Node.js script | Verifies weather/home overlap fix: renderHomeSummary guarded by active class check, loadHomeSummary early return, home summary rendering intact, switchView integration (8 assertions) |
 
 ### Test Reports
 
@@ -61,6 +62,7 @@ All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 
 node tests/test_v2_multi_model_dashboard.js
 node tests/verify-multi-select-filters.js
 node tests/test_home_weather_load.js
+node tests/qa-weather-home-overlap.js
 ```
 
 Prints test results to console and exits with code 0 (all pass) or 1 (any failure).
@@ -103,6 +105,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Multi-select include mode (inverted checkboxes)** | \`test_multiselect_include_mode.html\` + \`qa-invert-history-filter-checkboxes.md\` |
 | **Home weather summary loads on first visit** | \`test_home_weather_load.js\` |
 | **Format toolbar implementation** | \`test_format_toolbar.sh\` |
+| **Weather/home overlap fix (nav hidden, CTA overlap)** | \`qa-weather-home-overlap.js\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -161,5 +164,6 @@ The following v2 features were verified:
 | \`qa-invert-history-filter-checkboxes\` | Completed | \`test_multiselect_include_mode.html\`, \`run_multiselect_tests.sh\`, \`qa-invert-history-filter-checkboxes.md\` | None (all 7 test suites pass, 23 assertions) |
 | \`qa-fix-home-weather-load\` | Completed | \`test_home_weather_load.js\` | None (all 10 tests pass) |
 | \`qa-frontend-format-toolbar\` | Completed | \`test_format_toolbar.sh\`, updated \`test_dash_qa_frontend.sh\` | None (all 31 tests pass) |
+| \`qa-fix-weather-home-overlap\` | Completed | \`qa-weather-home-overlap.js\` | None (all 8 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
