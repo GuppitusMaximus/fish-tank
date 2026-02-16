@@ -37,6 +37,19 @@ RC_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_6hr_rc.joblib
 RC_META_PATH = os.path.join(SCRIPT_DIR, "models", "6hr_rc_meta.json")
 HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
 
+PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_at TEXT NOT NULL,
+    model_type TEXT NOT NULL,
+    model_version INTEGER,
+    for_hour TEXT NOT NULL,
+    temp_indoor_predicted REAL,
+    temp_outdoor_predicted REAL,
+    last_reading_ts INTEGER,
+    last_reading_temp_indoor REAL,
+    last_reading_temp_outdoor REAL
+)"""
+
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
     "humidity_outdoor", "noise", "pressure",
@@ -285,6 +298,26 @@ def _write_prediction(result, predictions_dir, model_type):
             json.dump(result, f, indent=2)
             f.write("\n")
         print(f"Compat prediction written to {compat_path}")
+
+    # Write to predictions table in weather.db
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(PREDICTIONS_TABLE_SQL)
+        conn.execute(
+            """INSERT INTO predictions
+            (generated_at, model_type, model_version, for_hour,
+             temp_indoor_predicted, temp_outdoor_predicted,
+             last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (result["generated_at"], model_type, result["model_version"],
+             result["prediction"]["prediction_for"],
+             result["prediction"]["temp_indoor"], result["prediction"]["temp_outdoor"],
+             result["last_reading"]["timestamp"],
+             result["last_reading"]["temp_indoor"], result["last_reading"]["temp_outdoor"]))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: failed to write prediction to DB: {e}")
 
 
 def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
