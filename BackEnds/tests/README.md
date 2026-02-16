@@ -152,6 +152,19 @@ Verifies model type rename (simple→3hrRaw, full→24hrRaw) and 6hrRC residual 
 - `read_6hr_rc_meta()` helper exists in both files
 - Backwards-compat file writer checks for `"3hrRaw"` to write legacy filename format
 
+### `test_pages_workflow.py`
+
+**Plan:** `qa-fix-pages-auto-deploy`
+
+Verifies GitHub Pages workflow auto-deploys after Netatmo weather updates (6 tests):
+
+- `workflow_run` trigger exists in `.github/workflows/pages.yml`
+- Trigger configured for workflow `"Fetch Netatmo Weather Data"` with type `completed` on branch `main`
+- Deploy job includes success condition: only deploy if workflow_run succeeded OR if triggered by push/workflow_dispatch
+- Original `push` trigger preserved with `branches: [main]` and `paths: ['FrontEnds/the-fish-tank/**']`
+- Original `workflow_dispatch` trigger preserved for manual runs
+- YAML syntax is valid
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -183,7 +196,8 @@ Manual verification report (not a pytest file). Documents that:
 | Atomic writes | `test_multi_model_code.py` |
 | Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py`, `test_multi_model_export.py` |
 | README accuracy | `test_readme_accuracy.py` |
-| Workflow configuration | `test_wire_prediction_validation.py`, `qa-remove-github-cron.md` |
+| Workflow configuration | `test_wire_prediction_validation.py`, `test_pages_workflow.py`, `qa-remove-github-cron.md` |
+| Pages auto-deploy trigger | `test_pages_workflow.py` |
 | MAX_GAP setting & full model readiness | `test_full_model_training.py` |
 
 ### Not Yet Covered
