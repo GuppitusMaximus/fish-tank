@@ -83,6 +83,15 @@ window.WeatherApp = (() => {
     return value + unit;
   }
 
+  function resolvePropertyKey(suffix, propertyMeta) {
+    if (!propertyMeta) return suffix;
+    if (propertyMeta[suffix]) return suffix;
+    for (var key in propertyMeta) {
+      if (propertyMeta.hasOwnProperty(key) && key.endsWith('_' + suffix)) return key;
+    }
+    return suffix;
+  }
+
   function discoverHistoryProperties(historyEntry) {
     var pattern = /^(actual|predicted|delta)_(.+)$/;
     var found = {};
@@ -831,9 +840,8 @@ window.WeatherApp = (() => {
       '<th class="sortable model-version-col" data-sort="model_version">Version' + sortIndicator('model_version') + '</th>';
 
     props.forEach(function(suffix) {
-      var metaKey = 'temp_' + suffix;
+      var metaKey = resolvePropertyKey(suffix, pm);
       var label = getPropertyLabel(metaKey, pm);
-      if (pm && !pm[metaKey]) label = getPropertyLabel(suffix, pm);
       headerCells += '<th class="sortable" data-sort="actual_' + suffix + '">' + label + sortIndicator('actual_' + suffix) + '</th>' +
         '<th class="sortable" data-sort="predicted_' + suffix + '">Predicted' + sortIndicator('predicted_' + suffix) + '</th>' +
         '<th class="sortable" data-sort="delta_' + suffix + '">\u0394' + sortIndicator('delta_' + suffix) + '</th>';
@@ -851,8 +859,9 @@ window.WeatherApp = (() => {
         var actual = entry['actual_' + suffix];
         var predicted = entry['predicted_' + suffix];
         var delta = entry['delta_' + suffix];
-        rows += '<td>' + formatProperty('temp_' + suffix, actual, pm) + '</td>' +
-          '<td>' + formatProperty('temp_' + suffix, predicted, pm) + '</td>' +
+        var propKey = resolvePropertyKey(suffix, pm);
+        rows += '<td>' + formatProperty(propKey, actual, pm) + '</td>' +
+          '<td>' + formatProperty(propKey, predicted, pm) + '</td>' +
           '<td class="' + (delta !== undefined && delta !== null ? deltaClass(delta) : '') + '">' +
             (delta !== undefined && delta !== null ? formatDeltaTemp(delta) : '—') + '</td>';
       });
@@ -933,6 +942,13 @@ window.WeatherApp = (() => {
   }
 
   function initHistoryV2() {
+    if (!historyState.filterDateStart && !historyState.filterDateEnd) {
+      var today = new Date();
+      var sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      historyState.filterDateEnd = today.toISOString().substring(0, 10);
+      historyState.filterDateStart = sevenDaysAgo.toISOString().substring(0, 10);
+    }
     applyHistoryFilters();
     applyHistorySort();
     historyState.rendered = 0;
@@ -1046,8 +1062,9 @@ window.WeatherApp = (() => {
             var actual = entry['actual_' + suffix];
             var predicted = entry['predicted_' + suffix];
             var delta = entry['delta_' + suffix];
-            cells += '<td>' + formatProperty('temp_' + suffix, actual, pm) + '</td>' +
-              '<td>' + formatProperty('temp_' + suffix, predicted, pm) + '</td>' +
+            var propKey = resolvePropertyKey(suffix, pm);
+            cells += '<td>' + formatProperty(propKey, actual, pm) + '</td>' +
+              '<td>' + formatProperty(propKey, predicted, pm) + '</td>' +
               '<td class="' + (delta !== undefined && delta !== null ? deltaClass(delta) : '') + '">' +
                 (delta !== undefined && delta !== null ? formatDeltaTemp(delta) : '—') + '</td>';
           });
