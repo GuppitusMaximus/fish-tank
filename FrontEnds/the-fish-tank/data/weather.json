@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-16T05:20:08Z",
+  "generated_at": "2026-02-16T05:23:34Z",
   "schema_version": 2,
   "property_meta": {
     "temp_indoor": {
@@ -23,7 +23,7 @@
   "predictions": [
     {
       "model_type": "24hrRaw",
-      "model_version": 12,
+      "model_version": 13,
       "prediction_for": "2026-02-16T06:12:59Z",
       "values": {
         "temp_indoor": 20.5,
@@ -32,7 +32,7 @@
     },
     {
       "model_type": "3hrRaw",
-      "model_version": 62,
+      "model_version": 63,
       "prediction_for": "2026-02-16T06:12:59Z",
       "values": {
         "temp_indoor": 21.0,
@@ -41,7 +41,7 @@
     },
     {
       "model_type": "6hrRC",
-      "model_version": 10,
+      "model_version": 11,
       "prediction_for": "2026-02-16T06:12:59Z",
       "values": {
         "temp_indoor": 21.0,
@@ -744,7 +744,7 @@
     "prediction_for": "2026-02-16T06:12:59Z",
     "temp_indoor": 20.5,
     "temp_outdoor": -10.3,
-    "model_version": 12,
+    "model_version": 13,
     "model_type": "24hrRaw"
   }
 }
