@@ -17,6 +17,10 @@ jobs:
           NETATMO_CLIENT_ID: ${{ secrets.NETATMO_CLIENT_ID }}
           NETATMO_CLIENT_SECRET: ${{ secrets.NETATMO_CLIENT_SECRET }}
           NETATMO_REFRESH_TOKEN: ${{ secrets.NETATMO_REFRESH_TOKEN }}
+          NETATMO_PUBLIC_LAT_NE: ${{ secrets.NETATMO_PUBLIC_LAT_NE }}
+          NETATMO_PUBLIC_LON_NE: ${{ secrets.NETATMO_PUBLIC_LON_NE }}
+          NETATMO_PUBLIC_LAT_SW: ${{ secrets.NETATMO_PUBLIC_LAT_SW }}
+          NETATMO_PUBLIC_LON_SW: ${{ secrets.NETATMO_PUBLIC_LON_SW }}
         run: python BackEnds/the-snake-tank/fetch_weather.py
 
       - name: Update refresh token secret

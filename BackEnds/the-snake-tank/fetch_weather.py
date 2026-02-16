@@ -5,6 +5,7 @@ import argparse
 import glob
 import json
 import os
+import sqlite3
 import sys
 import urllib.request
 import urllib.error
@@ -13,6 +14,24 @@ from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
+DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
+
+PUBLIC_STATIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS public_stations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fetched_at TEXT NOT NULL,
+    station_id TEXT NOT NULL,
+    lat REAL,
+    lon REAL,
+    temperature REAL,
+    humidity INTEGER,
+    pressure REAL,
+    rain_60min REAL,
+    rain_24h REAL,
+    wind_strength INTEGER,
+    wind_angle INTEGER,
+    gust_strength INTEGER,
+    gust_angle INTEGER
+)"""
 
 
 def scrub_pii(data):
@@ -84,6 +103,81 @@ def get_stations_data(access_token):
         return json.loads(resp.read())
 
 
+def get_public_data(access_token, lat_ne, lon_ne, lat_sw, lon_sw):
+    """Fetch public station data within the bounding box from Netatmo API."""
+    params = urllib.parse.urlencode({
+        "lat_ne": lat_ne,
+        "lon_ne": lon_ne,
+        "lat_sw": lat_sw,
+        "lon_sw": lon_sw,
+    })
+    url = f"https://api.netatmo.com/api/getpublicdata?{params}"
+    req = urllib.request.Request(url)
+    req.add_header("Authorization", f"Bearer {access_token}")
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read())
+
+
+def store_public_stations(data, db_path, fetched_at):
+    """Parse getpublicdata response and store station readings in SQLite."""
+    conn = sqlite3.connect(db_path)
+    conn.execute(PUBLIC_STATIONS_TABLE_SQL)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_public_stations_time ON public_stations(fetched_at)")
+
+    count = 0
+    for station in data.get("body", []):
+        station_id = station.get("_id", "unknown")
+
+        # Location: place.location is [lon, lat]
+        place = station.get("place", {})
+        location = place.get("location", [None, None])
+        lon = location[0] if len(location) > 0 else None
+        lat = location[1] if len(location) > 1 else None
+
+        # Parse measures from different module types
+        temp, humidity, pressure = None, None, None
+        rain_60min, rain_24h = None, None
+        wind_strength, wind_angle, gust_strength, gust_angle = None, None, None, None
+
+        for module_mac, module_data in station.get("measures", {}).items():
+            if "type" in module_data:
+                # Temperature, humidity, pressure modules use type/res format
+                types = module_data["type"]
+                for ts_str, values in module_data.get("res", {}).items():
+                    for i, t in enumerate(types):
+                        if i < len(values):
+                            if t == "temperature":
+                                temp = values[i]
+                            elif t == "humidity":
+                                humidity = values[i]
+                            elif t == "pressure":
+                                pressure = values[i]
+            elif "rain_60min" in module_data:
+                rain_60min = module_data.get("rain_60min")
+                rain_24h = module_data.get("rain_24h")
+            elif "wind_strength" in module_data:
+                wind_strength = module_data.get("wind_strength")
+                wind_angle = module_data.get("wind_angle")
+                gust_strength = module_data.get("gust_strength")
+                gust_angle = module_data.get("gust_angle")
+
+        conn.execute(
+            """INSERT INTO public_stations
+            (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
+             rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (fetched_at, station_id, lat, lon, temp, humidity, pressure,
+             rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
+        count += 1
+
+    # Clean up data older than 30 days
+    conn.execute("DELETE FROM public_stations WHERE fetched_at < datetime('now', '-30 days')")
+
+    conn.commit()
+    conn.close()
+    print(f"Stored {count} public station readings")
+
+
 def main():
     client_id = os.environ["NETATMO_CLIENT_ID"]
     client_secret = os.environ["NETATMO_CLIENT_SECRET"]
@@ -122,6 +216,23 @@ def main():
         f.write("\n")
 
     print(f"Saved weather data to {out_path}")
+
+    # --- Fetch public station data (optional) ---
+    lat_ne = os.environ.get("NETATMO_PUBLIC_LAT_NE")
+    lon_ne = os.environ.get("NETATMO_PUBLIC_LON_NE")
+    lat_sw = os.environ.get("NETATMO_PUBLIC_LAT_SW")
+    lon_sw = os.environ.get("NETATMO_PUBLIC_LON_SW")
+
+    if all([lat_ne, lon_ne, lat_sw, lon_sw]):
+        try:
+            print("Fetching public station data...")
+            public_data = get_public_data(access_token, lat_ne, lon_ne, lat_sw, lon_sw)
+            fetched_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+            store_public_stations(public_data, DB_PATH, fetched_at)
+        except Exception as e:
+            print(f"Warning: public station fetch failed: {e}")
+    else:
+        print("Public station fetch skipped — bounding box not configured")
 
 
 if __name__ == "__main__":
