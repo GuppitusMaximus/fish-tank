@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Select Include Mode Tests</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .test-result {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border-radius: 4px;
+    }
+    .test-result.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+    .test-result.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .test-suite {
+      margin: 1rem 0;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .test-widget {
+      margin: 1rem 0;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    .summary {
+      margin: 2rem 0;
+      padding: 1rem;
+      font-weight: bold;
+      border-radius: 4px;
+    }
+    .summary.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+    .summary.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .multi-select {
+      display: inline-block;
+      position: relative;
+      min-width: 200px;
+    }
+    .multi-select-trigger {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      background: white;
+    }
+    .multi-select-dropdown {
+      display: none;
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 0.5rem;
+      z-index: 1000;
+      min-width: 100%;
+    }
+    .multi-select.open .multi-select-dropdown {
+      display: block;
+    }
+    .multi-select-option {
+      display: block;
+      padding: 0.25rem;
+      cursor: pointer;
+    }
+    .multi-select-clear {
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border-top: 1px solid #eee;
+      cursor: pointer;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Multi-Select Include Mode Tests</h1>
+  <p>Testing the createMultiSelect component's include mode behavior</p>
+
+  <div id="test-results"></div>
+  <div id="summary"></div>
+
+  <script>
+    // Inline the createMultiSelect function from weather.js
+    function createMultiSelect(id, options, selected, onChange) {
+      var container = document.createElement('div');
+      container.className = 'multi-select';
+      container.id = id;
+
+      var trigger = document.createElement('div');
+      trigger.className = 'multi-select-trigger';
+      trigger.textContent = selected.length === 0 ? 'All' : selected.join(', ');
+      container.appendChild(trigger);
+
+      var dropdown = document.createElement('div');
+      dropdown.className = 'multi-select-dropdown';
+
+      options.forEach(function(opt) {
+        var label = document.createElement('label');
+        label.className = 'multi-select-option';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = opt;
+        cb.checked = selected.indexOf(opt) !== -1;
+        cb.addEventListener('change', function() {
+          var checked = [];
+          dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(c) {
+            if (c.checked) checked.push(c.value);
+          });
+          if (checked.length === 0) {
+            trigger.textContent = 'All';
+            onChange([]);
+          } else {
+            trigger.textContent = checked.join(', ');
+            onChange(checked);
+          }
+        });
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + opt));
+        dropdown.appendChild(label);
+      });
+
+      var clearBtn = document.createElement('div');
+      clearBtn.className = 'multi-select-clear';
+      clearBtn.textContent = 'Clear all';
+      clearBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(c) {
+          c.checked = false;
+        });
+        trigger.textContent = 'All';
+        onChange([]);
+      });
+      dropdown.appendChild(clearBtn);
+
+      container.appendChild(dropdown);
+
+      trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.querySelectorAll('.multi-select.open').forEach(function(el) {
+          if (el !== container) el.classList.remove('open');
+        });
+        container.classList.toggle('open');
+      });
+
+      return container;
+    }
+
+    document.addEventListener('click', function() {
+      document.querySelectorAll('.multi-select.open').forEach(function(el) {
+        el.classList.remove('open');
+      });
+    });
+
+    // Test framework
+    let testsPassed = 0;
+    let testsFailed = 0;
+    const resultsDiv = document.getElementById('test-results');
+
+    function pass(message) {
+      const div = document.createElement('div');
+      div.className = 'test-result pass';
+      div.textContent = '✓ ' + message;
+      resultsDiv.appendChild(div);
+      testsPassed++;
+    }
+
+    function fail(message, details) {
+      const div = document.createElement('div');
+      div.className = 'test-result fail';
+      div.innerHTML = '<strong>✗ ' + message + '</strong>';
+      if (details) {
+        div.innerHTML += '<br>  ' + details;
+      }
+      resultsDiv.appendChild(div);
+      testsFailed++;
+    }
+
+    function assertEquals(actual, expected, message) {
+      if (actual === expected) {
+        pass(message);
+      } else {
+        fail(message, 'Expected: ' + JSON.stringify(expected) + ', Got: ' + JSON.stringify(actual));
+      }
+    }
+
+    function assertArrayEquals(actual, expected, message) {
+      if (JSON.stringify(actual) === JSON.stringify(expected)) {
+        pass(message);
+      } else {
+        fail(message, 'Expected: ' + JSON.stringify(expected) + ', Got: ' + JSON.stringify(actual));
+      }
+    }
+
+    function createTestSuite(title) {
+      const div = document.createElement('div');
+      div.className = 'test-suite';
+      const h2 = document.createElement('h2');
+      h2.textContent = title;
+      div.appendChild(h2);
+      resultsDiv.appendChild(div);
+      return div;
+    }
+
+    function addWidgetToSuite(suite, widget) {
+      const widgetDiv = document.createElement('div');
+      widgetDiv.className = 'test-widget';
+      widgetDiv.appendChild(widget);
+      suite.appendChild(widgetDiv);
+    }
+
+    // Run tests
+    function runTests() {
+      // Test 1: Initial state with selected = []
+      let suite1 = createTestSuite('Test 1: Initial state with selected = []');
+      let lastOnChangeValue = null;
+      const widget1 = createMultiSelect('test1', ['option1', 'option2', 'option3'], [], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite1, widget1);
+
+      const trigger1 = widget1.querySelector('.multi-select-trigger');
+      const checkboxes1 = widget1.querySelectorAll('input[type="checkbox"]');
+
+      assertEquals(trigger1.textContent, 'All', 'Trigger text shows "All" when selected=[]');
+      assertEquals(checkboxes1.length, 3, 'All checkboxes are rendered');
+      assertEquals(checkboxes1[0].checked, false, 'Checkbox 1 is unchecked');
+      assertEquals(checkboxes1[1].checked, false, 'Checkbox 2 is unchecked');
+      assertEquals(checkboxes1[2].checked, false, 'Checkbox 3 is unchecked');
+
+      // Test 2: Single selection
+      let suite2 = createTestSuite('Test 2: Single selection');
+      const widget2 = createMultiSelect('test2', ['A', 'B', 'C'], [], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite2, widget2);
+
+      const trigger2 = widget2.querySelector('.multi-select-trigger');
+      const checkboxes2 = widget2.querySelectorAll('input[type="checkbox"]');
+
+      checkboxes2[0].checked = true;
+      checkboxes2[0].dispatchEvent(new Event('change'));
+
+      assertEquals(trigger2.textContent, 'A', 'Trigger text shows selected value');
+      assertArrayEquals(lastOnChangeValue, ['A'], 'onChange called with ["A"]');
+
+      // Test 3: Multiple selection
+      let suite3 = createTestSuite('Test 3: Multiple selection');
+      const widget3 = createMultiSelect('test3', ['Red', 'Green', 'Blue'], [], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite3, widget3);
+
+      const trigger3 = widget3.querySelector('.multi-select-trigger');
+      const checkboxes3 = widget3.querySelectorAll('input[type="checkbox"]');
+
+      checkboxes3[0].checked = true;
+      checkboxes3[0].dispatchEvent(new Event('change'));
+      checkboxes3[1].checked = true;
+      checkboxes3[1].dispatchEvent(new Event('change'));
+
+      assertEquals(trigger3.textContent, 'Red, Green', 'Trigger text shows both values');
+      assertArrayEquals(lastOnChangeValue, ['Red', 'Green'], 'onChange called with ["Red", "Green"]');
+
+      // Test 4: Clear returns to All
+      let suite4 = createTestSuite('Test 4: Clear returns to All');
+      const widget4 = createMultiSelect('test4', ['X', 'Y', 'Z'], [], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite4, widget4);
+
+      const trigger4 = widget4.querySelector('.multi-select-trigger');
+      const checkboxes4 = widget4.querySelectorAll('input[type="checkbox"]');
+
+      checkboxes4[0].checked = true;
+      checkboxes4[0].dispatchEvent(new Event('change'));
+      assertEquals(trigger4.textContent, 'X', 'Trigger shows "X" after checking');
+
+      checkboxes4[0].checked = false;
+      checkboxes4[0].dispatchEvent(new Event('change'));
+      assertEquals(trigger4.textContent, 'All', 'Trigger shows "All" after unchecking');
+      assertArrayEquals(lastOnChangeValue, [], 'onChange called with [] when all unchecked');
+
+      // Test 5: All-checked is NOT treated as All
+      let suite5 = createTestSuite('Test 5: All-checked is NOT treated as All');
+      const widget5 = createMultiSelect('test5', ['One', 'Two'], [], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite5, widget5);
+
+      const trigger5 = widget5.querySelector('.multi-select-trigger');
+      const checkboxes5 = widget5.querySelectorAll('input[type="checkbox"]');
+
+      checkboxes5[0].checked = true;
+      checkboxes5[0].dispatchEvent(new Event('change'));
+      checkboxes5[1].checked = true;
+      checkboxes5[1].dispatchEvent(new Event('change'));
+
+      assertEquals(trigger5.textContent, 'One, Two', 'Trigger shows all values, NOT "All"');
+      assertArrayEquals(lastOnChangeValue, ['One', 'Two'], 'onChange called with all values, NOT []');
+
+      // Test 6: Clear button
+      let suite6 = createTestSuite('Test 6: Clear button');
+      const widget6 = createMultiSelect('test6', ['Alpha', 'Beta', 'Gamma'], ['Alpha'], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite6, widget6);
+
+      const trigger6 = widget6.querySelector('.multi-select-trigger');
+      const clearBtn6 = widget6.querySelector('.multi-select-clear');
+      const checkboxes6 = widget6.querySelectorAll('input[type="checkbox"]');
+
+      assertEquals(trigger6.textContent, 'Alpha', 'Initial trigger shows "Alpha"');
+      assertEquals(checkboxes6[0].checked, true, 'First checkbox is checked initially');
+
+      clearBtn6.dispatchEvent(new Event('click'));
+
+      assertEquals(trigger6.textContent, 'All', 'Trigger shows "All" after clear');
+      assertEquals(checkboxes6[0].checked, false, 'All checkboxes are unchecked after clear');
+      assertArrayEquals(lastOnChangeValue, [], 'onChange called with [] after clear');
+
+      // Test 7: Pre-selected values
+      let suite7 = createTestSuite('Test 7: Pre-selected values');
+      const widget7 = createMultiSelect('test7', ['Cat', 'Dog', 'Bird'], ['Dog', 'Bird'], function(selected) {
+        lastOnChangeValue = selected;
+      });
+      addWidgetToSuite(suite7, widget7);
+
+      const trigger7 = widget7.querySelector('.multi-select-trigger');
+      const checkboxes7 = widget7.querySelectorAll('input[type="checkbox"]');
+
+      assertEquals(trigger7.textContent, 'Dog, Bird', 'Trigger shows pre-selected values');
+      assertEquals(checkboxes7[0].checked, false, 'Cat is not checked');
+      assertEquals(checkboxes7[1].checked, true, 'Dog is checked');
+      assertEquals(checkboxes7[2].checked, true, 'Bird is checked');
+
+      // Display summary
+      const summaryDiv = document.getElementById('summary');
+      summaryDiv.className = 'summary ' + (testsFailed > 0 ? 'fail' : 'pass');
+      summaryDiv.innerHTML = '<h2>Test Summary</h2>' +
+        '<p>Passed: ' + testsPassed + '</p>' +
+        '<p>Failed: ' + testsFailed + '</p>' +
+        '<p><strong>' + (testsFailed > 0 ? '❌ TESTS FAILED' : '✅ ALL TESTS PASSED') + '</strong></p>';
+    }
+
+    // Run tests when page loads
+    window.addEventListener('load', runTests);
+  </script>
+</body>
+</html>
