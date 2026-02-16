@@ -196,6 +196,21 @@ Verifies DB-first reads in `export_weather.py` with file-based fallback (10 test
 - DB history helper returns correct dict format with `delta_indoor` and `delta_outdoor` computed from raw values
 - Delta calculations are correct (actual - predicted, rounded to 1 decimal)
 
+### `test_sqlite_train_errors.py`
+
+**Plan:** `qa-sqlite-train-errors`
+
+Verifies DB-first reads in `train_model.py` for prediction error history with file-based fallback (8 tests):
+
+- `PREDICTION_HISTORY_TABLE_SQL` schema constant exists with correct columns (predicted_at, for_hour, model_type, error_indoor, error_outdoor)
+- `_load_prediction_errors_from_db()` function exists and is callable
+- DB helper returns None gracefully when database doesn't exist
+- DB helper returns None when prediction_history table is empty
+- DB helper filters to only `3hrRaw` and `simple` model types (excludes `6hrRC`, `24hrFull`)
+- Error dict format is correct: `{hour_str: (error_indoor, error_outdoor)}`
+- `load_prediction_errors()` tries DB first before falling back to JSON file
+- Fallback to JSON works correctly when DB returns None
+
 ### `test_sqlite_validate.py`
 
 **Plan:** `qa-sqlite-validate`
@@ -240,6 +255,18 @@ This spec file uses the `spec_` prefix naming convention to distinguish BDD test
 
 ## Test Reports
 
+### `qa-docs-backend.md`
+
+**Plan:** `qa-docs-backend`
+
+Manual verification report (not a pytest file). Documents that:
+
+- Project structure section in README matches actual files in `the-snake-tank/`
+- Script descriptions are accurate vs docstrings and actual code functionality
+- Workflow trigger mechanism correctly described (Cloudflare Worker → workflow_dispatch, no schedule trigger)
+- Pipeline steps sequence accurate (fetch → build → validate → train → predict → export)
+- No stale references to old filename formats (HH00.json) or non-existent files
+
 ### `qa-remove-github-cron.md`
 
 **Plan:** `qa-remove-github-cron`
@@ -275,7 +302,7 @@ Manual verification report (not a pytest file). Documents that:
 | Data retention & git repo bloat | `test_data_storage_quick_wins.py` |
 | .gitignore coverage for ML binaries | `test_data_storage_quick_wins.py` |
 | DB-first reads with JSON fallback (export) | `test_sqlite_export.py` |
-| DB-first reads with JSON fallback (training) | `test_sqlite_train_errors.py` |
+| DB-first reads with JSON fallback (training errors) | `test_sqlite_train_errors.py` |
 | Dual-write predictions (JSON + SQLite) | `test_sqlite_predict.py` |
 | Dual-write prediction history (JSON + SQLite) | `test_sqlite_validate.py` |
 | BDD workflow verification | `spec_bdd_workflow_test.py` |
