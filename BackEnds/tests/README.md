@@ -322,6 +322,29 @@ Manual verification report (not a pytest file). Documents that:
 | Dual-write predictions (JSON + SQLite) | `test_sqlite_predict.py` |
 | Dual-write prediction history (JSON + SQLite) | `test_sqlite_validate.py` |
 | BDD workflow verification | `spec_bdd_workflow_test.py` |
+| Public station data fetching (Netatmo getpublicdata API) | `test_public_station_fetch.py` |
+| Public station data storage (SQLite) | `test_public_station_fetch.py` |
+| Conditional execution based on env vars | `test_public_station_fetch.py` |
+
+### `test_public_station_fetch.py`
+
+**Plan:** `qa-public-station-fetch`
+
+Verifies public Netatmo station data fetching implementation (10 tests):
+
+- `PUBLIC_STATIONS_TABLE_SQL` constant defined with correct schema (14 columns: id + 13 data fields)
+- `get_public_data(access_token, lat_ne, lon_ne, lat_sw, lon_sw)` function exists with correct signature
+- API URL is `https://api.netatmo.com/api/getpublicdata` with Authorization header
+- `store_public_stations(data, db_path, fetched_at)` function exists and parses nested `measures` format
+- Location extracted correctly as `[lon, lat]` from `place.location` (longitude first)
+- Table creation via `PUBLIC_STATIONS_TABLE_SQL`, index on `fetched_at`, and 30-day cleanup implemented
+- Conditional execution: bounding box env vars read with safe `os.environ.get()` (no crash when missing)
+- Public fetch runs only when all 4 env vars are set (`if all([lat_ne, lon_ne, lat_sw, lon_sw])`)
+- Public fetch wrapped in try/except for error handling
+- Skipped message printed when env vars not configured
+- GitHub Actions workflow includes all 4 new env vars (NETATMO_PUBLIC_LAT_NE, LON_NE, LAT_SW, LON_SW)
+- Python syntax is valid
+- public_stations table can be created in SQLite with correct schema
 
 ### Not Yet Covered
 
