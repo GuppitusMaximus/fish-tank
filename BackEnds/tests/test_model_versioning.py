@@ -342,7 +342,7 @@ class TestPredictionFallback:
         try:
             rc, stdout, stderr = run_script(pred_wrapper, ["--output", output_path])
             assert rc == 0, f"Fallback prediction failed: {stdout}\n{stderr}"
-            assert "simple" in stdout.lower() or "fallback" in stdout.lower(), (
+            assert "3hrraw" in stdout.lower() or "fallback" in stdout.lower(), (
                 f"Expected fallback warning in output, got: {stdout}"
             )
         finally:
@@ -355,8 +355,8 @@ class TestPredictionFallback:
         assert pred["model_version"] == simple_version, (
             f"Fallback model_version should be {simple_version}, got {pred['model_version']}"
         )
-        assert pred.get("model_type") == "simple", (
-            f"Fallback model_type should be 'simple', got {pred.get('model_type')}"
+        assert pred.get("model_type") == "3hrRaw", (
+            f"Fallback model_type should be '3hrRaw', got {pred.get('model_type')}"
         )
 
 

@@ -238,19 +238,19 @@ def test_find_best_predictions_picks_closest_to_60_min():
             good_time = now - timedelta(minutes=55)
             with open(os.path.join(date_dir, "good.json"), "w") as f:
                 json.dump({"generated_at": good_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                           "model_type": "simple"}, f)
+                           "model_type": "3hrRaw"}, f)
 
             # Prediction made 35 min ago (within window but farther from ideal)
             ok_time = now - timedelta(minutes=35)
             with open(os.path.join(date_dir, "ok.json"), "w") as f:
                 json.dump({"generated_at": ok_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                           "model_type": "simple"}, f)
+                           "model_type": "3hrRaw"}, f)
 
             # Prediction made 10 min ago (outside window)
             bad_time = now - timedelta(minutes=10)
             with open(os.path.join(date_dir, "bad.json"), "w") as f:
                 json.dump({"generated_at": bad_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                           "model_type": "simple"}, f)
+                           "model_type": "3hrRaw"}, f)
 
             results = find_best_predictions(tmpdir)
             assert len(results) == 1

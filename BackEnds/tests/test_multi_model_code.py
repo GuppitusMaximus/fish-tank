@@ -51,10 +51,10 @@ def test_file_discovery_regex():
         func_end = len(source)
     func_body = source[func_start:func_end]
 
-    # Should have logic to extract model_type from filename or default to "simple"
+    # Should have logic to extract model_type from filename or default to "3hrRaw"
     assert "model_type" in func_body, "Missing model_type extraction logic"
-    assert '"simple"' in func_body or "'simple'" in func_body, \
-        "Missing fallback to 'simple' for old format"
+    assert '"3hrRaw"' in func_body or "'3hrRaw'" in func_body or '"simple"' in func_body or "'simple'" in func_body, \
+        "Missing fallback to '3hrRaw' or 'simple' for old format"
 
     # Should deduplicate by model_type
     assert "latest_by_model" in func_body or "by_model" in func_body, \

@@ -71,7 +71,7 @@ Verifies `the-snake-tank/README.md` is accurate against source code (18 tests):
 - Two-tier model documented (22-feature full model, 9-feature simple model)
 - Model versioning documented (`model_meta.json`, `simple_meta.json`, MAE metrics)
 - Prediction cascade documented (full → simple → error)
-- `model_type` field mentioned with "full" and "simple" values
+- `model_type` field mentioned with "24hrRaw" and "3hrRaw" values
 - Project structure includes simple model files, predictions dir, tests dir
 - Cross-references with source code: feature counts, lookback values, feature names, model_type values
 
@@ -133,6 +133,25 @@ Verifies full 24h model configuration and predictions after MAX_GAP=7200 change 
 - `predict.py --model-type all` runs without error
 - Simple prediction files (`*_simple.json`) produced with correct structure and model_type field
 
+### `test_model_rename_and_6hr_rc.py`
+
+**Plan:** `qa-rename-and-6hr-rc-backend`
+
+Verifies model type rename (simple→3hrRaw, full→24hrRaw) and 6hrRC residual correction model (12 tests):
+
+- Old model type strings ("simple", "full") removed from predict.py model dispatch (except transition code)
+- Argparse `--model-type` choices include `3hrRaw`, `24hrRaw`, `6hrRC`, `all`
+- Model dispatch loop uses new type strings (`model_name == "3hrRaw"`, etc.)
+- RC_LOOKBACK=6 constant defined in both train_model.py and predict.py
+- `load_prediction_errors()` function exists and filters to `3hrRaw`/`simple` for transition
+- `build_6hr_rc_windows()` function exists with correct 68-dimensional feature construction (54 base + 12 error lags + 2 averages)
+- `train_6hr_rc()` function exists and is called from `__main__` after `train_simple()`
+- `_run_6hr_rc_model()` function exists in predict.py with matching 68-dimensional features
+- `6hrRC` appears in predict.py model dispatch
+- Feature vector dimensions consistent between training and prediction (68 features)
+- `read_6hr_rc_meta()` helper exists in both files
+- Backwards-compat file writer checks for `"3hrRaw"` to write legacy filename format
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -155,7 +174,9 @@ Manual verification report (not a pytest file). Documents that:
 | Prediction cascade (full → simple → error) | `test_model_versioning.py`, `test_prediction_fallback.py` |
 | `model_version` propagation | `test_model_versioning.py` |
 | `model_type` propagation | `test_prediction_fallback.py`, `test_multi_model_export.py` |
-| Multi-model prediction support | `test_multi_model_export.py`, `test_multi_model_code.py` |
+| Multi-model prediction support (3hrRaw, 24hrRaw, 6hrRC) | `test_multi_model_export.py`, `test_multi_model_code.py`, `test_model_rename_and_6hr_rc.py` |
+| Model type rename (simple→3hrRaw, full→24hrRaw) | `test_model_rename_and_6hr_rc.py` |
+| 6hrRC residual correction model | `test_model_rename_and_6hr_rc.py` |
 | Prediction validation pipeline | `test_wire_prediction_validation.py`, `test_multi_model_code.py` |
 | Export v2 schema (property_meta, nested readings) | `test_multi_model_export.py` |
 | File discovery (old & new formats) | `test_multi_model_code.py` |
