@@ -160,6 +160,10 @@
         }
         switchView(initialView);
 
+        if (window.WeatherApp && window.WeatherApp.loadHomeSummary) {
+            window.WeatherApp.loadHomeSummary();
+        }
+
         window.addEventListener('hashchange', function() {
             var hash = location.hash.replace('#', '');
             if (hash && views[hash]) {

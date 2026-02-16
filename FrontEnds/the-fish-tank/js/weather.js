@@ -715,7 +715,7 @@ window.WeatherApp = (() => {
       currentHtml +
       (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>') +
       '<div class="home-cta">' +
-        '<a href="#weather" class="cta-link">View full predictions, history & workflow \u2192</a>' +
+        '<a href="#weather" class="cta-link">View full predictions \u2192</a>' +
       '</div>';
 
     el.querySelector('.home-time-toggle').addEventListener('click', function() {
@@ -1333,5 +1333,47 @@ window.WeatherApp = (() => {
     }
   }
 
-  return { start: start, stop: stop };
+  function loadHomeSummary() {
+    try {
+      var cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        var parsed = JSON.parse(cached);
+        if (parsed._cachedAt && (Date.now() - parsed._cachedAt) < CACHE_TTL) {
+          delete parsed._cachedAt;
+          latestData = parsed;
+          renderHomeSummary(parsed);
+          return;
+        }
+      }
+    } catch (e) { /* localStorage unavailable or corrupt */ }
+
+    fetch(RAW_URL)
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        try {
+          var toCache = JSON.parse(JSON.stringify(data));
+          toCache._cachedAt = Date.now();
+          localStorage.setItem(CACHE_KEY, JSON.stringify(toCache));
+        } catch (e) { /* localStorage full or unavailable */ }
+        latestData = data;
+        renderHomeSummary(data);
+      })
+      .catch(function() {
+        fetch('data/weather.json')
+          .then(function(res) {
+            if (!res.ok) throw new Error(res.status);
+            return res.json();
+          })
+          .then(function(data) {
+            latestData = data;
+            renderHomeSummary(data);
+          })
+          .catch(function() {});
+      });
+  }
+
+  return { start: start, stop: stop, loadHomeSummary: loadHomeSummary };
 })();
