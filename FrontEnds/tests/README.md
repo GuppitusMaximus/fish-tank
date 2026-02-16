@@ -22,6 +22,13 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_format_toolbar.sh` | Shell script | Verifies format toolbar implementation: toolbar HTML structure, CSS styles, event handlers, localStorage persistence, old controls removed (31 assertions) |
 | `qa-weather-home-overlap.js` | Node.js script | Verifies weather/home overlap fix: renderHomeSummary guarded by active class check, loadHomeSummary early return, home summary rendering intact, switchView integration (8 assertions) |
 
+### Playwright Browser Tests
+
+| File | What It Tests |
+|------|---------------|
+| `browser/smoke.spec.js` | Basic site loading and hash routing smoke tests |
+| `browser/view-switching.spec.js` | Regression tests for view switching, refresh, and hash persistence bugs (16 tests) |
+
 ### Test Reports
 
 | File | What It Documents |
@@ -80,6 +87,16 @@ bash tests/run_multiselect_tests.sh
 
 Results display on the page. The document title changes to "ALL TESTS PASS" or "FAIL: N test(s)".
 
+**Playwright browser tests** — run with `npx playwright test`:
+
+```bash
+npx playwright test tests/browser/smoke.spec.js
+npx playwright test tests/browser/view-switching.spec.js
+npx playwright test tests/browser/   # run all browser tests
+```
+
+Tests run headless Chromium against the live site. Results include screenshots on failure. Baseline screenshots are saved in `tests/browser/screenshots/`.
+
 **Test reports** — \`.md\` files are not executable. They document the results of manual code inspections and QA runs.
 
 ## Coverage
@@ -109,6 +126,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Format toolbar implementation** | \`test_format_toolbar.sh\` |
 | **Weather/home overlap fix (nav hidden, CTA overlap)** | \`qa-weather-home-overlap.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
+| **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -144,7 +162,6 @@ The following v2 features were verified:
 - Fish Tank simulation (\`tank.js\`) — no tests exist
 - Tank Battle simulation (\`battle.js\`) — no tests exist
 - Fighter Fish simulation (\`fighter.js\`) — no tests exist
-- Hash-based routing and view switching
 - Theme system (theme-ocean, theme-battle, theme-sky)
 - Click-to-spawn interactions
 - CSS animations (bubbles, smoke, debris)
@@ -169,5 +186,6 @@ The following v2 features were verified:
 | \`qa-frontend-format-toolbar\` | Completed | \`test_format_toolbar.sh\`, updated \`test_dash_qa_frontend.sh\` | None (all 31 tests pass) |
 | \`qa-fix-weather-home-overlap\` | Completed | \`qa-weather-home-overlap.js\` | None (all 8 tests pass) |
 | \`qa-fix-switchview-initial-active\` | Completed | \`verify-switchview-initial-active-fix.md\` | None (all 5 verification steps pass) |
+| \`playwright-regression-tests\` | Completed | \`browser/view-switching.spec.js\` (16 Playwright tests, 2 baseline screenshots) | None (all 16 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
