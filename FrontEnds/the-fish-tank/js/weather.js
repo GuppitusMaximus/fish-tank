@@ -269,6 +269,546 @@ window.WeatherApp = (() => {
     currentData: null
   };
 
+  // --- Database Layer ---
+  var DB_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/frontend.db.gz';
+  var DB_LOCAL_URL = 'data/frontend.db.gz';
+  var DB_CACHE_NAME = 'fishtank_db';
+  var DB_CACHE_TTL = 24 * 60 * 60 * 1000;
+  var SQL = null;
+  var _db = null;
+  var _dbReady = null;
+  var _dbFailed = false;
+
+  function loadSqlJs() {
+    if (SQL) return Promise.resolve(SQL);
+    return new Promise(function(resolve, reject) {
+      var script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js';
+      script.onload = function() {
+        initSqlJs({ locateFile: function(file) {
+          return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/' + file;
+        }}).then(function(sqlModule) {
+          SQL = sqlModule;
+          resolve(SQL);
+        }).catch(reject);
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  function getCachedDb() {
+    return new Promise(function(resolve) {
+      try {
+        var req = indexedDB.open(DB_CACHE_NAME, 1);
+        req.onupgradeneeded = function(e) {
+          e.target.result.createObjectStore('db');
+        };
+        req.onsuccess = function(e) {
+          var store = e.target.result.transaction('db', 'readonly').objectStore('db');
+          var get = store.get('data');
+          get.onsuccess = function() {
+            var cached = get.result;
+            if (cached && cached.generatedAt && cached.bytes) {
+              var age = Date.now() - cached.cachedAt;
+              if (age < DB_CACHE_TTL) {
+                resolve(cached);
+                return;
+              }
+            }
+            resolve(null);
+          };
+          get.onerror = function() { resolve(null); };
+        };
+        req.onerror = function() { resolve(null); };
+      } catch (err) {
+        resolve(null);
+      }
+    });
+  }
+
+  function setCachedDb(bytes, generatedAt) {
+    try {
+      var req = indexedDB.open(DB_CACHE_NAME, 1);
+      req.onupgradeneeded = function(e) {
+        e.target.result.createObjectStore('db');
+      };
+      req.onsuccess = function(e) {
+        var store = e.target.result.transaction('db', 'readwrite').objectStore('db');
+        store.put({ bytes: bytes, generatedAt: generatedAt, cachedAt: Date.now() }, 'data');
+      };
+    } catch (err) {
+      // IndexedDB not available, session-only caching
+    }
+  }
+
+  function decompressGzip(compressedBytes) {
+    if (typeof DecompressionStream !== 'undefined') {
+      var ds = new DecompressionStream('gzip');
+      var blob = new Blob([compressedBytes]);
+      var stream = blob.stream().pipeThrough(ds);
+      return new Response(stream).arrayBuffer().then(function(buf) {
+        return new Uint8Array(buf);
+      });
+    }
+    return Promise.reject(new Error('DecompressionStream not supported'));
+  }
+
+  function initDatabase(progressCallback) {
+    if (_db) return Promise.resolve(_db);
+    if (_dbReady) return _dbReady;
+
+    _dbReady = loadSqlJs().then(function() {
+      return getCachedDb();
+    }).then(function(cached) {
+      if (cached) {
+        _db = new SQL.Database(new Uint8Array(cached.bytes));
+        if (progressCallback) progressCallback(100, 'Loaded from cache');
+        return _db;
+      }
+      if (progressCallback) progressCallback(0, 'Downloading database\u2026');
+      var fetchUrl = cacheBust(DB_URL);
+      return Promise.race([
+        fetch(fetchUrl).then(function(r) {
+          if (!r.ok) throw new Error('DB fetch failed: ' + r.status);
+          var total = parseInt(r.headers.get('content-length') || '0', 10);
+          if (!r.body || !r.body.getReader) return r.arrayBuffer();
+          var reader = r.body.getReader();
+          var chunks = [];
+          var loaded = 0;
+          function pump() {
+            return reader.read().then(function(result) {
+              if (result.done) {
+                var all = new Uint8Array(loaded);
+                var offset = 0;
+                chunks.forEach(function(c) { all.set(c, offset); offset += c.length; });
+                return all;
+              }
+              chunks.push(result.value);
+              loaded += result.value.length;
+              if (progressCallback && total) {
+                progressCallback(Math.round((loaded / total) * 80), 'Downloading\u2026 ' + Math.round(loaded / 1024) + ' KB');
+              }
+              return pump();
+            });
+          }
+          return pump();
+        }),
+        new Promise(function(_, reject) {
+          setTimeout(function() { reject(new Error('DB download timeout')); }, 15000);
+        })
+      ]).then(function(compressed) {
+        if (progressCallback) progressCallback(85, 'Decompressing\u2026');
+        return decompressGzip(compressed).then(function(dbBytes) {
+          if (progressCallback) progressCallback(95, 'Initializing\u2026');
+          _db = new SQL.Database(dbBytes);
+          var meta = _db.exec("SELECT value FROM _metadata WHERE key='generated_at'");
+          var genAt = meta.length && meta[0].values.length ? meta[0].values[0][0] : '';
+          setCachedDb(dbBytes.buffer, genAt);
+          if (progressCallback) progressCallback(100, 'Ready');
+          return _db;
+        });
+      });
+    }).catch(function(err) {
+      console.error('Database load failed, falling back to JSON:', err);
+      _dbFailed = true;
+      _dbReady = null;
+      return null;
+    });
+
+    return _dbReady;
+  }
+
+  function queryDb(sql, params) {
+    if (!_db) return [];
+    var result = _db.exec(sql, params);
+    if (!result.length) return [];
+    var cols = result[0].columns;
+    return result[0].values.map(function(row) {
+      var obj = {};
+      cols.forEach(function(col, i) { obj[col] = row[i]; });
+      return obj;
+    });
+  }
+
+  // --- SQL Query Functions ---
+  function queryReadingsDates() {
+    return queryDb("SELECT DISTINCT date FROM readings ORDER BY date DESC");
+  }
+
+  function queryReadingsHours(date) {
+    var rows = queryDb("SELECT DISTINCT hour FROM readings WHERE date = ? ORDER BY hour", [date]);
+    return rows.map(function(r) {
+      var h = r.hour;
+      return (h < 10 ? '0' : '') + h + '0000';
+    });
+  }
+
+  function queryReading(date, hour) {
+    var hourNum = parseInt(hour.substring(0, 2), 10);
+    var rows = queryDb("SELECT * FROM readings WHERE date = ? AND hour = ? ORDER BY timestamp DESC LIMIT 1", [date, hourNum]);
+    if (!rows.length) return null;
+    var r = rows[0];
+    return {
+      body: {
+        devices: [{
+          station_name: 'Weather Station',
+          dashboard_data: {
+            time_utc: r.timestamp,
+            Temperature: r.temp_indoor,
+            Humidity: r.humidity_indoor,
+            CO2: r.co2,
+            Noise: r.noise,
+            Pressure: r.pressure
+          },
+          modules: [{
+            type: 'NAModule1',
+            dashboard_data: {
+              Temperature: r.temp_outdoor,
+              Humidity: r.humidity_outdoor,
+              min_temp: r.temp_outdoor_min,
+              max_temp: r.temp_outdoor_max
+            }
+          }]
+        }]
+      }
+    };
+  }
+
+  function queryPredictionModels() {
+    return queryDb("SELECT DISTINCT model_type FROM predictions ORDER BY model_type");
+  }
+
+  function queryPredictionsDates(model) {
+    if (model) {
+      return queryDb("SELECT DISTINCT substr(for_hour, 1, 10) as date FROM predictions WHERE model_type = ? ORDER BY date DESC", [model]);
+    }
+    return queryDb("SELECT DISTINCT substr(for_hour, 1, 10) as date FROM predictions ORDER BY date DESC");
+  }
+
+  function queryPredictionsHours(date, model) {
+    var rows;
+    if (model) {
+      rows = queryDb("SELECT DISTINCT substr(for_hour, 12, 2) as hh, substr(for_hour, 15, 2) as mm FROM predictions WHERE substr(for_hour, 1, 10) = ? AND model_type = ? ORDER BY hh, mm", [date, model]);
+    } else {
+      rows = queryDb("SELECT DISTINCT substr(for_hour, 12, 2) as hh, substr(for_hour, 15, 2) as mm FROM predictions WHERE substr(for_hour, 1, 10) = ? ORDER BY hh, mm", [date]);
+    }
+    return rows.map(function(r) { return r.hh + r.mm + '00'; });
+  }
+
+  function queryPrediction(date, hour, model) {
+    var hh = hour.substring(0, 2);
+    var mm = hour.substring(2, 4);
+    var timePrefix = date + 'T' + hh + ':' + mm;
+    if (model) {
+      var rows = queryDb("SELECT * FROM predictions WHERE for_hour LIKE ? AND model_type = ? ORDER BY generated_at DESC LIMIT 1", [timePrefix + '%', model]);
+      if (!rows.length) return [];
+      return [dbRowToPrediction(rows[0])];
+    }
+    var allRows = queryDb("SELECT * FROM predictions WHERE for_hour LIKE ? ORDER BY model_type, generated_at DESC", [timePrefix + '%']);
+    var seen = {};
+    var unique = [];
+    allRows.forEach(function(r) {
+      if (!seen[r.model_type]) {
+        seen[r.model_type] = true;
+        unique.push(r);
+      }
+    });
+    return unique.map(dbRowToPrediction);
+  }
+
+  function dbRowToPrediction(row) {
+    var pred = {
+      model_type: row.model_type,
+      model_version: row.model_version,
+      generated_at: row.generated_at,
+      prediction: {
+        prediction_for: row.for_hour,
+        values: {}
+      }
+    };
+    if (row.temp_indoor_predicted !== null) pred.prediction.values.temp_indoor = row.temp_indoor_predicted;
+    if (row.temp_outdoor_predicted !== null) pred.prediction.values.temp_outdoor = row.temp_outdoor_predicted;
+    if (row.last_reading_temp_indoor !== null || row.last_reading_temp_outdoor !== null) {
+      pred.last_reading = {};
+      if (row.last_reading_temp_indoor !== null) pred.last_reading.temp_indoor = row.last_reading_temp_indoor;
+      if (row.last_reading_temp_outdoor !== null) pred.last_reading.temp_outdoor = row.last_reading_temp_outdoor;
+    }
+    return pred;
+  }
+
+  function queryPublicStationsDates() {
+    return queryDb("SELECT DISTINCT substr(fetched_at, 1, 10) as date FROM public_stations ORDER BY date DESC");
+  }
+
+  function queryPublicStationsHours(date) {
+    var rows = queryDb("SELECT DISTINCT substr(fetched_at, 12, 2) as hh, substr(fetched_at, 15, 2) as mm FROM public_stations WHERE substr(fetched_at, 1, 10) = ? ORDER BY hh, mm", [date]);
+    return rows.map(function(r) { return r.hh + r.mm + '00'; });
+  }
+
+  function queryPublicStationsData(date, hour) {
+    var hh = hour.substring(0, 2);
+    var mm = hour.substring(2, 4);
+    var timePrefix = date + 'T' + hh + ':' + mm;
+    var rows = queryDb("SELECT * FROM public_stations WHERE fetched_at LIKE ? ORDER BY station_id", [timePrefix + '%']);
+    if (!rows.length) return null;
+    return {
+      fetched_at: rows[0].fetched_at,
+      station_count: rows.length,
+      stations: rows
+    };
+  }
+
+  function queryValidationDates() {
+    return queryDb("SELECT DISTINCT substr(for_hour, 1, 10) as date FROM prediction_history ORDER BY date DESC");
+  }
+
+  function queryValidationData(date) {
+    var rows = queryDb("SELECT * FROM prediction_history WHERE substr(for_hour, 1, 10) = ? ORDER BY for_hour, model_type", [date]);
+    if (!rows.length) return null;
+    var modelSet = {};
+    var entries = rows.map(function(r) {
+      if (r.model_type) modelSet[r.model_type] = true;
+      return {
+        for_hour: r.for_hour,
+        model_type: r.model_type,
+        model_version: r.model_version,
+        predicted: { temp_indoor: r.predicted_indoor, temp_outdoor: r.predicted_outdoor },
+        actual: { temp_indoor: r.actual_indoor, temp_outdoor: r.actual_outdoor },
+        error: { temp_indoor: r.error_indoor, temp_outdoor: r.error_outdoor }
+      };
+    });
+    return { entries: entries, models: Object.keys(modelSet).sort() };
+  }
+
+  function queryPredictionHistoryFromDb(filters) {
+    var sql = "SELECT * FROM prediction_history WHERE 1=1";
+    var params = [];
+
+    if (filters.models && filters.models.length) {
+      sql += " AND model_type IN (" + filters.models.map(function() { return "?"; }).join(",") + ")";
+      params = params.concat(filters.models);
+    }
+    if (filters.dateStart) {
+      sql += " AND for_hour >= ?";
+      params.push(filters.dateStart);
+    }
+    if (filters.dateEnd) {
+      sql += " AND for_hour <= ?";
+      params.push(filters.dateEnd + 'T23:59:59');
+    }
+
+    sql += " ORDER BY for_hour DESC";
+
+    if (filters.limit) {
+      sql += " LIMIT ?";
+      params.push(filters.limit);
+    }
+
+    return queryDb(sql, params);
+  }
+
+  function renderBrowseFromDb() {
+    var browseEl = document.getElementById('subtab-browse');
+    if (!browseEl || !_db) return;
+
+    var cat = browseState.category;
+    var dates;
+    if (cat === 'readings') {
+      dates = queryReadingsDates().map(function(r) { return r.date; });
+    } else if (cat === 'predictions') {
+      dates = queryPredictionsDates(browseState.selectedModel).map(function(r) { return r.date; });
+    } else if (cat === 'public-stations') {
+      dates = queryPublicStationsDates().map(function(r) { return r.date; });
+    } else if (cat === 'validation') {
+      dates = queryValidationDates().map(function(r) { return r.date; });
+    } else {
+      dates = [];
+    }
+
+    if (!browseState.selectedDate || dates.indexOf(browseState.selectedDate) === -1) {
+      browseState.selectedDate = dates[0] || null;
+    }
+
+    var html = '<div class="browse-category-bar">';
+    for (var i = 0; i < CATEGORIES.length; i++) {
+      var c = CATEGORIES[i];
+      html += '<button class="browse-btn browse-cat-btn' + (cat === c.key ? ' active' : '') + '" data-cat="' + c.key + '">' + c.label + '</button>';
+    }
+    html += '</div>';
+
+    html += '<div class="browse-controls">';
+    var dateOptions = dates.map(function(d) {
+      var sel = d === browseState.selectedDate ? ' selected' : '';
+      return '<option value="' + d + '"' + sel + '>' + d + '</option>';
+    }).join('');
+    if (dates.length > 0) {
+      html += '<select class="browse-date-select">' + dateOptions + '</select>';
+    }
+    html += '<button class="browse-btn' + (browseState.viewMode === 'formatted' ? ' active' : '') + '" data-vmode="formatted">Formatted</button>' +
+      '<button class="browse-btn' + (browseState.viewMode === 'raw' ? ' active' : '') + '" data-vmode="raw">Raw JSON</button>';
+    html += '</div>';
+
+    if (cat === 'predictions') {
+      var models = queryPredictionModels().map(function(r) { return r.model_type; });
+      if (models.length > 0) {
+        html += '<div class="model-filter-bar">' +
+          '<button class="browse-btn model-filter-pill' + (!browseState.selectedModel ? ' active' : '') + '" data-model="">All Models</button>';
+        for (var m = 0; m < models.length; m++) {
+          html += '<button class="browse-btn model-filter-pill' + (browseState.selectedModel === models[m] ? ' active' : '') + '" data-model="' + models[m] + '">' + escapeHtml(models[m]) + '</button>';
+        }
+        html += '</div>';
+      }
+    }
+
+    if (cat !== 'validation') {
+      var hours = [];
+      if (browseState.selectedDate) {
+        if (cat === 'readings') {
+          hours = queryReadingsHours(browseState.selectedDate);
+        } else if (cat === 'predictions') {
+          hours = queryPredictionsHours(browseState.selectedDate, browseState.selectedModel);
+        } else if (cat === 'public-stations') {
+          hours = queryPublicStationsHours(browseState.selectedDate);
+        }
+      }
+      var hourBtns = hours.map(function(h) {
+        var label = formatHourLabel(h);
+        var cls = h === browseState.selectedHour ? ' active' : '';
+        return '<button class="hour-btn' + cls + '" data-hour="' + h + '">' + label + '</button>';
+      }).join('');
+      html += '<div class="hour-grid">' + (hourBtns || '<span class="browse-loading">No data for this date</span>') + '</div>';
+    }
+
+    html += '<div class="browse-display"></div>';
+    browseEl.innerHTML = html;
+
+    wireBrowseDbHandlers();
+
+    if (cat === 'validation' && browseState.selectedDate) {
+      loadRawDataFromDb();
+    } else if (browseState.currentData && browseState.selectedHour) {
+      renderBrowseDisplay();
+    }
+  }
+
+  function wireBrowseDbHandlers() {
+    var browseEl = document.getElementById('subtab-browse');
+    if (!browseEl) return;
+
+    browseEl.querySelectorAll('[data-cat]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        browseState.category = btn.dataset.cat;
+        browseState.selectedHour = null;
+        browseState.currentData = null;
+        browseState.selectedDate = null;
+        browseState.selectedModel = null;
+        browseState.validationModelFilter = null;
+        renderBrowseFromDb();
+      });
+    });
+
+    var dateSelect = browseEl.querySelector('.browse-date-select');
+    if (dateSelect) {
+      dateSelect.addEventListener('change', function() {
+        browseState.selectedDate = dateSelect.value;
+        browseState.selectedHour = null;
+        browseState.currentData = null;
+        renderBrowseFromDb();
+      });
+    }
+
+    browseEl.querySelectorAll('[data-vmode]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        browseState.viewMode = btn.dataset.vmode;
+        browseEl.querySelectorAll('[data-vmode]').forEach(function(b) { b.classList.toggle('active', b === btn); });
+        renderBrowseDisplay();
+      });
+    });
+
+    browseEl.querySelectorAll('[data-model]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        browseState.selectedModel = btn.dataset.model || null;
+        browseState.selectedHour = null;
+        browseState.currentData = null;
+        renderBrowseFromDb();
+      });
+    });
+
+    browseEl.querySelectorAll('.hour-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        browseState.selectedHour = btn.dataset.hour;
+        browseEl.querySelectorAll('.hour-btn').forEach(function(b) { b.classList.toggle('active', b === btn); });
+        loadRawDataFromDb();
+      });
+    });
+  }
+
+  function loadRawDataFromDb() {
+    var cat = browseState.category;
+    var date = browseState.selectedDate;
+    var hour = browseState.selectedHour;
+    var display = document.querySelector('.browse-display');
+
+    if (cat === 'readings') {
+      browseState.currentData = queryReading(date, hour);
+      renderBrowseDisplay();
+    } else if (cat === 'predictions') {
+      var results = queryPrediction(date, hour, browseState.selectedModel);
+      browseState.currentData = results.length === 1 ? results[0] : results;
+      renderBrowseDisplay();
+    } else if (cat === 'public-stations') {
+      browseState.currentData = queryPublicStationsData(date, hour);
+      renderBrowseDisplay();
+    } else if (cat === 'validation') {
+      browseState.currentData = queryValidationData(date);
+      renderBrowseDisplay();
+    }
+  }
+
+  function enterBrowseData() {
+    var browseEl = document.getElementById('subtab-browse');
+
+    if (_db) {
+      renderBrowseFromDb();
+      return;
+    }
+
+    if (_dbFailed) {
+      if (!manifestLoaded) {
+        manifestLoaded = true;
+        loadManifest();
+      } else if (manifest) {
+        renderBrowse();
+      }
+      return;
+    }
+
+    if (browseEl) {
+      browseEl.innerHTML = '<div class="db-loading">' +
+        '<div class="db-loading-bar"><div class="db-loading-fill" id="db-progress-fill"></div></div>' +
+        '<p class="db-loading-text" id="db-progress-text">Initializing\u2026</p></div>';
+    }
+
+    initDatabase(function(pct, msg) {
+      var fill = document.getElementById('db-progress-fill');
+      var text = document.getElementById('db-progress-text');
+      if (fill) fill.style.width = pct + '%';
+      if (text) text.textContent = msg;
+    }).then(function(db) {
+      if (db) {
+        renderBrowseFromDb();
+      } else {
+        if (!manifestLoaded) {
+          manifestLoaded = true;
+          loadManifest();
+        } else if (manifest) {
+          renderBrowse();
+        }
+      }
+    });
+  }
+
   function loadManifest() {
     return fetch(cacheBust(MANIFEST_URL))
       .then(function(res) {
@@ -311,6 +851,10 @@ window.WeatherApp = (() => {
   }
 
   function loadRawData() {
+    if (_db && !_dbFailed) {
+      loadRawDataFromDb();
+      return;
+    }
     var cat = browseState.category;
     var date = browseState.selectedDate;
     var hour = browseState.selectedHour;
@@ -697,7 +1241,11 @@ window.WeatherApp = (() => {
       browseState.selectedDate = dates[0] || null;
     }
 
-    var html = '<div class="browse-category-bar">';
+    var html = '';
+    if (_dbFailed) {
+      html += '<div class="db-fallback-banner">Database unavailable \u2014 browsing via cached data</div>';
+    }
+    html += '<div class="browse-category-bar">';
     for (var i = 0; i < CATEGORIES.length; i++) {
       var c = CATEGORIES[i];
       html += '<button class="browse-btn browse-cat-btn' + (cat === c.key ? ' active' : '') + '" data-cat="' + c.key + '">' + c.label + '</button>';
@@ -1196,6 +1744,10 @@ window.WeatherApp = (() => {
   }
 
   function applyHistoryFilters() {
+    if (_db && !_dbFailed) {
+      applyHistoryFiltersFromDb();
+      return;
+    }
     var data = historyState.fullData;
     historyState.filtered = data.filter(function(entry) {
       if (historyState.filterModel.length > 0 && historyState.filterModel.indexOf(entry.model_type) === -1) return false;
@@ -1209,7 +1761,54 @@ window.WeatherApp = (() => {
     });
   }
 
+  function applyHistoryFiltersFromDb() {
+    var sql = "SELECT * FROM prediction_history WHERE 1=1";
+    var params = [];
+
+    if (historyState.filterModel.length > 0) {
+      sql += " AND model_type IN (" + historyState.filterModel.map(function() { return "?"; }).join(",") + ")";
+      params = params.concat(historyState.filterModel);
+    }
+    if (historyState.filterVersion.length > 0) {
+      sql += " AND model_version IN (" + historyState.filterVersion.map(function() { return "?"; }).join(",") + ")";
+      params = params.concat(historyState.filterVersion.map(Number));
+    }
+    if (historyState.filterDateStart) {
+      sql += " AND for_hour >= ?";
+      params.push(historyState.filterDateStart);
+    }
+    if (historyState.filterDateEnd) {
+      sql += " AND for_hour <= ?";
+      params.push(historyState.filterDateEnd + 'T23:59:59');
+    }
+
+    sql += " ORDER BY for_hour DESC";
+
+    var rows = queryDb(sql, params);
+    historyState.filtered = rows.map(function(r) {
+      return {
+        timestamp: r.for_hour,
+        date: r.for_hour ? r.for_hour.substring(0, 10) : '',
+        model_type: r.model_type,
+        model_version: r.model_version,
+        actual_indoor: r.actual_indoor,
+        actual_outdoor: r.actual_outdoor,
+        predicted_indoor: r.predicted_indoor,
+        predicted_outdoor: r.predicted_outdoor,
+        delta_indoor: r.error_indoor,
+        delta_outdoor: r.error_outdoor
+      };
+    });
+
+    if (historyState.properties.length === 0) {
+      historyState.properties = ['indoor', 'outdoor'];
+    }
+  }
+
   function applyHistorySort() {
+    if (_db && !_dbFailed && historyState.filtered.length > 0 && historyState.filtered[0].timestamp) {
+      // Data from DB is already sorted by for_hour DESC; re-sort if user changed column
+    }
     var col = historyState.sortCol;
     var asc = historyState.sortAsc;
     historyState.sorted = historyState.filtered.slice().sort(function(a, b) {
@@ -1359,13 +1958,20 @@ window.WeatherApp = (() => {
   function buildFilterDropdowns() {
     var modelOptions = [];
     var modelSet = {};
-    historyState.fullData.forEach(function(entry) {
-      if (entry.model_type && !modelSet[entry.model_type]) {
-        modelSet[entry.model_type] = true;
-        modelOptions.push(entry.model_type);
-      }
-    });
-    modelOptions.sort();
+
+    if (_db && !_dbFailed) {
+      queryDb("SELECT DISTINCT model_type FROM prediction_history ORDER BY model_type").forEach(function(r) {
+        modelOptions.push(r.model_type);
+      });
+    } else {
+      historyState.fullData.forEach(function(entry) {
+        if (entry.model_type && !modelSet[entry.model_type]) {
+          modelSet[entry.model_type] = true;
+          modelOptions.push(entry.model_type);
+        }
+      });
+      modelOptions.sort();
+    }
 
     var modelContainer = document.getElementById('filter-model-container');
     if (modelContainer) {
@@ -1379,15 +1985,29 @@ window.WeatherApp = (() => {
 
     var versionOptions = [];
     var versionSet = {};
-    historyState.fullData.forEach(function(entry) {
-      var v = String(entry.model_version);
-      if (historyState.filterModel.length > 0 && historyState.filterModel.indexOf(entry.model_type) === -1) return;
-      if (!versionSet[v]) {
-        versionSet[v] = true;
-        versionOptions.push(v);
+
+    if (_db && !_dbFailed) {
+      var vSql = "SELECT DISTINCT model_version FROM prediction_history";
+      var vParams = [];
+      if (historyState.filterModel.length > 0) {
+        vSql += " WHERE model_type IN (" + historyState.filterModel.map(function() { return "?"; }).join(",") + ")";
+        vParams = historyState.filterModel;
       }
-    });
-    versionOptions.sort(function(a, b) { return Number(a) - Number(b); });
+      vSql += " ORDER BY model_version";
+      queryDb(vSql, vParams).forEach(function(r) {
+        versionOptions.push(String(r.model_version));
+      });
+    } else {
+      historyState.fullData.forEach(function(entry) {
+        var v = String(entry.model_version);
+        if (historyState.filterModel.length > 0 && historyState.filterModel.indexOf(entry.model_type) === -1) return;
+        if (!versionSet[v]) {
+          versionSet[v] = true;
+          versionOptions.push(v);
+        }
+      });
+      versionOptions.sort(function(a, b) { return Number(a) - Number(b); });
+    }
 
     var versionContainer = document.getElementById('filter-version-container');
     if (versionContainer) {
@@ -1487,8 +2107,8 @@ window.WeatherApp = (() => {
       });
     });
 
-    if (activeSubtab === 'browse' && manifest) {
-      renderBrowse();
+    if (activeSubtab === 'browse') {
+      enterBrowseData();
     } else if (activeSubtab === 'workflow' && workflowData) {
       renderWorkflow();
     }
@@ -1513,11 +2133,8 @@ window.WeatherApp = (() => {
           clearInterval(countdownInterval);
           countdownInterval = null;
         }
-        if (target === 'browse' && !manifestLoaded) {
-          manifestLoaded = true;
-          loadManifest();
-        } else if (target === 'browse' && manifest) {
-          renderBrowse();
+        if (target === 'browse') {
+          enterBrowseData();
         } else if (target === 'workflow' && !workflowLoaded) {
           workflowLoaded = true;
           loadWorkflow();
