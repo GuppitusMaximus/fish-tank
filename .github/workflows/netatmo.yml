@@ -44,11 +44,22 @@ jobs:
       - name: Export weather dashboard data
         run: python BackEnds/the-snake-tank/export_weather.py --output FrontEnds/the-fish-tank/data/weather.json --history BackEnds/the-snake-tank/data/prediction-history.json || true
 
+      - name: Clean up old data files
+        run: |
+          # Remove prediction files older than 48 hours
+          find BackEnds/the-snake-tank/data/predictions -name '*.json' -mmin +2880 -delete 2>/dev/null || true
+          # Remove empty prediction date directories
+          find BackEnds/the-snake-tank/data/predictions -mindepth 1 -type d -empty -delete 2>/dev/null || true
+          # Remove raw reading files older than 7 days (data is in weather.db)
+          find BackEnds/the-snake-tank/data -maxdepth 2 -path '*/20??-??-??/*.json' -mmin +10080 -delete 2>/dev/null || true
+          # Remove empty reading date directories
+          find BackEnds/the-snake-tank/data -maxdepth 1 -type d -name '20??-??-??' -empty -delete 2>/dev/null || true
+
       - name: Commit and push data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add BackEnds/the-snake-tank/data/ BackEnds/the-snake-tank/models/ FrontEnds/the-fish-tank/data/
+          git add BackEnds/the-snake-tank/data/ BackEnds/the-snake-tank/models/*.json FrontEnds/the-fish-tank/data/
           git diff --cached --quiet && echo "No new data to commit" && exit 0
           git commit -m "Add weather data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push
