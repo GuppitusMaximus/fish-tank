@@ -327,3 +327,5 @@ python validate_prediction.py --predictions-dir data/predictions --history data/
 python export_weather.py --output path/to/weather.json --history data/prediction-history.json
 python export_workflow.py --output path/to/workflow.json   # Requires GH_TOKEN
 ```
+
+<!-- Deploy flow test: 2026-02-16T13:27:00Z -->
