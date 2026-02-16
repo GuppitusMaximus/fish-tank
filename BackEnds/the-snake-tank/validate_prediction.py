@@ -23,6 +23,93 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MAX_HISTORY_PER_MODEL = 168  # 1 week of hourly predictions per model
 
+PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    predicted_at TEXT NOT NULL,
+    for_hour TEXT NOT NULL,
+    model_type TEXT NOT NULL,
+    model_version INTEGER,
+    predicted_indoor REAL,
+    predicted_outdoor REAL,
+    actual_indoor REAL,
+    actual_outdoor REAL,
+    error_indoor REAL,
+    error_outdoor REAL,
+    UNIQUE(model_type, for_hour)
+)"""
+
+PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_at TEXT NOT NULL,
+    model_type TEXT NOT NULL,
+    model_version INTEGER,
+    for_hour TEXT NOT NULL,
+    temp_indoor_predicted REAL,
+    temp_outdoor_predicted REAL,
+    last_reading_ts INTEGER,
+    last_reading_temp_indoor REAL,
+    last_reading_temp_outdoor REAL
+)"""
+
+
+def _find_best_predictions_from_db():
+    """Try to find best predictions from the DB predictions table.
+    Returns list of prediction dicts, or None if table doesn't exist or is empty."""
+    if not os.path.exists(DB_PATH):
+        return None
+    try:
+        now = datetime.now(timezone.utc)
+        min_time = (now - timedelta(minutes=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        max_time = (now - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT generated_at, model_type, model_version, for_hour,
+                      temp_indoor_predicted, temp_outdoor_predicted,
+                      last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor
+               FROM predictions
+               WHERE generated_at > ? AND generated_at < ?""",
+            (min_time, max_time)).fetchall()
+        conn.close()
+
+        if not rows:
+            return None
+
+        # Group by model_type, keep closest to 60 minutes old
+        best_by_model = {}
+        for row in rows:
+            row = dict(row)
+            generated_at = datetime.strptime(row["generated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            age_minutes = (now - generated_at).total_seconds() / 60
+            diff = abs(age_minutes - 60)
+            mt = row["model_type"]
+            if mt not in best_by_model or diff < best_by_model[mt][1]:
+                best_by_model[mt] = (row, diff)
+
+        # Convert DB rows to prediction data format matching JSON files
+        results = []
+        for row, _ in best_by_model.values():
+            pred_data = {
+                "generated_at": row["generated_at"],
+                "model_type": row["model_type"],
+                "model_version": row["model_version"],
+                "last_reading": {
+                    "timestamp": row["last_reading_ts"],
+                    "temp_indoor": row["last_reading_temp_indoor"],
+                    "temp_outdoor": row["last_reading_temp_outdoor"],
+                },
+                "prediction": {
+                    "prediction_for": row["for_hour"],
+                    "temp_indoor": row["temp_indoor_predicted"],
+                    "temp_outdoor": row["temp_outdoor_predicted"],
+                },
+            }
+            results.append(pred_data)
+        return results
+    except Exception:
+        return None
+
 
 def find_best_predictions(predictions_dir):
     """Find predictions that best match the current reading, one per model type.
@@ -30,6 +117,13 @@ def find_best_predictions(predictions_dir):
     Looks for predictions whose 'generated_at' time is 30-90 minutes before now,
     grouped by model type, keeping the one closest to 60 minutes old per model.
     """
+    # Try DB first
+    db_results = _find_best_predictions_from_db()
+    if db_results:
+        print(f"Found {len(db_results)} prediction(s) from DB")
+        return db_results
+
+    # Fall back to file scanning
     if not os.path.isdir(predictions_dir):
         return []
 
@@ -73,7 +167,7 @@ def find_best_predictions(predictions_dir):
             except (json.JSONDecodeError, KeyError, ValueError):
                 continue
 
-    return [path for path, _ in best_by_model.values()]
+    return [load_prediction(path) for path, _ in best_by_model.values()]
 
 
 def load_prediction(path):
@@ -203,17 +297,22 @@ def validate(prediction_paths, history_path):
     history = load_history(history_path)
     new_entries = []
 
-    for prediction_path in prediction_paths:
-        prediction_data = load_prediction(prediction_path)
+    for prediction_data in prediction_paths:
         if prediction_data is None:
-            print(f"No prediction file at {prediction_path}, skipping.")
             continue
 
-        print(f"Validating: {prediction_path}")
+        # If it's a string path (legacy), load it
+        if isinstance(prediction_data, str):
+            print(f"Validating: {prediction_data}")
+            prediction_data = load_prediction(prediction_data)
+            if prediction_data is None:
+                continue
+        else:
+            print(f"Validating: {prediction_data.get('model_type', 'unknown')} from DB")
+
         comparison = validate_single(prediction_data, actual, history)
         if comparison:
             new_entries.append(comparison)
-            # Add to history so subsequent checks see it for dedup
             history.insert(0, comparison)
 
     if not new_entries:
@@ -228,6 +327,28 @@ def validate(prediction_paths, history_path):
         f.write("\n")
 
     print(f"History written to {history_path} ({len(new_entries)} new entries, {len(history)} total)")
+
+    # Write new entries to prediction_history table
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(PREDICTION_HISTORY_TABLE_SQL)
+        for entry in new_entries:
+            conn.execute(
+                """INSERT OR IGNORE INTO prediction_history
+                (predicted_at, for_hour, model_type, model_version,
+                 predicted_indoor, predicted_outdoor,
+                 actual_indoor, actual_outdoor,
+                 error_indoor, error_outdoor)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (entry["predicted_at"], entry["for_hour"],
+                 entry.get("model_type", "simple"), entry.get("model_version"),
+                 entry["predicted"]["temp_indoor"], entry["predicted"]["temp_outdoor"],
+                 entry["actual"]["temp_indoor"], entry["actual"]["temp_outdoor"],
+                 entry["error"]["temp_indoor"], entry["error"]["temp_outdoor"]))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Warning: failed to write history to DB: {e}")
 
 
 if __name__ == "__main__":
