@@ -253,6 +253,22 @@ BDD-style specs written by the `qa-bdd-backend` agent to verify existing SQLite 
 
 This spec file uses the `spec_` prefix naming convention to distinguish BDD tests from traditional unit tests. All specs pass against the current implementation.
 
+### `test_docs_backend_readme.py`
+
+**Plan:** `qa-docs-backend`
+
+Documentation accuracy verification for `the-snake-tank/README.md` (10 tests):
+
+- README exists and is valid markdown (no unclosed code blocks)
+- 6hrRC model documented with correct 68-dimensional feature vector breakdown (54 base + 12 error lags + 2 averages)
+- Model type names use current naming (3hrRaw, 24hrRaw, 6hrRC) in model references
+- SQLite dual-write documented (predictions + prediction_history tables, weather.db)
+- Data retention cleanup documented (48h predictions, 7d raw readings)
+- `.joblib` gitignore policy documented
+- Project structure listing matches actual files in `the-snake-tank/`
+- SQLite tables exist in `weather.db` matching documented schema
+- Model metadata JSON files documented and valid (version field present)
+
 ## Test Reports
 
 ### `qa-docs-backend.md`
@@ -295,7 +311,7 @@ Manual verification report (not a pytest file). Documents that:
 | File discovery (old & new formats) | `test_multi_model_code.py` |
 | Atomic writes | `test_multi_model_code.py` |
 | Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py`, `test_multi_model_export.py` |
-| README accuracy | `test_readme_accuracy.py` |
+| README accuracy | `test_readme_accuracy.py`, `test_docs_backend_readme.py` |
 | Workflow configuration | `test_wire_prediction_validation.py`, `test_pages_workflow.py`, `test_data_storage_quick_wins.py`, `qa-remove-github-cron.md` |
 | Pages auto-deploy trigger | `test_pages_workflow.py` |
 | MAX_GAP setting & full model readiness | `test_full_model_training.py` |
