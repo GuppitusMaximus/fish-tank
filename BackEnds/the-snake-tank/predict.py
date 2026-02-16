@@ -22,6 +22,8 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, add_spatial_columns
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor.joblib")
@@ -69,6 +71,11 @@ FEATURE_COLS = [
     "temp_trend", "pressure_trend", "temp_outdoor_trend",
     "wifi_status", "battery_percent", "rf_status",
 ]
+
+# Combined feature lists: base columns + spatial columns
+SIMPLE_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE
+FULL_ALL_COLS = FEATURE_COLS + SPATIAL_COLS_FULL
+RC_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE  # 6hrRC uses simple base + spatial
 
 
 def read_meta():
@@ -153,7 +160,10 @@ def _run_full_model():
         df["battery_percent"] = df["battery_percent"].fillna(100)
         df["rf_status"] = df["rf_status"].fillna(0)
 
-        feature_vector = df[FEATURE_COLS].values.flatten().reshape(1, -1)
+        # Add spatial features from public stations
+        df = add_spatial_columns(DB_PATH, df)
+
+        feature_vector = df[FULL_ALL_COLS].values.flatten().reshape(1, -1)
 
         meta = read_meta()
         model = joblib.load(MODEL_PATH)
@@ -185,7 +195,10 @@ def _run_simple_model():
         for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
             df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
 
-        feature_vector = df[SIMPLE_FEATURE_COLS].values.flatten().reshape(1, -1)
+        # Add spatial features from public stations
+        df = add_spatial_columns(DB_PATH, df)
+
+        feature_vector = df[SIMPLE_ALL_COLS].values.flatten().reshape(1, -1)
 
         meta = read_simple_meta()
         model = joblib.load(SIMPLE_MODEL_PATH)
@@ -217,8 +230,11 @@ def _run_6hr_rc_model():
         for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
             df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
 
-        # Base features: 9 x 6 = 54
-        base_features = df[SIMPLE_FEATURE_COLS].values.flatten()
+        # Add spatial features from public stations
+        df = add_spatial_columns(DB_PATH, df)
+
+        # Base features: (9 + 3 spatial) x 6 = 72
+        base_features = df[RC_ALL_COLS].values.flatten()
 
         # Error features from prediction history
         error_lookup = _load_recent_errors(HISTORY_PATH)
