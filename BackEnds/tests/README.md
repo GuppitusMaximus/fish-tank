@@ -325,6 +325,9 @@ Manual verification report (not a pytest file). Documents that:
 | Public station data fetching (Netatmo getpublicdata API) | `test_public_station_fetch.py` |
 | Public station data storage (SQLite) | `test_public_station_fetch.py` |
 | Conditional execution based on env vars | `test_public_station_fetch.py` |
+| Spatial features from public stations | `test_public_station_spatial_features.py` |
+| Feature dimension consistency (training vs prediction) | `test_public_station_spatial_features.py` |
+| Graceful fallback when no public data exists | `test_public_station_spatial_features.py` |
 
 ### `test_public_station_fetch.py`
 
@@ -345,6 +348,25 @@ Verifies public Netatmo station data fetching implementation (10 tests):
 - GitHub Actions workflow includes all 4 new env vars (NETATMO_PUBLIC_LAT_NE, LON_NE, LAT_SW, LON_SW)
 - Python syntax is valid
 - public_stations table can be created in SQLite with correct schema
+
+### `test_public_station_spatial_features.py`
+
+**Plan:** `qa-public-station-model`
+
+Verifies spatial features from public stations are correctly integrated into ML models (14 tests across 5 test classes):
+
+- `public_features.py` exports `SPATIAL_COLS_FULL` (6 features), `SPATIAL_COLS_SIMPLE` (3 features), and `add_spatial_columns()` function
+- Spatial feature names are correct: regional_avg_temp, regional_temp_delta, regional_temp_spread, regional_avg_humidity, regional_avg_pressure, regional_station_count
+- Graceful fallback: all spatial columns default to 0.0 when no public station data exists
+- Feature dimension consistency across models:
+  - 3hrRaw: (9 base + 3 spatial) × 3 lookback = 36 features
+  - 24hrRaw: (22 base + 6 spatial) × 24 lookback = 672 features
+  - 6hrRC: (9 base + 3 spatial) × 6 lookback + 14 error features = 86 features
+- `predict.py` imports spatial feature constants and function
+- `predict.py` defines combined column lists (SIMPLE_ALL_COLS, FULL_ALL_COLS, RC_ALL_COLS)
+- `train_model.py` imports spatial feature constants and function
+- `train_model.py` defines combined column lists matching predict.py
+- Column lists match exactly between train_model.py and predict.py (critical for model/prediction consistency)
 
 ### Not Yet Covered
 
