@@ -685,6 +685,43 @@ window.WeatherApp = (() => {
 
   var latestData = null;
 
+  function buildToolbarHtml() {
+    return '<div class="dash-toolbar">' +
+      '<div class="toolbar-group">' +
+        '<span class="toolbar-label">Time</span>' +
+        '<div class="toolbar-toggle" id="time-format-toggle">' +
+          '<button class="toggle-option' + (!use24h ? ' active' : '') + '" data-value="12h">12h</button>' +
+          '<button class="toggle-option' + (use24h ? ' active' : '') + '" data-value="24h">24h</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="toolbar-group">' +
+        '<span class="toolbar-label">Unit</span>' +
+        '<div class="toolbar-toggle" id="unit-toggle">' +
+          '<button class="toggle-option' + (currentUnit === 'C' ? ' active' : '') + '" data-value="C">\u00b0C</button>' +
+          '<button class="toggle-option' + (currentUnit === 'F' ? ' active' : '') + '" data-value="F">\u00b0F</button>' +
+          '<button class="toggle-option' + (currentUnit === 'K' ? ' active' : '') + '" data-value="K">K</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function wireToolbarHandlers(root, rerender) {
+    root.querySelector('#time-format-toggle').addEventListener('click', function(e) {
+      var btn = e.target.closest('.toggle-option');
+      if (!btn) return;
+      use24h = btn.dataset.value === '24h';
+      localStorage.setItem('timeFormat', use24h ? '24h' : '12h');
+      rerender();
+    });
+    root.querySelector('#unit-toggle').addEventListener('click', function(e) {
+      var btn = e.target.closest('.toggle-option');
+      if (!btn) return;
+      currentUnit = btn.dataset.value;
+      localStorage.setItem('tempUnit', currentUnit);
+      rerender();
+    });
+  }
+
   function renderHomeSummary(data) {
     var el = document.getElementById('home-weather');
     if (!el) return;
@@ -695,8 +732,6 @@ window.WeatherApp = (() => {
       Array.isArray(data.predictions);
 
     var pm = data.property_meta || null;
-    var btnLabel = use24h ? '24h' : '12h';
-    var unitLabel = currentUnit === 'K' ? 'K' : '\u00b0' + currentUnit;
 
     var currentHtml, predictionsHtml;
     if (isV2) {
@@ -708,28 +743,14 @@ window.WeatherApp = (() => {
     }
 
     el.innerHTML =
-      '<div class="dash-controls">' +
-        '<button class="format-toggle home-time-toggle" title="Switch time format">' + btnLabel + '</button>' +
-        '<button class="format-toggle home-unit-toggle" title="Switch temperature unit">' + unitLabel + '</button>' +
-      '</div>' +
+      buildToolbarHtml() +
       currentHtml +
       (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>') +
       '<div class="home-cta">' +
         '<a href="#weather" class="cta-link">View full predictions \u2192</a>' +
       '</div>';
 
-    el.querySelector('.home-time-toggle').addEventListener('click', function() {
-      use24h = !use24h;
-      localStorage.setItem('timeFormat', use24h ? '24h' : '12h');
-      renderHomeSummary(latestData);
-    });
-
-    el.querySelector('.home-unit-toggle').addEventListener('click', function() {
-      var idx = units.indexOf(currentUnit);
-      currentUnit = units[(idx + 1) % units.length];
-      localStorage.setItem('tempUnit', currentUnit);
-      renderHomeSummary(latestData);
-    });
+    wireToolbarHandlers(el, function() { renderHomeSummary(latestData); });
   }
 
   function render(data) {
@@ -762,19 +783,14 @@ window.WeatherApp = (() => {
   }
 
   function renderV1(data) {
-    var btnLabel = use24h ? '24h' : '12h';
-    var unitLabel = currentUnit === 'K' ? 'K' : '\u00b0' + currentUnit;
     container.innerHTML =
       '<div class="dashboard">' +
-        '<div class="dash-controls">' +
-          '<button id="time-format-toggle" class="format-toggle" title="Switch time format">' + btnLabel + '</button>' +
-          '<button id="unit-toggle" class="format-toggle" title="Switch temperature unit">' + unitLabel + '</button>' +
-        '</div>' +
         '<div class="dash-subnav">' +
           '<button class="subnav-btn' + (activeSubtab === 'dashboard' ? ' active' : '') + '" data-subtab="dashboard">Dashboard</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'browse' ? ' active' : '') + '" data-subtab="browse">Browse Data</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'workflow' ? ' active' : '') + '" data-subtab="workflow">Workflow</button>' +
         '</div>' +
+        buildToolbarHtml() +
         '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
           '<div class="dash-cards">' +
             renderCurrent(data.current) +
@@ -829,20 +845,14 @@ window.WeatherApp = (() => {
       historyState.properties = unique;
     }
 
-    var btnLabel = use24h ? '24h' : '12h';
-    var unitLabel = currentUnit === 'K' ? 'K' : '\u00b0' + currentUnit;
-
     container.innerHTML =
       '<div class="dashboard">' +
-        '<div class="dash-controls">' +
-          '<button id="time-format-toggle" class="format-toggle" title="Switch time format">' + btnLabel + '</button>' +
-          '<button id="unit-toggle" class="format-toggle" title="Switch temperature unit">' + unitLabel + '</button>' +
-        '</div>' +
         '<div class="dash-subnav">' +
           '<button class="subnav-btn' + (activeSubtab === 'dashboard' ? ' active' : '') + '" data-subtab="dashboard">Dashboard</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'browse' ? ' active' : '') + '" data-subtab="browse">Browse Data</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'workflow' ? ' active' : '') + '" data-subtab="workflow">Workflow</button>' +
         '</div>' +
+        buildToolbarHtml() +
         '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
           renderCurrentV2(data.current, pm) +
           renderPredictionsV2(data.predictions, pm) +
@@ -1218,18 +1228,7 @@ window.WeatherApp = (() => {
       renderWorkflow();
     }
 
-    document.getElementById('time-format-toggle').addEventListener('click', function() {
-      use24h = !use24h;
-      localStorage.setItem('timeFormat', use24h ? '24h' : '12h');
-      render(data);
-    });
-
-    document.getElementById('unit-toggle').addEventListener('click', function() {
-      var idx = units.indexOf(currentUnit);
-      currentUnit = units[(idx + 1) % units.length];
-      localStorage.setItem('tempUnit', currentUnit);
-      render(data);
-    });
+    wireToolbarHandlers(container, function() { render(data); });
 
     var subnavBtns = container.querySelectorAll('.subnav-btn');
     subnavBtns.forEach(function(btn) {
