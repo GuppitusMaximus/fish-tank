@@ -12,6 +12,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_readme_update_frontend.sh` | Shell script | README accuracy — verifies documentation matches source code |
 | `test_model_version_display.html` | HTML test page | ML model version rendering in forecast card and history table |
 | `test_v2_multi_model_dashboard.js` | Node.js script | Multi-model dashboard v2 schema detection, data-driven rendering, filtering, sorting, lazy loading (78 assertions) |
+| `verify-full-model-fixes.sh` | Shell script | Verifies full model fixes: no hardcoded prefixes, resolvePropertyKey exists, date filter defaults to 7 days |
 
 ### Test Reports
 
@@ -23,6 +24,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-docs-frontend.md` | Documentation QA report |
 | `qa-report-dashboard-filter-search.md` | Filter search inputs QA report — all 8 tests passed (replaces dropdowns with autocomplete text inputs) |
 | `qa-report-fix-filter-disappear.md` | Fix filters disappearing on empty results — all 5 tests passed (filters persist when no predictions match) |
+| `qa-full-model-frontend.md` | QA report for full model frontend fixes — all 10 tests passed (property lookup fixes, date filter defaults) |
 
 ### Test Data
 
@@ -77,6 +79,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **V2 Multi-Model Dashboard (all features)** | \`test_v2_multi_model_dashboard.js\` + \`qa-multi-model-dashboard-ui-report.md\` |
 | **Dashboard Filter Search (text inputs with autocomplete)** | \`qa-report-dashboard-filter-search.md\` |
 | **Fix: Filters disappearing on empty results** | \`qa-report-fix-filter-disappear.md\` |
+| **Full model property lookup and date filter fixes** | \`verify-full-model-fixes.sh\` + \`qa-full-model-frontend.md\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -130,5 +133,6 @@ The following v2 features were verified:
 | \`qa-multi-model-dashboard-ui\` (final) | Completed | Updated \`test_v2_multi_model_dashboard.js\`, \`qa-multi-model-dashboard-ui-final.md\` | None (all tests pass) |
 | \`qa-dashboard-filter-search\` | Completed | \`qa-report-dashboard-filter-search.md\` | — |
 | \`qa-fix-filter-disappear\` | Completed | \`qa-report-fix-filter-disappear.md\` | — |
+| \`qa-full-model-frontend\` | Completed | \`verify-full-model-fixes.sh\`, \`qa-full-model-frontend.md\` | None (all 10 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
