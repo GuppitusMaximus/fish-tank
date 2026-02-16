@@ -344,6 +344,11 @@ Manual verification report (not a pytest file). Documents that:
 | Feature dimension consistency (training vs prediction) | `test_public_station_spatial_features.py` |
 | Graceful fallback when no public data exists | `test_public_station_spatial_features.py` |
 | Public station CSV persistence and rebuild | `test_public_station_csv.py` |
+| Browse data manifest generation (data-index.json) | `test_browse_data_export.py` |
+| Model auto-discovery from prediction files | `test_browse_data_export.py` |
+| Public station JSON export from CSV | `test_browse_data_export.py` |
+| Validation history per-date splitting | `test_browse_data_export.py` |
+| Export code edge case handling | `test_browse_data_export.py` |
 
 ### `test_public_station_fetch.py`
 
@@ -401,6 +406,21 @@ Verifies CSV dual-write and rebuild functionality for public station data (4 tes
 **Known limitations:**
 - Tests will skip CSV format verification until workflow runs and generates CSV files
 - CSV cleanup (30-day retention) is verified via code inspection, not runtime testing
+
+### `test_browse_data_export.py`
+
+**Plan:** `qa-browse-data-backend`
+
+Comprehensive verification of browse data backend export enhancements (6 test functions):
+
+- **Manifest schema**: `data-index.json` has all 4 categories (readings, predictions, public_stations, validation) with correct structure
+- **Prediction model auto-discovery**: `predictions.models` array populated with actual model types from prediction files; `predictions.dates` maps date → hour → model array; files match manifest entries
+- **Public station JSON export**: CSV files converted to JSON with correct data types (numbers not strings, null for missing values); `fetched_at`, `station_count`, and `stations` array present; station count matches CSV row count
+- **Validation history export**: `prediction-history.json` split into per-date files (`validation/YYYY-MM-DD.json`); each file has `date`, `entry_count`, `models`, and `entries` array; entries sorted by `for_hour` descending; total entries match original file
+- **Dashboard unchanged**: `weather.json` retains expected schema (current, predictions, history, next_prediction) after export changes
+- **Code quality**: `export_public_stations()`, `export_validation_history()`, and `generate_manifest()` handle missing directories and files gracefully; functions called in correct order (data exports before manifest generation)
+
+All tests pass, confirming the implementation meets the `browse-data-backend` plan requirements.
 
 ### Not Yet Covered
 
