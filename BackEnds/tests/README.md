@@ -181,20 +181,35 @@ Verifies git repo bloat reduction improvements (6 tests):
 
 ### `test_sqlite_export.py`
 
-**Plan:** `qa-sqlite-export`
+**Plan:** `qa-sqlite-export` (original), `qa-fix-history-db-shadow` (updated)
 
-Verifies DB-first reads in `export_weather.py` with file-based fallback (10 tests):
+Verifies reads in `export_weather.py` with JSON/DB priority (10 tests):
 
 - `sqlite3` module imported and `DB_PATH` constant defined
 - Table SQL constants (`PREDICTIONS_TABLE_SQL`, `PREDICTION_HISTORY_TABLE_SQL`) exist
 - DB helper functions exist and are callable (`_find_predictions_for_hour_from_db`, `_load_validated_history_from_db`)
 - `_find_predictions_for_hour()` calls DB helper first before scanning files
-- `load_validated_history()` calls DB helper first before reading JSON
+- **`load_validated_history()` tries JSON file first, then falls back to DB** (fixed to prioritize committed history)
+- JSON read occurs before DB fallback (verified via source inspection)
 - DB helpers return None gracefully when data doesn't exist
 - Export output format unchanged (schema_version 2, predictions array, history array)
 - DB prediction helper returns correct dict format with `model_type`, `model_version`, `generated_at`, and nested `prediction` object
 - DB history helper returns correct dict format with `delta_indoor` and `delta_outdoor` computed from raw values
 - Delta calculations are correct (actual - predicted, rounded to 1 decimal)
+
+### `test_history_json_priority.py`
+
+**Plan:** `qa-fix-history-db-shadow`
+
+Comprehensive unit tests for prediction history JSON-first loading behavior (5 tests):
+
+- **JSON preferred over DB**: When both JSON and DB have data, JSON entries are returned (test creates JSON with 10 entries and DB with 3 different entries, verifies 10 JSON entries returned)
+- **DB fallback when JSON empty**: When JSON file exists but is empty, DB entries are returned as fallback
+- **DB fallback when JSON missing**: When JSON file doesn't exist, DB entries are returned as fallback
+- **Cutoff filtering from JSON**: Only entries within the requested hours window are returned from JSON file (test creates 48h of data, requests 24h, verifies ~24 entries returned)
+- **Cutoff filtering from DB**: Only entries within the requested hours window are returned from DB fallback (test creates 48h of data, requests 24h, verifies ~24 entries returned)
+
+This test suite ensures the fix to prioritize `prediction-history.json` over the ephemeral DB works correctly, preventing the frontend from showing only the last 3 hours of history from the local DB instead of the full committed history.
 
 ### `test_sqlite_train_errors.py`
 
@@ -317,7 +332,7 @@ Manual verification report (not a pytest file). Documents that:
 | MAX_GAP setting & full model readiness | `test_full_model_training.py` |
 | Data retention & git repo bloat | `test_data_storage_quick_wins.py` |
 | .gitignore coverage for ML binaries | `test_data_storage_quick_wins.py` |
-| DB-first reads with JSON fallback (export) | `test_sqlite_export.py` |
+| Prediction history JSON-first reads with DB fallback | `test_sqlite_export.py`, `test_history_json_priority.py` |
 | DB-first reads with JSON fallback (training errors) | `test_sqlite_train_errors.py` |
 | Dual-write predictions (JSON + SQLite) | `test_sqlite_predict.py` |
 | Dual-write prediction history (JSON + SQLite) | `test_sqlite_validate.py` |

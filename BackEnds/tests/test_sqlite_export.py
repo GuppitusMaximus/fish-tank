@@ -52,12 +52,19 @@ def test_predictions_db_first():
     assert 'if db_results:' in source or 'if not db_results:' in source, "DB fallback logic missing"
 
 
-def test_history_db_first():
-    """Verify load_validated_history calls DB helper first."""
+def test_history_json_first():
+    """Verify load_validated_history tries JSON file first, then falls back to DB."""
     import inspect
     source = inspect.getsource(export_weather.load_validated_history)
-    assert '_load_validated_history_from_db' in source, "load_validated_history doesn't call DB helper"
-    assert 'if db_history:' in source or 'if not db_history:' in source, "DB fallback logic missing"
+    # Should call read_json for the history_path parameter first
+    assert 'read_json(history_path)' in source, "load_validated_history doesn't read JSON first"
+    # Should have DB fallback
+    assert '_load_validated_history_from_db' in source, "load_validated_history doesn't have DB fallback"
+    # DB should be called AFTER JSON attempt
+    lines = source.split('\n')
+    json_line = next(i for i, line in enumerate(lines) if 'read_json(history_path)' in line)
+    db_line = next(i for i, line in enumerate(lines) if '_load_validated_history_from_db' in line)
+    assert json_line < db_line, "DB helper called before JSON read - priority is wrong"
 
 
 def test_db_fallback_returns_none_for_nonexistent_data():
@@ -191,7 +198,7 @@ if __name__ == "__main__":
         test_table_sql_constants_exist,
         test_db_helper_functions_exist,
         test_predictions_db_first,
-        test_history_db_first,
+        test_history_json_first,
         test_db_fallback_returns_none_for_nonexistent_data,
         test_export_output_format,
         test_db_prediction_helper_returns_correct_format,
