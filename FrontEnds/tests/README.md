@@ -19,6 +19,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_multiselect_include_mode.html` | HTML test page | Verifies createMultiSelect include mode behavior: initial state (none checked), single/multiple selection, clear behavior, all-checked state (does NOT show "All"), pre-selected values (7 test suites, 23 assertions) |
 | `run_multiselect_tests.sh` | Shell script | Opens `test_multiselect_include_mode.html` in default browser for visual verification |
 | `test_home_weather_load.js` | Node.js script | Verifies home weather summary loads on first visit without requiring weather tab visit: loadHomeSummary function exists, fetches from cache/RAW_URL, page load trigger, CTA text (10 assertions) |
+| `test_format_toolbar.sh` | Shell script | Verifies format toolbar implementation: toolbar HTML structure, CSS styles, event handlers, localStorage persistence, old controls removed (31 assertions) |
 
 ### Test Reports
 
@@ -49,6 +50,7 @@ bash tests/test_readme_update_frontend.sh
 bash tests/verify-readme-docs.sh
 bash tests/verify-full-model-fixes.sh
 bash tests/verify-expired-predictions-filter.sh
+bash tests/test_format_toolbar.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -100,6 +102,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **README documentation accuracy** | \`verify-readme-docs.sh\` |
 | **Multi-select include mode (inverted checkboxes)** | \`test_multiselect_include_mode.html\` + \`qa-invert-history-filter-checkboxes.md\` |
 | **Home weather summary loads on first visit** | \`test_home_weather_load.js\` |
+| **Format toolbar implementation** | \`test_format_toolbar.sh\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -139,8 +142,6 @@ The following v2 features were verified:
 - Theme system (theme-ocean, theme-battle, theme-sky)
 - Click-to-spawn interactions
 - CSS animations (bubbles, smoke, debris)
-- Temperature unit toggle (C/F/K) end-to-end behavior
-- Time format toggle (12h/24h) end-to-end behavior
 
 ## QA Plans That Produced These Tests
 
@@ -159,5 +160,6 @@ The following v2 features were verified:
 | \`qa-docs-frontend\` | Completed | \`verify-readme-docs.sh\` | None (all 12 tests pass) |
 | \`qa-invert-history-filter-checkboxes\` | Completed | \`test_multiselect_include_mode.html\`, \`run_multiselect_tests.sh\`, \`qa-invert-history-filter-checkboxes.md\` | None (all 7 test suites pass, 23 assertions) |
 | \`qa-fix-home-weather-load\` | Completed | \`test_home_weather_load.js\` | None (all 10 tests pass) |
+| \`qa-frontend-format-toolbar\` | Completed | \`test_format_toolbar.sh\`, updated \`test_dash_qa_frontend.sh\` | None (all 31 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
