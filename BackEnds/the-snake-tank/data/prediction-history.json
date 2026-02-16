@@ -1,5 +1,41 @@
 [
   {
+    "predicted_at": "2026-02-16T02:01:02Z",
+    "for_hour": "2026-02-16T03:01:02Z",
+    "model_type": "full",
+    "predicted": {
+      "temp_indoor": 20.6,
+      "temp_outdoor": -9.9
+    },
+    "actual": {
+      "temp_indoor": 21.3,
+      "temp_outdoor": -6.6
+    },
+    "error": {
+      "temp_indoor": 0.7,
+      "temp_outdoor": 3.3
+    },
+    "model_version": 1
+  },
+  {
+    "predicted_at": "2026-02-16T01:40:52Z",
+    "for_hour": "2026-02-16T02:40:52Z",
+    "model_type": "simple",
+    "predicted": {
+      "temp_indoor": 20.8,
+      "temp_outdoor": -6.3
+    },
+    "actual": {
+      "temp_indoor": 21.3,
+      "temp_outdoor": -6.6
+    },
+    "error": {
+      "temp_indoor": 0.5,
+      "temp_outdoor": 0.3
+    },
+    "model_version": 49
+  },
+  {
     "predicted_at": "2026-02-16T01:20:42Z",
     "for_hour": "2026-02-16T02:20:42Z",
     "model_type": "simple",
