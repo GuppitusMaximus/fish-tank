@@ -349,6 +349,10 @@ Manual verification report (not a pytest file). Documents that:
 | Public station JSON export from CSV | `test_browse_data_export.py` |
 | Validation history per-date splitting | `test_browse_data_export.py` |
 | Export code edge case handling | `test_browse_data_export.py` |
+| Frontend SQLite database export (schema, metadata, indexes) | `test_frontend_db_export.py` |
+| Gzip compression of frontend database | `test_frontend_db_export.py` |
+| Frontend database data integrity (row count verification) | `test_frontend_db_export.py` |
+| Manifest db_generated_at field | `test_frontend_db_export.py` |
 
 ### `test_public_station_fetch.py`
 
@@ -421,6 +425,22 @@ Comprehensive verification of browse data backend export enhancements (6 test fu
 - **Code quality**: `export_public_stations()`, `export_validation_history()`, and `generate_manifest()` handle missing directories and files gracefully; functions called in correct order (data exports before manifest generation)
 
 All tests pass, confirming the implementation meets the `browse-data-backend` plan requirements.
+
+### `test_frontend_db_export.py`
+
+**Plan:** `qa-sqlite-export-backend`
+
+Comprehensive verification of frontend SQLite database export functionality (7 tests):
+
+- **Database structure**: frontend.db has 5 expected tables (`readings`, `predictions`, `prediction_history`, `public_stations`, `_metadata`) with no extra internal tables
+- **Metadata**: `_metadata` table includes `schema_version` (value "1") and `generated_at` (valid ISO 8601 timestamp within last 5 minutes)
+- **Indexes**: All 5 expected indexes exist (`idx_readings_timestamp`, `idx_readings_date`, `idx_predictions_model_ts`, `idx_pred_hist_hour_model`, `idx_pub_stations_fetched`)
+- **Data integrity**: Row counts match exactly between source database (`data/weather.db`) and exported database for all 4 data tables
+- **Compression effectiveness**: gzip compression achieves at least 40% size reduction (compressed file < 60% of original size)
+- **Manifest integration**: `data-index.json` includes `db_generated_at` field with valid ISO 8601 timestamp
+- **Backward compatibility**: Existing JSON exports (`weather.json`, `data-index.json`) maintain expected schema and structure
+
+All tests run the full export pipeline (`export_weather.py`) and verify output against requirements. Tests use temporary directories for isolation and clean up after themselves.
 
 ### Not Yet Covered
 
