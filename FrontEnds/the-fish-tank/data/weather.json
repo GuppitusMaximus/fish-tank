@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-16T02:44:17Z",
+  "generated_at": "2026-02-16T03:01:00Z",
   "schema_version": 2,
   "property_meta": {
     "temp_indoor": {
@@ -16,58 +16,53 @@
   "current": {
     "readings": {
       "temp_indoor": 21.1,
-      "temp_outdoor": -6.6
+      "temp_outdoor": -6.7
     },
-    "timestamp": "2026-02-16T02:41:32Z"
+    "timestamp": "2026-02-16T02:51:38Z"
   },
   "predictions": [
     {
-      "model_type": "simple",
-      "model_version": 52,
-      "prediction_for": "2026-02-16T03:11:15Z",
-      "values": {
-        "temp_indoor": 21.1,
-        "temp_outdoor": -5.5
-      }
-    },
-    {
-      "model_type": "full",
-      "model_version": 2,
-      "prediction_for": "2026-02-16T03:11:15Z",
-      "values": {
-        "temp_indoor": 20.5,
-        "temp_outdoor": -9.9
-      }
-    },
-    {
       "model_type": "3hrRaw",
-      "model_version": 54,
-      "prediction_for": "2026-02-16T03:41:32Z",
+      "model_version": 55,
+      "prediction_for": "2026-02-16T03:51:38Z",
       "values": {
-        "temp_indoor": 21.1,
-        "temp_outdoor": -5.5
+        "temp_indoor": 21.0,
+        "temp_outdoor": -6.1
       }
     },
     {
       "model_type": "24hrRaw",
-      "model_version": 4,
-      "prediction_for": "2026-02-16T03:41:32Z",
+      "model_version": 5,
+      "prediction_for": "2026-02-16T03:51:38Z",
       "values": {
-        "temp_indoor": 20.5,
-        "temp_outdoor": -9.9
+        "temp_indoor": 20.6,
+        "temp_outdoor": -9.8
       }
     },
     {
       "model_type": "6hrRC",
-      "model_version": 2,
-      "prediction_for": "2026-02-16T03:41:32Z",
+      "model_version": 3,
+      "prediction_for": "2026-02-16T03:51:38Z",
       "values": {
-        "temp_indoor": 20.9,
-        "temp_outdoor": -6.3
+        "temp_indoor": 21.0,
+        "temp_outdoor": -6.8
       }
     }
   ],
   "history": [
+    {
+      "date": "2026-02-16",
+      "hour": 3,
+      "actual_indoor": 21.1,
+      "actual_outdoor": -6.7,
+      "predicted_indoor": 21.1,
+      "predicted_outdoor": -5.5,
+      "delta_indoor": 0.0,
+      "delta_outdoor": -1.2,
+      "model_version": 51,
+      "model_type": "simple",
+      "timestamp": "2026-02-16T03:01:02Z"
+    },
     {
       "date": "2026-02-16",
       "hour": 3,
@@ -512,10 +507,10 @@
     }
   ],
   "next_prediction": {
-    "prediction_for": "2026-02-16T03:11:15Z",
-    "temp_indoor": 21.1,
-    "temp_outdoor": -5.5,
-    "model_version": 52,
-    "model_type": "simple"
+    "prediction_for": "2026-02-16T03:51:38Z",
+    "temp_indoor": 21.0,
+    "temp_outdoor": -6.1,
+    "model_version": 55,
+    "model_type": "3hrRaw"
   }
 }
