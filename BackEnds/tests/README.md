@@ -165,6 +165,20 @@ Verifies GitHub Pages workflow auto-deploys after Netatmo weather updates (6 tes
 - Original `workflow_dispatch` trigger preserved for manual runs
 - YAML syntax is valid
 
+### `test_data_storage_quick_wins.py`
+
+**Plan:** `qa-data-storage-quick-wins`
+
+Verifies git repo bloat reduction improvements (6 tests):
+
+- `.gitignore` includes `BackEnds/the-snake-tank/models/*.joblib` pattern
+- No `.joblib` files are tracked by git
+- Model meta JSON files (`model_meta.json`, `simple_meta.json`, `6hr_rc_meta.json`) are still tracked
+- `netatmo.yml` workflow includes "Clean up old data files" step with correct retention periods (48h for predictions, 7d for raw readings)
+- All cleanup `find` commands include `|| true` or `2>/dev/null` for safety
+- `git add` line uses `models/*.json` pattern (excludes binaries)
+- Workflow YAML is syntactically valid
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -196,9 +210,11 @@ Manual verification report (not a pytest file). Documents that:
 | Atomic writes | `test_multi_model_code.py` |
 | Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py`, `test_multi_model_export.py` |
 | README accuracy | `test_readme_accuracy.py` |
-| Workflow configuration | `test_wire_prediction_validation.py`, `test_pages_workflow.py`, `qa-remove-github-cron.md` |
+| Workflow configuration | `test_wire_prediction_validation.py`, `test_pages_workflow.py`, `test_data_storage_quick_wins.py`, `qa-remove-github-cron.md` |
 | Pages auto-deploy trigger | `test_pages_workflow.py` |
 | MAX_GAP setting & full model readiness | `test_full_model_training.py` |
+| Data retention & git repo bloat | `test_data_storage_quick_wins.py` |
+| .gitignore coverage for ML binaries | `test_data_storage_quick_wins.py` |
 
 ### Not Yet Covered
 
