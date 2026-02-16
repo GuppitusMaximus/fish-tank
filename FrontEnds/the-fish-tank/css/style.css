@@ -957,6 +957,82 @@ nav a.active {
     color: rgba(200, 220, 255, 0.4);
 }
 
+/* Multi-select dropdown */
+.multi-select {
+    position: relative;
+    display: inline-block;
+    min-width: 140px;
+}
+
+.multi-select-trigger {
+    padding: 6px 10px;
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 20, 60, 0.6);
+    color: #c8dcff;
+    cursor: pointer;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.multi-select-trigger:hover {
+    border-color: rgba(100, 150, 255, 0.5);
+}
+
+.multi-select-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    background: rgba(0, 20, 60, 0.95);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 4px;
+    margin-top: 2px;
+    max-height: 200px;
+    overflow-y: auto;
+    min-width: 100%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.multi-select.open .multi-select-dropdown {
+    display: block;
+}
+
+.multi-select-option {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: #c8dcff;
+}
+
+.multi-select-option:hover {
+    background: rgba(100, 150, 255, 0.1);
+}
+
+.multi-select-option input[type="checkbox"] {
+    margin-right: 6px;
+}
+
+.multi-select-clear {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    color: rgba(200, 220, 255, 0.4);
+    cursor: pointer;
+    border-top: 1px solid rgba(100, 150, 255, 0.15);
+    text-align: center;
+}
+
+.multi-select-clear:hover {
+    color: #c8dcff;
+    background: rgba(100, 150, 255, 0.1);
+}
+
 .history-row-count {
     font-size: 0.7rem;
     opacity: 0.35;
@@ -1104,6 +1180,13 @@ nav a.active {
     .history-filter-input,
     .history-filter-date {
         width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+    .multi-select { width: 100%; min-width: 0; }
+    .multi-select-trigger {
+        max-width: none;
         padding: 10px 12px;
         font-size: 14px;
         min-height: 44px;
