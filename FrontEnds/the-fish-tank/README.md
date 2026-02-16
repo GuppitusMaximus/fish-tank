@@ -32,7 +32,7 @@ The weather dashboard supports two data formats: v1 (legacy hardcoded fields) an
 
 The dashboard has three sub-tabs:
 
-**Dashboard** — In v2 mode, the current reading section auto-discovers properties from `current.readings` and renders them with labels from `property_meta` (or title-cased fallbacks). It has a visually prominent design (larger text, accent border) to distinguish it from forecasts. Predictions render as individual cards per model, each showing a model type badge, version, and forecast values. The prediction history table dynamically discovers columns from flat `actual_*/predicted_*/delta_*` fields, supports filtering by model type (partial match) and model version (exact match) via searchable text inputs with autocomplete, date range filtering, sortable columns (click to toggle asc/desc), and lazy loading (50 rows at a time with "Show more"). When filters produce no matching results, the filter controls remain visible with a "0 predictions match filters" message so users can adjust or clear filters without reloading the page.
+**Dashboard** — In v2 mode, the current reading section auto-discovers properties from `current.readings` and renders them with labels from `property_meta` (or title-cased fallbacks). It has a visually prominent design (larger text, accent border) to distinguish it from forecasts. Predictions render as individual cards per model (3hrRaw, 24hrRaw, 6hrRC), each showing a model type badge, version, and forecast values. Predictions older than 2 hours are automatically hidden. The prediction history table dynamically discovers columns from flat `actual_*/predicted_*/delta_*` fields, supports filtering by model type and model version via multi-select dropdowns, date range filtering (defaults to last 7 days), sortable columns (click to toggle asc/desc), and lazy loading (50 rows at a time with "Show more"). When filters produce no matching results, the filter controls remain visible with a "0 predictions match filters" message so users can adjust or clear filters without reloading the page.
 
 In v1 mode, the dashboard renders as before: two hardcoded temperature fields (indoor/outdoor) for the current reading and a single prediction card.
 
@@ -76,4 +76,4 @@ No build step. Open `index.html` in a browser to run locally.
 
 ## Deployment
 
-GitHub Pages via GitHub Actions ([`pages.yml`](../../.github/workflows/pages.yml)). Deploys automatically on push to `main` when files in `FrontEnds/the-fish-tank/` change. Custom domain configured via `CNAME`.
+GitHub Pages via GitHub Actions ([`pages.yml`](../../.github/workflows/pages.yml)). Deploys automatically on push to `main` when files in `FrontEnds/the-fish-tank/` change, and also auto-deploys when the Netatmo weather workflow completes (via `workflow_run` trigger). Custom domain configured via `CNAME`.
