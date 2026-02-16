@@ -16,6 +16,8 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `verify-expired-predictions-filter.sh` | Shell script | Verifies expired predictions are hidden from dashboard: renderPredictionsV2 time filter, history table unaffected |
 | `verify-multi-select-filters.js` | Node.js script | Verifies multi-select dropdown filters for model type and version: array-based state, createMultiSelect function, filter UI components, array filtering logic, version options update on model change, CSS styles (28 assertions) |
 | `verify-readme-docs.sh` | Shell script | Verifies README documentation accuracy: multi-select filters, expired predictions, auto-deploy workflow trigger, project structure, model types (12 checks) |
+| `test_multiselect_include_mode.html` | HTML test page | Verifies createMultiSelect include mode behavior: initial state (none checked), single/multiple selection, clear behavior, all-checked state (does NOT show "All"), pre-selected values (7 test suites, 23 assertions) |
+| `run_multiselect_tests.sh` | Shell script | Opens `test_multiselect_include_mode.html` in default browser for visual verification |
 
 ### Test Reports
 
@@ -28,6 +30,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-report-dashboard-filter-search.md` | Filter search inputs QA report — all 8 tests passed (replaces dropdowns with autocomplete text inputs) |
 | `qa-report-fix-filter-disappear.md` | Fix filters disappearing on empty results — all 5 tests passed (filters persist when no predictions match) |
 | `qa-full-model-frontend.md` | QA report for full model frontend fixes — all 10 tests passed (property lookup fixes, date filter defaults) |
+| `qa-invert-history-filter-checkboxes.md` | QA report for inverted history filter checkboxes — all 7 test suites passed (include mode: none checked by default, all-checked shows values not "All") |
 
 ### Test Data
 
@@ -62,6 +65,9 @@ Prints test results to console and exits with code 0 (all pass) or 1 (any failur
 
 ```
 open tests/test_model_version_display.html
+open tests/test_multiselect_include_mode.html
+# Or use the runner script:
+bash tests/run_multiselect_tests.sh
 ```
 
 Results display on the page. The document title changes to "ALL TESTS PASS" or "FAIL: N test(s)".
@@ -90,6 +96,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Expired predictions hidden from dashboard** | \`verify-expired-predictions-filter.sh\` |
 | **Multi-select dropdown filters (model type and version)** | \`verify-multi-select-filters.js\` |
 | **README documentation accuracy** | \`verify-readme-docs.sh\` |
+| **Multi-select include mode (inverted checkboxes)** | \`test_multiselect_include_mode.html\` + \`qa-invert-history-filter-checkboxes.md\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -147,5 +154,6 @@ The following v2 features were verified:
 | \`qa-fix-stale-predictions-frontend\` | Completed | \`verify-expired-predictions-filter.sh\` | None (all tests pass) |
 | \`qa-multi-select-history-filters\` | Completed | \`verify-multi-select-filters.js\` | None (all 28 tests pass) |
 | \`qa-docs-frontend\` | Completed | \`verify-readme-docs.sh\` | None (all 12 tests pass) |
+| \`qa-invert-history-filter-checkboxes\` | Completed | \`test_multiselect_include_mode.html\`, \`run_multiselect_tests.sh\`, \`qa-invert-history-filter-checkboxes.md\` | None (all 7 test suites pass, 23 assertions) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
