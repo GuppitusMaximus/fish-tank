@@ -99,9 +99,7 @@ window.WeatherApp = (() => {
 
     var trigger = document.createElement('div');
     trigger.className = 'multi-select-trigger';
-    trigger.textContent = selected.length === 0 ? 'All' :
-      selected.length === options.length ? 'All' :
-      selected.join(', ');
+    trigger.textContent = selected.length === 0 ? 'All' : selected.join(', ');
     container.appendChild(trigger);
 
     var dropdown = document.createElement('div');
@@ -113,13 +111,13 @@ window.WeatherApp = (() => {
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = opt;
-      cb.checked = selected.length === 0 || selected.indexOf(opt) !== -1;
+      cb.checked = selected.indexOf(opt) !== -1;
       cb.addEventListener('change', function() {
         var checked = [];
         dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(c) {
           if (c.checked) checked.push(c.value);
         });
-        if (checked.length === options.length || checked.length === 0) {
+        if (checked.length === 0) {
           trigger.textContent = 'All';
           onChange([]);
         } else {
