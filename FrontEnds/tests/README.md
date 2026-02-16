@@ -13,6 +13,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_model_version_display.html` | HTML test page | ML model version rendering in forecast card and history table |
 | `test_v2_multi_model_dashboard.js` | Node.js script | Multi-model dashboard v2 schema detection, data-driven rendering, filtering, sorting, lazy loading (78 assertions) |
 | `verify-full-model-fixes.sh` | Shell script | Verifies full model fixes: no hardcoded prefixes, resolvePropertyKey exists, date filter defaults to 7 days |
+| `verify-expired-predictions-filter.sh` | Shell script | Verifies expired predictions are hidden from dashboard: renderPredictionsV2 time filter, history table unaffected |
 
 ### Test Reports
 
@@ -80,6 +81,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Dashboard Filter Search (text inputs with autocomplete)** | \`qa-report-dashboard-filter-search.md\` |
 | **Fix: Filters disappearing on empty results** | \`qa-report-fix-filter-disappear.md\` |
 | **Full model property lookup and date filter fixes** | \`verify-full-model-fixes.sh\` + \`qa-full-model-frontend.md\` |
+| **Expired predictions hidden from dashboard** | \`verify-expired-predictions-filter.sh\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -134,5 +136,6 @@ The following v2 features were verified:
 | \`qa-dashboard-filter-search\` | Completed | \`qa-report-dashboard-filter-search.md\` | — |
 | \`qa-fix-filter-disappear\` | Completed | \`qa-report-fix-filter-disappear.md\` | — |
 | \`qa-full-model-frontend\` | Completed | \`verify-full-model-fixes.sh\`, \`qa-full-model-frontend.md\` | None (all 10 tests pass) |
+| \`qa-fix-stale-predictions-frontend\` | Completed | \`verify-expired-predictions-filter.sh\` | None (all tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
