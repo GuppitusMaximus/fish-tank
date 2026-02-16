@@ -92,6 +92,78 @@ window.WeatherApp = (() => {
     return suffix;
   }
 
+  function createMultiSelect(id, options, selected, onChange) {
+    var container = document.createElement('div');
+    container.className = 'multi-select';
+    container.id = id;
+
+    var trigger = document.createElement('div');
+    trigger.className = 'multi-select-trigger';
+    trigger.textContent = selected.length === 0 ? 'All' :
+      selected.length === options.length ? 'All' :
+      selected.join(', ');
+    container.appendChild(trigger);
+
+    var dropdown = document.createElement('div');
+    dropdown.className = 'multi-select-dropdown';
+
+    options.forEach(function(opt) {
+      var label = document.createElement('label');
+      label.className = 'multi-select-option';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = opt;
+      cb.checked = selected.length === 0 || selected.indexOf(opt) !== -1;
+      cb.addEventListener('change', function() {
+        var checked = [];
+        dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(c) {
+          if (c.checked) checked.push(c.value);
+        });
+        if (checked.length === options.length || checked.length === 0) {
+          trigger.textContent = 'All';
+          onChange([]);
+        } else {
+          trigger.textContent = checked.join(', ');
+          onChange(checked);
+        }
+      });
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' ' + opt));
+      dropdown.appendChild(label);
+    });
+
+    var clearBtn = document.createElement('div');
+    clearBtn.className = 'multi-select-clear';
+    clearBtn.textContent = 'Clear all';
+    clearBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(c) {
+        c.checked = false;
+      });
+      trigger.textContent = 'All';
+      onChange([]);
+    });
+    dropdown.appendChild(clearBtn);
+
+    container.appendChild(dropdown);
+
+    trigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.multi-select.open').forEach(function(el) {
+        if (el !== container) el.classList.remove('open');
+      });
+      container.classList.toggle('open');
+    });
+
+    return container;
+  }
+
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.multi-select.open').forEach(function(el) {
+      el.classList.remove('open');
+    });
+  });
+
   function discoverHistoryProperties(historyEntry) {
     var pattern = /^(actual|predicted|delta)_(.+)$/;
     var found = {};
@@ -675,8 +747,8 @@ window.WeatherApp = (() => {
     pageSize: 50,
     sortCol: 'timestamp',
     sortAsc: false,
-    filterModel: '',
-    filterVersion: '',
+    filterModel: [],
+    filterVersion: [],
     filterDateStart: '',
     filterDateEnd: '',
     propertyMeta: null,
@@ -799,11 +871,9 @@ window.WeatherApp = (() => {
 
   function applyHistoryFilters() {
     var data = historyState.fullData;
-    var fm = historyState.filterModel.trim().toLowerCase();
-    var fv = historyState.filterVersion.trim();
     historyState.filtered = data.filter(function(entry) {
-      if (fm && !(entry.model_type || '').toLowerCase().includes(fm)) return false;
-      if (fv && String(entry.model_version) !== fv) return false;
+      if (historyState.filterModel.length > 0 && historyState.filterModel.indexOf(entry.model_type) === -1) return false;
+      if (historyState.filterVersion.length > 0 && historyState.filterVersion.indexOf(String(entry.model_version)) === -1) return false;
       if (historyState.filterDateStart || historyState.filterDateEnd) {
         var d = entry.date || (entry.timestamp ? entry.timestamp.substring(0, 10) : '');
         if (historyState.filterDateStart && d < historyState.filterDateStart) return false;
@@ -899,34 +969,6 @@ window.WeatherApp = (() => {
   }
 
   function buildHistoryFilters() {
-    var models = {};
-    var versions = {};
-    historyState.fullData.forEach(function(entry) {
-      if (entry.model_type) models[entry.model_type] = true;
-      if (entry.model_version !== undefined) versions[entry.model_type + '|' + entry.model_version] = entry.model_version;
-    });
-
-    var modelDatalist = '<datalist id="model-type-list">';
-    Object.keys(models).sort().forEach(function(m) {
-      modelDatalist += '<option value="' + escapeHtml(m) + '">';
-    });
-    modelDatalist += '</datalist>';
-
-    var fm = historyState.filterModel.trim().toLowerCase();
-    var versionDatalist = '<datalist id="model-version-list">';
-    var versionSet = {};
-    Object.keys(versions).forEach(function(key) {
-      var parts = key.split('|');
-      if (!fm || (parts[0] || '').toLowerCase().includes(fm)) {
-        var v = parts[1];
-        if (!versionSet[v]) {
-          versionSet[v] = true;
-          versionDatalist += '<option value="' + v + '">';
-        }
-      }
-    });
-    versionDatalist += '</datalist>';
-
     var dates = historyState.fullData.map(function(e) {
       return e.date || (e.timestamp ? e.timestamp.substring(0, 10) : '');
     }).filter(Boolean);
@@ -934,14 +976,8 @@ window.WeatherApp = (() => {
     var maxDate = dates.length > 0 ? dates.reduce(function(a, b) { return a > b ? a : b; }) : '';
 
     return '<div class="history-filters">' +
-      modelDatalist +
-      '<input type="text" id="filter-model" class="history-filter-input"' +
-        ' list="model-type-list" placeholder="Model type\u2026"' +
-        ' value="' + escapeHtml(historyState.filterModel) + '">' +
-      versionDatalist +
-      '<input type="text" id="filter-version" class="history-filter-input"' +
-        ' list="model-version-list" placeholder="Version\u2026"' +
-        ' value="' + escapeHtml(historyState.filterVersion) + '">' +
+      '<span id="filter-model-container"></span>' +
+      '<span id="filter-version-container"></span>' +
       '<input type="date" id="filter-date-start" class="history-filter-date" value="' + historyState.filterDateStart + '"' +
         (minDate ? ' min="' + minDate + '"' : '') + (maxDate ? ' max="' + maxDate + '"' : '') + '>' +
       '<input type="date" id="filter-date-end" class="history-filter-date" value="' + historyState.filterDateEnd + '"' +
@@ -994,7 +1030,52 @@ window.WeatherApp = (() => {
     wireHistoryHandlers();
   }
 
+  function buildFilterDropdowns() {
+    var modelOptions = [];
+    var modelSet = {};
+    historyState.fullData.forEach(function(entry) {
+      if (entry.model_type && !modelSet[entry.model_type]) {
+        modelSet[entry.model_type] = true;
+        modelOptions.push(entry.model_type);
+      }
+    });
+    modelOptions.sort();
+
+    var modelContainer = document.getElementById('filter-model-container');
+    if (modelContainer) {
+      modelContainer.innerHTML = '';
+      modelContainer.appendChild(createMultiSelect('filter-model', modelOptions, historyState.filterModel, function(selected) {
+        historyState.filterModel = selected;
+        historyState.filterVersion = [];
+        refreshHistoryV2();
+      }));
+    }
+
+    var versionOptions = [];
+    var versionSet = {};
+    historyState.fullData.forEach(function(entry) {
+      var v = String(entry.model_version);
+      if (historyState.filterModel.length > 0 && historyState.filterModel.indexOf(entry.model_type) === -1) return;
+      if (!versionSet[v]) {
+        versionSet[v] = true;
+        versionOptions.push(v);
+      }
+    });
+    versionOptions.sort(function(a, b) { return Number(a) - Number(b); });
+
+    var versionContainer = document.getElementById('filter-version-container');
+    if (versionContainer) {
+      versionContainer.innerHTML = '';
+      versionContainer.appendChild(createMultiSelect('filter-version', versionOptions, historyState.filterVersion, function(selected) {
+        historyState.filterVersion = selected;
+        refreshHistoryV2();
+      }));
+    }
+  }
+
   function wireHistoryHandlers() {
+    buildFilterDropdowns();
+
     var sortHeaders = document.querySelectorAll('#history-table .sortable');
     sortHeaders.forEach(function(th) {
       th.addEventListener('click', function() {
@@ -1008,29 +1089,6 @@ window.WeatherApp = (() => {
         refreshHistoryV2();
       });
     });
-
-    var filterDebounce = null;
-    function debouncedRefresh() {
-      clearTimeout(filterDebounce);
-      filterDebounce = setTimeout(refreshHistoryV2, 200);
-    }
-
-    var modelFilter = document.getElementById('filter-model');
-    if (modelFilter) {
-      modelFilter.addEventListener('input', function() {
-        historyState.filterModel = modelFilter.value;
-        historyState.filterVersion = '';
-        debouncedRefresh();
-      });
-    }
-
-    var versionFilter = document.getElementById('filter-version');
-    if (versionFilter) {
-      versionFilter.addEventListener('input', function() {
-        historyState.filterVersion = versionFilter.value;
-        debouncedRefresh();
-      });
-    }
 
     var dateStart = document.getElementById('filter-date-start');
     if (dateStart) {
