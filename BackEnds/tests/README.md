@@ -224,6 +224,20 @@ Verifies SQLite dual-write functionality in predict.py (4 tests):
 - JSON files are always written even when DB fails (primary source of truth)
 - Backwards-compatible `HHMMSS.json` files still created for 3hrRaw model type
 
+### `spec_bdd_workflow_test.py`
+
+**Plan:** `qa-bdd-test-workflow`
+
+BDD-style specs written by the `qa-bdd-backend` agent to verify existing SQLite prediction behavior (5 specs):
+
+- Predictions table exists in `weather.db`
+- Predictions table has all required columns (id, generated_at, model_type, model_version, for_hour, temp_indoor_predicted, temp_outdoor_predicted, last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor)
+- `predict.py` defines `PREDICTIONS_TABLE_SQL` constant at module level
+- `_write_prediction()` includes SQLite INSERT logic
+- Actual table schema matches `PREDICTIONS_TABLE_SQL` definition (verified via pragma and source inspection)
+
+This spec file uses the `spec_` prefix naming convention to distinguish BDD tests from traditional unit tests. All specs pass against the current implementation.
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -264,6 +278,7 @@ Manual verification report (not a pytest file). Documents that:
 | DB-first reads with JSON fallback (training) | `test_sqlite_train_errors.py` |
 | Dual-write predictions (JSON + SQLite) | `test_sqlite_predict.py` |
 | Dual-write prediction history (JSON + SQLite) | `test_sqlite_validate.py` |
+| BDD workflow verification | `spec_bdd_workflow_test.py` |
 
 ### Not Yet Covered
 
