@@ -21,6 +21,9 @@ from datetime import datetime, timedelta, timezone
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
+PUBLIC_STATIONS_DIR = os.path.join(DATA_DIR, "public-stations")
+VALIDATION_DIR = os.path.join(DATA_DIR, "validation")
+HISTORY_JSON = os.path.join(DATA_DIR, "prediction-history.json")
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 
 PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
@@ -336,39 +339,230 @@ def load_validated_history(history_path, hours):
     return None
 
 
-def generate_manifest(output_dir):
-    """Generate data-index.json listing all available readings and predictions."""
+def export_public_stations():
+    """Convert public station CSV files to JSON for frontend consumption."""
+    import csv as csv_mod
     date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-    hour_re = re.compile(r"^(\d{4,6})\.json$")
+    hour_re = re.compile(r"^(\d{6})\.csv$")
+    numeric_fields = ("temperature", "humidity", "pressure", "rain_60min",
+                      "rain_24h", "wind_strength", "wind_angle",
+                      "gust_strength", "gust_angle")
+    converted = 0
 
-    def scan_dir(base_dir):
-        index = {}
-        if not os.path.isdir(base_dir):
-            return index
-        for date_dir in sorted(os.listdir(base_dir), reverse=True):
-            full_path = os.path.join(base_dir, date_dir)
+    if not os.path.isdir(PUBLIC_STATIONS_DIR):
+        return converted
+
+    for date_dir in sorted(os.listdir(PUBLIC_STATIONS_DIR)):
+        full_date = os.path.join(PUBLIC_STATIONS_DIR, date_dir)
+        if not os.path.isdir(full_date) or not date_re.match(date_dir):
+            continue
+        for fname in sorted(os.listdir(full_date)):
+            m = hour_re.match(fname)
+            if not m:
+                continue
+            csv_path = os.path.join(full_date, fname)
+            json_path = os.path.join(full_date, m.group(1) + ".json")
+
+            # Skip if JSON exists and is newer than CSV
+            if os.path.exists(json_path):
+                if os.path.getmtime(json_path) > os.path.getmtime(csv_path):
+                    continue
+
+            stations = []
+            fetched_at = None
+            with open(csv_path, newline="") as f:
+                reader = csv_mod.DictReader(f)
+                for row in reader:
+                    try:
+                        station = {"station_id": row["station_id"],
+                                   "lat": float(row["lat"]),
+                                   "lon": float(row["lon"])}
+                        for field in numeric_fields:
+                            val = row.get(field, "")
+                            station[field] = float(val) if val != "" else None
+                        stations.append(station)
+                        if fetched_at is None:
+                            fetched_at = row.get("fetched_at")
+                    except (ValueError, KeyError) as e:
+                        print(f"  Warning: skipping malformed row in {csv_path}: {e}")
+                        continue
+
+            output = {
+                "fetched_at": fetched_at,
+                "station_count": len(stations),
+                "stations": stations,
+            }
+
+            # Write atomically
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=full_date, suffix=".json")
+            try:
+                with os.fdopen(tmp_fd, "w") as f:
+                    json.dump(output, f, indent=2)
+                    f.write("\n")
+                os.replace(tmp_path, json_path)
+                converted += 1
+            except Exception:
+                os.unlink(tmp_path)
+                raise
+
+    print(f"  Public stations: converted {converted} CSV file(s) to JSON")
+    return converted
+
+
+def export_validation_history():
+    """Split prediction-history.json into per-date validation files."""
+    data = read_json(HISTORY_JSON)
+    if not data:
+        return 0
+
+    os.makedirs(VALIDATION_DIR, exist_ok=True)
+
+    # Group entries by date
+    by_date = {}
+    for entry in data:
+        for_hour = entry.get("for_hour", "")
+        date_str = for_hour[:10] if len(for_hour) >= 10 else None
+        if not date_str:
+            continue
+        by_date.setdefault(date_str, []).append(entry)
+
+    written = 0
+    for date_str, entries in by_date.items():
+        # Sort entries by for_hour descending
+        entries.sort(key=lambda e: e.get("for_hour", ""), reverse=True)
+
+        # Collect unique model types
+        models = sorted(set(e.get("model_type", "unknown") for e in entries))
+
+        output = {
+            "date": date_str,
+            "entry_count": len(entries),
+            "models": models,
+            "entries": entries,
+        }
+
+        out_path = os.path.join(VALIDATION_DIR, f"{date_str}.json")
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            dir=VALIDATION_DIR, suffix=".json")
+        try:
+            with os.fdopen(tmp_fd, "w") as f:
+                json.dump(output, f, indent=2)
+                f.write("\n")
+            os.replace(tmp_path, out_path)
+            written += 1
+        except Exception:
+            os.unlink(tmp_path)
+            raise
+
+    print(f"  Validation: wrote {written} per-date file(s)")
+    return written
+
+
+def generate_manifest(output_dir):
+    """Generate data-index.json listing all available data categories."""
+    date_re = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    reading_re = re.compile(r"^(\d{4,6})\.json$")
+    pred_model_re = re.compile(r"^(\d{6})_([A-Za-z0-9]+)\.json$")
+    pred_legacy_re = re.compile(r"^(\d{4,6})\.json$")
+
+    # Readings — same as before
+    readings = {}
+    if os.path.isdir(DATA_DIR):
+        for date_dir in sorted(os.listdir(DATA_DIR), reverse=True):
+            full_path = os.path.join(DATA_DIR, date_dir)
             if not os.path.isdir(full_path) or not date_re.match(date_dir):
                 continue
             hours = []
             for f in sorted(os.listdir(full_path)):
-                m = hour_re.match(f)
+                m = reading_re.match(f)
                 if m:
                     hours.append(m.group(1))
             if hours:
-                index[date_dir] = hours
-        return index
+                readings[date_dir] = hours
+
+    # Predictions with model discovery
+    all_models = set()
+    pred_dates = {}
+    if os.path.isdir(PREDICTIONS_DIR):
+        for date_dir in sorted(os.listdir(PREDICTIONS_DIR), reverse=True):
+            full_path = os.path.join(PREDICTIONS_DIR, date_dir)
+            if not os.path.isdir(full_path) or not date_re.match(date_dir):
+                continue
+            hours_map = {}  # hour -> [model_types]
+            for f in sorted(os.listdir(full_path)):
+                # Try model format first: HHMMSS_modeltype.json
+                m = pred_model_re.match(f)
+                if m:
+                    hour = m.group(1)
+                    model = m.group(2)
+                    hours_map.setdefault(hour, []).append(model)
+                    all_models.add(model)
+                    continue
+                # Legacy format: HHMMSS.json
+                m = pred_legacy_re.match(f)
+                if m:
+                    hour = m.group(1)
+                    # Read model_type from file, default to "simple"
+                    try:
+                        fpath = os.path.join(full_path, f)
+                        d = read_json(fpath)
+                        model = d.get("model_type", "simple") if d else "simple"
+                    except Exception:
+                        model = "simple"
+                    hours_map.setdefault(hour, []).append(model)
+                    all_models.add(model)
+            # Deduplicate models per hour
+            for h in hours_map:
+                hours_map[h] = sorted(set(hours_map[h]))
+            if hours_map:
+                pred_dates[date_dir] = hours_map
+
+    predictions = {
+        "models": sorted(all_models),
+        "dates": pred_dates,
+    }
+
+    # Public stations
+    public_stations = {}
+    if os.path.isdir(PUBLIC_STATIONS_DIR):
+        station_hour_re = re.compile(r"^(\d{6})\.json$")
+        for date_dir in sorted(os.listdir(PUBLIC_STATIONS_DIR), reverse=True):
+            full_path = os.path.join(PUBLIC_STATIONS_DIR, date_dir)
+            if not os.path.isdir(full_path) or not date_re.match(date_dir):
+                continue
+            hours = []
+            for f in sorted(os.listdir(full_path)):
+                m = station_hour_re.match(f)
+                if m:
+                    hours.append(m.group(1))
+            if hours:
+                public_stations[date_dir] = hours
+
+    # Validation
+    validation = []
+    if os.path.isdir(VALIDATION_DIR):
+        val_re = re.compile(r"^(\d{4}-\d{2}-\d{2})\.json$")
+        for f in sorted(os.listdir(VALIDATION_DIR), reverse=True):
+            m = val_re.match(f)
+            if m:
+                validation.append(m.group(1))
 
     manifest = {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "readings": scan_dir(DATA_DIR),
-        "predictions": scan_dir(PREDICTIONS_DIR),
+        "readings": readings,
+        "predictions": predictions,
+        "public_stations": public_stations,
+        "validation": validation,
     }
 
     manifest_path = os.path.join(output_dir, "data-index.json")
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    print(f"  Manifest: {manifest_path} ({sum(len(v) for v in manifest['readings'].values())} readings, {sum(len(v) for v in manifest['predictions'].values())} predictions)")
+
+    total_pred = sum(len(h) for d in pred_dates.values() for h in d.values())
+    print(f"  Manifest: {manifest_path} ({sum(len(v) for v in readings.values())} readings, {total_pred} predictions, {sum(len(v) for v in public_stations.values())} station files, {len(validation)} validation dates)")
 
 
 def export(output_path, hours, history_path=None):
@@ -491,6 +685,10 @@ def export(output_path, hours, history_path=None):
         print(f"  Current: indoor {result['current']['readings']['temp_indoor']}°C, outdoor {result['current']['readings']['temp_outdoor']}°C")
     print(f"  Predictions: {len(result['predictions'])} model(s)")
     print(f"  History entries: {len(result['history'])}")
+
+    # Export supplementary data before generating manifest
+    export_public_stations()
+    export_validation_history()
 
     manifest_dir = os.path.dirname(os.path.abspath(output_path))
     generate_manifest(manifest_dir)
