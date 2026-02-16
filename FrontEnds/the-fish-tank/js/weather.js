@@ -779,7 +779,10 @@ window.WeatherApp = (() => {
       }
     }
 
-    renderHomeSummary(data);
+    var homeEl = document.getElementById('home');
+    if (homeEl && homeEl.classList.contains('active')) {
+      renderHomeSummary(data);
+    }
   }
 
   function renderV1(data) {
@@ -1333,6 +1336,8 @@ window.WeatherApp = (() => {
   }
 
   function loadHomeSummary() {
+    var homeEl = document.getElementById('home');
+    if (!homeEl || !homeEl.classList.contains('active')) return;
     try {
       var cached = localStorage.getItem(CACHE_KEY);
       if (cached) {

@@ -126,6 +126,9 @@
             current = name;
             if (name === 'home') {
                 history.replaceState(null, '', location.pathname);
+                if (window.WeatherApp && window.WeatherApp.loadHomeSummary) {
+                    window.WeatherApp.loadHomeSummary();
+                }
             } else {
                 history.replaceState(null, '', '#' + name);
             }
