@@ -758,6 +758,14 @@ window.WeatherApp = (() => {
     if (!predictions || predictions.length === 0) {
       return '<p class="empty-state">No predictions available</p>';
     }
+    var now = new Date();
+    predictions = predictions.filter(function(pred) {
+      if (!pred.prediction_for) return true;
+      return new Date(pred.prediction_for) > now;
+    });
+    if (predictions.length === 0) {
+      return '<p class="empty-state">No current predictions</p>';
+    }
     var cards = predictions.map(function(pred) {
       var forTime = pred.prediction_for ? new Date(pred.prediction_for) : null;
       var timeStr = forTime ? formatTime(forTime) : 'Next hour';
