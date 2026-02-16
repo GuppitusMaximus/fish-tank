@@ -23,6 +23,8 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, train_test_split
 from sklearn.multioutput import MultiOutputRegressor
 
+from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, add_spatial_columns
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
@@ -77,6 +79,11 @@ FEATURE_COLS = [
 
 TARGET_COLS = ["temp_indoor", "temp_outdoor"]
 
+# Combined feature lists: base columns + spatial columns
+SIMPLE_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE
+FULL_ALL_COLS = FEATURE_COLS + SPATIAL_COLS_FULL
+RC_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE
+
 
 def load_readings():
     conn = sqlite3.connect(DB_PATH)
@@ -103,9 +110,11 @@ def engineer_features(df):
     return df
 
 
-def build_windows(df):
+def build_windows(df, feature_cols=None):
+    if feature_cols is None:
+        feature_cols = FEATURE_COLS
     timestamps = df["timestamp"].values
-    features_matrix = df[FEATURE_COLS].values
+    features_matrix = df[feature_cols].values
 
     X, y = [], []
 
@@ -129,10 +138,12 @@ def build_windows(df):
     return np.array(X), np.array(y)
 
 
-def build_simple_windows(df):
+def build_simple_windows(df, feature_cols=None):
     """Build sliding windows for the simple 3-hour model."""
+    if feature_cols is None:
+        feature_cols = SIMPLE_FEATURE_COLS
     timestamps = df["timestamp"].values
-    features_matrix = df[SIMPLE_FEATURE_COLS].values
+    features_matrix = df[feature_cols].values
 
     X, y = [], []
 
@@ -226,10 +237,12 @@ def load_prediction_errors(history_path):
     return errors
 
 
-def build_6hr_rc_windows(df, error_lookup):
+def build_6hr_rc_windows(df, error_lookup, feature_cols=None):
     """Build sliding windows for the 6hrRC model with error features."""
+    if feature_cols is None:
+        feature_cols = SIMPLE_FEATURE_COLS
     timestamps = df["timestamp"].values
-    features_matrix = df[SIMPLE_FEATURE_COLS].values
+    features_matrix = df[feature_cols].values
 
     X, y = [], []
 
@@ -300,7 +313,10 @@ def train():
     df["battery_percent"] = df["battery_percent"].fillna(100)
     df["rf_status"] = df["rf_status"].fillna(0)
 
-    X, y = build_windows(df)
+    # Add spatial features from public stations
+    df = add_spatial_columns(DB_PATH, df)
+
+    X, y = build_windows(df, FULL_ALL_COLS)
 
     print(f"Built {len(X)} sliding windows (lookback={LOOKBACK}h)")
 
@@ -381,7 +397,10 @@ def train_simple():
     df = load_readings()
     df = encode_trends(df)
 
-    X, y = build_simple_windows(df)
+    # Add spatial features from public stations
+    df = add_spatial_columns(DB_PATH, df)
+
+    X, y = build_simple_windows(df, SIMPLE_ALL_COLS)
 
     print(f"Built {len(X)} simple sliding windows (lookback={SIMPLE_LOOKBACK}h)")
 
@@ -440,10 +459,13 @@ def train_6hr_rc():
     df = load_readings()
     df = encode_trends(df)
 
+    # Add spatial features from public stations
+    df = add_spatial_columns(DB_PATH, df)
+
     error_lookup = load_prediction_errors(HISTORY_PATH)
     print(f"Loaded {len(error_lookup)} prediction error entries")
 
-    X, y = build_6hr_rc_windows(df, error_lookup)
+    X, y = build_6hr_rc_windows(df, error_lookup, RC_ALL_COLS)
 
     print(f"Built {len(X)} 6hrRC sliding windows (lookback={RC_LOOKBACK}h, features=68)")
 
