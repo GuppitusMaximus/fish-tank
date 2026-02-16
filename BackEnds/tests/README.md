@@ -179,6 +179,38 @@ Verifies git repo bloat reduction improvements (6 tests):
 - `git add` line uses `models/*.json` pattern (excludes binaries)
 - Workflow YAML is syntactically valid
 
+### `test_sqlite_export.py`
+
+**Plan:** `qa-sqlite-export`
+
+Verifies DB-first reads in `export_weather.py` with file-based fallback (10 tests):
+
+- `sqlite3` module imported and `DB_PATH` constant defined
+- Table SQL constants (`PREDICTIONS_TABLE_SQL`, `PREDICTION_HISTORY_TABLE_SQL`) exist
+- DB helper functions exist and are callable (`_find_predictions_for_hour_from_db`, `_load_validated_history_from_db`)
+- `_find_predictions_for_hour()` calls DB helper first before scanning files
+- `load_validated_history()` calls DB helper first before reading JSON
+- DB helpers return None gracefully when data doesn't exist
+- Export output format unchanged (schema_version 2, predictions array, history array)
+- DB prediction helper returns correct dict format with `model_type`, `model_version`, `generated_at`, and nested `prediction` object
+- DB history helper returns correct dict format with `delta_indoor` and `delta_outdoor` computed from raw values
+- Delta calculations are correct (actual - predicted, rounded to 1 decimal)
+
+### `test_sqlite_train_errors.py`
+
+**Plan:** `qa-sqlite-train-errors`
+
+Verifies SQLite error reads in train_model.py for 6hrRC model training (8 tests):
+
+- `PREDICTION_HISTORY_TABLE_SQL` schema constant exists with correct structure
+- `_load_prediction_errors_from_db()` helper function exists and queries prediction_history table
+- DB query filters to only `3hrRaw` and `simple` model types (not 6hrRC or 24hrRaw)
+- Returns dict mapping `for_hour -> (error_indoor, error_outdoor)` tuples
+- Returns `None` when DB doesn't exist, table is empty, or query fails
+- `load_prediction_errors()` tries DB first before falling back to JSON
+- DB data takes priority over JSON when available
+- JSON fallback works correctly when DB returns None
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -215,6 +247,7 @@ Manual verification report (not a pytest file). Documents that:
 | MAX_GAP setting & full model readiness | `test_full_model_training.py` |
 | Data retention & git repo bloat | `test_data_storage_quick_wins.py` |
 | .gitignore coverage for ML binaries | `test_data_storage_quick_wins.py` |
+| DB-first reads with JSON fallback (export) | `test_sqlite_export.py` |
 
 ### Not Yet Covered
 
