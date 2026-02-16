@@ -683,7 +683,58 @@ window.WeatherApp = (() => {
     startCountdown();
   }
 
+  var latestData = null;
+
+  function renderHomeSummary(data) {
+    var el = document.getElementById('home-weather');
+    if (!el) return;
+
+    var isV2 = data.schema_version && data.schema_version >= 2 &&
+      data.current && data.current.readings &&
+      typeof data.current.readings === 'object' &&
+      Array.isArray(data.predictions);
+
+    var pm = data.property_meta || null;
+    var btnLabel = use24h ? '24h' : '12h';
+    var unitLabel = currentUnit === 'K' ? 'K' : '\u00b0' + currentUnit;
+
+    var currentHtml, predictionsHtml;
+    if (isV2) {
+      currentHtml = renderCurrentV2(data.current, pm);
+      predictionsHtml = renderPredictionsV2(data.predictions, pm);
+    } else {
+      currentHtml = renderCurrent(data.current);
+      predictionsHtml = renderPrediction(data.next_prediction);
+    }
+
+    el.innerHTML =
+      '<div class="dash-controls">' +
+        '<button class="format-toggle home-time-toggle" title="Switch time format">' + btnLabel + '</button>' +
+        '<button class="format-toggle home-unit-toggle" title="Switch temperature unit">' + unitLabel + '</button>' +
+      '</div>' +
+      currentHtml +
+      (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>') +
+      '<div class="home-cta">' +
+        '<a href="#weather" class="cta-link">View full predictions, history & workflow \u2192</a>' +
+      '</div>';
+
+    el.querySelector('.home-time-toggle').addEventListener('click', function() {
+      use24h = !use24h;
+      localStorage.setItem('timeFormat', use24h ? '24h' : '12h');
+      renderHomeSummary(latestData);
+    });
+
+    el.querySelector('.home-unit-toggle').addEventListener('click', function() {
+      var idx = units.indexOf(currentUnit);
+      currentUnit = units[(idx + 1) % units.length];
+      localStorage.setItem('tempUnit', currentUnit);
+      renderHomeSummary(latestData);
+    });
+  }
+
   function render(data) {
+    latestData = data;
+
     var isV2 = false;
     if (data.schema_version && data.schema_version >= 2) {
       if (data.current && data.current.readings &&
@@ -706,6 +757,8 @@ window.WeatherApp = (() => {
           '<p>Error loading weather data. Please refresh.</p>';
       }
     }
+
+    renderHomeSummary(data);
   }
 
   function renderV1(data) {
@@ -1183,6 +1236,11 @@ window.WeatherApp = (() => {
       btn.addEventListener('click', function() {
         var target = btn.dataset.subtab;
         activeSubtab = target;
+        if (target === 'dashboard') {
+          history.replaceState(null, '', '#weather');
+        } else {
+          history.replaceState(null, '', '#weather/' + target);
+        }
         subnavBtns.forEach(function(b) { b.classList.toggle('active', b === btn); });
         document.getElementById('subtab-dashboard').style.display = target === 'dashboard' ? '' : 'none';
         document.getElementById('subtab-browse').style.display = target === 'browse' ? '' : 'none';
@@ -1219,6 +1277,14 @@ window.WeatherApp = (() => {
   var CACHE_TTL = 5 * 60 * 1000;
 
   function start() {
+    var hash = location.hash.replace('#', '');
+    if (hash.startsWith('weather/')) {
+      var sub = hash.split('/')[1];
+      if (['dashboard', 'browse', 'workflow'].indexOf(sub) !== -1) {
+        activeSubtab = sub;
+      }
+    }
+
     try {
       var cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
@@ -1257,7 +1323,6 @@ window.WeatherApp = (() => {
 
   function stop() {
     manifestLoaded = false;
-    activeSubtab = 'dashboard';
     browseState.selectedHour = null;
     browseState.currentData = null;
     workflowLoaded = false;
