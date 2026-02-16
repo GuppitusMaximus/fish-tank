@@ -1,0 +1,80 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1771217570,
+        "firmware": 300,
+        "wifi_status": 22,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1771217567,
+          "Temperature": 21.2,
+          "CO2": 506,
+          "Humidity": 29,
+          "Noise": 67,
+          "Pressure": 1017,
+          "AbsolutePressure": 990.7,
+          "temp_trend": "stable",
+          "pressure_trend": "down"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1771217565,
+            "last_seen": 1771217552,
+            "rf_status": 59,
+            "battery_vp": 6090,
+            "dashboard_data": {
+              "time_utc": 1771217552,
+              "Temperature": -6.9,
+              "Humidity": 60,
+              "temp_trend": "stable"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.037423133850097656,
+  "time_server": 1771218026
+}
