@@ -765,7 +765,7 @@ nav a.active {
     cursor: pointer;
     font-size: 13px;
     font-family: monospace;
-    min-width: 40px;
+    min-width: 72px;
     text-align: center;
 }
 
@@ -839,6 +839,74 @@ nav a.active {
     font-size: 13px;
     font-family: monospace;
 }
+
+/* --- Browse Category Bar --- */
+.browse-category-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.browse-cat-btn {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    padding: 8px 12px;
+}
+
+/* --- Model Filter Pills --- */
+.model-filter-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    overflow-x: auto;
+}
+
+.model-filter-pill {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+
+/* --- Validation Table --- */
+.validation-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.validation-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.08);
+}
+
+.validation-row:last-child {
+    border-bottom: none;
+}
+
+.validation-header {
+    font-size: 11px;
+    color: rgba(200, 220, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.15);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.validation-cell {
+    font-size: 13px;
+}
+
+/* --- Error Color Coding --- */
+.error-low { color: #50c878; }
+.error-medium { color: #f0c040; }
+.error-high { color: #e05080; }
 
 /* ========== Workflow Monitor ========== */
 .status-dot {
@@ -1186,6 +1254,12 @@ nav a.active {
     .temp-row { gap: 1rem; }
 
     /* --- Browse controls: bigger touch targets --- */
+    .browse-category-bar { gap: 4px; }
+    .browse-cat-btn {
+        padding: 8px 6px;
+        font-size: 12px;
+        min-height: 44px;
+    }
     .browse-controls select {
         padding: 10px 12px;
         font-size: 14px;
@@ -1197,11 +1271,17 @@ nav a.active {
         min-height: 44px;
     }
     .hour-btn {
-        min-width: 48px;
+        min-width: 64px;
         padding: 10px 8px;
         font-size: 13px;
         min-height: 44px;
     }
+    .validation-row {
+        grid-template-columns: 1.2fr 1fr 1fr 1fr;
+        gap: 4px;
+        font-size: 12px;
+    }
+    .validation-cell { font-size: 12px; }
 
     /* --- Prediction history table: hide Model column --- */
     #history-table th:nth-child(2),
