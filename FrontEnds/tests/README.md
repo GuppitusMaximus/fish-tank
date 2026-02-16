@@ -14,6 +14,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_v2_multi_model_dashboard.js` | Node.js script | Multi-model dashboard v2 schema detection, data-driven rendering, filtering, sorting, lazy loading (78 assertions) |
 | `verify-full-model-fixes.sh` | Shell script | Verifies full model fixes: no hardcoded prefixes, resolvePropertyKey exists, date filter defaults to 7 days |
 | `verify-expired-predictions-filter.sh` | Shell script | Verifies expired predictions are hidden from dashboard: renderPredictionsV2 time filter, history table unaffected |
+| `verify-multi-select-filters.js` | Node.js script | Verifies multi-select dropdown filters for model type and version: array-based state, createMultiSelect function, filter UI components, array filtering logic, version options update on model change, CSS styles (28 assertions) |
 
 ### Test Reports
 
@@ -48,6 +49,7 @@ Both scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1
 
 ```bash
 node tests/test_v2_multi_model_dashboard.js
+node tests/verify-multi-select-filters.js
 ```
 
 Prints test results to console and exits with code 0 (all pass) or 1 (any failure).
@@ -82,6 +84,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Fix: Filters disappearing on empty results** | \`qa-report-fix-filter-disappear.md\` |
 | **Full model property lookup and date filter fixes** | \`verify-full-model-fixes.sh\` + \`qa-full-model-frontend.md\` |
 | **Expired predictions hidden from dashboard** | \`verify-expired-predictions-filter.sh\` |
+| **Multi-select dropdown filters (model type and version)** | \`verify-multi-select-filters.js\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -137,5 +140,6 @@ The following v2 features were verified:
 | \`qa-fix-filter-disappear\` | Completed | \`qa-report-fix-filter-disappear.md\` | — |
 | \`qa-full-model-frontend\` | Completed | \`verify-full-model-fixes.sh\`, \`qa-full-model-frontend.md\` | None (all 10 tests pass) |
 | \`qa-fix-stale-predictions-frontend\` | Completed | \`verify-expired-predictions-filter.sh\` | None (all tests pass) |
+| \`qa-multi-select-history-filters\` | Completed | \`verify-multi-select-filters.js\` | None (all 28 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
