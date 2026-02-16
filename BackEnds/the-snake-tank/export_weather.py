@@ -292,47 +292,48 @@ def _load_validated_history_from_db(hours):
 
 def load_validated_history(history_path, hours):
     """Load prediction history from validated prediction-history.json."""
-    # Try DB first
+    # Try JSON file first (committed, persistent source of truth)
+    data = read_json(history_path)
+    if data:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        history = []
+        for entry in data:
+            for_hour_str = entry.get("for_hour")
+            if not for_hour_str:
+                continue
+            try:
+                for_hour_dt = datetime.strptime(for_hour_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if for_hour_dt < cutoff:
+                continue
+
+            record = {
+                "date": for_hour_dt.strftime("%Y-%m-%d"),
+                "hour": for_hour_dt.hour,
+                "actual_indoor": entry["actual"]["temp_indoor"],
+                "actual_outdoor": entry["actual"]["temp_outdoor"],
+                "predicted_indoor": entry["predicted"]["temp_indoor"],
+                "predicted_outdoor": entry["predicted"]["temp_outdoor"],
+                "delta_indoor": round(entry["actual"]["temp_indoor"] - entry["predicted"]["temp_indoor"], 1),
+                "delta_outdoor": round(entry["actual"]["temp_outdoor"] - entry["predicted"]["temp_outdoor"], 1),
+            }
+            if entry.get("model_version") is not None:
+                record["model_version"] = entry["model_version"]
+            if entry.get("model_type") is not None:
+                record["model_type"] = entry["model_type"]
+            record["timestamp"] = for_hour_str
+            history.append(record)
+
+        if history:
+            return history
+
+    # Fall back to DB (local development when JSON not available)
     db_history = _load_validated_history_from_db(hours)
     if db_history:
         return db_history
 
-    # Fall back to JSON file
-    data = read_json(history_path)
-    if not data:
-        return None
-
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-    history = []
-    for entry in data:
-        for_hour_str = entry.get("for_hour")
-        if not for_hour_str:
-            continue
-        try:
-            for_hour_dt = datetime.strptime(for_hour_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-        except ValueError:
-            continue
-        if for_hour_dt < cutoff:
-            continue
-
-        record = {
-            "date": for_hour_dt.strftime("%Y-%m-%d"),
-            "hour": for_hour_dt.hour,
-            "actual_indoor": entry["actual"]["temp_indoor"],
-            "actual_outdoor": entry["actual"]["temp_outdoor"],
-            "predicted_indoor": entry["predicted"]["temp_indoor"],
-            "predicted_outdoor": entry["predicted"]["temp_outdoor"],
-            "delta_indoor": round(entry["actual"]["temp_indoor"] - entry["predicted"]["temp_indoor"], 1),
-            "delta_outdoor": round(entry["actual"]["temp_outdoor"] - entry["predicted"]["temp_outdoor"], 1),
-        }
-        if entry.get("model_version") is not None:
-            record["model_version"] = entry["model_version"]
-        if entry.get("model_type") is not None:
-            record["model_type"] = entry["model_type"]
-        record["timestamp"] = for_hour_str
-        history.append(record)
-
-    return history
+    return None
 
 
 def generate_manifest(output_dir):
