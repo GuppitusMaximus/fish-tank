@@ -96,8 +96,8 @@ def test_cascade_stages():
 def test_model_type_field():
     content = read_readme()
     assert "model_type" in content, "README should mention model_type field"
-    assert '"full"' in content or "'full'" in content, "README should mention full model_type value"
-    assert '"simple"' in content or "'simple'" in content, "README should mention simple model_type value"
+    assert '"24hrRaw"' in content or "'24hrRaw'" in content, "README should mention 24hrRaw model_type value"
+    assert '"3hrRaw"' in content or "'3hrRaw'" in content, "README should mention 3hrRaw model_type value"
 
 
 # --- Test 6: Project structure updated ---
@@ -158,5 +158,6 @@ def test_simple_feature_names_match_code():
 def test_predict_model_type_values_match_code():
     with open(os.path.join(SNAKE_TANK_DIR, "predict.py")) as f:
         predict_code = f.read()
-    assert '"full"' in predict_code, "predict.py should reference 'full' model type"
-    assert '"simple"' in predict_code, "predict.py should reference 'simple' model type"
+    assert '"24hrRaw"' in predict_code, "predict.py should reference '24hrRaw' model type"
+    assert '"3hrRaw"' in predict_code, "predict.py should reference '3hrRaw' model type"
+    assert '"6hrRC"' in predict_code, "predict.py should reference '6hrRC' model type"

@@ -120,8 +120,8 @@ def test_predict_runs_without_error():
     # Should exit 0 even if full model doesn't exist yet
     assert result.returncode == 0, f"predict.py failed with exit code {result.returncode}\nStderr: {result.stderr}"
 
-    # Output should mention simple model
-    assert "simple" in result.stdout.lower(), "predict.py output should mention simple model"
+    # Output should mention 3hrRaw model
+    assert "3hrraw" in result.stdout.lower(), "predict.py output should mention 3hrRaw model"
 
 
 def test_simple_predictions_produced():
@@ -149,7 +149,7 @@ def test_simple_predictions_produced():
         pred = json.load(f)
 
     assert "model_type" in pred, "Prediction missing 'model_type'"
-    assert pred["model_type"] == "simple", f"Expected model_type='simple', got '{pred['model_type']}'"
+    assert pred["model_type"] == "3hrRaw", f"Expected model_type='3hrRaw', got '{pred['model_type']}'"
     assert "model_version" in pred, "Prediction missing 'model_version'"
     assert "prediction" in pred, "Prediction missing 'prediction' field"
     assert "temp_indoor" in pred["prediction"], "Prediction missing temp_indoor"
