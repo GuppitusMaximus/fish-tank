@@ -39,6 +39,21 @@ RC_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_6hr_rc.joblib")
 RC_META_PATH = os.path.join(MODEL_DIR, "6hr_rc_meta.json")
 HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
 
+PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    predicted_at TEXT NOT NULL,
+    for_hour TEXT NOT NULL,
+    model_type TEXT NOT NULL,
+    model_version INTEGER,
+    predicted_indoor REAL,
+    predicted_outdoor REAL,
+    actual_indoor REAL,
+    actual_outdoor REAL,
+    error_indoor REAL,
+    error_outdoor REAL,
+    UNIQUE(model_type, for_hour)
+)"""
+
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
     "humidity_outdoor", "noise", "pressure",
@@ -157,9 +172,40 @@ def read_simple_meta():
         return {"version": 0}
 
 
+def _load_prediction_errors_from_db():
+    """Try to load prediction errors from the DB prediction_history table.
+    Returns dict: hour_str -> (error_indoor, error_outdoor), or None if unavailable."""
+    if not os.path.exists(DB_PATH):
+        return None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT for_hour, error_indoor, error_outdoor
+               FROM prediction_history
+               WHERE model_type IN ('3hrRaw', 'simple')""").fetchall()
+        conn.close()
+
+        if not rows:
+            return None
+
+        errors = {}
+        for row in rows:
+            errors[row["for_hour"]] = (row["error_indoor"], row["error_outdoor"])
+        return errors
+    except Exception:
+        return None
+
+
 def load_prediction_errors(history_path):
     """Load prediction errors from history, filtered to 3hrRaw/simple model.
     Returns dict: hour_str -> (error_indoor, error_outdoor)"""
+    # Try DB first
+    db_errors = _load_prediction_errors_from_db()
+    if db_errors:
+        return db_errors
+
+    # Fall back to JSON file
     if not os.path.exists(history_path):
         return {}
     try:
