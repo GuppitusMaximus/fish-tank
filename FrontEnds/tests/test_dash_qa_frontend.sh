@@ -75,7 +75,7 @@ else
 fi
 
 # 2d: Dynamic IDs are created before being queried
-if grep -q 'id="time-format-toggle"' "$BASE/js/weather.js" && grep -q "getElementById('time-format-toggle')" "$BASE/js/weather.js"; then
+if grep -q 'id="time-format-toggle"' "$BASE/js/weather.js" && grep -q "#time-format-toggle" "$BASE/js/weather.js"; then
   echo "  PASS: time-format-toggle created and referenced consistently"
   PASS=$((PASS + 1))
 else
@@ -83,7 +83,7 @@ else
   FAIL=$((FAIL + 1))
 fi
 
-if grep -q 'id="unit-toggle"' "$BASE/js/weather.js" && grep -q "getElementById('unit-toggle')" "$BASE/js/weather.js"; then
+if grep -q 'id="unit-toggle"' "$BASE/js/weather.js" && grep -q "#unit-toggle" "$BASE/js/weather.js"; then
   echo "  PASS: unit-toggle created and referenced consistently"
   PASS=$((PASS + 1))
 else
