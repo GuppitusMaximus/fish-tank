@@ -8,6 +8,7 @@ Usage:
     python build_dataset.py
 """
 
+import csv
 import glob
 import json
 import os
@@ -48,6 +49,35 @@ CREATE TABLE IF NOT EXISTS readings (
     battery_vp             INTEGER
 );
 """
+
+PUBLIC_STATIONS_SCHEMA = """CREATE TABLE IF NOT EXISTS public_stations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fetched_at TEXT NOT NULL,
+    station_id TEXT NOT NULL,
+    lat REAL,
+    lon REAL,
+    temperature REAL,
+    humidity INTEGER,
+    pressure REAL,
+    rain_60min REAL,
+    rain_24h REAL,
+    wind_strength INTEGER,
+    wind_angle INTEGER,
+    gust_strength INTEGER,
+    gust_angle INTEGER
+)"""
+
+
+def _num(val):
+    if val is None or val == "":
+        return None
+    return float(val)
+
+
+def _int(val):
+    if val is None or val == "":
+        return None
+    return int(float(val))
 
 
 def parse_json_file(filepath):
@@ -171,6 +201,33 @@ def build_database():
             skipped += 1
 
     conn.commit()
+
+    # --- Rebuild public_stations table from CSVs ---
+    conn.execute("DROP TABLE IF EXISTS public_stations")
+    conn.execute(PUBLIC_STATIONS_SCHEMA)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_public_stations_time ON public_stations(fetched_at)")
+
+    public_csvs = sorted(glob.glob(os.path.join(DATA_DIR, "public-stations", "*", "*.csv")))
+    ps_count = 0
+    for csv_path in public_csvs:
+        with open(csv_path, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                conn.execute(
+                    """INSERT INTO public_stations
+                    (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
+                     rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (row["fetched_at"], row["station_id"],
+                     _num(row["lat"]), _num(row["lon"]),
+                     _num(row["temperature"]), _int(row["humidity"]), _num(row["pressure"]),
+                     _num(row["rain_60min"]), _num(row["rain_24h"]),
+                     _int(row["wind_strength"]), _int(row["wind_angle"]),
+                     _int(row["gust_strength"]), _int(row["gust_angle"])))
+                ps_count += 1
+    conn.commit()
+    print(f"Public stations: {ps_count} readings from {len(public_csvs)} files")
+
     conn.close()
 
     print(f"\nDone: {inserted} readings inserted, {skipped} skipped")

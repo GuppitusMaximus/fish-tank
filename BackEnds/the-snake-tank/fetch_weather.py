@@ -2,6 +2,7 @@
 """Fetch weather data from a Netatmo station and save the raw JSON response."""
 
 import argparse
+import csv
 import glob
 import json
 import os
@@ -10,7 +11,7 @@ import sys
 import urllib.request
 import urllib.error
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
@@ -125,6 +126,7 @@ def store_public_stations(data, db_path, fetched_at):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_public_stations_time ON public_stations(fetched_at)")
 
     count = 0
+    rows_written = []
     for station in data.get("body", []):
         station_id = station.get("_id", "unknown")
 
@@ -168,14 +170,41 @@ def store_public_stations(data, db_path, fetched_at):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (fetched_at, station_id, lat, lon, temp, humidity, pressure,
              rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
+        rows_written.append((fetched_at, station_id, lat, lon, temp, humidity, pressure,
+                             rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
         count += 1
 
     # Clean up data older than 30 days
     conn.execute("DELETE FROM public_stations WHERE fetched_at < datetime('now', '-30 days')")
 
+    # Also save as CSV for persistence across runs
+    if count > 0:
+        now_str = fetched_at
+        csv_dir = os.path.join(DATA_DIR, "public-stations", now_str[:10])
+        os.makedirs(csv_dir, exist_ok=True)
+        csv_path = os.path.join(csv_dir, now_str[11:19].replace(":", "") + ".csv")
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["fetched_at", "station_id", "lat", "lon", "temperature",
+                             "humidity", "pressure", "rain_60min", "rain_24h",
+                             "wind_strength", "wind_angle", "gust_strength", "gust_angle"])
+            for row in rows_written:
+                writer.writerow(row)
+
     conn.commit()
     conn.close()
     print(f"Stored {count} public station readings")
+
+    # Clean up CSV files older than 30 days
+    public_dir = os.path.join(DATA_DIR, "public-stations")
+    if os.path.isdir(public_dir):
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+        for dirname in os.listdir(public_dir):
+            if dirname < cutoff:
+                dir_path = os.path.join(public_dir, dirname)
+                if os.path.isdir(dir_path):
+                    import shutil
+                    shutil.rmtree(dir_path)
 
 
 def main():
