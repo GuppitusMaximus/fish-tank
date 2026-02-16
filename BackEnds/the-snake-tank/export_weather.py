@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import sqlite3
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,35 @@ from datetime import datetime, timedelta, timezone
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
+DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
+
+PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_at TEXT NOT NULL,
+    model_type TEXT NOT NULL,
+    model_version INTEGER,
+    for_hour TEXT NOT NULL,
+    temp_indoor_predicted REAL,
+    temp_outdoor_predicted REAL,
+    last_reading_ts INTEGER,
+    last_reading_temp_indoor REAL,
+    last_reading_temp_outdoor REAL
+)"""
+
+PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    predicted_at TEXT NOT NULL,
+    for_hour TEXT NOT NULL,
+    model_type TEXT NOT NULL,
+    model_version INTEGER,
+    predicted_indoor REAL,
+    predicted_outdoor REAL,
+    actual_indoor REAL,
+    actual_outdoor REAL,
+    error_indoor REAL,
+    error_outdoor REAL,
+    UNIQUE(model_type, for_hour)
+)"""
 
 PROPERTY_META = {
     "temp_indoor": {"label": "Indoor Temp", "unit": "°C", "format": "temperature"},
@@ -57,8 +87,57 @@ def _find_latest_for_hour(directory, hour):
     return read_json(path) if path else None
 
 
+def _find_predictions_for_hour_from_db(date_str, target_hour):
+    """Try to find predictions from DB for a given date and hour.
+    Returns list of prediction dicts, or None if unavailable."""
+    if not os.path.exists(DB_PATH):
+        return None
+    try:
+        # Build the hour pattern: predictions generated at this hour predict for hour+1
+        hour_prefix = f"{date_str}T{target_hour:02d}"
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT model_type, model_version, for_hour,
+                      temp_indoor_predicted, temp_outdoor_predicted,
+                      generated_at
+               FROM predictions
+               WHERE generated_at LIKE ?
+               GROUP BY model_type
+               HAVING MAX(generated_at)""",
+            (f"{hour_prefix}%",)).fetchall()
+        conn.close()
+
+        if not rows:
+            return None
+
+        results = []
+        for row in rows:
+            row = dict(row)
+            results.append({
+                "model_type": row["model_type"],
+                "model_version": row["model_version"],
+                "generated_at": row["generated_at"],
+                "prediction": {
+                    "prediction_for": row["for_hour"],
+                    "temp_indoor": row["temp_indoor_predicted"],
+                    "temp_outdoor": row["temp_outdoor_predicted"],
+                },
+            })
+        return results
+    except Exception:
+        return None
+
+
 def _find_predictions_for_hour(predictions_dir, date_str, target_hour):
     """Find all prediction files for a given hour, grouped by model type."""
+    # Try DB first
+    db_results = _find_predictions_for_hour_from_db(date_str, target_hour)
+    if db_results:
+        return db_results
+
+    # Fall back to file scanning
     day_dir = os.path.join(predictions_dir, date_str)
     if not os.path.isdir(day_dir):
         return []
@@ -163,8 +242,62 @@ def get_predictions_for_hour_all(date_str, hour):
         return read_predictions_all(date_str, hour - 1)
 
 
+def _load_validated_history_from_db(hours):
+    """Try to load prediction history from DB.
+    Returns list of history records, or None if unavailable."""
+    if not os.path.exists(DB_PATH):
+        return None
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT predicted_at, for_hour, model_type, model_version,
+                      predicted_indoor, predicted_outdoor,
+                      actual_indoor, actual_outdoor
+               FROM prediction_history
+               WHERE for_hour > ?
+               ORDER BY for_hour DESC""",
+            (cutoff,)).fetchall()
+        conn.close()
+
+        if not rows:
+            return None
+
+        history = []
+        for row in rows:
+            row = dict(row)
+            for_hour_dt = datetime.strptime(row["for_hour"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            record = {
+                "date": for_hour_dt.strftime("%Y-%m-%d"),
+                "hour": for_hour_dt.hour,
+                "actual_indoor": row["actual_indoor"],
+                "actual_outdoor": row["actual_outdoor"],
+                "predicted_indoor": row["predicted_indoor"],
+                "predicted_outdoor": row["predicted_outdoor"],
+                "delta_indoor": round(row["actual_indoor"] - row["predicted_indoor"], 1),
+                "delta_outdoor": round(row["actual_outdoor"] - row["predicted_outdoor"], 1),
+                "timestamp": row["for_hour"],
+            }
+            if row["model_version"] is not None:
+                record["model_version"] = row["model_version"]
+            if row["model_type"] is not None:
+                record["model_type"] = row["model_type"]
+            history.append(record)
+        return history
+    except Exception:
+        return None
+
+
 def load_validated_history(history_path, hours):
     """Load prediction history from validated prediction-history.json."""
+    # Try DB first
+    db_history = _load_validated_history_from_db(hours)
+    if db_history:
+        return db_history
+
+    # Fall back to JSON file
     data = read_json(history_path)
     if not data:
         return None
