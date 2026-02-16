@@ -98,6 +98,31 @@ All three themes match README descriptions and are applied via `document.body.cl
 - Scrollable tables with fade hints: verified (style.css:977-989)
 - `scrolled-end` class toggling in JS to hide fade: verified (weather.js:550-554, 586-590)
 
+## Step 6: Recent Feature Updates (2026-02-15)
+
+**Result: PASS**
+
+Re-verified README after recent implementation updates for multi-select filters, expired predictions, and auto-deploy trigger.
+
+### Multi-Select Filters
+- ✅ Multi-select dropdowns documented (README line 35)
+- ✅ Model type and version filters mentioned
+- ✅ No references to old single-select or text input filters
+- ✅ `createMultiSelect()` function verified (weather.js:95-159)
+
+### Expired Predictions
+- ✅ "Predictions older than 2 hours are automatically hidden" documented (README line 35)
+- ✅ Time filter logic verified in `renderPredictionsV2()` (weather.js:833-837)
+
+### Auto-Deploy Workflow Trigger
+- ✅ `workflow_run` trigger documented (README line 79)
+- ✅ "auto-deploys when the Netatmo weather workflow completes" documented
+
+### Model Types
+- ✅ All three model types documented: 3hrRaw, 24hrRaw, 6hrRC
+
+**Test File Created:** `tests/verify-readme-docs.sh` — 12 automated checks, all pass
+
 ## Summary
 
-All verification steps pass. The README accurately reflects the current state of the project with no stale references, no missing features, and no inaccurate descriptions.
+All verification steps pass. The README accurately reflects the current state of the project with no stale references, no missing features, and no inaccurate descriptions. Recent feature updates (multi-select filters, expired predictions filtering, auto-deploy trigger) are correctly documented.

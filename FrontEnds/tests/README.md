@@ -15,6 +15,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `verify-full-model-fixes.sh` | Shell script | Verifies full model fixes: no hardcoded prefixes, resolvePropertyKey exists, date filter defaults to 7 days |
 | `verify-expired-predictions-filter.sh` | Shell script | Verifies expired predictions are hidden from dashboard: renderPredictionsV2 time filter, history table unaffected |
 | `verify-multi-select-filters.js` | Node.js script | Verifies multi-select dropdown filters for model type and version: array-based state, createMultiSelect function, filter UI components, array filtering logic, version options update on model change, CSS styles (28 assertions) |
+| `verify-readme-docs.sh` | Shell script | Verifies README documentation accuracy: multi-select filters, expired predictions, auto-deploy workflow trigger, project structure, model types (12 checks) |
 
 ### Test Reports
 
@@ -41,9 +42,12 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 ```bash
 bash tests/test_dash_qa_frontend.sh
 bash tests/test_readme_update_frontend.sh
+bash tests/verify-readme-docs.sh
+bash tests/verify-full-model-fixes.sh
+bash tests/verify-expired-predictions-filter.sh
 ```
 
-Both scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
+All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
 
 **Node.js scripts** — run with \`node\`:
 
@@ -85,6 +89,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Full model property lookup and date filter fixes** | \`verify-full-model-fixes.sh\` + \`qa-full-model-frontend.md\` |
 | **Expired predictions hidden from dashboard** | \`verify-expired-predictions-filter.sh\` |
 | **Multi-select dropdown filters (model type and version)** | \`verify-multi-select-filters.js\` |
+| **README documentation accuracy** | \`verify-readme-docs.sh\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -141,5 +146,6 @@ The following v2 features were verified:
 | \`qa-full-model-frontend\` | Completed | \`verify-full-model-fixes.sh\`, \`qa-full-model-frontend.md\` | None (all 10 tests pass) |
 | \`qa-fix-stale-predictions-frontend\` | Completed | \`verify-expired-predictions-filter.sh\` | None (all tests pass) |
 | \`qa-multi-select-history-filters\` | Completed | \`verify-multi-select-filters.js\` | None (all 28 tests pass) |
+| \`qa-docs-frontend\` | Completed | \`verify-readme-docs.sh\` | None (all 12 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
