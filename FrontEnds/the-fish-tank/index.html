@@ -98,6 +98,12 @@
         function switchView(name) {
             if (current === name) return;
 
+            if (!current) {
+                Object.keys(views).forEach(function(k) {
+                    views[k].el.classList.remove('active');
+                });
+            }
+
             if (current) {
                 views[current].el.classList.remove('active');
                 if (views[current].app) views[current].app.stop();
@@ -163,7 +169,7 @@
         }
         switchView(initialView);
 
-        if (window.WeatherApp && window.WeatherApp.loadHomeSummary) {
+        if (initialView === 'home' && window.WeatherApp && window.WeatherApp.loadHomeSummary) {
             window.WeatherApp.loadHomeSummary();
         }
 
