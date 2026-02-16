@@ -196,6 +196,34 @@ Verifies DB-first reads in `export_weather.py` with file-based fallback (10 test
 - DB history helper returns correct dict format with `delta_indoor` and `delta_outdoor` computed from raw values
 - Delta calculations are correct (actual - predicted, rounded to 1 decimal)
 
+### `test_sqlite_validate.py`
+
+**Plan:** `qa-sqlite-validate`
+
+Verifies SQLite integration in validate_prediction.py for DB-first reads and dual-write validation history (7 tests):
+
+- `PREDICTION_HISTORY_TABLE_SQL` and `PREDICTIONS_TABLE_SQL` schema constants exist
+- `_find_best_predictions_from_db()` function exists and queries predictions table for 30-90 minute window
+- DB helper returns prediction data dicts matching JSON file format
+- `find_best_predictions()` tries DB first before falling back to file scanning
+- `validate()` handles both file paths (str) and prediction data dicts
+- Dual-write confirmed: both JSON file and prediction_history DB table receive validation results
+- `INSERT OR IGNORE` with UNIQUE(model_type, for_hour) prevents duplicate entries
+- `prediction_history` table exists with correct schema (11 columns including error_indoor, error_outdoor)
+
+### `test_sqlite_predict.py`
+
+**Plan:** `qa-sqlite-predict`
+
+Verifies SQLite dual-write functionality in predict.py (4 tests):
+
+- `PREDICTIONS_TABLE_SQL` constant exists with correct schema (10 columns: id, generated_at, model_type, model_version, for_hour, temp_indoor_predicted, temp_outdoor_predicted, last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor)
+- Predictions table can be queried in weather.db
+- `_write_prediction()` writes to both JSON files and SQLite database with matching data
+- DB write failures are caught and logged without crashing the prediction pipeline
+- JSON files are always written even when DB fails (primary source of truth)
+- Backwards-compatible `HHMMSS.json` files still created for 3hrRaw model type
+
 ## Test Reports
 
 ### `qa-remove-github-cron.md`
@@ -233,6 +261,9 @@ Manual verification report (not a pytest file). Documents that:
 | Data retention & git repo bloat | `test_data_storage_quick_wins.py` |
 | .gitignore coverage for ML binaries | `test_data_storage_quick_wins.py` |
 | DB-first reads with JSON fallback (export) | `test_sqlite_export.py` |
+| DB-first reads with JSON fallback (training) | `test_sqlite_train_errors.py` |
+| Dual-write predictions (JSON + SQLite) | `test_sqlite_predict.py` |
+| Dual-write prediction history (JSON + SQLite) | `test_sqlite_validate.py` |
 
 ### Not Yet Covered
 
