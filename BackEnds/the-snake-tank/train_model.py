@@ -41,7 +41,7 @@ SIMPLE_FEATURE_COLS = [
 ]
 
 LOOKBACK = 24  # hours of history
-MAX_GAP = 5400  # max seconds between consecutive readings (1.5h, allows for timing drift)
+MAX_GAP = 7200  # max seconds between consecutive readings (2h, tolerates single missed hours)
 
 TREND_MAP = {"down": -1, "stable": 0, "up": 1}
 
