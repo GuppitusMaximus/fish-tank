@@ -26,6 +26,8 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 
 | File | What It Documents |
 |------|-------------------|
+| `verify-switchview-initial-active-fix.md` | Verifies switchView() initial active class fix: clears hardcoded .active on first call, guards standalone loadHomeSummary, no regressions in home view or weather sub-tabs |
+
 | `qa-workflow-trigger-label.md` | Verifies \`workflow_dispatch\` displays as "Scheduled" (not "Manual") |
 | `qa-multi-model-dashboard-ui-report.md` | Initial QA report for v2 multi-model dashboard (found 2 bugs, now fixed) |
 | `qa-multi-model-dashboard-ui-final.md` | **Final QA report for v2 multi-model dashboard — all 15 tests passed, 78 assertions, 0 bugs** |
@@ -106,6 +108,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 | **Home weather summary loads on first visit** | \`test_home_weather_load.js\` |
 | **Format toolbar implementation** | \`test_format_toolbar.sh\` |
 | **Weather/home overlap fix (nav hidden, CTA overlap)** | \`qa-weather-home-overlap.js\` |
+| **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -165,5 +168,6 @@ The following v2 features were verified:
 | \`qa-fix-home-weather-load\` | Completed | \`test_home_weather_load.js\` | None (all 10 tests pass) |
 | \`qa-frontend-format-toolbar\` | Completed | \`test_format_toolbar.sh\`, updated \`test_dash_qa_frontend.sh\` | None (all 31 tests pass) |
 | \`qa-fix-weather-home-overlap\` | Completed | \`qa-weather-home-overlap.js\` | None (all 8 tests pass) |
+| \`qa-fix-switchview-initial-active\` | Completed | \`verify-switchview-initial-active-fix.md\` | None (all 5 verification steps pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
