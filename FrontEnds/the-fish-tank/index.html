@@ -12,6 +12,7 @@
         <h1 id="page-title">The Fish Tank</h1>
         <nav>
             <a data-view="home">Home</a>
+            <a data-view="weather">Potter Weather Predictions</a>
             <div class="nav-dropdown">
                 <a class="nav-dropdown-toggle">Fish Games</a>
                 <div class="nav-dropdown-menu">
@@ -20,10 +21,10 @@
                     <a data-view="fighter">Fighter Fish</a>
                 </div>
             </div>
-            <a data-view="weather">Potter Weather Predictions</a>
         </nav>
     </header>
     <main id="home" class="active">
+        <div id="home-weather" class="home-weather-summary"></div>
     </main>
     <div id="weather">
     </div>
@@ -123,6 +124,11 @@
             if (menu) menu.classList.remove('open');
 
             current = name;
+            if (name === 'home') {
+                history.replaceState(null, '', location.pathname);
+            } else {
+                history.replaceState(null, '', '#' + name);
+            }
         }
 
         document.addEventListener('click', (e) => {
@@ -145,7 +151,25 @@
             }
         });
 
-        switchView('home');
+        var initialView = 'home';
+        var hash = location.hash.replace('#', '');
+        if (hash && views[hash]) {
+            initialView = hash;
+        } else if (hash.startsWith('weather/')) {
+            initialView = 'weather';
+        }
+        switchView(initialView);
+
+        window.addEventListener('hashchange', function() {
+            var hash = location.hash.replace('#', '');
+            if (hash && views[hash]) {
+                switchView(hash);
+            } else if (hash.startsWith('weather/')) {
+                switchView('weather');
+            } else if (!hash) {
+                switchView('home');
+            }
+        });
     })();
     </script>
 </body>

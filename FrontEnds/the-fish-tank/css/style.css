@@ -1069,6 +1069,41 @@ nav a.active {
     opacity: 0.9;
 }
 
+/* ========== Home Weather Summary ========== */
+#home.active {
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    max-height: calc(100vh - 4rem);
+    -webkit-overflow-scrolling: touch;
+}
+
+.home-weather-summary {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.home-cta {
+    text-align: center;
+    margin: 1.5rem 0;
+}
+
+.cta-link {
+    color: var(--accent, #4fc3f7);
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--accent, #4fc3f7);
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.cta-link:hover {
+    background: var(--accent, #4fc3f7);
+    color: #1a1a2e;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
     /* --- Existing rules (keep as-is) --- */
