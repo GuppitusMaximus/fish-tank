@@ -343,6 +343,7 @@ Manual verification report (not a pytest file). Documents that:
 | Spatial features from public stations | `test_public_station_spatial_features.py` |
 | Feature dimension consistency (training vs prediction) | `test_public_station_spatial_features.py` |
 | Graceful fallback when no public data exists | `test_public_station_spatial_features.py` |
+| Public station CSV persistence and rebuild | `test_public_station_csv.py` |
 
 ### `test_public_station_fetch.py`
 
@@ -382,6 +383,24 @@ Verifies spatial features from public stations are correctly integrated into ML 
 - `train_model.py` imports spatial feature constants and function
 - `train_model.py` defines combined column lists matching predict.py
 - Column lists match exactly between train_model.py and predict.py (critical for model/prediction consistency)
+
+### `test_public_station_csv.py`
+
+**Plan:** `qa-public-station-csv`
+
+Verifies CSV dual-write and rebuild functionality for public station data (4 tests):
+
+- CSV file format: correct header with 13 data columns (fetched_at, station_id, lat, lon, temperature, humidity, pressure, rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
+- CSV files written to `data/public-stations/{date}/{time}.csv` during fetch
+- Database schema: `public_stations` table has 14 columns (including auto-increment id) with index on `fetched_at`
+- `build_dataset.py` rebuilds `public_stations` table from CSV files with correct type conversion (floats for lat/lon/temp/pressure/rain, ints for humidity/wind/gust)
+- Type conversion helper functions (`_num`, `_int`) handle None and empty string values correctly
+- CSV cleanup: directories older than 30 days are deleted
+- CSVs are the source of truth for cross-run persistence (not just ephemeral DB)
+
+**Known limitations:**
+- Tests will skip CSV format verification until workflow runs and generates CSV files
+- CSV cleanup (30-day retention) is verified via code inspection, not runtime testing
 
 ### Not Yet Covered
 
