@@ -364,6 +364,12 @@ Manual verification report (not a pytest file). Documents that:
 | Zero regression on existing models | `test_gb_no_regression.py` |
 | Hourly deduplication removal | `test_dedup_removed.py`, `test_readings_count.py` |
 | Data integrity after dedup removal | `test_readings_count.py`, `test_models_after_dedup.py` |
+| R2 upload function (boto3, env vars, content type) | `test_r2_upload.py` |
+| weather-public.json generation (schema, atomic write, no sensitive data) | `test_weather_public.py` |
+| R2 upload call ordering in export() | `test_r2_integration.py` |
+| requirements.txt completeness | `test_requirements.sh` |
+| Workflow R2 secrets and pip install | `test_workflow_r2.sh` |
+| Cloudflare Worker structure (auth, data, JWT, PBKDF2, CORS, bindings) | `test_worker_review.sh` |
 
 ### `test_public_station_fetch.py`
 
@@ -570,6 +576,74 @@ Verifies that existing ML models are unaffected by dedup removal (3 tests):
 - `SIMPLE_FEATURE_COLS` unchanged: 9 features for 3hrRaw model
 - `MAX_GAP = 7200` unchanged: 2-hour contiguity check (allows 20-min intervals)
 
+### `test_r2_upload.py`
+
+**Plan:** `qa-website-auth-backend`
+
+Static analysis tests for the `upload_to_r2()` function in `export_weather.py` (7 tests):
+
+- Function defined with correct `(file_path, object_key)` signature
+- Imports and calls `boto3.client('s3', ...)`
+- Reads all four R2 env vars (`R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`)
+- Has an early return (bare `return`) guarded by env var check — skips upload when not configured
+- Has `try/except` around the upload call
+- Sets `ContentType: application/json` for `.json` files
+- Sets `ContentType: application/gzip` for non-json files
+
+### `test_weather_public.py`
+
+**Plan:** `qa-website-auth-backend`
+
+Static analysis tests for `weather-public.json` generation in `export()` (4 tests):
+
+- `export()` writes `weather-public.json` to the same directory as `weather.json`
+- `public_data` dict contains exactly the keys `schema_version`, `generated_at`, and `current`
+- Sensitive keys (`predictions`, `history`, `next_prediction`, `feature_rankings`) are NOT in `public_data`
+- `weather-public.json` uses atomic write (`tempfile.mkstemp()` + `os.replace()`)
+
+### `test_r2_integration.py`
+
+**Plan:** `qa-website-auth-backend`
+
+AST-level tests verifying R2 upload calls in the `export()` function (3 tests):
+
+- `export()` calls `upload_to_r2` with `'weather.json'` as the object key
+- `export()` calls `upload_to_r2` with `'frontend.db.gz'` as the object key
+- R2 upload calls appear AFTER the local file writes (not before)
+
+### `test_requirements.sh`
+
+**Plan:** `qa-website-auth-backend`
+
+Shell script verifying `requirements.txt` includes `boto3`.
+
+### `test_workflow_r2.sh`
+
+**Plan:** `qa-website-auth-backend`
+
+Shell script verifying the `netatmo.yml` workflow has proper R2 configuration (10 checks):
+
+- All four R2 secret names referenced (`R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`)
+- `boto3` included in pip install step
+- `FrontEnds/the-fish-tank/data/` in git add (covers `weather-public.json`)
+- All R2 credentials assigned via `${{ secrets.* }}` syntax (no hardcoded values)
+
+Note: The git add lockdown (excluding `weather.json` and `frontend.db.gz` from commits) is deferred to a separate lockdown plan. This test verifies the current intentional transitional state.
+
+### `test_worker_review.sh`
+
+**Plan:** `qa-website-auth-backend`
+
+Shell script verifying the Cloudflare Worker (`Planning/cloudflare-auth/src/index.js`) structure (13 checks):
+
+- Auth endpoints: `/auth/login`, `/auth/logout`, `/auth/check`
+- Data endpoints: `/data/weather`, `/data/database`
+- JWT validation: `verifyRequestJWT` called, `Authorization` header checked
+- PBKDF2 password verification via Web Crypto API
+- CORS headers: `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`
+- R2 binding: `DATA_BUCKET` referenced
+- KV binding: `AUTH_KV` referenced
+
 ### Not Yet Covered
 
 - `export_workflow.py` — interval logic, cron string generation, workflow status output
@@ -577,3 +651,4 @@ Verifies that existing ML models are unaffected by dedup removal (3 tests):
 - Database schema and data integrity
 - API authentication / Netatmo token refresh
 - Performance and timing (prediction latency, export duration)
+- Git add lockdown (excluding `weather.json`/`frontend.db.gz` from commits) — deferred to lockdown plan
