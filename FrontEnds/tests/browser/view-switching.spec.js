@@ -14,14 +14,14 @@ test.describe('Home page', () => {
     await expect(weatherSummary).toBeVisible();
   });
 
-  test('home page has the "View full predictions" CTA', async ({ page }) => {
+  test('home page does NOT have "View full predictions" CTA (removed)', async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('#home.active', { timeout: 10000 });
 
-    // Wait for weather data to load and render the CTA
+    // Wait for weather data to load — CTA was removed in remove-predictions-cta plan
+    await page.waitForTimeout(3000);
     const cta = page.locator('.cta-link');
-    await expect(cta).toBeVisible({ timeout: 15000 });
-    await expect(cta).toHaveAttribute('href', '#weather');
+    await expect(cta).not.toBeVisible();
   });
 
   test('weather summary cards are rendered on home', async ({ page }) => {
