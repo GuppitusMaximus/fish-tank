@@ -21,6 +21,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_home_weather_load.js` | Node.js script | Verifies home weather summary loads on first visit without requiring weather tab visit: loadHomeSummary function exists, fetches from cache/RAW_URL, page load trigger, CTA text (10 assertions) |
 | `test_format_toolbar.sh` | Shell script | Verifies format toolbar implementation: toolbar HTML structure, CSS styles, event handlers, localStorage persistence, old controls removed (31 assertions) |
 | `qa-weather-home-overlap.js` | Node.js script | Verifies weather/home overlap fix: renderHomeSummary guarded by active class check, loadHomeSummary early return, home summary rendering intact, switchView integration (8 assertions) |
+| `test_no_predictions_cta.sh` | Shell script | Verifies "View full predictions" CTA is fully removed: no home-cta or cta-link in weather.js or style.css, renderHomeSummary still exists (6 checks) |
 
 ### Static Code Analysis Reports
 
@@ -74,6 +75,7 @@ bash tests/verify-readme-docs.sh
 bash tests/verify-full-model-fixes.sh
 bash tests/verify-expired-predictions-filter.sh
 bash tests/test_format_toolbar.sh
+bash tests/test_no_predictions_cta.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -145,6 +147,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Home weather summary loads on first visit** | \`test_home_weather_load.js\` |
 | **Format toolbar implementation** | \`test_format_toolbar.sh\` |
 | **Weather/home overlap fix (nav hidden, CTA overlap)** | \`qa-weather-home-overlap.js\` |
+| **"View full predictions" CTA removed** | \`test_no_predictions_cta.sh\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
 | **Browse Data UI rework (4 categories, model auto-discovery)** | \`qa-browse-data-frontend-static.md\`, \`browser/browse-data.spec.js\` (23 Playwright tests) |
@@ -217,6 +220,7 @@ The following v2 features were verified:
 | \`qa-browser-sqlite-browse-frontend\` | Completed | \`browser/sqlite-browse.spec.js\` (10 Playwright tests, 2 baseline screenshots) | None (all 10 tests pass) |
 | \`qa-sqlite-browse-frontend\` | Completed | \`browser/sqlite-database.spec.js\` (20 Playwright tests), \`browser/sqlite-fallback.spec.js\` (10 Playwright tests), \`tests/test_sqlite_browse.js\` (static tests) | None (24/27 browser tests pass, 3 minor timing issues) |
 | \`qa-24hr-pubra-rc3-gb-frontend\` | Completed | \`browser/feature-rankings-nav.spec.js\` (6 tests), \`browser/feature-rankings-display.spec.js\` (8 tests), \`browser/average-deltas.spec.js\` (6 tests), \`browser/feature-rankings-mobile.spec.js\` (7 tests), \`qa-24hr-pubra-rc3-gb-frontend.md\` (QA report) — 5 baseline screenshots | None (16/27 tests pass, 11 skip awaiting backend data — all executable tests pass) |
+| \`qa-remove-predictions-cta\` | Completed | \`test_no_predictions_cta.sh\` (6 checks), updated \`qa-weather-home-overlap.js\`, \`test_home_weather_load.js\`, \`browser/view-switching.spec.js\` to reflect CTA removal | None (all 6 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
