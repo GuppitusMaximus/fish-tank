@@ -275,7 +275,7 @@ This spec file uses the `spec_` prefix naming convention to distinguish BDD test
 Documentation accuracy verification for `the-snake-tank/README.md` (10 tests):
 
 - README exists and is valid markdown (no unclosed code blocks)
-- 6hrRC model documented with correct 68-dimensional feature vector breakdown (54 base + 12 error lags + 2 averages)
+- 6hrRC model documented with 72-dimensional base feature vector + 12 error lags + 2 averages
 - Model type names use current naming (3hrRaw, 24hrRaw, 6hrRC) in model references
 - SQLite dual-write documented (predictions + prediction_history tables, weather.db)
 - Data retention cleanup documented (48h predictions, 7d raw readings)
@@ -283,6 +283,24 @@ Documentation accuracy verification for `the-snake-tank/README.md` (10 tests):
 - Project structure listing matches actual files in `the-snake-tank/`
 - SQLite tables exist in `weather.db` matching documented schema
 - Model metadata JSON files documented and valid (version field present)
+
+### `test_docs_backend_new_features.py`
+
+**Plan:** `qa-docs-backend`
+
+Verification of new README content added by the `docs-backend` plan (11 tests):
+
+- `public_features.py` mentioned as spatial feature engineering module
+- `data/public-stations/` directory in project structure with CSV format noted
+- All 4 bounding box env vars documented (NETATMO_PUBLIC_LAT_NE/LON_NE/LAT_SW/LON_SW)
+- `public_stations` table mentioned for SQLite storage
+- `data/public-stations/` directory exists with dated subdirectories
+- `24hr_pubRA_RC3_GB` model documented with LightGBM, 336-reading minimum
+- Cloudflare R2 upload documented with all 4 R2 env vars
+- `weather-public.json` described as public-safe export
+- `frontend.db.gz` export mentioned
+- `data-index.json` manifest mentioned
+- Auth lockdown section describes protected vs public files
 
 ## Test Reports
 
@@ -326,7 +344,7 @@ Manual verification report (not a pytest file). Documents that:
 | File discovery (old & new formats) | `test_multi_model_code.py` |
 | Atomic writes | `test_multi_model_code.py` |
 | Export output format & backwards compat | `test_model_versioning.py`, `test_prediction_fallback.py`, `test_wire_prediction_validation.py`, `test_multi_model_export.py` |
-| README accuracy | `test_readme_accuracy.py`, `test_docs_backend_readme.py` |
+| README accuracy | `test_readme_accuracy.py`, `test_docs_backend_readme.py`, `test_docs_backend_new_features.py` |
 | Workflow configuration | `test_wire_prediction_validation.py`, `test_pages_workflow.py`, `test_data_storage_quick_wins.py`, `qa-remove-github-cron.md` |
 | Pages auto-deploy trigger | `test_pages_workflow.py` |
 | MAX_GAP setting & full model readiness | `test_full_model_training.py` |
