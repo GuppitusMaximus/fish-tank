@@ -29,6 +29,9 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_auth_module.js` | Node.js script | Inspects auth.js for SESSION_MAX_MS constant, token key, signIn fetch call, JWT parsing, authHeaders, content gating toggles, and sign-out cleanup (10 assertions) |
 | `test_data_fetching.js` | Node.js script | Verifies weather.js uses weather-public.json for home, Worker endpoints for dashboard/database, auth headers, no RAW_URL/DB_URL fallbacks, isAuthenticated check, 401 handling (8 assertions) |
 | `test_signout.js` | Node.js script | Verifies auth.js sign-out removes cached data (localStorage + IndexedDB), clears token, redirects from gated views, hides gated content (5 assertions) |
+| `test_lockdown_git.sh` | Shell script | Verifies protected data files are removed from git tracking: weather.json, frontend.db.gz, data-index.json untracked; weather-public.json tracked or not yet created (4 checks) |
+| `test_lockdown_gitignore.sh` | Shell script | Verifies .gitignore correctly ignores protected data files: weather.json, frontend.db.gz, data-index.json ignored; weather-public.json NOT ignored (4 checks) |
+| `test_lockdown_access.sh` | Shell script | Verifies protected data is not publicly accessible via GitHub raw URL (weather.json returns 404); weather-public.json local structure check (2 checks) |
 
 ### Static Code Analysis Reports
 
@@ -90,6 +93,9 @@ bash tests/test_auth_setup.sh
 bash tests/test_content_gating.sh
 bash tests/test_signin_modal.sh
 bash tests/test_auth_animations.sh
+bash tests/test_lockdown_git.sh
+bash tests/test_lockdown_gitignore.sh
+bash tests/test_lockdown_access.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
