@@ -1,0 +1,88 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1771342337,
+        "firmware": 300,
+        "wifi_status": 42,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1771342335,
+          "Temperature": 19.9,
+          "CO2": 530,
+          "Humidity": 32,
+          "Noise": 56,
+          "Pressure": 1015.5,
+          "AbsolutePressure": 989.2,
+          "min_temp": 19.6,
+          "max_temp": 21,
+          "date_max_temp": 1771304488,
+          "date_min_temp": 1771327501,
+          "temp_trend": "stable",
+          "pressure_trend": "stable"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1771342332,
+            "last_seen": 1771342294,
+            "rf_status": 62,
+            "battery_vp": 6070,
+            "dashboard_data": {
+              "time_utc": 1771342294,
+              "Temperature": 0.4,
+              "Humidity": 77,
+              "min_temp": -0.1,
+              "max_temp": 0.8,
+              "date_max_temp": 1771307480,
+              "date_min_temp": 1771314145,
+              "temp_trend": "stable"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.052288055419921875,
+  "time_server": 1771342819
+}
