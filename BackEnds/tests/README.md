@@ -362,6 +362,8 @@ Manual verification report (not a pytest file). Documents that:
 | GB model prediction pipeline | `test_gb_predict.py` |
 | Feature rankings export to weather.json | `test_gb_export.py` |
 | Zero regression on existing models | `test_gb_no_regression.py` |
+| Hourly deduplication removal | `test_dedup_removed.py`, `test_readings_count.py` |
+| Data integrity after dedup removal | `test_readings_count.py`, `test_models_after_dedup.py` |
 
 ### `test_public_station_fetch.py`
 
@@ -537,6 +539,36 @@ Verifies zero impact on existing models from GB model addition (5 tests):
 - SPATIAL_COLS_FULL unchanged with exactly 6 items
 - SPATIAL_COLS_SIMPLE unchanged with exactly 3 items
 - Combined column lists (FULL_ALL_COLS, SIMPLE_ALL_COLS) unchanged with correct feature counts (28 and 12 respectively)
+
+### `test_dedup_removed.py`
+
+**Plan:** `qa-remove-hourly-dedup`
+
+Verifies that hourly deduplication was removed from build_dataset.py (1 test):
+
+- Dedup code removed: no `hour_prefix` or `seen = {}` pattern exists in `build_database()` source
+- Direct flow: `json_files` goes directly from glob to the "not found" check with no filtering in between
+
+### `test_readings_count.py`
+
+**Plan:** `qa-remove-hourly-dedup`
+
+Verifies that removing hourly dedup increased readings count and preserved data integrity (3 tests):
+
+- Readings count increased: >100 readings stored (up from 59 with hourly dedup)
+- No duplicate timestamps: `COUNT(*) = COUNT(DISTINCT timestamp)` (timestamp is primary key)
+- Reasonable date range: first and last timestamps span expected range
+
+### `test_models_after_dedup.py`
+
+**Plan:** `qa-remove-hourly-dedup`
+
+Verifies that existing ML models are unaffected by dedup removal (3 tests):
+
+- `train_model` imports successfully without errors
+- `FEATURE_COLS` unchanged: 22 features for 24hrRaw model
+- `SIMPLE_FEATURE_COLS` unchanged: 9 features for 3hrRaw model
+- `MAX_GAP = 7200` unchanged: 2-hour contiguity check (allows 20-min intervals)
 
 ### Not Yet Covered
 
