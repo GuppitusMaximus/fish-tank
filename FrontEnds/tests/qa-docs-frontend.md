@@ -1,128 +1,129 @@
 # QA Report: Frontend Documentation Update
 
 Plan: `docs-frontend`
-Date: 2026-02-15
+Date: 2026-02-17
 Status: **PASS**
 
-## Step 1: Project Structure Accuracy
+## Step 1: README Exists
 
 **Result: PASS**
 
-All files listed in the README project structure exist on disk. All significant files in `the-fish-tank/` are listed. The only unlisted file is `data/.gitkeep`, which is conventionally omitted from documentation.
+`the-fish-tank/README.md` exists (7861 bytes, last modified 2026-02-17).
 
-| README Entry | Exists |
-|---|---|
-| `index.html` | Yes |
-| `CNAME` | Yes |
-| `favicon.png` | Yes |
-| `css/style.css` | Yes |
-| `data/weather.json` | Yes |
-| `data/workflow.json` | Yes |
-| `data/data-index.json` | Yes |
-| `js/tank.js` | Yes |
-| `js/battle.js` | Yes |
-| `js/fighter.js` | Yes |
-| `js/weather.js` | Yes |
-
-File size claim "~28KB" for weather.js: actual size is 28,465 bytes — accurate.
-
-## Step 2: Feature Description Accuracy
+## Step 2: Authentication Documentation
 
 **Result: PASS**
 
-### Dashboard sub-tab
-- Current indoor/outdoor temperature readings: verified in `renderCurrent()` (weather.js:69)
-- Next-hour ML forecast with model version: verified in `renderPrediction()` (weather.js:84)
-- Prediction history table with color-coded deltas (green <1°, yellow 1-2°, pink >2°): verified in `renderHistory()` (weather.js:100) and `deltaClass()` (weather.js:4)
+README correctly documents:
+- Cloudflare Workers authentication (README line 31)
+- Sign-in modal with username/password, JWT stored in localStorage, 7-day sessions (line 33)
+- Content gating via `.auth-gated` / `.auth-hidden` classes toggled by `auth.js` (line 34)
+- `auth.js`, `auth-config.js`, `css/auth.css` all mentioned (lines 38, 78-79, 71)
+- Public home summary via `data/weather-public.json` without auth, `loadHomeSummary()` function (line 36)
 
-### Browse Data sub-tab
-- Data type selection (readings/predictions): verified in `renderBrowse()` (weather.js:335)
-- Date picker and hour selection: verified (weather.js:344-356)
-- Formatted cards and raw JSON toggle: verified (weather.js:306-318)
-- HHMMSS timestamp filename support: verified (weather.js:351-353)
+Cross-referenced with source:
+- `auth.js`: `.auth-gated`/`.auth-hidden` toggle confirmed (lines 84-88, 104-108)
+- `auth.js`: `AUTH_API_URL` usage confirmed for `/auth/login`, `/auth/logout` (lines 47, 63)
+- `auth-config.js`: Sets `AUTH_API_URL` to Cloudflare Worker URL ✅
+- `css/auth.css`: File exists (3906 bytes) ✅
+- `weather.js`: `loadHomeSummary()` at line 2320, fetches `data/weather-public.json` ✅
 
-### Workflow sub-tab
-- Latest run status with color-coded indicator, trigger, duration: verified in `renderWorkflow()` (weather.js:474)
-- Live countdown timer: verified in `startCountdown()` (weather.js:454)
-- Stats card (success rate, avg duration, failure count): verified (weather.js:509-518)
-- Scrollable run history table with color-coded statuses: verified (weather.js:522-546)
-
-### User Preferences
-- Temperature unit toggle (C/F/K) with localStorage: verified (weather.js:18-19, 604-608)
-- Time format toggle (12h/24h) with localStorage: verified (weather.js:16, 598-601)
-
-### CDN Cache Busting
-- `cacheBust()` function appends `_t=Date.now()`: verified (weather.js:138-141)
-- Fallback to local files on CDN failure: verified in `start()`, `loadManifest()`, `loadWorkflow()`, `loadRawData()`
-
-## Step 3: HTML Structure Accuracy
+## Step 3: SQLite WASM Browse Documentation
 
 **Result: PASS**
 
-### Views
-README lists 5 views. HTML defines 5 view containers with matching IDs and a view controller:
+README correctly documents (line 50):
+- "client-side SQL queries" — sql.js used for in-browser SQLite
+- "downloads `frontend.db.gz` (a gzipped SQLite database)" — correct data source
+- "decompresses it in-browser using DecompressionStream"
+- "sql.js (SQLite compiled to WebAssembly via Emscripten)"
+- No old references to JSON-based browse data
 
-| README View | HTML Element | data-view | Theme |
-|---|---|---|---|
-| Home | `<main id="home">` | `home` | theme-ocean |
-| Potter Weather Predictions | `<div id="weather">` | `weather` | theme-ocean |
-| Fish Tank | `<div id="tank">` | `fishtank` | theme-ocean |
-| Tank Battle | `<div id="arena">` | `battle` | theme-battle |
-| Fighter Fish | `<div id="sky">` | `fighter` | theme-sky |
+Cross-referenced with `weather.js`:
+- `initSqlJs` call at line 286 ✅
+- `loadSqlJs()` function at line 280 ✅
+- CDN URL: `sql.js/1.10.3/sql-wasm.js` ✅
 
-### Navigation
-README describes navigation; HTML has `<nav>` with Home link, Fish Games dropdown (Fish Tank, Tank Battle, Fighter Fish), and Potter Weather Predictions link.
-
-### View Controller
-README says "view controller in index.html" — confirmed as inline `<script>` block (index.html:52-149) managing lifecycle via `switchView()`.
-
-### Theme System
-All three themes match README descriptions and are applied via `document.body.className`.
-
-## Step 4: Stale Reference Check
+## Step 4: Home Weather Summary and Format Toolbar
 
 **Result: PASS**
 
-- No references to removed or renamed features
-- No broken file paths in project structure
-- Deployment workflow reference (`pages.yml`) verified: file exists at `.github/workflows/pages.yml`
-- CNAME domain (`the-fish-tank.com`) matches actual CNAME file content
-- No mention of hash-based routing (correct — code uses click-based view switching)
+**Home weather summary:**
+- `data/weather-public.json` documented as home page source without auth (README line 36) ✅
+- `loadHomeSummary()` mentioned by name ✅
+- File confirmed present: `data/weather-public.json` (167 bytes, schema_version 2) ✅
 
-## Step 5: Mobile Support
+**Format toolbar:**
+- Documented in README lines 54-56: "Temperature unit (Celsius, Fahrenheit, Kelvin) and time format (12h/24h) controls appear in a labeled toolbar below the weather sub-nav"
+- "Preferences are persisted in localStorage" ✅
+- Cross-referenced with `weather.js`: `currentUnit` (line 19), `use24h` (line 16), `convertTemp()` (line 21), `formatTemp()` (line 27) ✅
+- No inline toggle references found in README ✅
 
-**Result: PASS**
-
-- `@media (max-width: 600px)` responsive breakpoint: verified (style.css:878)
-- 44px min-height tap targets: verified (style.css:904, 911, 933, 938, 944)
-- Scrollable tables with fade hints: verified (style.css:977-989)
-- `scrolled-end` class toggling in JS to hide fade: verified (weather.js:550-554, 586-590)
-
-## Step 6: Recent Feature Updates (2026-02-15)
+## Step 5: Playwright Testing Documentation
 
 **Result: PASS**
 
-Re-verified README after recent implementation updates for multi-select filters, expired predictions, and auto-deploy trigger.
+README documents (lines 94-106):
+- "Browser tests use Playwright and live in `FrontEnds/tests/browser/`"
+- `npm install`, `npm test`, `npm run test:headed`, `npm run test:debug` commands
+- "Test files cover: auth modal, content gating, auth theme, SQLite browse, view switching, and smoke tests"
 
-### Multi-Select Filters
-- ✅ Multi-select dropdowns documented (README line 35)
-- ✅ Model type and version filters mentioned
-- ✅ No references to old single-select or text input filters
-- ✅ `createMultiSelect()` function verified (weather.js:95-159)
+Actual `FrontEnds/tests/browser/` contains 14 spec files:
+`auth-gating.spec.js`, `auth-modal.spec.js`, `auth-theme.spec.js`, `average-deltas.spec.js`,
+`browse-data.spec.js`, `feature-rankings-display.spec.js`, `feature-rankings-mobile.spec.js`,
+`feature-rankings-nav.spec.js`, `smoke.spec.js`, `sqlite-browse.spec.js`,
+`sqlite-database.spec.js`, `sqlite-fallback.spec.js`, `verify-setup.spec.js`,
+`view-switching.spec.js` ✅
 
-### Expired Predictions
-- ✅ "Predictions older than 2 hours are automatically hidden" documented (README line 35)
-- ✅ Time filter logic verified in `renderPredictionsV2()` (weather.js:833-837)
+## Step 6: Project Structure
 
-### Auto-Deploy Workflow Trigger
-- ✅ `workflow_run` trigger documented (README line 79)
-- ✅ "auto-deploys when the Netatmo weather workflow completes" documented
+**Result: PASS**
 
-### Model Types
-- ✅ All three model types documented: 3hrRaw, 24hrRaw, 6hrRC
+All files listed in README project structure exist on disk:
 
-**Test File Created:** `tests/verify-readme-docs.sh` — 12 automated checks, all pass
+| README Entry | Actual File | Status |
+|---|---|---|
+| `index.html` | ✅ exists (7575 bytes) | PASS |
+| `CNAME` | ✅ exists | PASS |
+| `favicon.png` | ✅ exists | PASS |
+| `css/style.css` | ✅ exists (29202 bytes) | PASS |
+| `css/auth.css` | ✅ exists (3906 bytes) | PASS |
+| `data/data-index.json` | ✅ exists | PASS |
+| `data/weather.json` | ✅ exists (local dev) | PASS |
+| `data/workflow.json` | ✅ exists (local dev) | PASS |
+| `data/frontend.db.gz` | ✅ exists (local dev) | PASS |
+| `js/auth-config.js` | ✅ exists | PASS |
+| `js/auth.js` | ✅ exists | PASS |
+| `js/weather.js` | ✅ exists | PASS |
+| `js/tank.js` | ✅ exists | PASS |
+| `js/battle.js` | ✅ exists | PASS |
+| `js/fighter.js` | ✅ exists | PASS |
+| `tests/README.md` | ✅ exists | PASS |
+
+No nonexistent files referenced. `tests/` dir also contains `verify-home-weather-nav-persistence.js` which is not listed — acceptable omission.
+
+`FrontEnds/tests/browser/` mentioned in README, directory exists with 14 test files ✅
+
+## Removed Features Check
+
+**Result: PASS**
+
+- No "predictions CTA" references found ✅
+- No "raw GitHub" data fetching references ✅
+- No old JSON-based browse data description ✅
+- README explicitly states data files are NOT deployed via git (line 112) ✅
+
+## Automated Verification
+
+`tests/verify-readme-docs.sh` run result: **12/12 checks PASS**
 
 ## Summary
 
-All verification steps pass. The README accurately reflects the current state of the project with no stale references, no missing features, and no inaccurate descriptions. Recent feature updates (multi-select filters, expired predictions filtering, auto-deploy trigger) are correctly documented.
+All plan criteria met. The `the-fish-tank/README.md` accurately reflects:
+- Cloudflare Workers authentication with sign-in modal and content gating
+- SQLite WASM browse data (sql.js, frontend.db.gz, DecompressionStream)
+- Public home weather summary (weather-public.json, no auth required)
+- Format toolbar (C/F/K, 12h/24h, localStorage persistence)
+- Playwright browser tests in `FrontEnds/tests/browser/`
+- Accurate project structure matching all actual files
+- No stale references to removed features
