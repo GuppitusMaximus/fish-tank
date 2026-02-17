@@ -86,18 +86,17 @@ test(
   'Expected loadHomeSummary to be called after switchView'
 );
 
-// Test 6: CTA text is correct
+// Test 6: CTA has been removed — no home-cta or cta-link in weather.js
 test(
-  'CTA text is "View full predictions"',
-  weatherJs.includes('View full predictions'),
-  'Expected CTA text to be "View full predictions" (not longer version)'
+  'No home-cta in weather.js (CTA removed)',
+  !weatherJs.includes('home-cta'),
+  'home-cta was removed in remove-predictions-cta plan — should not appear'
 );
 
-// Test 7: CTA links to #weather
 test(
-  'CTA links to #weather',
-  weatherJs.match(/href=["']#weather["'][^>]*>View full predictions/),
-  'Expected CTA to link to #weather view'
+  'No cta-link in weather.js (CTA removed)',
+  !weatherJs.includes('cta-link'),
+  'cta-link was removed in remove-predictions-cta plan — should not appear'
 );
 
 // Test 8: No obvious syntax errors in critical sections

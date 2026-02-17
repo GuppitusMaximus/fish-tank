@@ -94,15 +94,13 @@ test(
   'Should call renderPredictionsV2 or renderPrediction'
 );
 
-// Check for home-cta in renderHomeSummary function
-const hasHomeCTA = weatherJs.includes("'<div class=\"home-cta\">'") ||
-                   weatherJs.includes('"<div class=\\"home-cta\\">"') ||
-                   weatherJs.includes("'home-cta'") && weatherJs.includes("'#weather'");
+// Verify CTA button has been removed from renderHomeSummary (removed in remove-predictions-cta plan)
+const hasHomeCTA = weatherJs.includes('home-cta') || weatherJs.includes('cta-link');
 
 test(
-  'renderHomeSummary() includes CTA button',
-  hasHomeCTA,
-  'Should render .home-cta with link to #weather'
+  'renderHomeSummary() does NOT include removed CTA button',
+  !hasHomeCTA,
+  'home-cta and cta-link were removed — should not appear in weather.js'
 );
 
 // Step 4: Verify switchView triggers loadHomeSummary
