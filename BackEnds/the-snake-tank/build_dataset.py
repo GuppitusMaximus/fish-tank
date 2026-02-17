@@ -140,16 +140,6 @@ def build_database():
     """Scan all JSON files and build the SQLite database."""
     json_files = sorted(glob.glob(os.path.join(DATA_DIR, "*", "*.json")))
 
-    # Deduplicate: if multiple files exist for the same date/hour, keep only the latest
-    seen = {}
-    for filepath in json_files:
-        parts = filepath.replace("\\", "/").split("/")
-        date_str = parts[-2]
-        hour_prefix = parts[-1][:2]
-        key = (date_str, hour_prefix)
-        seen[key] = filepath  # sorted order means last wins (highest MMSS)
-    json_files = sorted(seen.values())
-
     if not json_files:
         print("No JSON data files found in", DATA_DIR)
         sys.exit(1)
