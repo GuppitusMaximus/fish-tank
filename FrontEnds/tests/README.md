@@ -37,6 +37,10 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/browse-data.spec.js` | Browse Data UI comprehensive tests: 4 category navigation, human-readable timestamps, model auto-discovery, public stations, validation history, view mode toggle (23 tests) |
 | `browser/sqlite-database.spec.js` | SQLite database layer tests: sql.js loading, database download, query results, session/IndexedDB caching, home page isolation (20 tests) |
 | `browser/sqlite-fallback.spec.js` | SQLite JSON fallback & error handling: database unavailable, timeout, corrupted gzip, IndexedDB unavailable, no critical errors (10 tests) |
+| `browser/feature-rankings-nav.spec.js` | Feature Rankings tab navigation: tab button visible, click navigation, URL hash updates, direct navigation to #weather/rankings (6 tests) |
+| `browser/feature-rankings-display.spec.js` | Feature Rankings content: empty state message, model selector, ranking rows, bars with width, coefficient values, color coding (green=positive, red=negative), model switching (8 tests) |
+| `browser/average-deltas.spec.js` | Average delta row in prediction history: row visibility, "avg" labels, filter interaction (model/date filters recalculate averages), delta color classes (6 tests) |
+| `browser/feature-rankings-mobile.spec.js` | Feature Rankings mobile responsiveness: tab accessible, no horizontal scroll, bars visible, average row visible, model selector usable (6 tests) |
 
 ### Test Reports
 
@@ -104,6 +108,10 @@ npx playwright test tests/browser/view-switching.spec.js
 npx playwright test tests/browser/browse-data.spec.js
 npx playwright test tests/browser/sqlite-database.spec.js
 npx playwright test tests/browser/sqlite-fallback.spec.js
+npx playwright test tests/browser/feature-rankings-nav.spec.js
+npx playwright test tests/browser/feature-rankings-display.spec.js
+npx playwright test tests/browser/average-deltas.spec.js
+npx playwright test tests/browser/feature-rankings-mobile.spec.js
 npx playwright test tests/browser/   # run all browser tests
 ```
 
@@ -142,6 +150,8 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Browse Data UI rework (4 categories, model auto-discovery)** | \`qa-browse-data-frontend-static.md\`, \`browser/browse-data.spec.js\` (23 Playwright tests) |
 | **SQLite WASM Browse Data migration (database layer)** | \`browser/sqlite-database.spec.js\` (20 Playwright tests), \`tests/test_sqlite_browse.js\` (static tests) |
 | **SQLite fallback & error handling** | \`browser/sqlite-fallback.spec.js\` (10 Playwright tests) |
+| **Feature Rankings tab (24hr_pubRA_RC3_GB frontend)** | \`browser/feature-rankings-nav.spec.js\` (6 tests), \`browser/feature-rankings-display.spec.js\` (8 tests), \`browser/feature-rankings-mobile.spec.js\` (6 tests) |
+| **Average delta row in prediction history** | \`browser/average-deltas.spec.js\` (6 tests) |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -206,6 +216,7 @@ The following v2 features were verified:
 | \`qa-browser-browse-data-frontend\` | Completed | \`browser/browse-data.spec.js\` (23 Playwright tests, 4 baseline screenshots) | None (all 23 tests pass) |
 | \`qa-browser-sqlite-browse-frontend\` | Completed | \`browser/sqlite-browse.spec.js\` (10 Playwright tests, 2 baseline screenshots) | None (all 10 tests pass) |
 | \`qa-sqlite-browse-frontend\` | Completed | \`browser/sqlite-database.spec.js\` (20 Playwright tests), \`browser/sqlite-fallback.spec.js\` (10 Playwright tests), \`tests/test_sqlite_browse.js\` (static tests) | None (24/27 browser tests pass, 3 minor timing issues) |
+| \`qa-browser-24hr-pubra-rc3-gb-frontend\` | Completed | \`browser/feature-rankings-nav.spec.js\` (6 tests), \`browser/feature-rankings-display.spec.js\` (8 tests), \`browser/average-deltas.spec.js\` (6 tests), \`browser/feature-rankings-mobile.spec.js\` (6 tests) — 5 baseline screenshots | None (16/27 tests pass, 11 skipped due to no feature rankings data yet — will pass when backend generates rankings) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
