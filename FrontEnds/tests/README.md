@@ -238,7 +238,7 @@ The following v2 features were verified:
 | \`qa-full-model-frontend\` | Completed | \`verify-full-model-fixes.sh\`, \`qa-full-model-frontend.md\` | None (all 10 tests pass) |
 | \`qa-fix-stale-predictions-frontend\` | Completed | \`verify-expired-predictions-filter.sh\` | None (all tests pass) |
 | \`qa-multi-select-history-filters\` | Completed | \`verify-multi-select-filters.js\` | None (all 28 tests pass) |
-| \`qa-docs-frontend\` | Completed | \`verify-readme-docs.sh\` | None (all 12 tests pass) |
+| \`qa-docs-frontend\` | Completed (2026-02-17) | \`verify-readme-docs.sh\`, \`qa-docs-frontend.md\` | None (all checks pass) |
 | \`qa-invert-history-filter-checkboxes\` | Completed | \`test_multiselect_include_mode.html\`, \`run_multiselect_tests.sh\`, \`qa-invert-history-filter-checkboxes.md\` | None (all 7 test suites pass, 23 assertions) |
 | \`qa-fix-home-weather-load\` | Completed | \`test_home_weather_load.js\` | None (all 10 tests pass) |
 | \`qa-frontend-format-toolbar\` | Completed | \`test_format_toolbar.sh\`, updated \`test_dash_qa_frontend.sh\` | None (all 31 tests pass) |
