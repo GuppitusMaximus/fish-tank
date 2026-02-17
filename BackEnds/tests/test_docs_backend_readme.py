@@ -53,11 +53,11 @@ def test_6hr_rc_model_documented():
     # Check for residual correction explanation
     assert "residual correction" in content.lower(), "Residual correction not explained"
 
-    # Check for correct feature dimensions (68)
-    assert "68-dimensional" in content, "68-dimensional feature vector not documented"
+    # Check for correct feature dimensions (72 base + 12 error lags + 2 averages)
+    assert "72-dimensional" in content, "72-dimensional base feature vector not documented"
 
-    # Verify the math breakdown
-    assert "54 + 12 + 2" in content, "Feature vector breakdown not documented"
+    # Verify the error lags breakdown
+    assert "12 error lags" in content, "Error lags breakdown not documented"
 
     print("✓ 6hrRC model documented with correct feature dimensions")
 
