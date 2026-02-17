@@ -23,7 +23,7 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, train_test_split
 from sklearn.multioutput import MultiOutputRegressor
 
-from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, add_spatial_columns
+from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, SPATIAL_COLS_ENRICHED, add_spatial_columns
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
@@ -40,6 +40,12 @@ RC_LOOKBACK = 6
 RC_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_6hr_rc.joblib")
 RC_META_PATH = os.path.join(MODEL_DIR, "6hr_rc_meta.json")
 HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
+
+GB_LOOKBACK = 24
+GB_MIN_READINGS = 336
+GB_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_gb.joblib")
+GB_META_PATH = os.path.join(MODEL_DIR, "gb_meta.json")
+GB_LASSO_PATH = os.path.join(MODEL_DIR, "lasso_rankings_24hr_pubRA_RC3_GB.json")
 
 PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,6 +89,10 @@ TARGET_COLS = ["temp_indoor", "temp_outdoor"]
 SIMPLE_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE
 FULL_ALL_COLS = FEATURE_COLS + SPATIAL_COLS_FULL
 RC_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE
+
+GB_FEATURE_COLS = FEATURE_COLS + ["battery_vp"]
+GB_ALL_COLS = GB_FEATURE_COLS + SPATIAL_COLS_ENRICHED
+RC_MODEL_TYPES = ["3hrRaw", "24hrRaw", "6hrRC"]
 
 
 def load_readings():
@@ -235,6 +245,78 @@ def load_prediction_errors(history_path):
         if hour_str and err:
             errors[hour_str] = (err.get("temp_indoor", 0.0), err.get("temp_outdoor", 0.0))
     return errors
+
+
+def load_prediction_errors_all_models():
+    """Load prediction errors from all model types.
+    Returns dict: (model_type, hour_str) -> (error_indoor, error_outdoor)"""
+    if not os.path.exists(DB_PATH):
+        return {}
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT model_type, for_hour, error_indoor, error_outdoor FROM prediction_history"
+        ).fetchall()
+        conn.close()
+        errors = {}
+        for row in rows:
+            errors[(row["model_type"], row["for_hour"])] = (
+                row["error_indoor"], row["error_outdoor"]
+            )
+        return errors
+    except Exception:
+        return {}
+
+
+def build_gb_windows(df, error_lookup, feature_cols=None):
+    """Build sliding windows for the GB model with multi-model error features."""
+    if feature_cols is None:
+        feature_cols = GB_ALL_COLS
+    timestamps = df["timestamp"].values
+    features_matrix = df[feature_cols].values
+
+    X, y = [], []
+
+    for i in range(GB_LOOKBACK, len(df)):
+        window_start = i - GB_LOOKBACK
+        contiguous = True
+        for j in range(window_start, i):
+            if timestamps[j + 1] - timestamps[j] > MAX_GAP:
+                contiguous = False
+                break
+        if not contiguous:
+            continue
+
+        # Base features: (23 local + 10 spatial) x 24 hours
+        base_features = features_matrix[window_start:i].flatten()
+
+        # Error features from all 3 models
+        error_features = []
+        for model_type in RC_MODEL_TYPES:
+            indoor_lags = []
+            outdoor_lags = []
+            for lag in range(1, GB_LOOKBACK + 1):
+                lag_ts = timestamps[i - lag]
+                lag_dt = datetime.fromtimestamp(float(lag_ts), tz=timezone.utc)
+                lag_hour = lag_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+                err = error_lookup.get((model_type, lag_hour), (0.0, 0.0))
+                indoor_lags.append(err[0])
+                outdoor_lags.append(err[1])
+
+            nonzero_in = [e for e in indoor_lags if e != 0.0]
+            nonzero_out = [e for e in outdoor_lags if e != 0.0]
+            avg_in = sum(nonzero_in) / len(nonzero_in) if nonzero_in else 0.0
+            avg_out = sum(nonzero_out) / len(nonzero_out) if nonzero_out else 0.0
+
+            error_features.extend(indoor_lags + outdoor_lags + [avg_in, avg_out])
+
+        feature_vector = np.concatenate([base_features, error_features])
+        target = df[TARGET_COLS].values[i]
+        X.append(feature_vector)
+        y.append(target)
+
+    return np.array(X) if X else np.array([]), np.array(y) if y else np.array([])
 
 
 def build_6hr_rc_windows(df, error_lookup, feature_cols=None):
@@ -516,7 +598,152 @@ def train_6hr_rc():
     print(f"6hrRC model metadata written (version {new_version})")
 
 
+def read_gb_meta():
+    """Read GB model metadata, returning defaults if not found."""
+    try:
+        with open(GB_META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
+
+
+def train_gb():
+    """Train the 24hr_pubRA_RC3_GB gradient-boosted model with Lasso diagnostic."""
+    print("\n--- 24hr_pubRA_RC3_GB Model (LightGBM + multi-model RC) ---")
+
+    if not os.path.exists(DB_PATH):
+        print("Database not found, skipping GB model")
+        return
+
+    df = load_readings()
+    if len(df) < GB_MIN_READINGS:
+        print(f"Not enough data: {len(df)} readings (need {GB_MIN_READINGS}). Skipping GB model.")
+        return
+
+    df = encode_trends(df)
+    df = engineer_features(df)
+    df["wifi_status"] = df["wifi_status"].fillna(0)
+    df["battery_percent"] = df["battery_percent"].fillna(100)
+    df["rf_status"] = df["rf_status"].fillna(0)
+    df["battery_vp"] = df["battery_vp"].fillna(0)
+
+    df = add_spatial_columns(DB_PATH, df)
+
+    error_lookup = load_prediction_errors_all_models()
+    X, y = build_gb_windows(df, error_lookup, GB_ALL_COLS)
+
+    if len(X) == 0:
+        print("No valid training windows. Skipping GB model.")
+        return
+    if len(X) < 2:
+        print("Need at least 2 training windows. Skipping GB model.")
+        return
+
+    print(f"Training GB model with {len(X)} windows, {X.shape[1]} features")
+
+    from lightgbm import LGBMRegressor
+
+    if len(X) < 50:
+        loo = LeaveOneOut()
+        base = LGBMRegressor(
+            n_estimators=200, max_depth=8, learning_rate=0.05,
+            num_leaves=31, min_child_samples=5, verbosity=-1,
+        )
+        model = MultiOutputRegressor(base)
+        preds = cross_val_predict(model, X, y, cv=loo)
+        mae_indoor = mean_absolute_error(y[:, 0], preds[:, 0])
+        mae_outdoor = mean_absolute_error(y[:, 1], preds[:, 1])
+        model.fit(X, y)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        base = LGBMRegressor(
+            n_estimators=200, max_depth=8, learning_rate=0.05,
+            num_leaves=31, min_child_samples=10, verbosity=-1,
+        )
+        model = MultiOutputRegressor(base)
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
+        mae_indoor = mean_absolute_error(y_test[:, 0], preds[:, 0])
+        mae_outdoor = mean_absolute_error(y_test[:, 1], preds[:, 1])
+
+    print(f"  MAE indoor:  {mae_indoor:.4f}\u00b0C")
+    print(f"  MAE outdoor: {mae_outdoor:.4f}\u00b0C")
+
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    joblib.dump(model, GB_MODEL_PATH)
+
+    meta = read_gb_meta()
+    new_version = meta.get("version", 0) + 1
+    new_meta = {
+        "version": new_version,
+        "trained_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "sample_count": len(X),
+        "feature_count": X.shape[1],
+        "mae_indoor": round(mae_indoor, 4),
+        "mae_outdoor": round(mae_outdoor, 4),
+    }
+    with open(GB_META_PATH, "w") as f:
+        json.dump(new_meta, f, indent=2)
+    print(f"  Saved GB model v{new_version}")
+
+    _run_lasso_diagnostic(X, y)
+
+
+def _run_lasso_diagnostic(X, y):
+    """Run Lasso regression and export feature rankings."""
+    from sklearn.linear_model import Lasso
+    from sklearn.preprocessing import StandardScaler
+
+    print("  Running Lasso feature selection diagnostic...")
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    lasso = MultiOutputRegressor(Lasso(alpha=0.01, max_iter=5000))
+    lasso.fit(X_scaled, y)
+
+    coefs = np.mean([est.coef_ for est in lasso.estimators_], axis=0)
+
+    feature_names = _build_gb_feature_names()
+
+    rankings = []
+    for name, coef in zip(feature_names, coefs):
+        if abs(coef) > 1e-8:
+            rankings.append({"name": name, "coefficient": round(float(coef), 6)})
+
+    rankings.sort(key=lambda r: abs(r["coefficient"]), reverse=True)
+
+    result = {
+        "model_type": "24hr_pubRA_RC3_GB",
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "feature_count": len(coefs),
+        "nonzero_count": len(rankings),
+        "features": rankings,
+    }
+
+    with open(GB_LASSO_PATH, "w") as f:
+        json.dump(result, f, indent=2)
+    print(f"  Lasso: {len(rankings)}/{len(coefs)} features with non-zero coefficients")
+
+
+def _build_gb_feature_names():
+    """Build ordered feature name list matching the GB feature vector layout."""
+    names = []
+    for lag in range(GB_LOOKBACK):
+        for col in GB_ALL_COLS:
+            names.append(f"{col}_lag_{lag}")
+    for model_type in RC_MODEL_TYPES:
+        for lag in range(1, GB_LOOKBACK + 1):
+            names.append(f"rc_{model_type}_indoor_lag_{lag}")
+        for lag in range(1, GB_LOOKBACK + 1):
+            names.append(f"rc_{model_type}_outdoor_lag_{lag}")
+        names.append(f"rc_{model_type}_avg_indoor")
+        names.append(f"rc_{model_type}_avg_outdoor")
+    return names
+
+
 if __name__ == "__main__":
     train()
     train_simple()
     train_6hr_rc()
+    train_gb()
