@@ -22,6 +22,13 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_format_toolbar.sh` | Shell script | Verifies format toolbar implementation: toolbar HTML structure, CSS styles, event handlers, localStorage persistence, old controls removed (31 assertions) |
 | `qa-weather-home-overlap.js` | Node.js script | Verifies weather/home overlap fix: renderHomeSummary guarded by active class check, loadHomeSummary early return, home summary rendering intact, switchView integration (8 assertions) |
 | `test_no_predictions_cta.sh` | Shell script | Verifies "View full predictions" CTA is fully removed: no home-cta or cta-link in weather.js or style.css, renderHomeSummary still exists (6 checks) |
+| `test_auth_setup.sh` | Shell script | Verifies auth files exist (auth-config.js, auth.js, auth.css), auth.css is linked in index.html, and scripts load in correct order (6 checks) |
+| `test_content_gating.sh` | Shell script | Verifies weather nav link has auth-gated/auth-hidden classes, signin/signout elements have correct classes, auth.css defines .auth-hidden (4 checks) |
+| `test_signin_modal.sh` | Shell script | Verifies sign-in modal structure: #signin-modal, inputs, submit button, close button, fish/aquatic visual element (7 checks) |
+| `test_auth_animations.sh` | Shell script | Verifies auth.css defines bubble-rise, auth-success-flash, auth-shake keyframes, modal position:fixed, and ocean color values (5 checks) |
+| `test_auth_module.js` | Node.js script | Inspects auth.js for SESSION_MAX_MS constant, token key, signIn fetch call, JWT parsing, authHeaders, content gating toggles, and sign-out cleanup (10 assertions) |
+| `test_data_fetching.js` | Node.js script | Verifies weather.js uses weather-public.json for home, Worker endpoints for dashboard/database, auth headers, no RAW_URL/DB_URL fallbacks, isAuthenticated check, 401 handling (8 assertions) |
+| `test_signout.js` | Node.js script | Verifies auth.js sign-out removes cached data (localStorage + IndexedDB), clears token, redirects from gated views, hides gated content (5 assertions) |
 
 ### Static Code Analysis Reports
 
@@ -42,6 +49,9 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/feature-rankings-display.spec.js` | Feature Rankings content: empty state message, model selector, ranking rows, bars with width, coefficient values, color coding (green=positive, red=negative), model switching (8 tests: 2 pass, 6 skip awaiting backend data) |
 | `browser/average-deltas.spec.js` | Average delta row in prediction history: row visibility, "avg" labels, filter interaction (model/date filters recalculate averages), delta color classes (6 tests, all pass) |
 | `browser/feature-rankings-mobile.spec.js` | Feature Rankings mobile responsiveness: tab accessible, no horizontal scroll, bars visible, average row visible, model selector usable (7 tests: 2 pass, 5 skip awaiting backend data) |
+| `browser/auth-modal.spec.js` | Sign-in modal behavior: hidden by default, opens on click, username/password inputs, submit button, closes via X and overlay click, screenshot (8 tests, all pass) |
+| `browser/auth-gating.spec.js` | Content gating: weather nav hidden without auth, sign-in link visible, home weather data loads from `weather-public.json`, hash navigation blocked from prediction data, no raw GitHub fallback (6 tests — 5 pass, 1 fails pending `weather-public.json` deployment; see bug `website-auth-frontend-weather-public-missing.md`) |
+| `browser/auth-theme.spec.js` | Auth modal theming: card background/padding, blue/ocean gradient, fish element present, mobile 375px responsive, desktop 1280px centered layout, screenshots (5 tests, all pass) |
 
 ### Test Reports
 
@@ -76,6 +86,10 @@ bash tests/verify-full-model-fixes.sh
 bash tests/verify-expired-predictions-filter.sh
 bash tests/test_format_toolbar.sh
 bash tests/test_no_predictions_cta.sh
+bash tests/test_auth_setup.sh
+bash tests/test_content_gating.sh
+bash tests/test_signin_modal.sh
+bash tests/test_auth_animations.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -87,6 +101,9 @@ node tests/test_v2_multi_model_dashboard.js
 node tests/verify-multi-select-filters.js
 node tests/test_home_weather_load.js
 node tests/qa-weather-home-overlap.js
+node tests/test_auth_module.js
+node tests/test_data_fetching.js
+node tests/test_signout.js
 ```
 
 Prints test results to console and exits with code 0 (all pass) or 1 (any failure).
@@ -148,6 +165,13 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Format toolbar implementation** | \`test_format_toolbar.sh\` |
 | **Weather/home overlap fix (nav hidden, CTA overlap)** | \`qa-weather-home-overlap.js\` |
 | **"View full predictions" CTA removed** | \`test_no_predictions_cta.sh\` |
+| **Auth setup: files exist and load order** | \`test_auth_setup.sh\` |
+| **Auth module: constants, JWT, authHeaders, content gating** | \`test_auth_module.js\` |
+| **Content gating: nav link, signin/signout elements, CSS** | \`test_content_gating.sh\` |
+| **Sign-in modal: all required elements present** | \`test_signin_modal.sh\` |
+| **Auth CSS animations: bubble, success, shake keyframes** | \`test_auth_animations.sh\` |
+| **Data fetching: Worker endpoints, auth headers, no fallbacks** | \`test_data_fetching.js\` |
+| **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
 | **Browse Data UI rework (4 categories, model auto-discovery)** | \`qa-browse-data-frontend-static.md\`, \`browser/browse-data.spec.js\` (23 Playwright tests) |
@@ -221,6 +245,8 @@ The following v2 features were verified:
 | \`qa-sqlite-browse-frontend\` | Completed | \`browser/sqlite-database.spec.js\` (20 Playwright tests), \`browser/sqlite-fallback.spec.js\` (10 Playwright tests), \`tests/test_sqlite_browse.js\` (static tests) | None (24/27 browser tests pass, 3 minor timing issues) |
 | \`qa-24hr-pubra-rc3-gb-frontend\` | Completed | \`browser/feature-rankings-nav.spec.js\` (6 tests), \`browser/feature-rankings-display.spec.js\` (8 tests), \`browser/average-deltas.spec.js\` (6 tests), \`browser/feature-rankings-mobile.spec.js\` (7 tests), \`qa-24hr-pubra-rc3-gb-frontend.md\` (QA report) — 5 baseline screenshots | None (16/27 tests pass, 11 skip awaiting backend data — all executable tests pass) |
 | \`qa-remove-predictions-cta\` | Completed | \`test_no_predictions_cta.sh\` (6 checks), updated \`qa-weather-home-overlap.js\`, \`test_home_weather_load.js\`, \`browser/view-switching.spec.js\` to reflect CTA removal | None (all 6 checks pass) |
+| \`qa-website-auth-frontend\` | Completed | \`test_auth_setup.sh\` (6 checks), \`test_auth_module.js\` (10 assertions), \`test_content_gating.sh\` (4 checks), \`test_signin_modal.sh\` (7 checks), \`test_auth_animations.sh\` (5 checks), \`test_data_fetching.js\` (8 assertions), \`test_signout.js\` (5 assertions) — 45 checks total | None (all 45 checks pass) |
+| \`qa-browser-website-auth-frontend\` | Completed | \`browser/auth-modal.spec.js\` (8 Playwright tests), \`browser/auth-gating.spec.js\` (6 Playwright tests), \`browser/auth-theme.spec.js\` (5 Playwright tests) — 5 baseline screenshots | 1 bug filed: `weather-public.json` missing from deployment (home weather summary blank for unauthenticated users) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
