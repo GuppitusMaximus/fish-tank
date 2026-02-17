@@ -21,6 +21,35 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 
+def upload_to_r2(file_path, object_key):
+    """Upload a file to Cloudflare R2 via S3-compatible API."""
+    import boto3
+
+    endpoint_url = os.environ.get('R2_ENDPOINT_URL')
+    access_key = os.environ.get('R2_ACCESS_KEY_ID')
+    secret_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+    bucket_name = os.environ.get('R2_BUCKET_NAME')
+
+    if not all([endpoint_url, access_key, secret_key, bucket_name]):
+        print("R2 credentials not configured, skipping upload")
+        return
+
+    s3 = boto3.client(
+        's3',
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key
+    )
+
+    content_type = 'application/json' if file_path.endswith('.json') else 'application/gzip'
+
+    try:
+        s3.upload_file(file_path, bucket_name, object_key, ExtraArgs={'ContentType': content_type})
+        print(f"Uploaded {object_key} to R2")
+    except Exception as e:
+        print(f"WARNING: R2 upload failed for {object_key}: {e}")
+
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
@@ -831,6 +860,24 @@ def export(output_path, hours, history_path=None):
         os.unlink(tmp_path)
         raise
 
+    # Write public summary (current temperature only, no auth required)
+    public_data = {
+        'schema_version': result['schema_version'],
+        'generated_at': result['generated_at'],
+        'current': result['current']
+    }
+    public_path = os.path.join(os.path.dirname(output_path), 'weather-public.json')
+    fd, temp_path = tempfile.mkstemp(suffix='.json', dir=os.path.dirname(public_path))
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(public_data, f)
+        os.replace(temp_path, public_path)
+    except:
+        os.unlink(temp_path)
+        raise
+
+    upload_to_r2(output_path, 'weather.json')
+
     print(f"Exported weather dashboard data to {output_path}")
     if result["current"]:
         print(f"  Current: indoor {result['current']['readings']['temp_indoor']}°C, outdoor {result['current']['readings']['temp_outdoor']}°C")
@@ -844,6 +891,8 @@ def export(output_path, hours, history_path=None):
     manifest_dir = os.path.dirname(os.path.abspath(output_path))
     generate_manifest(manifest_dir)
     build_frontend_db(manifest_dir)
+
+    upload_to_r2(os.path.join(manifest_dir, 'frontend.db.gz'), 'frontend.db.gz')
 
 
 if __name__ == "__main__":

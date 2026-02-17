@@ -29,7 +29,7 @@ jobs:
         run: gh secret set NETATMO_REFRESH_TOKEN --body "$(cat new_refresh_token.txt)"
 
       - name: Install ML dependencies
-        run: pip install pandas scikit-learn joblib
+        run: pip install pandas scikit-learn joblib boto3
 
       - name: Rebuild dataset
         run: python BackEnds/the-snake-tank/build_dataset.py
@@ -46,6 +46,11 @@ jobs:
           python predict.py --model-type all --predictions-dir data/predictions || true
 
       - name: Export weather dashboard data
+        env:
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: python BackEnds/the-snake-tank/export_weather.py --output FrontEnds/the-fish-tank/data/weather.json --history BackEnds/the-snake-tank/data/prediction-history.json || true
 
       - name: Clean up old data files
