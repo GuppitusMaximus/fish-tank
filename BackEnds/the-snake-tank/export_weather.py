@@ -860,11 +860,14 @@ def export(output_path, hours, history_path=None):
         os.unlink(tmp_path)
         raise
 
-    # Write public summary (current temperature only, no auth required)
+    # Write public summary (no auth required)
     public_data = {
         'schema_version': result['schema_version'],
         'generated_at': result['generated_at'],
-        'current': result['current']
+        'property_meta': result['property_meta'],
+        'current': result['current'],
+        'predictions': result['predictions'],
+        'next_prediction': result['next_prediction'],
     }
     public_path = os.path.join(os.path.dirname(output_path), 'weather-public.json')
     fd, temp_path = tempfile.mkstemp(suffix='.json', dir=os.path.dirname(public_path))
@@ -876,6 +879,7 @@ def export(output_path, hours, history_path=None):
         os.unlink(temp_path)
         raise
 
+    upload_to_r2(public_path, 'weather-public.json')
     upload_to_r2(output_path, 'weather.json')
 
     print(f"Exported weather dashboard data to {output_path}")
