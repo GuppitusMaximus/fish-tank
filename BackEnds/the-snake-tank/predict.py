@@ -22,7 +22,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, add_spatial_columns
+from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, SPATIAL_COLS_ENRICHED, add_spatial_columns
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
@@ -38,6 +38,10 @@ RC_LOOKBACK = 6
 RC_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_6hr_rc.joblib")
 RC_META_PATH = os.path.join(SCRIPT_DIR, "models", "6hr_rc_meta.json")
 HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
+
+GB_LOOKBACK = 24
+GB_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_gb.joblib")
+GB_META_PATH = os.path.join(SCRIPT_DIR, "models", "gb_meta.json")
 
 PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +81,10 @@ SIMPLE_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE
 FULL_ALL_COLS = FEATURE_COLS + SPATIAL_COLS_FULL
 RC_ALL_COLS = SIMPLE_FEATURE_COLS + SPATIAL_COLS_SIMPLE  # 6hrRC uses simple base + spatial
 
+GB_FEATURE_COLS = FEATURE_COLS + ["battery_vp"]
+GB_ALL_COLS = GB_FEATURE_COLS + SPATIAL_COLS_ENRICHED
+RC_MODEL_TYPES = ["3hrRaw", "24hrRaw", "6hrRC"]
+
 
 def read_meta():
     """Read model metadata, returning defaults if not found."""
@@ -100,6 +108,15 @@ def read_6hr_rc_meta():
     """Read 6hrRC model metadata, returning defaults if not found."""
     try:
         with open(RC_META_PATH) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"version": 0}
+
+
+def read_gb_meta():
+    """Read GB model metadata, returning defaults if not found."""
+    try:
+        with open(GB_META_PATH) as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return {"version": 0}
@@ -268,6 +285,94 @@ def _run_6hr_rc_model():
         return None
 
 
+def _get_prediction_error(model_type, hour_str):
+    """Look up prediction error for a specific model and hour from DB."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        row = conn.execute(
+            "SELECT error_indoor, error_outdoor FROM prediction_history WHERE model_type = ? AND for_hour = ?",
+            (model_type, hour_str),
+        ).fetchone()
+        conn.close()
+        if row:
+            return (row[0] or 0.0, row[1] or 0.0)
+    except Exception:
+        pass
+    return (0.0, 0.0)
+
+
+def _run_gb_model():
+    """Run the 24hr_pubRA_RC3_GB gradient-boosted model."""
+    if not os.path.exists(GB_MODEL_PATH):
+        return None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        df = pd.read_sql_query(
+            f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {GB_LOOKBACK}",
+            conn,
+        )
+        conn.close()
+
+        if len(df) < GB_LOOKBACK:
+            print("  GB model: not enough readings")
+            return None
+
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+        for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
+            df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
+        for prefix, src in [
+            ("hours_since_min_temp_indoor", "date_min_temp_indoor"),
+            ("hours_since_max_temp_indoor", "date_max_temp_indoor"),
+            ("hours_since_min_temp_outdoor", "date_min_temp_outdoor"),
+            ("hours_since_max_temp_outdoor", "date_max_temp_outdoor"),
+        ]:
+            df[prefix] = (df["timestamp"] - df[src].fillna(df["timestamp"])) / 3600.0
+        df["wifi_status"] = df["wifi_status"].fillna(0)
+        df["battery_percent"] = df["battery_percent"].fillna(100)
+        df["rf_status"] = df["rf_status"].fillna(0)
+        df["battery_vp"] = df["battery_vp"].fillna(0)
+
+        df = add_spatial_columns(DB_PATH, df)
+
+        base_features = df[GB_ALL_COLS].values.flatten()
+
+        error_features = []
+        timestamps = df["timestamp"].values
+        for model_type in RC_MODEL_TYPES:
+            indoor_lags = []
+            outdoor_lags = []
+            for lag in range(1, GB_LOOKBACK + 1):
+                lag_idx = GB_LOOKBACK - lag
+                if lag_idx < 0 or lag_idx >= len(timestamps):
+                    indoor_lags.append(0.0)
+                    outdoor_lags.append(0.0)
+                    continue
+                lag_ts = timestamps[lag_idx]
+                lag_dt = datetime.fromtimestamp(float(lag_ts), tz=timezone.utc)
+                lag_hour = lag_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+                err = _get_prediction_error(model_type, lag_hour)
+                indoor_lags.append(err[0])
+                outdoor_lags.append(err[1])
+
+            nonzero_in = [e for e in indoor_lags if e != 0.0]
+            nonzero_out = [e for e in outdoor_lags if e != 0.0]
+            avg_in = sum(nonzero_in) / len(nonzero_in) if nonzero_in else 0.0
+            avg_out = sum(nonzero_out) / len(nonzero_out) if nonzero_out else 0.0
+            error_features.extend(indoor_lags + outdoor_lags + [avg_in, avg_out])
+
+        feature_vector = np.concatenate([base_features, error_features]).reshape(1, -1)
+
+        meta = read_gb_meta()
+        model = joblib.load(GB_MODEL_PATH)
+        prediction = model.predict(feature_vector)[0]
+        print("  Using 24hr_pubRA_RC3_GB model")
+        return (prediction, meta.get("version", 0), df.iloc[-1])
+    except Exception as e:
+        print(f"  GB model failed: {e}")
+        return None
+
+
 def _build_result(prediction, model_version, model_type, last_row):
     """Build a prediction result dict."""
     last_ts = int(last_row["timestamp"])
@@ -343,11 +448,13 @@ def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
 
     models_to_run = []
     if model_type_filter == "all":
-        models_to_run = ["3hrRaw", "24hrRaw", "6hrRC"]
+        models_to_run = ["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB"]
     elif model_type_filter == "3hrRaw":
         models_to_run = ["3hrRaw"]
     elif model_type_filter == "24hrRaw":
         models_to_run = ["24hrRaw"]
+    elif model_type_filter == "24hr_pubRA_RC3_GB":
+        models_to_run = ["24hr_pubRA_RC3_GB"]
 
     results = []
 
@@ -358,6 +465,8 @@ def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
             out = _run_simple_model()
         elif model_name == "6hrRC":
             out = _run_6hr_rc_model()
+        elif model_name == "24hr_pubRA_RC3_GB":
+            out = _run_gb_model()
         else:
             continue
 
@@ -396,7 +505,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predict next-hour temperatures")
     parser.add_argument("--output", help="Path to write prediction JSON file")
     parser.add_argument("--predictions-dir", help="Directory to store timestamped prediction files")
-    parser.add_argument("--model-type", choices=["3hrRaw", "24hrRaw", "6hrRC", "all"], default="all",
+    parser.add_argument("--model-type", choices=["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB", "all"], default="all",
                         help="Which model to run predictions for")
     args = parser.parse_args()
     predict(output_path=args.output, predictions_dir=args.predictions_dir,

@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import glob
 import gzip
 import json
 import os
@@ -703,6 +704,17 @@ def build_frontend_db(output_dir):
             os.unlink(tmp_db)
 
 
+def load_feature_rankings():
+    """Load feature rankings from all models that have Lasso output."""
+    rankings = []
+    rankings_dir = os.path.join(os.path.dirname(DB_PATH), "..", "models")
+    for path in glob.glob(os.path.join(rankings_dir, "lasso_rankings_*.json")):
+        data = read_json(path)
+        if data and "features" in data:
+            rankings.append(data)
+    return rankings
+
+
 def export(output_path, hours, history_path=None):
     now = datetime.now(timezone.utc)
     result = {
@@ -713,6 +725,7 @@ def export(output_path, hours, history_path=None):
         "predictions": [],
         "history": [],
         "next_prediction": None,
+        "feature_rankings": load_feature_rankings(),
     }
 
     # Scan backwards from current hour to find readings and build history
