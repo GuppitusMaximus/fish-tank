@@ -1362,3 +1362,102 @@ nav a.active {
     }
     .table-scroll.scrolled-end::after { display: none; }
 }
+
+/* Feature Rankings tab */
+.rankings-section {
+    padding: 0 0.5rem;
+}
+
+.rankings-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.rankings-select {
+    padding: 6px 10px;
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 4px;
+    background: rgba(0, 20, 60, 0.6);
+    color: #c8dcff;
+    font-size: 0.8rem;
+}
+
+.rankings-meta {
+    font-size: 0.7rem;
+    opacity: 0.5;
+}
+
+.rankings-empty p {
+    opacity: 0.5;
+    font-size: 0.85rem;
+}
+
+.ranking-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.75rem;
+    border-bottom: 1px solid rgba(100, 160, 220, 0.06);
+}
+
+.ranking-rank {
+    width: 2rem;
+    text-align: right;
+    opacity: 0.4;
+    font-size: 0.65rem;
+}
+
+.ranking-name {
+    width: 14rem;
+    font-family: monospace;
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ranking-bar-container {
+    flex: 1;
+    height: 6px;
+    background: rgba(100, 160, 220, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.ranking-bar {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+}
+
+.ranking-bar-positive {
+    background: rgba(80, 200, 120, 0.6);
+}
+
+.ranking-bar-negative {
+    background: rgba(224, 80, 128, 0.6);
+}
+
+.ranking-coef {
+    width: 5rem;
+    text-align: right;
+    font-family: monospace;
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+/* Average delta row in prediction history */
+.avg-row th {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-bottom: 2px solid rgba(100, 160, 220, 0.2);
+    opacity: 1;
+}
+
+.avg-delta {
+    font-family: monospace;
+}
