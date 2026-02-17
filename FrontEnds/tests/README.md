@@ -37,17 +37,17 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/browse-data.spec.js` | Browse Data UI comprehensive tests: 4 category navigation, human-readable timestamps, model auto-discovery, public stations, validation history, view mode toggle (23 tests) |
 | `browser/sqlite-database.spec.js` | SQLite database layer tests: sql.js loading, database download, query results, session/IndexedDB caching, home page isolation (20 tests) |
 | `browser/sqlite-fallback.spec.js` | SQLite JSON fallback & error handling: database unavailable, timeout, corrupted gzip, IndexedDB unavailable, no critical errors (10 tests) |
-| `browser/feature-rankings-nav.spec.js` | Feature Rankings tab navigation: tab button visible, click navigation, URL hash updates, direct navigation to #weather/rankings (6 tests) |
-| `browser/feature-rankings-display.spec.js` | Feature Rankings content: empty state message, model selector, ranking rows, bars with width, coefficient values, color coding (green=positive, red=negative), model switching (8 tests) |
-| `browser/average-deltas.spec.js` | Average delta row in prediction history: row visibility, "avg" labels, filter interaction (model/date filters recalculate averages), delta color classes (6 tests) |
-| `browser/feature-rankings-mobile.spec.js` | Feature Rankings mobile responsiveness: tab accessible, no horizontal scroll, bars visible, average row visible, model selector usable (6 tests) |
+| `browser/feature-rankings-nav.spec.js` | Feature Rankings tab navigation: tab button visible, click navigation, URL hash updates, direct navigation to #weather/rankings (6 tests, all pass) |
+| `browser/feature-rankings-display.spec.js` | Feature Rankings content: empty state message, model selector, ranking rows, bars with width, coefficient values, color coding (green=positive, red=negative), model switching (8 tests: 2 pass, 6 skip awaiting backend data) |
+| `browser/average-deltas.spec.js` | Average delta row in prediction history: row visibility, "avg" labels, filter interaction (model/date filters recalculate averages), delta color classes (6 tests, all pass) |
+| `browser/feature-rankings-mobile.spec.js` | Feature Rankings mobile responsiveness: tab accessible, no horizontal scroll, bars visible, average row visible, model selector usable (7 tests: 2 pass, 5 skip awaiting backend data) |
 
 ### Test Reports
 
 | File | What It Documents |
 |------|-------------------|
+| `qa-24hr-pubra-rc3-gb-frontend.md` | **QA report for Feature Rankings sub-tab and average deltas — 16/16 executable tests pass, 11 skip awaiting backend rankings data** |
 | `verify-switchview-initial-active-fix.md` | Verifies switchView() initial active class fix: clears hardcoded .active on first call, guards standalone loadHomeSummary, no regressions in home view or weather sub-tabs |
-
 | `qa-workflow-trigger-label.md` | Verifies \`workflow_dispatch\` displays as "Scheduled" (not "Manual") |
 | `qa-multi-model-dashboard-ui-report.md` | Initial QA report for v2 multi-model dashboard (found 2 bugs, now fixed) |
 | `qa-multi-model-dashboard-ui-final.md` | **Final QA report for v2 multi-model dashboard — all 15 tests passed, 78 assertions, 0 bugs** |
@@ -216,7 +216,7 @@ The following v2 features were verified:
 | \`qa-browser-browse-data-frontend\` | Completed | \`browser/browse-data.spec.js\` (23 Playwright tests, 4 baseline screenshots) | None (all 23 tests pass) |
 | \`qa-browser-sqlite-browse-frontend\` | Completed | \`browser/sqlite-browse.spec.js\` (10 Playwright tests, 2 baseline screenshots) | None (all 10 tests pass) |
 | \`qa-sqlite-browse-frontend\` | Completed | \`browser/sqlite-database.spec.js\` (20 Playwright tests), \`browser/sqlite-fallback.spec.js\` (10 Playwright tests), \`tests/test_sqlite_browse.js\` (static tests) | None (24/27 browser tests pass, 3 minor timing issues) |
-| \`qa-browser-24hr-pubra-rc3-gb-frontend\` | Completed | \`browser/feature-rankings-nav.spec.js\` (6 tests), \`browser/feature-rankings-display.spec.js\` (8 tests), \`browser/average-deltas.spec.js\` (6 tests), \`browser/feature-rankings-mobile.spec.js\` (6 tests) — 5 baseline screenshots | None (16/27 tests pass, 11 skipped due to no feature rankings data yet — will pass when backend generates rankings) |
+| \`qa-24hr-pubra-rc3-gb-frontend\` | Completed | \`browser/feature-rankings-nav.spec.js\` (6 tests), \`browser/feature-rankings-display.spec.js\` (8 tests), \`browser/average-deltas.spec.js\` (6 tests), \`browser/feature-rankings-mobile.spec.js\` (7 tests), \`qa-24hr-pubra-rc3-gb-frontend.md\` (QA report) — 5 baseline screenshots | None (16/27 tests pass, 11 skip awaiting backend data — all executable tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
