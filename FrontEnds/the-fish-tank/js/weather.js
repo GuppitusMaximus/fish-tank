@@ -2321,7 +2321,7 @@ window.WeatherApp = (() => {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
 
-    fetch('data/weather-public.json')
+    fetch(AUTH_API_URL + '/data/weather-public')
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
