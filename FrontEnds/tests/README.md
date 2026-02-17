@@ -35,6 +35,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/smoke.spec.js` | Basic site loading and hash routing smoke tests |
 | `browser/view-switching.spec.js` | Regression tests for view switching, refresh, and hash persistence bugs (16 tests) |
 | `browser/browse-data.spec.js` | Browse Data UI comprehensive tests: 4 category navigation, human-readable timestamps, model auto-discovery, public stations, validation history, view mode toggle (23 tests) |
+| `browser/sqlite-browse.spec.js` | SQLite WASM Browse Data migration tests: database loading, progress indicator, session caching, data categories, view toggle, home page isolation, JSON fallback (10 tests) |
 
 ### Test Reports
 
@@ -100,6 +101,7 @@ Results display on the page. The document title changes to "ALL TESTS PASS" or "
 npx playwright test tests/browser/smoke.spec.js
 npx playwright test tests/browser/view-switching.spec.js
 npx playwright test tests/browser/browse-data.spec.js
+npx playwright test tests/browser/sqlite-browse.spec.js
 npx playwright test tests/browser/   # run all browser tests
 ```
 
@@ -136,6 +138,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
 | **Browse Data UI rework (4 categories, model auto-discovery)** | \`qa-browse-data-frontend-static.md\`, \`browser/browse-data.spec.js\` (23 Playwright tests) |
+| **SQLite WASM Browse Data migration (sql.js integration)** | \`browser/sqlite-browse.spec.js\` (10 Playwright tests) |
 
 ### Multi-Model Dashboard UI (v2 Schema)
 
@@ -198,5 +201,6 @@ The following v2 features were verified:
 | \`playwright-regression-tests\` | Completed | \`browser/view-switching.spec.js\` (16 Playwright tests, 2 baseline screenshots) | None (all 16 tests pass) |
 | \`qa-browse-data-frontend\` | Completed | \`qa-browse-data-frontend-static.md\` | None (all 9 verification steps pass) |
 | \`qa-browser-browse-data-frontend\` | Completed | \`browser/browse-data.spec.js\` (23 Playwright tests, 4 baseline screenshots) | None (all 23 tests pass) |
+| \`qa-browser-sqlite-browse-frontend\` | Completed | \`browser/sqlite-browse.spec.js\` (10 Playwright tests, 2 baseline screenshots) | None (all 10 tests pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
