@@ -1602,6 +1602,7 @@ window.WeatherApp = (() => {
           '<button class="subnav-btn' + (activeSubtab === 'dashboard' ? ' active' : '') + '" data-subtab="dashboard">Dashboard</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'browse' ? ' active' : '') + '" data-subtab="browse">Browse Data</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'workflow' ? ' active' : '') + '" data-subtab="workflow">Workflow</button>' +
+          '<button class="subnav-btn' + (activeSubtab === 'rankings' ? ' active' : '') + '" data-subtab="rankings">Feature Rankings</button>' +
         '</div>' +
         buildToolbarHtml() +
         '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
@@ -1614,6 +1615,7 @@ window.WeatherApp = (() => {
         '</div>' +
         '<div class="dash-subtab" id="subtab-browse"' + (activeSubtab !== 'browse' ? ' style="display:none"' : '') + '></div>' +
         '<div class="dash-subtab" id="subtab-workflow"' + (activeSubtab !== 'workflow' ? ' style="display:none"' : '') + '></div>' +
+        '<div class="dash-subtab" id="subtab-rankings"' + (activeSubtab !== 'rankings' ? ' style="display:none"' : '') + '></div>' +
       '</div>';
 
     wireSharedHandlers(data);
@@ -1664,6 +1666,7 @@ window.WeatherApp = (() => {
           '<button class="subnav-btn' + (activeSubtab === 'dashboard' ? ' active' : '') + '" data-subtab="dashboard">Dashboard</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'browse' ? ' active' : '') + '" data-subtab="browse">Browse Data</button>' +
           '<button class="subnav-btn' + (activeSubtab === 'workflow' ? ' active' : '') + '" data-subtab="workflow">Workflow</button>' +
+          '<button class="subnav-btn' + (activeSubtab === 'rankings' ? ' active' : '') + '" data-subtab="rankings">Feature Rankings</button>' +
         '</div>' +
         buildToolbarHtml() +
         '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
@@ -1674,6 +1677,7 @@ window.WeatherApp = (() => {
         '</div>' +
         '<div class="dash-subtab" id="subtab-browse"' + (activeSubtab !== 'browse' ? ' style="display:none"' : '') + '></div>' +
         '<div class="dash-subtab" id="subtab-workflow"' + (activeSubtab !== 'workflow' ? ' style="display:none"' : '') + '></div>' +
+        '<div class="dash-subtab" id="subtab-rankings"' + (activeSubtab !== 'rankings' ? ' style="display:none"' : '') + '></div>' +
       '</div>';
 
     initHistoryV2();
@@ -1850,6 +1854,24 @@ window.WeatherApp = (() => {
         '<th class="sortable" data-sort="delta_' + suffix + '">\u0394' + sortIndicator('delta_' + suffix) + '</th>';
     });
 
+    var avgCells = '<th></th><th></th><th></th>';
+    props.forEach(function(suffix) {
+      var deltas = sorted.filter(function(e) {
+        return e['delta_' + suffix] !== undefined && e['delta_' + suffix] !== null;
+      }).map(function(e) {
+        return e['delta_' + suffix];
+      });
+      var avgDelta = deltas.length > 0
+        ? deltas.reduce(function(a, b) { return a + b; }, 0) / deltas.length
+        : null;
+      avgCells += '<th></th><th></th>';
+      if (avgDelta !== null) {
+        avgCells += '<th class="avg-delta ' + deltaClass(avgDelta) + '">avg ' + formatDeltaTemp(avgDelta) + '</th>';
+      } else {
+        avgCells += '<th></th>';
+      }
+    });
+
     var rows = '';
     for (var i = 0; i < limit; i++) {
       var entry = sorted[i];
@@ -1880,7 +1902,7 @@ window.WeatherApp = (() => {
       '<div class="history-row-count">Showing ' + limit + ' of ' + sorted.length + ' predictions</div>' +
       '<div class="table-scroll">' +
       '<table id="history-table">' +
-        '<thead><tr>' + headerCells + '</tr></thead>' +
+        '<thead><tr>' + headerCells + '</tr><tr class="avg-row">' + avgCells + '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
       '</table>' +
       '</div>' +
@@ -2099,6 +2121,76 @@ window.WeatherApp = (() => {
     });
   }
 
+  function renderFeatureRankings(data) {
+    var container = document.getElementById('subtab-rankings');
+    var rankings = data.feature_rankings;
+
+    if (!rankings || rankings.length === 0) {
+      container.innerHTML =
+        '<div class="rankings-empty">' +
+          '<h2>Feature Rankings</h2>' +
+          '<p>No feature rankings available yet. Rankings are generated during model training when sufficient data has accumulated.</p>' +
+        '</div>';
+      return;
+    }
+
+    var modelOptions = rankings.map(function(r) {
+      return '<option value="' + escapeHtml(r.model_type) + '">' + escapeHtml(r.model_type) + '</option>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="rankings-section">' +
+        '<h2>Feature Rankings</h2>' +
+        '<div class="rankings-controls">' +
+          '<select id="rankings-model-select" class="rankings-select">' +
+            modelOptions +
+          '</select>' +
+          '<span id="rankings-meta" class="rankings-meta"></span>' +
+        '</div>' +
+        '<div id="rankings-list"></div>' +
+      '</div>';
+
+    var select = document.getElementById('rankings-model-select');
+    renderRankingsForModel(rankings, select.value);
+
+    select.addEventListener('change', function() {
+      renderRankingsForModel(rankings, select.value);
+    });
+  }
+
+  function renderRankingsForModel(rankings, modelType) {
+    var data = rankings.find(function(r) { return r.model_type === modelType; });
+    if (!data) return;
+
+    var meta = document.getElementById('rankings-meta');
+    var genDate = data.generated_at ? formatDateTime(new Date(data.generated_at)) : '';
+    meta.textContent = data.nonzero_count + ' of ' + data.feature_count + ' features with signal' +
+      (genDate ? ' — updated ' + genDate : '');
+
+    var maxCoef = 0;
+    data.features.forEach(function(f) {
+      var abs = Math.abs(f.coefficient);
+      if (abs > maxCoef) maxCoef = abs;
+    });
+
+    var rows = data.features.map(function(f, i) {
+      var abs = Math.abs(f.coefficient);
+      var pct = maxCoef > 0 ? (abs / maxCoef * 100) : 0;
+      var direction = f.coefficient > 0 ? 'positive' : 'negative';
+      var sign = f.coefficient > 0 ? '+' : '';
+      return '<div class="ranking-row">' +
+        '<span class="ranking-rank">' + (i + 1) + '</span>' +
+        '<span class="ranking-name">' + escapeHtml(f.name) + '</span>' +
+        '<span class="ranking-bar-container">' +
+          '<span class="ranking-bar ranking-bar-' + direction + '" style="width:' + pct.toFixed(1) + '%"></span>' +
+        '</span>' +
+        '<span class="ranking-coef">' + sign + f.coefficient.toFixed(4) + '</span>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('rankings-list').innerHTML = rows;
+  }
+
   function wireSharedHandlers(data) {
     container.querySelectorAll('.table-scroll').forEach(function(el) {
       el.addEventListener('scroll', function() {
@@ -2111,6 +2203,8 @@ window.WeatherApp = (() => {
       enterBrowseData();
     } else if (activeSubtab === 'workflow' && workflowData) {
       renderWorkflow();
+    } else if (activeSubtab === 'rankings') {
+      renderFeatureRankings(data);
     }
 
     wireToolbarHandlers(container, function() { render(data); });
@@ -2129,6 +2223,7 @@ window.WeatherApp = (() => {
         document.getElementById('subtab-dashboard').style.display = target === 'dashboard' ? '' : 'none';
         document.getElementById('subtab-browse').style.display = target === 'browse' ? '' : 'none';
         document.getElementById('subtab-workflow').style.display = target === 'workflow' ? '' : 'none';
+        document.getElementById('subtab-rankings').style.display = target === 'rankings' ? '' : 'none';
         if (target !== 'workflow' && countdownInterval) {
           clearInterval(countdownInterval);
           countdownInterval = null;
@@ -2140,6 +2235,8 @@ window.WeatherApp = (() => {
           loadWorkflow();
         } else if (target === 'workflow' && workflowData) {
           renderWorkflow();
+        } else if (target === 'rankings') {
+          renderFeatureRankings(data);
         }
       });
     });
@@ -2161,7 +2258,7 @@ window.WeatherApp = (() => {
     var hash = location.hash.replace('#', '');
     if (hash.startsWith('weather/')) {
       var sub = hash.split('/')[1];
-      if (['dashboard', 'browse', 'workflow'].indexOf(sub) !== -1) {
+      if (['dashboard', 'browse', 'workflow', 'rankings'].indexOf(sub) !== -1) {
         activeSubtab = sub;
       }
     }
