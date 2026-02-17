@@ -270,8 +270,6 @@ window.WeatherApp = (() => {
   };
 
   // --- Database Layer ---
-  var DB_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/frontend.db.gz';
-  var DB_LOCAL_URL = 'data/frontend.db.gz';
   var DB_CACHE_NAME = 'fishtank_db';
   var DB_CACHE_TTL = 24 * 60 * 60 * 1000;
   var SQL = null;
@@ -366,10 +364,18 @@ window.WeatherApp = (() => {
         if (progressCallback) progressCallback(100, 'Loaded from cache');
         return _db;
       }
+      if (!FishTankAuth.isAuthenticated()) {
+        throw new Error('Authentication required');
+      }
       if (progressCallback) progressCallback(0, 'Downloading database\u2026');
-      var fetchUrl = cacheBust(DB_URL);
       return Promise.race([
-        fetch(fetchUrl).then(function(r) {
+        fetch(AUTH_API_URL + '/data/database', {
+          headers: FishTankAuth.authHeaders()
+        }).then(function(r) {
+          if (r.status === 401) {
+            FishTankAuth.signOut();
+            throw new Error('Session expired');
+          }
           if (!r.ok) throw new Error('DB fetch failed: ' + r.status);
           var total = parseInt(r.headers.get('content-length') || '0', 10);
           if (!r.body || !r.body.getReader) return r.arrayBuffer();
@@ -2246,12 +2252,16 @@ window.WeatherApp = (() => {
       '</div>';
   }
 
-  var RAW_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/weather.json';
-
   var CACHE_KEY = 'fishtank_weather_data';
   var CACHE_TTL = 5 * 60 * 1000;
 
   function start() {
+    // Auth check — redirect to home if not signed in
+    if (!FishTankAuth.isAuthenticated()) {
+      window.location.hash = '';
+      return;
+    }
+
     var hash = location.hash.replace('#', '');
     if (hash.startsWith('weather/')) {
       var sub = hash.split('/')[1];
@@ -2272,28 +2282,27 @@ window.WeatherApp = (() => {
       }
     } catch (e) { /* localStorage unavailable or corrupt */ }
 
-    fetch(RAW_URL)
+    fetch(AUTH_API_URL + '/data/weather', {
+      headers: FishTankAuth.authHeaders()
+    })
       .then(function(res) {
+        if (res.status === 401) {
+          FishTankAuth.signOut();
+          return;
+        }
         if (!res.ok) throw new Error(res.status);
         return res.json();
       })
       .then(function(data) {
+        if (!data) return;
         try {
           var toCache = JSON.parse(JSON.stringify(data));
           toCache._cachedAt = Date.now();
           localStorage.setItem(CACHE_KEY, JSON.stringify(toCache));
-        } catch (e) { /* localStorage full or unavailable */ }
+        } catch (e) {}
         render(data);
       })
-      .catch(function() {
-        fetch('data/weather.json')
-          .then(function(res) {
-            if (!res.ok) throw new Error(res.status);
-            return res.json();
-          })
-          .then(render)
-          .catch(renderError);
-      });
+      .catch(renderError);
   }
 
   function stop() {
@@ -2311,45 +2320,17 @@ window.WeatherApp = (() => {
   function loadHomeSummary() {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
-    try {
-      var cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        var parsed = JSON.parse(cached);
-        if (parsed._cachedAt && (Date.now() - parsed._cachedAt) < CACHE_TTL) {
-          delete parsed._cachedAt;
-          latestData = parsed;
-          renderHomeSummary(parsed);
-          return;
-        }
-      }
-    } catch (e) { /* localStorage unavailable or corrupt */ }
 
-    fetch(RAW_URL)
+    fetch('data/weather-public.json')
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
       })
       .then(function(data) {
-        try {
-          var toCache = JSON.parse(JSON.stringify(data));
-          toCache._cachedAt = Date.now();
-          localStorage.setItem(CACHE_KEY, JSON.stringify(toCache));
-        } catch (e) { /* localStorage full or unavailable */ }
         latestData = data;
         renderHomeSummary(data);
       })
-      .catch(function() {
-        fetch('data/weather.json')
-          .then(function(res) {
-            if (!res.ok) throw new Error(res.status);
-            return res.json();
-          })
-          .then(function(data) {
-            latestData = data;
-            renderHomeSummary(data);
-          })
-          .catch(function() {});
-      });
+      .catch(function() {});
   }
 
   return { start: start, stop: stop, loadHomeSummary: loadHomeSummary };
