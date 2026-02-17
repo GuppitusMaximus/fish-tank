@@ -1555,10 +1555,7 @@ window.WeatherApp = (() => {
     el.innerHTML =
       buildToolbarHtml() +
       currentHtml +
-      (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>') +
-      '<div class="home-cta">' +
-        '<a href="#weather" class="cta-link">View full predictions \u2192</a>' +
-      '</div>';
+      (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>');
 
     wireToolbarHandlers(el, function() { renderHomeSummary(latestData); });
   }
