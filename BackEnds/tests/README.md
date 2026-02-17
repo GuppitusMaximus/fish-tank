@@ -353,6 +353,15 @@ Manual verification report (not a pytest file). Documents that:
 | Gzip compression of frontend database | `test_frontend_db_export.py` |
 | Frontend database data integrity (row count verification) | `test_frontend_db_export.py` |
 | Manifest db_generated_at field | `test_frontend_db_export.py` |
+| 24hr_pubRA_RC3_GB gradient-boosted model (LightGBM) | `test_gb_*.py` |
+| Enriched spatial features (rain, wind) | `test_gb_spatial_features.py` |
+| GB model data gate (336 reading minimum) | `test_gb_data_gate.py` |
+| Multi-model residual correction features | `test_gb_error_loading.py`, `test_gb_windows.py` |
+| GB sliding windows (942-dimensional feature vectors) | `test_gb_windows.py` |
+| Lasso diagnostic feature selection | `test_gb_lasso.py` |
+| GB model prediction pipeline | `test_gb_predict.py` |
+| Feature rankings export to weather.json | `test_gb_export.py` |
+| Zero regression on existing models | `test_gb_no_regression.py` |
 
 ### `test_public_station_fetch.py`
 
@@ -441,6 +450,93 @@ Comprehensive verification of frontend SQLite database export functionality (7 t
 - **Backward compatibility**: Existing JSON exports (`weather.json`, `data-index.json`) maintain expected schema and structure
 
 All tests run the full export pipeline (`export_weather.py`) and verify output against requirements. Tests use temporary directories for isolation and clean up after themselves.
+
+### `test_gb_spatial_features.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies enriched spatial features for the 24hr_pubRA_RC3_GB gradient-boosted model (4 tests):
+
+- `SPATIAL_COLS_ENRICHED` exists and contains all 10 expected columns (6 original + 4 enriched: rain_60min, rain_24h, wind_strength, gust_strength)
+- `_get_features_for_timestamp()` returns dict with all enriched column keys including rain and wind aggregations
+- `add_spatial_columns()` adds all SPATIAL_COLS_ENRICHED columns to DataFrame (defaults to 0.0 when no public station data)
+- Existing spatial column lists unchanged: SPATIAL_COLS_FULL (6 items) and SPATIAL_COLS_SIMPLE (3 items)
+
+### `test_gb_data_gate.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies data gate for GB model training (3 tests):
+
+- `GB_MIN_READINGS` constant = 336 (about 2 weeks of hourly data)
+- `train_gb()` skips gracefully with insufficient data (<336 readings) without raising exceptions
+- Existing models (train(), train_simple(), train_6hr_rc()) unaffected by GB_MIN_READINGS check
+
+### `test_gb_error_loading.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies multi-model error loading for residual correction features (3 tests):
+
+- `load_prediction_errors_all_models()` returns dict keyed by (model_type, hour_str) tuples
+- Loads errors from all 3 base models: 3hrRaw, 24hrRaw, 6hrRC
+- Returns empty dict gracefully when database unavailable (no crash)
+
+### `test_gb_windows.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies GB model sliding window construction with multi-model residual correction features (3 tests):
+
+- `build_gb_windows()` feature vector length = 942 features ((23 local + 10 spatial) × 24 lags + 3 models × 50 RC features)
+- Contiguity check skips windows when gaps > MAX_GAP (2 hours) exist in timestamp sequence
+- Empty error lookup produces feature vectors with 0.0 for all 150 RC features (3 models × 50 features each)
+
+### `test_gb_lasso.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies Lasso diagnostic output for GB model feature selection (4 tests):
+
+- `_build_gb_feature_names()` returns exactly 942 feature names matching vector length
+- Feature name patterns include `_lag_` suffixes for base features and `rc_` prefix for residual correction features
+- Lasso rankings file format (`models/lasso_rankings_24hr_pubRA_RC3_GB.json`) has required fields: model_type, generated_at, feature_count, nonzero_count, features array
+- Features array sorted by absolute coefficient in descending order
+
+### `test_gb_predict.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies GB model prediction function (4 tests):
+
+- `_run_gb_model()` returns None when model file missing (no crash)
+- Prediction dispatcher includes 24hr_pubRA_RC3_GB in model_type list
+- `_get_prediction_error()` returns (0.0, 0.0) as default when no data found
+- Prediction output structure includes model_type "24hr_pubRA_RC3_GB"
+
+### `test_gb_export.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies GB model feature rankings export to weather.json (4 tests):
+
+- `load_feature_rankings()` finds and loads all `models/lasso_rankings_*.json` files
+- Export function includes `feature_rankings` key in weather.json output
+- Rankings array structure: each entry has model_type and features array with name/coefficient fields
+- GB rankings file path defined as `models/lasso_rankings_24hr_pubRA_RC3_GB.json`
+
+### `test_gb_no_regression.py`
+
+**Plan:** `qa-24hr-pubra-rc3-gb-backend`
+
+Verifies zero impact on existing models from GB model addition (5 tests):
+
+- Existing model paths unchanged: MODEL_PATH, SIMPLE_MODEL_PATH, RC_MODEL_PATH point to original files
+- GB_MODEL_PATH is separate and distinct from existing model paths
+- FEATURE_COLS unchanged with exactly 22 items (original base features)
+- SPATIAL_COLS_FULL unchanged with exactly 6 items
+- SPATIAL_COLS_SIMPLE unchanged with exactly 3 items
+- Combined column lists (FULL_ALL_COLS, SIMPLE_ALL_COLS) unchanged with correct feature counts (28 and 12 respectively)
 
 ### Not Yet Covered
 
