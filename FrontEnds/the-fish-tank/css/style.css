@@ -1191,9 +1191,11 @@ nav a.active {
 
 /* Compass station view */
 .home-compass-container {
-    max-width: 900px;
+    width: 100%;
+    max-width: min(90vw, 900px);
     margin: 1rem auto 0;
     padding: 1rem;
+    box-sizing: border-box;
 }
 
 .compass-card {
@@ -1202,6 +1204,11 @@ nav a.active {
     border-radius: 12px;
     padding: 1.5rem;
     text-align: center;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .compass-card h2 {
@@ -1214,8 +1221,9 @@ nav a.active {
 }
 
 .compass-svg {
-    max-width: 320px;
-    margin: 0 auto;
+    width: 100%;
+    height: auto;
+    flex: 1;
     display: block;
 }
 
@@ -1425,9 +1433,6 @@ nav a.active {
     .table-scroll.scrolled-end::after { display: none; }
 
     /* --- Compass --- */
-    .compass-svg {
-        max-width: 260px;
-    }
 }
 
 /* Feature Rankings tab */
