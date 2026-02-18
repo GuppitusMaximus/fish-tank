@@ -34,6 +34,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_lockdown_access.sh` | Shell script | Verifies protected data is not publicly accessible via GitHub raw URL (weather.json returns 404); weather-public.json local structure check (2 checks) |
 | `test_public_weather_display.sh` | Shell script | Verifies public weather frontend fetches from Worker endpoint: AUTH_API_URL used, no auth headers, graceful degradation, script load order, V2 rendering path (10 checks) |
 | `test_account_menu.sh` | Shell script | Verifies account hamburger menu: no auth links in nav, .account-dropdown in header, toggle/menu elements, signin/signout classes, click handler, CSS position/styles, header position:relative (18 checks) |
+| `test_hamburger_visibility.sh` | Shell script | Verifies hamburger icon opacity hotfix: rest=0.7, hover=1, no legacy 0.4 value (3 checks) |
 
 ### Static Code Analysis Reports
 
@@ -100,6 +101,7 @@ bash tests/test_lockdown_gitignore.sh
 bash tests/test_lockdown_access.sh
 bash tests/test_public_weather_display.sh
 bash tests/test_account_menu.sh
+bash tests/test_hamburger_visibility.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -183,6 +185,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Data fetching: Worker endpoints, auth headers, no fallbacks** | \`test_data_fetching.js\` |
 | **Public weather: Worker URL, no auth headers, V2 rendering path** | \`test_public_weather_display.sh\` |
 | **Account hamburger menu: auth links in header not nav, CSS, click handler** | \`test_account_menu.sh\` |
+| **Hamburger icon opacity hotfix (0.4→0.7 rest, 0.7→1 hover)** | \`test_hamburger_visibility.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -261,6 +264,7 @@ The following v2 features were verified:
 | \`qa-browser-website-auth-frontend\` | Completed | \`browser/auth-modal.spec.js\` (8 Playwright tests), \`browser/auth-gating.spec.js\` (6 Playwright tests), \`browser/auth-theme.spec.js\` (5 Playwright tests) — 5 baseline screenshots | 1 bug filed: `weather-public.json` missing from deployment (home weather summary blank for unauthenticated users) |
 | \`qa-public-weather-frontend\` | Completed | \`test_public_weather_display.sh\` (10 checks) | None (all 10 checks pass) |
 | \`qa-account-hamburger-menu\` | Completed | \`test_account_menu.sh\` (18 checks) | None (all 18 checks pass) |
+| \`qa-fix-hamburger-visibility\` | Completed | \`test_hamburger_visibility.sh\` (3 checks) | None (all 3 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
