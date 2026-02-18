@@ -2559,34 +2559,23 @@ window.WeatherApp = (() => {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
 
-    fetch(MANIFEST_URL)
-      .then(function(res) {
-        if (!res.ok) throw new Error(res.status);
-        return res.json();
-      })
-      .then(function(manifest) {
-        var ps = manifest.public_stations;
-        if (!ps) throw new Error('no public_stations');
-        var dates = Object.keys(ps).sort().reverse();
-        if (!dates.length) throw new Error('no dates');
-        var latestDate = dates[0];
-        var hours = ps[latestDate].slice().sort().reverse();
-        if (!hours.length) throw new Error('no hours');
-        var latestHour = hours[0];
-        return fetch(DATA_BASE_URL + '/public-stations/' + latestDate + '/' + latestHour + '.json');
-      })
-      .then(function(res) {
-        if (!res.ok) throw new Error(res.status);
-        return res.json();
-      })
-      .then(function(data) {
-        latestCompassData = data;
-        renderCompass(data);
-      })
-      .catch(function() {
-        var el = document.getElementById('home-compass');
-        if (el) el.innerHTML = '';
-      });
+    // Use public_stations from the weather-public.json data (already fetched by loadHomeSummary)
+    if (latestData && latestData.public_stations) {
+      latestCompassData = latestData.public_stations;
+      renderCompass(latestData.public_stations);
+    } else {
+      // Data not yet loaded or no public_stations field — try again after a short delay
+      // (loadHomeSummary fetches async and may not have completed yet)
+      setTimeout(function() {
+        if (latestData && latestData.public_stations) {
+          latestCompassData = latestData.public_stations;
+          renderCompass(latestData.public_stations);
+        } else {
+          var el = document.getElementById('home-compass');
+          if (el) el.innerHTML = '';
+        }
+      }, 3000);
+    }
   }
 
   return { start: start, stop: stop, loadHomeSummary: loadHomeSummary, loadCompassData: loadCompassData };
