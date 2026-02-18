@@ -2367,26 +2367,38 @@ window.WeatherApp = (() => {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  function computeStationPositions(stations) {
+  function computeStationPositions(stations, homeLocation) {
     if (!stations || !stations.length) return [];
-    var sumLat = 0, sumLon = 0;
-    stations.forEach(function(s) { sumLat += s.lat; sumLon += s.lon; });
-    var cLat = sumLat / stations.length;
-    var cLon = sumLon / stations.length;
+    var cLat, cLon;
+    if (homeLocation && homeLocation.lat != null && homeLocation.lon != null) {
+      cLat = homeLocation.lat;
+      cLon = homeLocation.lon;
+    } else {
+      var sumLat = 0, sumLon = 0;
+      stations.forEach(function(s) { sumLat += s.lat; sumLon += s.lon; });
+      cLat = sumLat / stations.length;
+      cLon = sumLon / stations.length;
+    }
 
     var maxDist = 0;
     var positions = stations.map(function(s) {
       var b = compassBearing(cLat, cLon, s.lat, s.lon);
       var d = compassDistance(cLat, cLon, s.lat, s.lon);
+      var distMi = s.distance_mi != null ? s.distance_mi : Math.round(d * 0.621371 * 10) / 10;
       if (d > maxDist) maxDist = d;
       return { station_id: s.station_id, lat: s.lat, lon: s.lon,
                temperature: s.temperature, humidity: s.humidity, pressure: s.pressure,
-               bearing: b, distance: d };
+               rain_60min: s.rain_60min, wind_strength: s.wind_strength, wind_angle: s.wind_angle,
+               bearing: b, distance: d, distance_mi: distMi };
     });
 
     if (maxDist === 0) maxDist = 1;
     positions.forEach(function(p) {
       p.normDist = p.distance / maxDist;
+      var angle = (p.bearing - 90) * Math.PI / 180;
+      var r = Math.max(0.1, p.normDist) * 0.42;
+      p.leftPct = 50 + r * 100 * Math.cos(angle);
+      p.topPct = 50 + r * 100 * Math.sin(angle);
     });
     return positions;
   }
@@ -2403,36 +2415,66 @@ window.WeatherApp = (() => {
     return val.toFixed(1) + '\u00b0';
   }
 
-  var compassTooltipEl = null;
-
-  function showCompassTooltip(evt, pos) {
-    if (!compassTooltipEl) {
-      compassTooltipEl = document.createElement('div');
-      compassTooltipEl.className = 'compass-tooltip';
-      document.body.appendChild(compassTooltipEl);
+  function groupStations(positions) {
+    var groups = [];
+    var used = {};
+    for (var i = 0; i < positions.length; i++) {
+      if (used[i]) continue;
+      var group = [positions[i]];
+      used[i] = true;
+      for (var j = i + 1; j < positions.length; j++) {
+        if (used[j]) continue;
+        if (Math.abs(positions[i].leftPct - positions[j].leftPct) < 8 &&
+            Math.abs(positions[i].topPct - positions[j].topPct) < 8) {
+          group.push(positions[j]);
+          used[j] = true;
+        }
+      }
+      groups.push(group);
     }
-    var lines = [formatTemp(pos.temperature)];
-    if (pos.humidity != null) lines.push('Humidity: ' + pos.humidity + '%');
-    if (pos.pressure != null) lines.push('Pressure: ' + pos.pressure + ' mb');
-    compassTooltipEl.innerHTML = lines.join('<br>');
-    compassTooltipEl.style.display = 'block';
-
-    var rect = evt.target.closest('.home-compass-container').getBoundingClientRect();
-    var x = evt.clientX - rect.left + 12;
-    var y = evt.clientY - rect.top - 10;
-    compassTooltipEl.style.left = x + 'px';
-    compassTooltipEl.style.top = y + 'px';
-    compassTooltipEl.style.position = 'absolute';
-
-    var compassContainer = evt.target.closest('.home-compass-container');
-    if (compassContainer.style.position !== 'relative') {
-      compassContainer.style.position = 'relative';
-    }
-    compassContainer.appendChild(compassTooltipEl);
+    return groups;
   }
 
-  function hideCompassTooltip() {
-    if (compassTooltipEl) compassTooltipEl.style.display = 'none';
+  function buildSatelliteEl(pos) {
+    var sat = document.createElement('div');
+    sat.className = 'compass-satellite';
+    sat.setAttribute('role', 'listitem');
+    sat.setAttribute('tabindex', '0');
+    var dirLabel = bearingToLabel(pos.bearing);
+    sat.setAttribute('aria-label', 'Station ' + pos.distance_mi + ' miles ' + dirLabel + ', ' + formatCompassTemp(pos.temperature));
+
+    var temp = document.createElement('div');
+    temp.className = 'satellite-temp';
+    temp.style.background = tempColor(pos.temperature);
+    temp.textContent = formatCompassTemp(pos.temperature);
+    sat.appendChild(temp);
+
+    var dist = document.createElement('div');
+    dist.className = 'satellite-distance';
+    dist.textContent = pos.distance_mi + ' mi';
+    sat.appendChild(dist);
+
+    var detail = document.createElement('div');
+    detail.className = 'satellite-detail';
+    var parts = [];
+    if (pos.humidity != null) parts.push('Humidity: ' + pos.humidity + '%');
+    if (pos.pressure != null) parts.push(pos.pressure + ' mb');
+    if (pos.rain_60min != null) parts.push('Rain: ' + pos.rain_60min + ' mm');
+    if (pos.wind_strength != null) parts.push('Wind: ' + pos.wind_strength + ' km/h');
+    detail.textContent = parts.join(' · ');
+    if (parts.length) sat.appendChild(detail);
+
+    sat.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') sat.blur();
+    });
+
+    return sat;
+  }
+
+  function bearingToLabel(bearing) {
+    var dirs = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
+    var idx = Math.round(bearing / 45) % 8;
+    return dirs[idx];
   }
 
   function renderCompass(data) {
@@ -2443,28 +2485,37 @@ window.WeatherApp = (() => {
       return;
     }
 
-    var positions = computeStationPositions(data.stations);
-    var svgSize = 300;
-    var cx = svgSize / 2;
-    var cy = svgSize / 2;
-    var radius = svgSize / 2 - 30;
+    var positions = computeStationPositions(data.stations, data.home_location);
+    var groups = groupStations(positions);
 
+    var card = document.createElement('div');
+    card.className = 'compass-card';
+    card.setAttribute('role', 'region');
+    card.setAttribute('aria-label', 'Nearby weather stations');
+
+    var heading = document.createElement('h2');
+    heading.textContent = 'Nearby Stations';
+    card.appendChild(heading);
+
+    var layout = document.createElement('div');
+    layout.className = 'compass-layout';
+
+    // SVG background: rings + cardinal labels
     var ns = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 ' + svgSize + ' ' + svgSize);
-    svg.setAttribute('class', 'compass-svg');
+    svg.setAttribute('viewBox', '0 0 300 300');
+    svg.setAttribute('class', 'compass-bg');
+    svg.setAttribute('aria-hidden', 'true');
 
-    // Concentric rings
-    [0.33, 0.66, 1.0].forEach(function(scale) {
+    [40, 80, 120].forEach(function(r) {
       var circle = document.createElementNS(ns, 'circle');
-      circle.setAttribute('cx', cx);
-      circle.setAttribute('cy', cy);
-      circle.setAttribute('r', radius * scale);
+      circle.setAttribute('cx', 150);
+      circle.setAttribute('cy', 150);
+      circle.setAttribute('r', r);
       circle.setAttribute('class', 'compass-ring');
       svg.appendChild(circle);
     });
 
-    // Cardinal and intercardinal labels
     var cardinals = [
       { label: 'N', angle: -90, primary: true },
       { label: 'NE', angle: -45, primary: false },
@@ -2477,73 +2528,107 @@ window.WeatherApp = (() => {
     ];
     cardinals.forEach(function(c) {
       var rad = c.angle * Math.PI / 180;
-      var lx = cx + (radius + 16) * Math.cos(rad);
-      var ly = cy + (radius + 16) * Math.sin(rad);
+      var lx = 150 + 136 * Math.cos(rad);
+      var ly = 150 + 136 * Math.sin(rad);
       var text = document.createElementNS(ns, 'text');
       text.setAttribute('x', lx);
       text.setAttribute('y', ly);
       text.setAttribute('class', 'compass-cardinal' + (c.label === 'N' ? ' compass-cardinal-n' : ''));
       text.setAttribute('dominant-baseline', 'central');
+      text.setAttribute('text-anchor', 'middle');
       if (!c.primary) text.setAttribute('font-size', '9');
       text.textContent = c.label;
       svg.appendChild(text);
     });
 
-    // Center marker
-    var centerDot = document.createElementNS(ns, 'circle');
-    centerDot.setAttribute('cx', cx);
-    centerDot.setAttribute('cy', cy);
-    centerDot.setAttribute('r', 3);
-    centerDot.setAttribute('fill', 'rgba(192, 216, 240, 0.4)');
-    svg.appendChild(centerDot);
+    layout.appendChild(svg);
 
-    // Station dots
-    positions.forEach(function(pos) {
-      var bearingRad = (pos.bearing - 90) * Math.PI / 180;
-      var r = Math.max(0.08, pos.normDist) * radius;
-      var sx = cx + r * Math.cos(bearingRad);
-      var sy = cy + r * Math.sin(bearingRad);
+    // Center card (user's home station)
+    var centerCard = document.createElement('div');
+    centerCard.className = 'compass-center';
+    centerCard.setAttribute('role', 'listitem');
+    centerCard.setAttribute('aria-label', 'Home station');
 
-      var dot = document.createElementNS(ns, 'circle');
-      dot.setAttribute('cx', sx);
-      dot.setAttribute('cy', sy);
-      dot.setAttribute('r', 4.5);
-      dot.setAttribute('fill', tempColor(pos.temperature));
-      dot.setAttribute('class', 'compass-station');
-      var floatDelay = (Math.random() * 4).toFixed(1) + 's';
-      var floatDuration = (3.5 + Math.random() * 2).toFixed(1) + 's';
-      dot.style.animationDelay = floatDelay;
-      dot.style.animationDuration = floatDuration;
-      dot.dataset.stationId = pos.station_id;
+    var centerTemp = document.createElement('div');
+    centerTemp.className = 'center-temp';
+    var centerLabel = document.createElement('div');
+    centerLabel.className = 'center-label';
+    centerLabel.textContent = 'Home';
+    var centerDetail = document.createElement('div');
+    centerDetail.className = 'center-detail';
 
-      dot.addEventListener('mouseenter', function(e) { showCompassTooltip(e, pos); });
-      dot.addEventListener('mouseleave', hideCompassTooltip);
-      dot.addEventListener('click', function(e) {
-        e.stopPropagation();
-        showCompassTooltip(e, pos);
-        setTimeout(hideCompassTooltip, 2000);
-      });
-      svg.appendChild(dot);
+    if (latestData && latestData.current && latestData.current.readings) {
+      var r = latestData.current.readings;
+      var indoor = r.temp_indoor;
+      var outdoor = r.temp_outdoor;
+      centerTemp.textContent = formatTemp(indoor != null ? indoor : outdoor);
+      var detailParts = [];
+      if (indoor != null) detailParts.push('In ' + formatTemp(indoor));
+      if (outdoor != null) detailParts.push('Out ' + formatTemp(outdoor));
+      centerDetail.textContent = detailParts.join(' \u00b7 ');
+    } else {
+      centerTemp.textContent = '\u2014';
+      centerDetail.textContent = '';
+    }
 
-      // Temperature label
-      var label = document.createElementNS(ns, 'text');
-      label.setAttribute('x', sx);
-      label.setAttribute('y', sy - 8);
-      label.setAttribute('class', 'compass-temp-label');
-      label.style.animationDelay = floatDelay;
-      label.style.animationDuration = floatDuration;
-      label.textContent = formatCompassTemp(pos.temperature);
-      svg.appendChild(label);
+    centerCard.appendChild(centerTemp);
+    centerCard.appendChild(centerLabel);
+    centerCard.appendChild(centerDetail);
+    layout.appendChild(centerCard);
+
+    // Satellite cards and stacks
+    groups.forEach(function(group) {
+      if (group.length === 1) {
+        var pos = group[0];
+        var sat = buildSatelliteEl(pos);
+        sat.style.left = pos.leftPct + '%';
+        sat.style.top = pos.topPct + '%';
+        var floatDelay = (Math.random() * 4).toFixed(1) + 's';
+        var floatDuration = (3.5 + Math.random() * 2).toFixed(1) + 's';
+        sat.style.animationDelay = floatDelay;
+        sat.style.animationDuration = floatDuration;
+        layout.appendChild(sat);
+      } else {
+        var avgLeft = 0, avgTop = 0;
+        group.forEach(function(p) { avgLeft += p.leftPct; avgTop += p.topPct; });
+        avgLeft /= group.length;
+        avgTop /= group.length;
+
+        var stack = document.createElement('div');
+        stack.className = 'compass-stack';
+        stack.style.left = avgLeft + '%';
+        stack.style.top = avgTop + '%';
+        stack.setAttribute('role', 'listitem');
+        stack.setAttribute('aria-label', group.length + ' stations ' + bearingToLabel(group[0].bearing));
+        stack.setAttribute('tabindex', '0');
+
+        var badge = document.createElement('div');
+        badge.className = 'stack-badge';
+        badge.textContent = group.length;
+        var floatDelay2 = (Math.random() * 4).toFixed(1) + 's';
+        var floatDuration2 = (3.5 + Math.random() * 2).toFixed(1) + 's';
+        badge.style.animationDelay = floatDelay2;
+        badge.style.animationDuration = floatDuration2;
+        stack.appendChild(badge);
+
+        group.forEach(function(pos) {
+          var sat = buildSatelliteEl(pos);
+          sat.style.position = 'relative';
+          sat.style.transform = 'none';
+          sat.removeAttribute('tabindex');
+          layout.appendChild(sat);
+          stack.appendChild(sat);
+        });
+
+        stack.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') stack.blur();
+        });
+
+        layout.appendChild(stack);
+      }
     });
 
-    // Build card
-    var card = document.createElement('div');
-    card.className = 'compass-card';
-
-    var heading = document.createElement('h2');
-    heading.textContent = 'Nearby Stations';
-    card.appendChild(heading);
-    card.appendChild(svg);
+    card.appendChild(layout);
 
     // Timestamp
     var ts = data.fetched_at;
@@ -2552,9 +2637,10 @@ window.WeatherApp = (() => {
       var d = new Date(ts);
       timeStr = formatTime(d);
     }
+    var stationCount = data.station_count || data.stations.length;
     var meta = document.createElement('div');
     meta.className = 'compass-meta';
-    meta.textContent = data.station_count + ' stations' + (timeStr ? ' \u00b7 Updated ' + timeStr : '');
+    meta.textContent = stationCount + ' stations' + (timeStr ? ' \u00b7 Updated ' + timeStr : '');
     card.appendChild(meta);
 
     el.innerHTML = '';
