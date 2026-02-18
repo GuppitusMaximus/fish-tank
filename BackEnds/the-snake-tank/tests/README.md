@@ -32,9 +32,23 @@ Verified that the fix for the training crash bug is working correctly:
 
 **No bugs found.** The fix correctly resolves the y-overwrite crash.
 
+### Automated Tests (pytest)
+
+#### `test_progress_check.py`
+**Plan:** `test-progress-backend` / verified by `qa-test-progress-backend`
+
+Basic sanity check that verifies the progress tracking test infrastructure is in place:
+
+- `test_progress_tracking()` — asserts `1 + 1 == 2` as a minimal progress tracking marker
+
+To run:
+```bash
+python3 -m pytest the-snake-tank/tests/test_progress_check.py -v
+```
+
 ## Running Tests
 
-Currently, all tests are manual verification steps. To reproduce the QA verification for the training fix:
+To reproduce the QA verification for the training fix:
 
 ```bash
 # Verify syntax
@@ -45,6 +59,11 @@ cd the-snake-tank && python3 train_model.py
 
 # Run predictions
 python3 predict.py --model-type all --predictions-dir data/predictions
+```
+
+To run all automated pytest tests:
+```bash
+python3 -m pytest the-snake-tank/tests/ -v
 ```
 
 ## Future Test Automation
