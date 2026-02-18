@@ -384,6 +384,7 @@ Manual verification report (not a pytest file). Documents that:
 | Data integrity after dedup removal | `test_readings_count.py`, `test_models_after_dedup.py` |
 | R2 upload function (boto3, env vars, content type) | `test_r2_upload.py` |
 | weather-public.json generation (schema, atomic write, no sensitive data) | `test_weather_public.py`, `test_public_weather_export.py` |
+| weather-public.json includes public_stations data | `test-weather-public-stations.sh` |
 | weather-public.json end-to-end schema validation (predictions, property_meta, no history) | `test_public_weather_export.py` |
 | R2 upload call ordering in export() | `test_r2_integration.py` |
 | requirements.txt completeness | `test_requirements.sh` |
@@ -608,6 +609,18 @@ Static analysis tests for the `upload_to_r2()` function in `export_weather.py` (
 - Has `try/except` around the upload call
 - Sets `ContentType: application/json` for `.json` files
 - Sets `ContentType: application/gzip` for non-json files
+
+### `test-weather-public-stations.sh`
+
+**Plan:** `qa-fix-compass-data-fetch`
+
+Shell script verifying that `weather-public.json` includes `public_stations` data (5 checks):
+
+- `export_weather.py` contains `public_stations` code
+- `weather-public.json` has the `public_stations` key
+- `public_stations.stations` has more than 10 entries
+- `schema_version` is still 2 (backward compat)
+- `current` and `predictions` keys are still present
 
 ### `test_weather_public.py`
 
