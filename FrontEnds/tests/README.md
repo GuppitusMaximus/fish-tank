@@ -64,7 +64,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/auth-modal.spec.js` | Sign-in modal behavior: hidden by default, opens on click, username/password inputs, submit button, closes via X and overlay click, screenshot (8 tests, all pass) |
 | `browser/auth-gating.spec.js` | Content gating: weather nav hidden without auth, sign-in link visible, home weather data loads from `weather-public.json`, hash navigation blocked from prediction data, no raw GitHub fallback (6 tests — 5 pass, 1 fails pending `weather-public.json` deployment; see bug `website-auth-frontend-weather-public-missing.md`) |
 | `browser/auth-theme.spec.js` | Auth modal theming: card background/padding, blue/ocean gradient, fish element present, mobile 375px responsive, desktop 1280px centered layout, screenshots (5 tests, all pass) |
-| `browser/compass-station-view.spec.js` | Compass rose on home page: visibility, cardinal labels (N/S/E/W), station dots rendered (>10), temperature labels with degree values, color coding, hover tooltip, metadata station count, mobile responsive viewport, concentric rings (8 tests) |
+| `browser/compass-station-view.spec.js` | Compass rose on home page: container present in DOM, visibility, cardinal labels (N/S/E/W), station dots rendered (>10), temperature labels with degree values, color coding, hover tooltip, metadata station count, mobile responsive viewport, concentric rings (11 tests, all pass) |
 
 ### Test Reports
 
@@ -285,6 +285,7 @@ The following v2 features were verified:
 | \`qa-fix-hamburger-color\` | Completed | \`test_hamburger_color.sh\` (1 check) | None (all checks pass) |
 | \`qa-test-progress-frontend\` | Completed | \`test_progress_check.sh\` verified (exists, outputs PASS, exits 0) | None (all checks pass) |
 | \`qa-compass-station-view\` | Completed | \`test-compass-station-view.sh\` (47 checks), \`test-compass-geometry.sh\` (13 math assertions), \`browser/compass-station-view.spec.js\` (8 Playwright tests) | None (all 60 checks pass) |
+| \`qa-browser-compass-station-view\` | Completed | \`browser/compass-station-view.spec.js\` updated (11 Playwright tests, all pass — 2 DOM checks + 9 data-driven tests via weather-public.json) | 1 bug filed: manifest URL 404 (fixed by companion plan switching to weather-public.json as data source) |
 | \`qa-fix-home-weather-public\` | Completed | \`test_home_weather_public.sh\` (8 checks) | None (all 8 checks pass) |
 | \`qa-fix-compass-frontend-datasource\` | Completed | \`test-compass-datasource-fix.sh\` (5 checks), updated \`browser/compass-station-view.spec.js\` comments | None (all 5 checks pass) |
 
