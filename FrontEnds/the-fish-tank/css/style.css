@@ -1212,7 +1212,29 @@ nav a.active {
     text-transform: uppercase;
     letter-spacing: 0.1em;
     opacity: 0.5;
-    margin-bottom: 1rem;
+    margin: 0;
+}
+
+.compass-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.compass-toggle {
+    background: rgba(100, 160, 220, 0.1);
+    border: 1px solid rgba(100, 160, 220, 0.2);
+    border-radius: 6px;
+    color: inherit;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+.compass-toggle:hover, .compass-toggle:focus {
+    background: rgba(100, 160, 220, 0.25);
+    outline: 1px solid rgba(100, 160, 220, 0.4);
 }
 
 .compass-layout {
@@ -1362,6 +1384,46 @@ nav a.active {
     font-size: 0.7rem;
     opacity: 0.4;
     margin-top: 0.75rem;
+}
+
+.compass-list {
+    display: none;
+}
+.compass-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 0.2rem;
+    border-bottom: 1px solid rgba(100, 160, 220, 0.08);
+}
+.compass-list-item:last-child { border-bottom: none; }
+.list-direction {
+    width: 1.8rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+.list-distance {
+    width: 3.5rem;
+    font-size: 0.7rem;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+.list-temp {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.list-detail {
+    font-size: 0.65rem;
+    opacity: 0.4;
+    text-align: right;
+    flex-grow: 1;
 }
 
 /* ========== Responsive ========== */

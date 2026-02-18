@@ -2477,6 +2477,48 @@ window.WeatherApp = (() => {
     return dirs[idx];
   }
 
+  function bearingToCardinal(bearing) {
+    var dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return dirs[Math.round(bearing / 45) % 8];
+  }
+
+  function renderCompassList(stations) {
+    var sorted = stations.slice().sort(function(a, b) { return a.distance_mi - b.distance_mi; });
+    var list = document.createElement('div');
+    list.className = 'compass-list';
+    sorted.forEach(function(s) {
+      var row = document.createElement('div');
+      row.className = 'compass-list-item';
+
+      var dir = document.createElement('span');
+      dir.className = 'list-direction';
+      dir.textContent = bearingToCardinal(s.bearing);
+      row.appendChild(dir);
+
+      var dist = document.createElement('span');
+      dist.className = 'list-distance';
+      dist.textContent = s.distance_mi + ' mi';
+      row.appendChild(dist);
+
+      var temp = document.createElement('span');
+      temp.className = 'list-temp';
+      temp.style.background = tempColor(s.temperature);
+      temp.innerHTML = formatCompassTemp(s.temperature);
+      row.appendChild(temp);
+
+      var detail = document.createElement('span');
+      detail.className = 'list-detail';
+      var parts = [];
+      if (s.humidity != null) parts.push(s.humidity + '%');
+      if (s.pressure != null) parts.push(s.pressure + ' hPa');
+      detail.innerHTML = parts.join(' &middot; ');
+      row.appendChild(detail);
+
+      list.appendChild(row);
+    });
+    return list;
+  }
+
   function renderCompass(data) {
     var el = document.getElementById('home-compass');
     if (!el) return;
@@ -2493,9 +2535,18 @@ window.WeatherApp = (() => {
     card.setAttribute('role', 'region');
     card.setAttribute('aria-label', 'Nearby weather stations');
 
+    var header = document.createElement('div');
+    header.className = 'compass-header';
     var heading = document.createElement('h2');
     heading.textContent = 'Nearby Stations';
-    card.appendChild(heading);
+    header.appendChild(heading);
+    var toggle = document.createElement('button');
+    toggle.className = 'compass-toggle';
+    toggle.setAttribute('aria-label', 'Switch to list view');
+    toggle.setAttribute('tabindex', '0');
+    toggle.innerHTML = '<span class="toggle-icon">&#9776;</span>';
+    header.appendChild(toggle);
+    card.appendChild(header);
 
     var layout = document.createElement('div');
     layout.className = 'compass-layout';
@@ -2629,6 +2680,36 @@ window.WeatherApp = (() => {
     });
 
     card.appendChild(layout);
+
+    // List view (hidden by default)
+    var listEl = renderCompassList(positions);
+    card.appendChild(listEl);
+
+    // Toggle handler
+    toggle.addEventListener('click', function() {
+      var showingList = layout.style.display === 'none';
+      if (showingList) {
+        layout.style.display = 'block';
+        listEl.style.display = 'none';
+        toggle.innerHTML = '<span class="toggle-icon">&#9776;</span>';
+        toggle.setAttribute('aria-label', 'Switch to list view');
+        localStorage.setItem('compass-view-mode', 'compass');
+      } else {
+        layout.style.display = 'none';
+        listEl.style.display = 'block';
+        toggle.innerHTML = '<span class="toggle-icon">&#9678;</span>';
+        toggle.setAttribute('aria-label', 'Switch to compass view');
+        localStorage.setItem('compass-view-mode', 'list');
+      }
+    });
+
+    // Restore saved view preference
+    if (localStorage.getItem('compass-view-mode') === 'list') {
+      layout.style.display = 'none';
+      listEl.style.display = 'block';
+      toggle.innerHTML = '<span class="toggle-icon">&#9678;</span>';
+      toggle.setAttribute('aria-label', 'Switch to compass view');
+    }
 
     // Timestamp
     var ts = data.fetched_at;
