@@ -36,6 +36,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_account_menu.sh` | Shell script | Verifies account hamburger menu: no auth links in nav, .account-dropdown in header, toggle/menu elements, signin/signout classes, click handler, CSS position/styles, header position:relative (18 checks) |
 | `test_hamburger_visibility.sh` | Shell script | Verifies hamburger icon opacity hotfix: rest=0.7, hover=1, no legacy 0.4 value (3 checks) |
 | `test_hamburger_color.sh` | Shell script | Verifies `.account-toggle` has `color: inherit` so hamburger icon inherits page text color (1 check) |
+| `test_progress_check.sh` | Shell script | Progress tracking test — outputs "Progress tracking test: PASS" and exits 0 (orchestrator test artifact) |
 
 ### Static Code Analysis Reports
 
@@ -104,6 +105,7 @@ bash tests/test_public_weather_display.sh
 bash tests/test_account_menu.sh
 bash tests/test_hamburger_visibility.sh
 bash tests/test_hamburger_color.sh
+bash tests/test_progress_check.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -269,6 +271,7 @@ The following v2 features were verified:
 | \`qa-account-hamburger-menu\` | Completed | \`test_account_menu.sh\` (18 checks) | None (all 18 checks pass) |
 | \`qa-fix-hamburger-visibility\` | Completed | \`test_hamburger_visibility.sh\` (3 checks) | None (all 3 checks pass) |
 | \`qa-fix-hamburger-color\` | Completed | \`test_hamburger_color.sh\` (1 check) | None (all checks pass) |
+| \`qa-test-progress-frontend\` | Completed | \`test_progress_check.sh\` verified (exists, outputs PASS, exits 0) | None (all checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
