@@ -42,6 +42,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_home_weather_public.sh` | Shell script | Verifies fix-home-weather-public: loadHomeSummary fetches from local data/weather-public.json, Worker fallback exists and is guarded by !AUTH_API_URL, start() and initDatabase() unchanged, weather-public.json valid JSON with required fields (8 checks) |
 | `test-compass-datasource-fix.sh` | Shell script | Verifies compass reads from latestData.public_stations (not MANIFEST_URL/data-index.json): no manifest fetch in loadCompassData, public_stations referenced, renderCompass exists, loadCompassData exposed, no data-index reference (5 checks) |
 | `test-compass-responsive.sh` | Shell script | Verifies compass card CSS is bigger and responsive: aspect-ratio:1 for square card, no fixed 320px max-width on SVG, container uses 90vw responsive width (3 checks) |
+| `test-compass-floating.sh` | Shell script | Verifies compass station nodes have floating animation: @keyframes compass-float exists, .compass-station and .compass-temp-label have animation, JS sets random animationDelay/animationDuration per dot (5 checks) |
 
 ### Static Code Analysis Reports
 
@@ -117,6 +118,7 @@ bash tests/test-compass-geometry.sh
 bash tests/test_home_weather_public.sh
 bash tests/test-compass-datasource-fix.sh
 bash tests/test-compass-responsive.sh
+bash tests/test-compass-floating.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -206,6 +208,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Home weather public fix: local fetch, Worker fallback, endpoint isolation** | \`test_home_weather_public.sh\` |
 | **Compass data source fix: reads from latestData.public_stations, no manifest fetch** | \`test-compass-datasource-fix.sh\` |
 | **Compass card responsive CSS: square card, no fixed max-width, responsive container** | \`test-compass-responsive.sh\` |
+| **Compass floating animation: @keyframes, CSS classes, JS random delay/duration** | \`test-compass-floating.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -292,6 +295,7 @@ The following v2 features were verified:
 | \`qa-fix-home-weather-public\` | Completed | \`test_home_weather_public.sh\` (8 checks) | None (all 8 checks pass) |
 | \`qa-fix-compass-frontend-datasource\` | Completed | \`test-compass-datasource-fix.sh\` (5 checks), updated \`browser/compass-station-view.spec.js\` comments | None (all 5 checks pass) |
 | \`qa-compass-bigger-responsive\` | Completed | \`test-compass-responsive.sh\` (3 checks) | None (all 3 checks pass) |
+| \`qa-compass-floating-nodes\` | Completed | \`test-compass-floating.sh\` (5 checks) | None (all 5 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
