@@ -1563,7 +1563,7 @@ window.WeatherApp = (() => {
       currentHtml +
       (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>');
 
-    wireToolbarHandlers(el, function() { renderHomeSummary(latestData); if (latestCompassData) renderCompass(latestCompassData); });
+    wireToolbarHandlers(el, function() { renderHomeSummary(latestData); if (latestCompassData) renderCompass(latestCompassData, 'home-compass'); });
   }
 
   function render(data) {
@@ -1674,6 +1674,7 @@ window.WeatherApp = (() => {
         buildToolbarHtml() +
         '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
           renderCurrentV2(data.current, pm) +
+          '<div id="dash-compass-container"></div>' +
           renderPredictionsV2(data.predictions, pm) +
           '<div id="history-v2-container"></div>' +
           '<div class="dash-updated">Last updated: ' + formatDateTime(new Date(data.generated_at)) + '</div>' +
@@ -1685,6 +1686,7 @@ window.WeatherApp = (() => {
 
     initHistoryV2();
     wireSharedHandlers(data);
+    loadDashCompass();
   }
 
   function renderCurrentV2(current, propertyMeta) {
@@ -2519,8 +2521,8 @@ window.WeatherApp = (() => {
     return list;
   }
 
-  function renderCompass(data) {
-    var el = document.getElementById('home-compass');
+  function renderCompass(data, targetId) {
+    var el = document.getElementById(targetId || 'home-compass');
     if (!el) return;
     if (!data || !data.stations || !data.stations.length) {
       el.innerHTML = '';
@@ -2728,6 +2730,28 @@ window.WeatherApp = (() => {
     el.appendChild(card);
   }
 
+  function loadDashCompass() {
+    var container = document.getElementById('dash-compass-container');
+    if (!container) return;
+
+    if (latestData && latestData.public_stations &&
+        latestData.public_stations.stations && latestData.public_stations.stations.length) {
+      renderCompass(latestData.public_stations, 'dash-compass-container');
+      return;
+    }
+
+    fetch('data/weather-public.json')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d && d.public_stations) {
+          if (!latestData) latestData = {};
+          latestData.public_stations = d.public_stations;
+          renderCompass(d.public_stations, 'dash-compass-container');
+        }
+      })
+      .catch(function() {});
+  }
+
   function loadCompassData() {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
@@ -2735,14 +2759,14 @@ window.WeatherApp = (() => {
     // Use public_stations from the weather-public.json data (already fetched by loadHomeSummary)
     if (latestData && latestData.public_stations) {
       latestCompassData = latestData.public_stations;
-      renderCompass(latestData.public_stations);
+      renderCompass(latestData.public_stations, 'home-compass');
     } else {
       // Data not yet loaded or no public_stations field — try again after a short delay
       // (loadHomeSummary fetches async and may not have completed yet)
       setTimeout(function() {
         if (latestData && latestData.public_stations) {
           latestCompassData = latestData.public_stations;
-          renderCompass(latestData.public_stations);
+          renderCompass(latestData.public_stations, 'home-compass');
         } else {
           var el = document.getElementById('home-compass');
           if (el) el.innerHTML = '';
