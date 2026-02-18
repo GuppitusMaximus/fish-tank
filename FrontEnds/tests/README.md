@@ -37,6 +37,8 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_hamburger_visibility.sh` | Shell script | Verifies hamburger icon opacity hotfix: rest=0.7, hover=1, no legacy 0.4 value (3 checks) |
 | `test_hamburger_color.sh` | Shell script | Verifies `.account-toggle` has `color: inherit` so hamburger icon inherits page text color (1 check) |
 | `test_progress_check.sh` | Shell script | Progress tracking test — outputs "Progress tracking test: PASS" and exits 0 (orchestrator test artifact) |
+| `test-compass-station-view.sh` | Shell script | Compass station view implementation: HTML structure, JS functions, CSS classes, color thresholds, cardinal directions, tooltips, unit preference integration, metadata (47 checks) |
+| `test-compass-geometry.sh` | Shell script | Compass geometry calculations via Node: bearing math (N/S/E/W), centroid computation, SVG coordinate conversion for all 4 cardinal directions (13 math assertions) |
 
 ### Static Code Analysis Reports
 
@@ -60,6 +62,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/auth-modal.spec.js` | Sign-in modal behavior: hidden by default, opens on click, username/password inputs, submit button, closes via X and overlay click, screenshot (8 tests, all pass) |
 | `browser/auth-gating.spec.js` | Content gating: weather nav hidden without auth, sign-in link visible, home weather data loads from `weather-public.json`, hash navigation blocked from prediction data, no raw GitHub fallback (6 tests — 5 pass, 1 fails pending `weather-public.json` deployment; see bug `website-auth-frontend-weather-public-missing.md`) |
 | `browser/auth-theme.spec.js` | Auth modal theming: card background/padding, blue/ocean gradient, fish element present, mobile 375px responsive, desktop 1280px centered layout, screenshots (5 tests, all pass) |
+| `browser/compass-station-view.spec.js` | Compass rose on home page: visibility, cardinal labels (N/S/E/W), station dots rendered (>10), temperature labels with degree values, color coding, hover tooltip, metadata station count, mobile responsive viewport, concentric rings (8 tests) |
 
 ### Test Reports
 
@@ -106,6 +109,8 @@ bash tests/test_account_menu.sh
 bash tests/test_hamburger_visibility.sh
 bash tests/test_hamburger_color.sh
 bash tests/test_progress_check.sh
+bash tests/test-compass-station-view.sh
+bash tests/test-compass-geometry.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -191,6 +196,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Account hamburger menu: auth links in header not nav, CSS, click handler** | \`test_account_menu.sh\` |
 | **Hamburger icon opacity hotfix (0.4→0.7 rest, 0.7→1 hover)** | \`test_hamburger_visibility.sh\` |
 | **Hamburger icon color: inherits page text color (not browser default black)** | \`test_hamburger_color.sh\` |
+| **Compass station view: HTML structure, JS rendering, CSS, bearing math, tooltips** | \`test-compass-station-view.sh\`, \`test-compass-geometry.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -272,6 +278,7 @@ The following v2 features were verified:
 | \`qa-fix-hamburger-visibility\` | Completed | \`test_hamburger_visibility.sh\` (3 checks) | None (all 3 checks pass) |
 | \`qa-fix-hamburger-color\` | Completed | \`test_hamburger_color.sh\` (1 check) | None (all checks pass) |
 | \`qa-test-progress-frontend\` | Completed | \`test_progress_check.sh\` verified (exists, outputs PASS, exits 0) | None (all checks pass) |
+| \`qa-compass-station-view\` | Completed | \`test-compass-station-view.sh\` (47 checks), \`test-compass-geometry.sh\` (13 math assertions), \`browser/compass-station-view.spec.js\` (8 Playwright tests) | None (all 60 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
