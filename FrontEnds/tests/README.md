@@ -39,6 +39,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_progress_check.sh` | Shell script | Progress tracking test — outputs "Progress tracking test: PASS" and exits 0 (orchestrator test artifact) |
 | `test-compass-station-view.sh` | Shell script | Compass station view implementation: HTML structure, JS functions, CSS classes, color thresholds, cardinal directions, tooltips, unit preference integration, metadata (47 checks) |
 | `test-compass-geometry.sh` | Shell script | Compass geometry calculations via Node: bearing math (N/S/E/W), centroid computation, SVG coordinate conversion for all 4 cardinal directions (13 math assertions) |
+| `test_home_weather_public.sh` | Shell script | Verifies fix-home-weather-public: loadHomeSummary fetches from local data/weather-public.json, Worker fallback exists and is guarded by !AUTH_API_URL, start() and initDatabase() unchanged, weather-public.json valid JSON with required fields (8 checks) |
 
 ### Static Code Analysis Reports
 
@@ -111,6 +112,7 @@ bash tests/test_hamburger_color.sh
 bash tests/test_progress_check.sh
 bash tests/test-compass-station-view.sh
 bash tests/test-compass-geometry.sh
+bash tests/test_home_weather_public.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -197,6 +199,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Hamburger icon opacity hotfix (0.4→0.7 rest, 0.7→1 hover)** | \`test_hamburger_visibility.sh\` |
 | **Hamburger icon color: inherits page text color (not browser default black)** | \`test_hamburger_color.sh\` |
 | **Compass station view: HTML structure, JS rendering, CSS, bearing math, tooltips** | \`test-compass-station-view.sh\`, \`test-compass-geometry.sh\` |
+| **Home weather public fix: local fetch, Worker fallback, endpoint isolation** | \`test_home_weather_public.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -279,6 +282,7 @@ The following v2 features were verified:
 | \`qa-fix-hamburger-color\` | Completed | \`test_hamburger_color.sh\` (1 check) | None (all checks pass) |
 | \`qa-test-progress-frontend\` | Completed | \`test_progress_check.sh\` verified (exists, outputs PASS, exits 0) | None (all checks pass) |
 | \`qa-compass-station-view\` | Completed | \`test-compass-station-view.sh\` (47 checks), \`test-compass-geometry.sh\` (13 math assertions), \`browser/compass-station-view.spec.js\` (8 Playwright tests) | None (all 60 checks pass) |
+| \`qa-fix-home-weather-public\` | Completed | \`test_home_weather_public.sh\` (8 checks) | None (all 8 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
