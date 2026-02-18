@@ -383,7 +383,8 @@ Manual verification report (not a pytest file). Documents that:
 | Hourly deduplication removal | `test_dedup_removed.py`, `test_readings_count.py` |
 | Data integrity after dedup removal | `test_readings_count.py`, `test_models_after_dedup.py` |
 | R2 upload function (boto3, env vars, content type) | `test_r2_upload.py` |
-| weather-public.json generation (schema, atomic write, no sensitive data) | `test_weather_public.py` |
+| weather-public.json generation (schema, atomic write, no sensitive data) | `test_weather_public.py`, `test_public_weather_export.py` |
+| weather-public.json end-to-end schema validation (predictions, property_meta, no history) | `test_public_weather_export.py` |
 | R2 upload call ordering in export() | `test_r2_integration.py` |
 | requirements.txt completeness | `test_requirements.sh` |
 | Workflow R2 secrets and pip install | `test_workflow_r2.sh` |
@@ -610,14 +611,28 @@ Static analysis tests for the `upload_to_r2()` function in `export_weather.py` (
 
 ### `test_weather_public.py`
 
-**Plan:** `qa-website-auth-backend`
+**Plan:** `qa-website-auth-backend`, updated by `qa-public-weather-backend`
 
 Static analysis tests for `weather-public.json` generation in `export()` (4 tests):
 
 - `export()` writes `weather-public.json` to the same directory as `weather.json`
-- `public_data` dict contains exactly the keys `schema_version`, `generated_at`, and `current`
-- Sensitive keys (`predictions`, `history`, `next_prediction`, `feature_rankings`) are NOT in `public_data`
+- `public_data` dict contains exactly the keys `schema_version`, `generated_at`, `property_meta`, `current`, `predictions`, `next_prediction`
+- Private keys (`history`, `feature_rankings`) are NOT in `public_data`
 - `weather-public.json` uses atomic write (`tempfile.mkstemp()` + `os.replace()`)
+
+### `test_public_weather_export.py`
+
+**Plan:** `qa-public-weather-backend`
+
+End-to-end tests that run `export()` and validate the generated `weather-public.json` schema (7 tests):
+
+- `schema_version` equals 2
+- `property_meta` is a dict with `temp_indoor` and `temp_outdoor` keys
+- `predictions` is a list
+- `next_prediction` is a dict or None
+- `current` has a `readings` dict
+- `history` key is absent from the public file
+- `feature_rankings` key is absent from the public file
 
 ### `test_r2_integration.py`
 
