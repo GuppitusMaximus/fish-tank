@@ -2321,7 +2321,7 @@ window.WeatherApp = (() => {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
 
-    fetch(AUTH_API_URL + '/data/weather-public')
+    fetch('data/weather-public.json')
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
@@ -2330,7 +2330,19 @@ window.WeatherApp = (() => {
         latestData = data;
         renderHomeSummary(data);
       })
-      .catch(function() {});
+      .catch(function() {
+        if (!AUTH_API_URL) return;
+        fetch(AUTH_API_URL + '/data/weather-public')
+          .then(function(res) {
+            if (!res.ok) throw new Error(res.status);
+            return res.json();
+          })
+          .then(function(data) {
+            latestData = data;
+            renderHomeSummary(data);
+          })
+          .catch(function() {});
+      });
   }
 
   // ========== Compass Station View ==========
