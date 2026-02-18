@@ -1426,6 +1426,15 @@ nav a.active {
     flex-grow: 1;
 }
 
+/* ========== Dashboard Compass ========== */
+#dash-compass-container {
+    margin: 1rem 0;
+}
+#dash-compass-container .compass-card {
+    max-width: min(90vw, 900px);
+    margin: 0 auto;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
     /* --- Existing rules (keep as-is) --- */
