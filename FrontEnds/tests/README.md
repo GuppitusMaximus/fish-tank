@@ -308,6 +308,7 @@ The following v2 features were verified:
 | \`qa-compass-card-redesign\` | Completed | \`test-compass-card-redesign.sh\` (17 checks) | None (all 17 checks pass) |
 | \`qa-compass-list-toggle\` | Completed | \`test-compass-list-toggle.sh\` (13 checks) | None (all 13 checks pass) |
 | \`qa-compass-weather-dashboard\` | Completed | \`test-compass-weather-dashboard.sh\` (5 checks) | None (all 5 checks pass) |
+| \`qa-fix-manifest-404\` | Completed | Static code inspection only — no new test files created | None (all 5 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
