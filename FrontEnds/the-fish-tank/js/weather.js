@@ -2510,6 +2510,10 @@ window.WeatherApp = (() => {
       dot.setAttribute('r', 4.5);
       dot.setAttribute('fill', tempColor(pos.temperature));
       dot.setAttribute('class', 'compass-station');
+      var floatDelay = (Math.random() * 4).toFixed(1) + 's';
+      var floatDuration = (3.5 + Math.random() * 2).toFixed(1) + 's';
+      dot.style.animationDelay = floatDelay;
+      dot.style.animationDuration = floatDuration;
       dot.dataset.stationId = pos.station_id;
 
       dot.addEventListener('mouseenter', function(e) { showCompassTooltip(e, pos); });
@@ -2526,6 +2530,8 @@ window.WeatherApp = (() => {
       label.setAttribute('x', sx);
       label.setAttribute('y', sy - 8);
       label.setAttribute('class', 'compass-temp-label');
+      label.style.animationDelay = floatDelay;
+      label.style.animationDuration = floatDuration;
       label.textContent = formatCompassTemp(pos.temperature);
       svg.appendChild(label);
     });
