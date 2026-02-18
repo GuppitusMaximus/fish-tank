@@ -45,6 +45,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-floating.sh` | Shell script | Verifies compass station nodes have floating animation: @keyframes compass-float exists, .compass-station and .compass-temp-label have animation, JS sets random animationDelay/animationDuration per dot (5 checks) |
 | `test-compass-card-redesign.sh` | Shell script | Verifies compass card redesign: HTML satellite cards (compass-layout, compass-center, compass-satellite, compass-stack), CSS classes, prefers-reduced-motion, accessibility (aria-label, tabindex), distance_mi, old .compass-station removed (17 checks) |
 | `test-compass-list-toggle.sh` | Shell script | Verifies compass list view toggle: toggle button (compass-toggle, aria-label), list rendering (compass-list, compass-list-item, list-direction, list-distance, list-temp), localStorage persistence (compass-view-mode), CSS classes (13 checks) |
+| `test-compass-weather-dashboard.sh` | Shell script | Verifies compass on weather dashboard: dash-compass-container in renderV2, loadDashCompass function, renderCompass targetId parameter, weather-public.json fallback fetch, CSS for dashboard compass (5 checks) |
 
 ### Static Code Analysis Reports
 
@@ -123,6 +124,7 @@ bash tests/test-compass-responsive.sh
 bash tests/test-compass-floating.sh
 bash tests/test-compass-card-redesign.sh
 bash tests/test-compass-list-toggle.sh
+bash tests/test-compass-weather-dashboard.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -215,6 +217,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Compass floating animation: @keyframes, CSS classes, JS random delay/duration** | \`test-compass-floating.sh\` |
 | **Compass card redesign: satellite cards, stacking, accessibility, reduced-motion** | \`test-compass-card-redesign.sh\` |
 | **Compass list view toggle: toggle button, list rendering, localStorage persistence** | \`test-compass-list-toggle.sh\` |
+| **Compass on weather dashboard: renderV2 container, loadDashCompass, targetId param, fallback fetch** | \`test-compass-weather-dashboard.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -304,6 +307,7 @@ The following v2 features were verified:
 | \`qa-compass-floating-nodes\` | Completed | \`test-compass-floating.sh\` (5 checks) | None (all 5 checks pass) |
 | \`qa-compass-card-redesign\` | Completed | \`test-compass-card-redesign.sh\` (17 checks) | None (all 17 checks pass) |
 | \`qa-compass-list-toggle\` | Completed | \`test-compass-list-toggle.sh\` (13 checks) | None (all 13 checks pass) |
+| \`qa-compass-weather-dashboard\` | Completed | \`test-compass-weather-dashboard.sh\` (5 checks) | None (all 5 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
