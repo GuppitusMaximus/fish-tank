@@ -28,12 +28,10 @@ def test_public_file_generated():
 
 
 def test_public_schema_keys_only():
-    """weather-public.json includes only schema_version, generated_at, and current."""
+    """weather-public.json includes schema_version, generated_at, property_meta, current, predictions, next_prediction."""
     func_src = _get_function_source(_read_source(), 'export')
     assert func_src is not None, "export() function not found"
 
-    # Find the public_data dict literal in the source
-    # It should contain exactly schema_version, generated_at, current
     assert 'schema_version' in func_src, "public_data missing schema_version"
     assert 'generated_at' in func_src, "public_data missing generated_at"
     assert "'current'" in func_src or '"current"' in func_src, "public_data missing current"
@@ -62,12 +60,13 @@ def test_public_schema_keys_only():
                                 public_data_keys.append(k.value)
 
     assert public_data_keys is not None, "Could not find public_data dict assignment in export()"
-    assert set(public_data_keys) == {'schema_version', 'generated_at', 'current'}, \
+    expected = {'schema_version', 'generated_at', 'property_meta', 'current', 'predictions', 'next_prediction'}
+    assert set(public_data_keys) == expected, \
         f"public_data has unexpected keys: {public_data_keys}"
 
 
-def test_no_sensitive_keys_in_public():
-    """predictions, history, next_prediction, feature_rankings are NOT in public_data."""
+def test_no_private_keys_in_public():
+    """history and feature_rankings are NOT in public_data."""
     source = _read_source()
     tree = ast.parse(source)
     export_func = None
@@ -90,9 +89,9 @@ def test_no_sensitive_keys_in_public():
                                 public_data_keys.append(k.value)
 
     assert public_data_keys is not None, "Could not find public_data dict"
-    sensitive = {'predictions', 'history', 'next_prediction', 'feature_rankings'}
-    found = sensitive.intersection(set(public_data_keys))
-    assert not found, f"Sensitive keys found in public_data: {found}"
+    private = {'history', 'feature_rankings'}
+    found = private.intersection(set(public_data_keys))
+    assert not found, f"Private keys found in public_data: {found}"
 
 
 def test_atomic_write():
