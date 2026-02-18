@@ -40,6 +40,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-station-view.sh` | Shell script | Compass station view implementation: HTML structure, JS functions, CSS classes, color thresholds, cardinal directions, tooltips, unit preference integration, metadata (47 checks) |
 | `test-compass-geometry.sh` | Shell script | Compass geometry calculations via Node: bearing math (N/S/E/W), centroid computation, SVG coordinate conversion for all 4 cardinal directions (13 math assertions) |
 | `test_home_weather_public.sh` | Shell script | Verifies fix-home-weather-public: loadHomeSummary fetches from local data/weather-public.json, Worker fallback exists and is guarded by !AUTH_API_URL, start() and initDatabase() unchanged, weather-public.json valid JSON with required fields (8 checks) |
+| `test-compass-datasource-fix.sh` | Shell script | Verifies compass reads from latestData.public_stations (not MANIFEST_URL/data-index.json): no manifest fetch in loadCompassData, public_stations referenced, renderCompass exists, loadCompassData exposed, no data-index reference (5 checks) |
 
 ### Static Code Analysis Reports
 
@@ -113,6 +114,7 @@ bash tests/test_progress_check.sh
 bash tests/test-compass-station-view.sh
 bash tests/test-compass-geometry.sh
 bash tests/test_home_weather_public.sh
+bash tests/test-compass-datasource-fix.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -200,6 +202,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Hamburger icon color: inherits page text color (not browser default black)** | \`test_hamburger_color.sh\` |
 | **Compass station view: HTML structure, JS rendering, CSS, bearing math, tooltips** | \`test-compass-station-view.sh\`, \`test-compass-geometry.sh\` |
 | **Home weather public fix: local fetch, Worker fallback, endpoint isolation** | \`test_home_weather_public.sh\` |
+| **Compass data source fix: reads from latestData.public_stations, no manifest fetch** | \`test-compass-datasource-fix.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -283,6 +286,7 @@ The following v2 features were verified:
 | \`qa-test-progress-frontend\` | Completed | \`test_progress_check.sh\` verified (exists, outputs PASS, exits 0) | None (all checks pass) |
 | \`qa-compass-station-view\` | Completed | \`test-compass-station-view.sh\` (47 checks), \`test-compass-geometry.sh\` (13 math assertions), \`browser/compass-station-view.spec.js\` (8 Playwright tests) | None (all 60 checks pass) |
 | \`qa-fix-home-weather-public\` | Completed | \`test_home_weather_public.sh\` (8 checks) | None (all 8 checks pass) |
+| \`qa-fix-compass-frontend-datasource\` | Completed | \`test-compass-datasource-fix.sh\` (5 checks), updated \`browser/compass-station-view.spec.js\` comments | None (all 5 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
