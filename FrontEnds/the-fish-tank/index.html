@@ -14,8 +14,6 @@
         <nav>
             <a data-view="home">Home</a>
             <a data-view="weather" class="auth-gated auth-hidden">Potter Weather Predictions</a>
-            <a id="signin-link" class="auth-public-only">Sign In</a>
-            <a id="signout-link" class="auth-gated auth-hidden">Sign Out</a>
             <div class="nav-dropdown">
                 <a class="nav-dropdown-toggle">Fish Games</a>
                 <div class="nav-dropdown-menu">
@@ -25,6 +23,15 @@
                 </div>
             </div>
         </nav>
+        <div class="account-dropdown">
+            <button class="account-toggle" aria-label="Account menu">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="account-menu">
+                <a id="signin-link" class="auth-public-only">Sign In</a>
+                <a id="signout-link" class="auth-gated auth-hidden">Sign Out</a>
+            </div>
+        </div>
     </header>
     <main id="home" class="active">
         <div id="home-weather" class="home-weather-summary"></div>
@@ -161,20 +168,34 @@
         document.addEventListener('click', (e) => {
             const toggle = e.target.closest('.nav-dropdown-toggle');
             const menu = document.querySelector('.nav-dropdown-menu');
+            const acctToggle = e.target.closest('.account-toggle');
+            const acctMenu = document.querySelector('.account-menu');
+
+            if (acctToggle) {
+                e.preventDefault();
+                acctMenu.classList.toggle('open');
+                if (menu) menu.classList.remove('open');
+                return;
+            }
             if (toggle) {
                 e.preventDefault();
                 menu.classList.toggle('open');
+                if (acctMenu) acctMenu.classList.remove('open');
                 return;
             }
             const link = e.target.closest('[data-view]');
             if (link) {
                 e.preventDefault();
                 if (menu) menu.classList.remove('open');
+                if (acctMenu) acctMenu.classList.remove('open');
                 switchView(link.dataset.view);
                 return;
             }
             if (menu && !e.target.closest('.nav-dropdown')) {
                 menu.classList.remove('open');
+            }
+            if (acctMenu && !e.target.closest('.account-dropdown')) {
+                acctMenu.classList.remove('open');
             }
         });
 
