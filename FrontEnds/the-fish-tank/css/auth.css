@@ -178,20 +178,70 @@
   margin-bottom: 0.5rem;
 }
 
-/* --- Sign-in link on home page --- */
-#signin-link {
-  cursor: pointer;
-  color: rgba(127, 219, 255, 0.5);
-  font-size: 0.8rem;
-  transition: color 0.2s;
+/* --- Account hamburger menu --- */
+.account-dropdown {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 }
 
-#signin-link:hover {
-  color: #7fdbff;
+.account-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* --- Sign-out link --- */
-#signout-link {
+.account-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+}
+
+.account-toggle:hover span {
+  opacity: 0.7;
+}
+
+.account-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0;
+  background: rgba(10, 20, 35, 0.95);
+  border: 1px solid rgba(100, 160, 220, 0.15);
+  border-radius: 8px;
+  min-width: 140px;
+  z-index: 100;
+}
+
+.account-menu.open {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-menu a {
+  display: block;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: inherit;
+  text-decoration: none;
   cursor: pointer;
-  font-size: 0.8rem;
+  opacity: 0.5;
+  transition: opacity 0.3s, background 0.2s;
+  white-space: nowrap;
+}
+
+.account-menu a:hover {
+  opacity: 0.8;
+  background: rgba(100, 160, 220, 0.1);
 }
