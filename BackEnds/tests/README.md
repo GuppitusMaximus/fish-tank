@@ -677,6 +677,14 @@ Shell script verifying the Cloudflare Worker (`Planning/cloudflare-auth/src/inde
 - R2 binding: `DATA_BUCKET` referenced
 - KV binding: `AUTH_KV` referenced
 
+### `the-snake-tank/tests/test_progress_round2.py`
+
+**Plan:** `test-progress-backend-2` / **QA:** `qa-test-progress-backend-2`
+
+Round 2 progress tracking test (1 test):
+
+- `test_round_two` — trivial assertion (2 + 2 == 4) confirming test file creation in round 2
+
 ### Not Yet Covered
 
 - `export_workflow.py` — interval logic, cron string generation, workflow status output
