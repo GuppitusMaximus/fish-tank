@@ -1189,7 +1189,86 @@ nav a.active {
     padding: 1rem;
 }
 
+/* Compass station view */
+.home-compass-container {
+    max-width: 900px;
+    margin: 1rem auto 0;
+    padding: 1rem;
+}
 
+.compass-card {
+    background: rgba(100, 160, 220, 0.08);
+    border: 1px solid rgba(100, 160, 220, 0.15);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.compass-card h2 {
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    margin-bottom: 1rem;
+}
+
+.compass-svg {
+    max-width: 320px;
+    margin: 0 auto;
+    display: block;
+}
+
+.compass-cardinal {
+    fill: rgba(192, 216, 240, 0.5);
+    font-size: 12px;
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+.compass-cardinal-n {
+    fill: rgba(192, 216, 240, 0.8);
+}
+
+.compass-ring {
+    fill: none;
+    stroke: rgba(100, 160, 220, 0.12);
+    stroke-dasharray: 4 4;
+}
+
+.compass-station {
+    cursor: pointer;
+    transition: r 0.15s ease;
+}
+
+.compass-station:hover {
+    r: 6;
+}
+
+.compass-temp-label {
+    fill: rgba(192, 216, 240, 0.7);
+    font-size: 9px;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.compass-tooltip {
+    position: absolute;
+    background: rgba(6, 14, 26, 0.95);
+    border: 1px solid rgba(100, 160, 220, 0.3);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+.compass-meta {
+    font-size: 0.7rem;
+    opacity: 0.4;
+    margin-top: 0.75rem;
+}
 
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
@@ -1344,6 +1423,11 @@ nav a.active {
         pointer-events: none;
     }
     .table-scroll.scrolled-end::after { display: none; }
+
+    /* --- Compass --- */
+    .compass-svg {
+        max-width: 260px;
+    }
 }
 
 /* Feature Rankings tab */

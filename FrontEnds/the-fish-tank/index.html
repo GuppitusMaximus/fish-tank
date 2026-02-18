@@ -35,6 +35,7 @@
     </header>
     <main id="home" class="active">
         <div id="home-weather" class="home-weather-summary"></div>
+        <div id="home-compass" class="home-compass-container"></div>
     </main>
     <div id="weather">
     </div>
@@ -160,6 +161,9 @@
                 if (window.WeatherApp && window.WeatherApp.loadHomeSummary) {
                     window.WeatherApp.loadHomeSummary();
                 }
+                if (window.WeatherApp && window.WeatherApp.loadCompassData) {
+                    window.WeatherApp.loadCompassData();
+                }
             } else {
                 history.replaceState(null, '', '#' + name);
             }
@@ -210,6 +214,9 @@
 
         if (initialView === 'home' && window.WeatherApp && window.WeatherApp.loadHomeSummary) {
             window.WeatherApp.loadHomeSummary();
+        }
+        if (initialView === 'home' && window.WeatherApp && window.WeatherApp.loadCompassData) {
+            window.WeatherApp.loadCompassData();
         }
 
         window.addEventListener('hashchange', function() {

@@ -1563,7 +1563,7 @@ window.WeatherApp = (() => {
       currentHtml +
       (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>');
 
-    wireToolbarHandlers(el, function() { renderHomeSummary(latestData); });
+    wireToolbarHandlers(el, function() { renderHomeSummary(latestData); if (latestCompassData) renderCompass(latestCompassData); });
   }
 
   function render(data) {
@@ -2333,5 +2333,249 @@ window.WeatherApp = (() => {
       .catch(function() {});
   }
 
-  return { start: start, stop: stop, loadHomeSummary: loadHomeSummary };
+  // ========== Compass Station View ==========
+
+  var latestCompassData = null;
+
+  function compassBearing(lat1, lon1, lat2, lon2) {
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+    var x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+            Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
+  function compassDistance(lat1, lon1, lat2, lon2) {
+    var R = 6371;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function computeStationPositions(stations) {
+    if (!stations || !stations.length) return [];
+    var sumLat = 0, sumLon = 0;
+    stations.forEach(function(s) { sumLat += s.lat; sumLon += s.lon; });
+    var cLat = sumLat / stations.length;
+    var cLon = sumLon / stations.length;
+
+    var maxDist = 0;
+    var positions = stations.map(function(s) {
+      var b = compassBearing(cLat, cLon, s.lat, s.lon);
+      var d = compassDistance(cLat, cLon, s.lat, s.lon);
+      if (d > maxDist) maxDist = d;
+      return { station_id: s.station_id, lat: s.lat, lon: s.lon,
+               temperature: s.temperature, humidity: s.humidity, pressure: s.pressure,
+               bearing: b, distance: d };
+    });
+
+    if (maxDist === 0) maxDist = 1;
+    positions.forEach(function(p) {
+      p.normDist = p.distance / maxDist;
+    });
+    return positions;
+  }
+
+  function tempColor(celsius) {
+    if (celsius < 0) return '#4a9eff';
+    if (celsius <= 10) return '#4acfcf';
+    if (celsius <= 20) return '#ffaa4a';
+    return '#ff6b4a';
+  }
+
+  function formatCompassTemp(celsius) {
+    var val = convertTemp(celsius);
+    return val.toFixed(1) + '\u00b0';
+  }
+
+  var compassTooltipEl = null;
+
+  function showCompassTooltip(evt, pos) {
+    if (!compassTooltipEl) {
+      compassTooltipEl = document.createElement('div');
+      compassTooltipEl.className = 'compass-tooltip';
+      document.body.appendChild(compassTooltipEl);
+    }
+    var lines = [formatTemp(pos.temperature)];
+    if (pos.humidity != null) lines.push('Humidity: ' + pos.humidity + '%');
+    if (pos.pressure != null) lines.push('Pressure: ' + pos.pressure + ' mb');
+    compassTooltipEl.innerHTML = lines.join('<br>');
+    compassTooltipEl.style.display = 'block';
+
+    var rect = evt.target.closest('.home-compass-container').getBoundingClientRect();
+    var x = evt.clientX - rect.left + 12;
+    var y = evt.clientY - rect.top - 10;
+    compassTooltipEl.style.left = x + 'px';
+    compassTooltipEl.style.top = y + 'px';
+    compassTooltipEl.style.position = 'absolute';
+
+    var compassContainer = evt.target.closest('.home-compass-container');
+    if (compassContainer.style.position !== 'relative') {
+      compassContainer.style.position = 'relative';
+    }
+    compassContainer.appendChild(compassTooltipEl);
+  }
+
+  function hideCompassTooltip() {
+    if (compassTooltipEl) compassTooltipEl.style.display = 'none';
+  }
+
+  function renderCompass(data) {
+    var el = document.getElementById('home-compass');
+    if (!el) return;
+    if (!data || !data.stations || !data.stations.length) {
+      el.innerHTML = '';
+      return;
+    }
+
+    var positions = computeStationPositions(data.stations);
+    var svgSize = 300;
+    var cx = svgSize / 2;
+    var cy = svgSize / 2;
+    var radius = svgSize / 2 - 30;
+
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + svgSize + ' ' + svgSize);
+    svg.setAttribute('class', 'compass-svg');
+
+    // Concentric rings
+    [0.33, 0.66, 1.0].forEach(function(scale) {
+      var circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('cx', cx);
+      circle.setAttribute('cy', cy);
+      circle.setAttribute('r', radius * scale);
+      circle.setAttribute('class', 'compass-ring');
+      svg.appendChild(circle);
+    });
+
+    // Cardinal and intercardinal labels
+    var cardinals = [
+      { label: 'N', angle: -90, primary: true },
+      { label: 'NE', angle: -45, primary: false },
+      { label: 'E', angle: 0, primary: true },
+      { label: 'SE', angle: 45, primary: false },
+      { label: 'S', angle: 90, primary: true },
+      { label: 'SW', angle: 135, primary: false },
+      { label: 'W', angle: 180, primary: true },
+      { label: 'NW', angle: -135, primary: false }
+    ];
+    cardinals.forEach(function(c) {
+      var rad = c.angle * Math.PI / 180;
+      var lx = cx + (radius + 16) * Math.cos(rad);
+      var ly = cy + (radius + 16) * Math.sin(rad);
+      var text = document.createElementNS(ns, 'text');
+      text.setAttribute('x', lx);
+      text.setAttribute('y', ly);
+      text.setAttribute('class', 'compass-cardinal' + (c.label === 'N' ? ' compass-cardinal-n' : ''));
+      text.setAttribute('dominant-baseline', 'central');
+      if (!c.primary) text.setAttribute('font-size', '9');
+      text.textContent = c.label;
+      svg.appendChild(text);
+    });
+
+    // Center marker
+    var centerDot = document.createElementNS(ns, 'circle');
+    centerDot.setAttribute('cx', cx);
+    centerDot.setAttribute('cy', cy);
+    centerDot.setAttribute('r', 3);
+    centerDot.setAttribute('fill', 'rgba(192, 216, 240, 0.4)');
+    svg.appendChild(centerDot);
+
+    // Station dots
+    positions.forEach(function(pos) {
+      var bearingRad = (pos.bearing - 90) * Math.PI / 180;
+      var r = Math.max(0.08, pos.normDist) * radius;
+      var sx = cx + r * Math.cos(bearingRad);
+      var sy = cy + r * Math.sin(bearingRad);
+
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', sx);
+      dot.setAttribute('cy', sy);
+      dot.setAttribute('r', 4.5);
+      dot.setAttribute('fill', tempColor(pos.temperature));
+      dot.setAttribute('class', 'compass-station');
+      dot.dataset.stationId = pos.station_id;
+
+      dot.addEventListener('mouseenter', function(e) { showCompassTooltip(e, pos); });
+      dot.addEventListener('mouseleave', hideCompassTooltip);
+      dot.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showCompassTooltip(e, pos);
+        setTimeout(hideCompassTooltip, 2000);
+      });
+      svg.appendChild(dot);
+
+      // Temperature label
+      var label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', sx);
+      label.setAttribute('y', sy - 8);
+      label.setAttribute('class', 'compass-temp-label');
+      label.textContent = formatCompassTemp(pos.temperature);
+      svg.appendChild(label);
+    });
+
+    // Build card
+    var card = document.createElement('div');
+    card.className = 'compass-card';
+
+    var heading = document.createElement('h2');
+    heading.textContent = 'Nearby Stations';
+    card.appendChild(heading);
+    card.appendChild(svg);
+
+    // Timestamp
+    var ts = data.fetched_at;
+    var timeStr = '';
+    if (ts) {
+      var d = new Date(ts);
+      timeStr = formatTime(d);
+    }
+    var meta = document.createElement('div');
+    meta.className = 'compass-meta';
+    meta.textContent = data.station_count + ' stations' + (timeStr ? ' \u00b7 Updated ' + timeStr : '');
+    card.appendChild(meta);
+
+    el.innerHTML = '';
+    el.appendChild(card);
+  }
+
+  function loadCompassData() {
+    var homeEl = document.getElementById('home');
+    if (!homeEl || !homeEl.classList.contains('active')) return;
+
+    fetch(MANIFEST_URL)
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+      })
+      .then(function(manifest) {
+        var ps = manifest.public_stations;
+        if (!ps) throw new Error('no public_stations');
+        var dates = Object.keys(ps).sort().reverse();
+        if (!dates.length) throw new Error('no dates');
+        var latestDate = dates[0];
+        var hours = ps[latestDate].slice().sort().reverse();
+        if (!hours.length) throw new Error('no hours');
+        var latestHour = hours[0];
+        return fetch(DATA_BASE_URL + '/public-stations/' + latestDate + '/' + latestHour + '.json');
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+      })
+      .then(function(data) {
+        latestCompassData = data;
+        renderCompass(data);
+      })
+      .catch(function() {
+        var el = document.getElementById('home-compass');
+        if (el) el.innerHTML = '';
+      });
+  }
+
+  return { start: start, stop: stop, loadHomeSummary: loadHomeSummary, loadCompassData: loadCompassData };
 })();
