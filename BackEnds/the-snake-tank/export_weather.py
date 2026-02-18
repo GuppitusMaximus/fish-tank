@@ -13,6 +13,7 @@ import argparse
 import glob
 import gzip
 import json
+import math
 import os
 import re
 import shutil
@@ -371,6 +372,44 @@ def load_validated_history(history_path, hours):
     return None
 
 
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Great-circle distance between two points in kilometers."""
+    R = 6371  # Earth radius in km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlon / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def get_home_location():
+    """Compute home location as center of public station bounding box."""
+    try:
+        lat_ne = float(os.environ.get("NETATMO_PUBLIC_LAT_NE", 0))
+        lon_ne = float(os.environ.get("NETATMO_PUBLIC_LON_NE", 0))
+        lat_sw = float(os.environ.get("NETATMO_PUBLIC_LAT_SW", 0))
+        lon_sw = float(os.environ.get("NETATMO_PUBLIC_LON_SW", 0))
+        if lat_ne == 0 and lat_sw == 0:
+            return None
+        return {
+            "lat": round((lat_ne + lat_sw) / 2, 6),
+            "lon": round((lon_ne + lon_sw) / 2, 6),
+        }
+    except (ValueError, TypeError):
+        return None
+
+
+def filter_nearest_stations(stations, home, count=10):
+    """Add distance fields and return the nearest `count` stations."""
+    for s in stations:
+        dist = haversine_km(home["lat"], home["lon"], s["lat"], s["lon"])
+        s["distance_km"] = round(dist, 1)
+        s["distance_mi"] = round(dist * 0.621371, 1)
+    stations.sort(key=lambda s: s["distance_km"])
+    return stations[:count]
+
+
 def export_public_stations():
     """Convert public station CSV files to JSON for frontend consumption."""
     import csv as csv_mod
@@ -380,6 +419,7 @@ def export_public_stations():
                       "rain_24h", "wind_strength", "wind_angle",
                       "gust_strength", "gust_angle")
     converted = 0
+    home = get_home_location()
 
     if not os.path.isdir(PUBLIC_STATIONS_DIR):
         return converted
@@ -419,11 +459,16 @@ def export_public_stations():
                         print(f"  Warning: skipping malformed row in {csv_path}: {e}")
                         continue
 
+            if home and stations:
+                stations = filter_nearest_stations(stations, home)
+
             output = {
                 "fetched_at": fetched_at,
                 "station_count": len(stations),
                 "stations": stations,
             }
+            if home:
+                output["home_location"] = home
 
             # Write atomically
             tmp_fd, tmp_path = tempfile.mkstemp(
@@ -872,6 +917,7 @@ def export(output_path, hours, history_path=None):
 
     # Add latest public station snapshot so the compass view has data
     # without needing a separate fetch to the manifest/data-index.json
+    home = get_home_location()
     if os.path.isdir(PUBLIC_STATIONS_DIR):
         ps_dates = sorted(os.listdir(PUBLIC_STATIONS_DIR), reverse=True)
         for d in ps_dates:
@@ -885,6 +931,11 @@ def export(output_path, hours, history_path=None):
             if json_files:
                 ps_data = read_json(os.path.join(day_dir, json_files[0]))
                 if ps_data:
+                    if home and ps_data.get("stations"):
+                        ps_data["stations"] = filter_nearest_stations(
+                            ps_data["stations"], home)
+                        ps_data["station_count"] = len(ps_data["stations"])
+                        ps_data["home_location"] = home
                     public_data['public_stations'] = ps_data
                 break
 
