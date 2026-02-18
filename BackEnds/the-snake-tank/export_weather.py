@@ -869,6 +869,25 @@ def export(output_path, hours, history_path=None):
         'predictions': result['predictions'],
         'next_prediction': result['next_prediction'],
     }
+
+    # Add latest public station snapshot so the compass view has data
+    # without needing a separate fetch to the manifest/data-index.json
+    if os.path.isdir(PUBLIC_STATIONS_DIR):
+        ps_dates = sorted(os.listdir(PUBLIC_STATIONS_DIR), reverse=True)
+        for d in ps_dates:
+            day_dir = os.path.join(PUBLIC_STATIONS_DIR, d)
+            if not os.path.isdir(day_dir):
+                continue
+            json_files = sorted(
+                [f for f in os.listdir(day_dir) if f.endswith('.json')],
+                reverse=True,
+            )
+            if json_files:
+                ps_data = read_json(os.path.join(day_dir, json_files[0]))
+                if ps_data:
+                    public_data['public_stations'] = ps_data
+                break
+
     public_path = os.path.join(os.path.dirname(output_path), 'weather-public.json')
     fd, temp_path = tempfile.mkstemp(suffix='.json', dir=os.path.dirname(public_path))
     try:
