@@ -385,6 +385,8 @@ Manual verification report (not a pytest file). Documents that:
 | R2 upload function (boto3, env vars, content type) | `test_r2_upload.py` |
 | weather-public.json generation (schema, atomic write, no sensitive data) | `test_weather_public.py`, `test_public_weather_export.py` |
 | weather-public.json includes public_stations data | `test-weather-public-stations.sh` |
+| Nearest-10 public station filtering by haversine distance | `test-compass-nearest-export.sh` |
+| home_location and distance fields in public station export | `test-compass-nearest-export.sh` |
 | weather-public.json end-to-end schema validation (predictions, property_meta, no history) | `test_public_weather_export.py` |
 | R2 upload call ordering in export() | `test_r2_integration.py` |
 | requirements.txt completeness | `test_requirements.sh` |
@@ -621,6 +623,24 @@ Shell script verifying that `weather-public.json` includes `public_stations` dat
 - `public_stations.stations` has more than 10 entries
 - `schema_version` is still 2 (backward compat)
 - `current` and `predictions` keys are still present
+
+### `test-compass-nearest-export.sh`
+
+**Plan:** `qa-compass-backend-nearest`
+
+Shell script verifying nearest-10 station filtering in `export_weather.py` (5 code checks + 4 output checks):
+
+- `haversine_km()` function exists in `export_weather.py`
+- `get_home_location()` function exists (reads bounding box env vars)
+- `distance_km` field referenced in code
+- `distance_mi` field referenced in code
+- `home_location` field referenced in code
+- When `weather-public.json` exists: `home_location` present in `public_stations`
+- When `weather-public.json` exists: `stations` array has ≤ 10 entries
+- When `weather-public.json` exists: first station has `distance_km` field
+- When `weather-public.json` exists: stations sorted by `distance_km` ascending
+
+Note: Output checks require `NETATMO_PUBLIC_LAT_NE/LON_NE/LAT_SW/LON_SW` env vars to be set and export run with those vars. The deployed `weather-public.json` is only updated when the production pipeline runs.
 
 ### `test_weather_public.py`
 
