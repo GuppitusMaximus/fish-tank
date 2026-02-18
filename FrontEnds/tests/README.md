@@ -32,6 +32,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test_lockdown_git.sh` | Shell script | Verifies protected data files are removed from git tracking: weather.json, frontend.db.gz, data-index.json untracked; weather-public.json tracked or not yet created (4 checks) |
 | `test_lockdown_gitignore.sh` | Shell script | Verifies .gitignore correctly ignores protected data files: weather.json, frontend.db.gz, data-index.json ignored; weather-public.json NOT ignored (4 checks) |
 | `test_lockdown_access.sh` | Shell script | Verifies protected data is not publicly accessible via GitHub raw URL (weather.json returns 404); weather-public.json local structure check (2 checks) |
+| `test_public_weather_display.sh` | Shell script | Verifies public weather frontend fetches from Worker endpoint: AUTH_API_URL used, no auth headers, graceful degradation, script load order, V2 rendering path (10 checks) |
 
 ### Static Code Analysis Reports
 
@@ -96,6 +97,7 @@ bash tests/test_auth_animations.sh
 bash tests/test_lockdown_git.sh
 bash tests/test_lockdown_gitignore.sh
 bash tests/test_lockdown_access.sh
+bash tests/test_public_weather_display.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -177,6 +179,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Sign-in modal: all required elements present** | \`test_signin_modal.sh\` |
 | **Auth CSS animations: bubble, success, shake keyframes** | \`test_auth_animations.sh\` |
 | **Data fetching: Worker endpoints, auth headers, no fallbacks** | \`test_data_fetching.js\` |
+| **Public weather: Worker URL, no auth headers, V2 rendering path** | \`test_public_weather_display.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -253,6 +256,7 @@ The following v2 features were verified:
 | \`qa-remove-predictions-cta\` | Completed | \`test_no_predictions_cta.sh\` (6 checks), updated \`qa-weather-home-overlap.js\`, \`test_home_weather_load.js\`, \`browser/view-switching.spec.js\` to reflect CTA removal | None (all 6 checks pass) |
 | \`qa-website-auth-frontend\` | Completed | \`test_auth_setup.sh\` (6 checks), \`test_auth_module.js\` (10 assertions), \`test_content_gating.sh\` (4 checks), \`test_signin_modal.sh\` (7 checks), \`test_auth_animations.sh\` (5 checks), \`test_data_fetching.js\` (8 assertions), \`test_signout.js\` (5 assertions) — 45 checks total | None (all 45 checks pass) |
 | \`qa-browser-website-auth-frontend\` | Completed | \`browser/auth-modal.spec.js\` (8 Playwright tests), \`browser/auth-gating.spec.js\` (6 Playwright tests), \`browser/auth-theme.spec.js\` (5 Playwright tests) — 5 baseline screenshots | 1 bug filed: `weather-public.json` missing from deployment (home weather summary blank for unauthenticated users) |
+| \`qa-public-weather-frontend\` | Completed | \`test_public_weather_display.sh\` (10 checks) | None (all 10 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
