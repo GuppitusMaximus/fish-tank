@@ -41,6 +41,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-geometry.sh` | Shell script | Compass geometry calculations via Node: bearing math (N/S/E/W), centroid computation, SVG coordinate conversion for all 4 cardinal directions (13 math assertions) |
 | `test_home_weather_public.sh` | Shell script | Verifies fix-home-weather-public: loadHomeSummary fetches from local data/weather-public.json, Worker fallback exists and is guarded by !AUTH_API_URL, start() and initDatabase() unchanged, weather-public.json valid JSON with required fields (8 checks) |
 | `test-compass-datasource-fix.sh` | Shell script | Verifies compass reads from latestData.public_stations (not MANIFEST_URL/data-index.json): no manifest fetch in loadCompassData, public_stations referenced, renderCompass exists, loadCompassData exposed, no data-index reference (5 checks) |
+| `test-compass-responsive.sh` | Shell script | Verifies compass card CSS is bigger and responsive: aspect-ratio:1 for square card, no fixed 320px max-width on SVG, container uses 90vw responsive width (3 checks) |
 
 ### Static Code Analysis Reports
 
@@ -115,6 +116,7 @@ bash tests/test-compass-station-view.sh
 bash tests/test-compass-geometry.sh
 bash tests/test_home_weather_public.sh
 bash tests/test-compass-datasource-fix.sh
+bash tests/test-compass-responsive.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -203,6 +205,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Compass station view: HTML structure, JS rendering, CSS, bearing math, tooltips** | \`test-compass-station-view.sh\`, \`test-compass-geometry.sh\` |
 | **Home weather public fix: local fetch, Worker fallback, endpoint isolation** | \`test_home_weather_public.sh\` |
 | **Compass data source fix: reads from latestData.public_stations, no manifest fetch** | \`test-compass-datasource-fix.sh\` |
+| **Compass card responsive CSS: square card, no fixed max-width, responsive container** | \`test-compass-responsive.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -288,6 +291,7 @@ The following v2 features were verified:
 | \`qa-browser-compass-station-view\` | Completed | \`browser/compass-station-view.spec.js\` updated (11 Playwright tests, all pass — 2 DOM checks + 9 data-driven tests via weather-public.json) | 1 bug filed: manifest URL 404 (fixed by companion plan switching to weather-public.json as data source) |
 | \`qa-fix-home-weather-public\` | Completed | \`test_home_weather_public.sh\` (8 checks) | None (all 8 checks pass) |
 | \`qa-fix-compass-frontend-datasource\` | Completed | \`test-compass-datasource-fix.sh\` (5 checks), updated \`browser/compass-station-view.spec.js\` comments | None (all 5 checks pass) |
+| \`qa-compass-bigger-responsive\` | Completed | \`test-compass-responsive.sh\` (3 checks) | None (all 3 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
