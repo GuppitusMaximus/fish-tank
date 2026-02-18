@@ -43,6 +43,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-datasource-fix.sh` | Shell script | Verifies compass reads from latestData.public_stations (not MANIFEST_URL/data-index.json): no manifest fetch in loadCompassData, public_stations referenced, renderCompass exists, loadCompassData exposed, no data-index reference (5 checks) |
 | `test-compass-responsive.sh` | Shell script | Verifies compass card CSS is bigger and responsive: aspect-ratio:1 for square card, no fixed 320px max-width on SVG, container uses 90vw responsive width (3 checks) |
 | `test-compass-floating.sh` | Shell script | Verifies compass station nodes have floating animation: @keyframes compass-float exists, .compass-station and .compass-temp-label have animation, JS sets random animationDelay/animationDuration per dot (5 checks) |
+| `test-compass-card-redesign.sh` | Shell script | Verifies compass card redesign: HTML satellite cards (compass-layout, compass-center, compass-satellite, compass-stack), CSS classes, prefers-reduced-motion, accessibility (aria-label, tabindex), distance_mi, old .compass-station removed (17 checks) |
 
 ### Static Code Analysis Reports
 
@@ -119,6 +120,7 @@ bash tests/test_home_weather_public.sh
 bash tests/test-compass-datasource-fix.sh
 bash tests/test-compass-responsive.sh
 bash tests/test-compass-floating.sh
+bash tests/test-compass-card-redesign.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -209,6 +211,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Compass data source fix: reads from latestData.public_stations, no manifest fetch** | \`test-compass-datasource-fix.sh\` |
 | **Compass card responsive CSS: square card, no fixed max-width, responsive container** | \`test-compass-responsive.sh\` |
 | **Compass floating animation: @keyframes, CSS classes, JS random delay/duration** | \`test-compass-floating.sh\` |
+| **Compass card redesign: satellite cards, stacking, accessibility, reduced-motion** | \`test-compass-card-redesign.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -296,6 +299,7 @@ The following v2 features were verified:
 | \`qa-fix-compass-frontend-datasource\` | Completed | \`test-compass-datasource-fix.sh\` (5 checks), updated \`browser/compass-station-view.spec.js\` comments | None (all 5 checks pass) |
 | \`qa-compass-bigger-responsive\` | Completed | \`test-compass-responsive.sh\` (3 checks) | None (all 3 checks pass) |
 | \`qa-compass-floating-nodes\` | Completed | \`test-compass-floating.sh\` (5 checks) | None (all 5 checks pass) |
+| \`qa-compass-card-redesign\` | Completed | \`test-compass-card-redesign.sh\` (17 checks) | None (all 17 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
