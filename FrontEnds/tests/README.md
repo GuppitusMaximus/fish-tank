@@ -53,6 +53,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 |------|-------------------|
 | `qa-browse-data-frontend-static.md` | Static code review of Browse Data UI rework: 4 category system, human-readable timestamps, model auto-discovery, public stations & validation rendering (9 verification steps, all passed) |
 | `dungeon-fisher-qa.md` | Static QA for Dungeon Fisher game: file structure, SPA integration, 5-state machine, data model (5 fish types, 10 floors), combat logic, all 10 AC criteria, code quality (7 check categories, all passed) |
+| `dungeon-fisher-browser-qa.md` | Browser QA report for Dungeon Fisher: 35 Playwright tests covering navigation, initial state, fishing, upgrades, combat, floor progression, victory, visual quality, and edge cases — all passed |
 
 ### Playwright Browser Tests
 
