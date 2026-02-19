@@ -54,6 +54,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-browse-data-frontend-static.md` | Static code review of Browse Data UI rework: 4 category system, human-readable timestamps, model auto-discovery, public stations & validation rendering (9 verification steps, all passed) |
 | `dungeon-fisher-qa.md` | Static QA for Dungeon Fisher game: file structure, SPA integration, 5-state machine, data model (5 fish types, 10 floors), combat logic, all 10 AC criteria, code quality (7 check categories, all passed) |
 | `dungeon-fisher-browser-qa.md` | Browser QA report for Dungeon Fisher: 35 Playwright tests covering navigation, initial state, fishing, upgrades, combat, floor progression, victory, visual quality, and edge cases — all passed |
+| `dungeon-fisher-v2-qa.md` | Static QA report for Dungeon Fisher V2 (Phaser/Vite standalone): project structure, data completeness (10 fish, 10 moves, 13 monsters, 5 items), 4 game systems, 7 scenes with all transitions, all 13 AC criteria — all passed |
 
 ### Playwright Browser Tests
 
@@ -314,6 +315,7 @@ The following v2 features were verified:
 | \`qa-fix-manifest-404\` | Completed | Static code inspection only — no new test files created | None (all 5 checks pass) |
 | \`qa-dungeon-fisher\` | Completed | \`dungeon-fisher-qa.md\` (static QA report — 7 check categories, all pass) | None |
 | \`qa-browser-dungeon-fisher\` | Completed | \`browser/dungeon-fisher.spec.js\` (35 Playwright tests, all pass), \`dungeon-fisher-browser-qa.md\` (browser QA report) | None |
+| \`qa-dungeon-fisher-v2\` | Completed | \`dungeon-fisher-v2-qa.md\` (static QA — 6 steps, 13 ACs, all pass, 2 minor code quality notes) | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
