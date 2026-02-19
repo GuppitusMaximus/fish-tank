@@ -55,6 +55,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `dungeon-fisher-qa.md` | Static QA for Dungeon Fisher game: file structure, SPA integration, 5-state machine, data model (5 fish types, 10 floors), combat logic, all 10 AC criteria, code quality (7 check categories, all passed) |
 | `dungeon-fisher-browser-qa.md` | Browser QA report for Dungeon Fisher: 35 Playwright tests covering navigation, initial state, fishing, upgrades, combat, floor progression, victory, visual quality, and edge cases — all passed |
 | `dungeon-fisher-v2-qa.md` | Static QA report for Dungeon Fisher V2 (Phaser/Vite standalone): project structure, data completeness (10 fish, 10 moves, 13 monsters, 5 items), 4 game systems, 7 scenes with all transitions, all 13 AC criteria — all passed |
+| `dungeon-fisher-browser-qa-v2.md` | Browser QA report for Dungeon Fisher V2: 32 Playwright tests covering page boot, title screen, new game flow, battle, shop, camp, save/load, responsive layout, game logic, and victory — all 32 tests passed, no bugs found |
 
 ### Playwright Browser Tests
 
@@ -72,6 +73,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/auth-modal.spec.js` | Sign-in modal behavior: hidden by default, opens on click, username/password inputs, submit button, closes via X and overlay click, screenshot (8 tests, all pass) |
 | `browser/auth-gating.spec.js` | Content gating: weather nav hidden without auth, sign-in link visible, home weather data loads from `weather-public.json`, hash navigation blocked from prediction data, no raw GitHub fallback (6 tests — 5 pass, 1 fails pending `weather-public.json` deployment; see bug `website-auth-frontend-weather-public-missing.md`) |
 | `browser/dungeon-fisher.spec.js` | Dungeon Fisher game: navigation integration (6 tests), initial state (5 tests), fishing interaction (5 tests), upgrade system (2 tests), combat (6 tests), floor progression (1 test), victory (2 tests), visual quality (5 tests), edge cases (3 tests) — 35 total tests |
+| `browser/dungeon-fisher-v2.spec.js` | Dungeon Fisher V2 (Phaser/Vite standalone at localhost:8080): page boot (4 tests), title screen (2 tests), new game flow (3 tests), battle (3 tests), shop (3 tests), camp (2 tests), save/load (3 tests), responsive (2 tests), game logic (8 tests), victory (1 test) — 32 total tests |
 | `browser/auth-theme.spec.js` | Auth modal theming: card background/padding, blue/ocean gradient, fish element present, mobile 375px responsive, desktop 1280px centered layout, screenshots (5 tests, all pass) |
 | `browser/compass-station-view.spec.js` | Compass rose on home page: container present in DOM, visibility, cardinal labels (N/S/E/W), station dots rendered (>10), temperature labels with degree values, color coding, hover tooltip, metadata station count, mobile responsive viewport, concentric rings (11 tests, all pass) |
 
@@ -316,6 +318,7 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher\` | Completed | \`dungeon-fisher-qa.md\` (static QA report — 7 check categories, all pass) | None |
 | \`qa-browser-dungeon-fisher\` | Completed | \`browser/dungeon-fisher.spec.js\` (35 Playwright tests, all pass), \`dungeon-fisher-browser-qa.md\` (browser QA report) | None |
 | \`qa-dungeon-fisher-v2\` | Completed | \`dungeon-fisher-v2-qa.md\` (static QA — 6 steps, 13 ACs, all pass, 2 minor code quality notes) | None |
+| \`qa-browser-dungeon-fisher-v2\` | Completed | \`browser/dungeon-fisher-v2.spec.js\` (32 Playwright tests, all pass), \`dungeon-fisher-browser-qa-v2.md\` (browser QA report) — 15 baseline screenshots | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
