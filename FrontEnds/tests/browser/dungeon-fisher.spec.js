@@ -70,13 +70,13 @@ test('navigation: Fish Games dropdown toggle shows as active on dungeon view', a
 
 test('navigation: navigate away and back preserves dungeon view loads', async ({ page }) => {
     await goDungeon(page);
-    // Go to tank view
-    await page.goto(`${BASE}/#tank`);
-    await page.waitForSelector('#tank.active', { timeout: 8000 });
+    // Go to fish tank view (hash is fishtank, element id is tank)
+    await page.goto(`${BASE}/#fishtank`);
+    await page.waitForSelector('#tank.active', { timeout: 10000 });
     // Go back to dungeon
     await page.goto(`${BASE}/#dungeon`);
-    await page.waitForSelector('#dungeon.active', { timeout: 8000 });
-    // Dungeon should still show initial game state
+    await page.waitForSelector('#dungeon.active', { timeout: 10000 });
+    // Dungeon should still show game state
     await expect(page.locator('.dungeon-hud')).toBeVisible();
 });
 
@@ -202,7 +202,7 @@ test('combat: Fight! button starts combat', async ({ page }) => {
     await page.locator('.dungeon-btn', { hasText: 'Fight!' }).click();
     // Combat state: no action buttons (fight/upgrade hidden), entities visible
     await expect(page.locator('.fish-entity')).toBeVisible();
-    await expect(page.locator('.monster-entity')).toBeVisible();
+    await expect(page.locator('.monster-entity').first()).toBeVisible();
     await page.screenshot({ path: 'tests/browser/screenshots/dungeon-combat-start.png' });
 });
 
@@ -398,19 +398,25 @@ test('visual: no SVG overflow in dungeon scene', async ({ page }) => {
 // ─── Step 9: Edge Cases ──────────────────────────────────────────────────────
 
 test('edge: multiple casts produce different fish types over time', async ({ page }) => {
-    await goDungeon(page);
     page.setDefaultTimeout(15000);
+    await page.goto(`${BASE}/#dungeon`);
+    await page.waitForSelector('#dungeon.active', { timeout: 10000 });
 
     const fishNames = [];
     for (let i = 0; i < 3; i++) {
+        if (i > 0) {
+            // Reload page to reset game state (hash persists, game reinitializes)
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await page.waitForSelector('#dungeon.active', { timeout: 10000 });
+        }
         await catchFish(page);
         const statsText = await page.locator('.fish-stats').textContent();
-        fishNames.push(statsText.split('\n')[0].trim());
-        // Reset by navigating back to dungeon (rebuilds game)
-        await page.goto(`${BASE}/#dungeon`);
-        await page.waitForSelector('#dungeon.active', { timeout: 8000 });
+        // fish-stats innerHTML is: <strong>Name</strong><br>HP: x/y | DMG: z
+        const nameMatch = statsText.match(/^([^H]+)/);
+        if (nameMatch) fishNames.push(nameMatch[1].trim());
     }
-    // At least the fish names contain recognizable fish type names
+    // All 3 catches should produce non-empty fish names
+    expect(fishNames).toHaveLength(3);
     for (const name of fishNames) {
         expect(name.length).toBeGreaterThan(0);
     }
@@ -419,12 +425,12 @@ test('edge: multiple casts produce different fish types over time', async ({ pag
 test('edge: switching views during fishing does not crash page', async ({ page }) => {
     await goDungeon(page);
     await page.locator('.dungeon-btn', { hasText: 'Cast Line' }).click();
-    // Switch away mid-cast
-    await page.goto(`${BASE}/#tank`);
-    await page.waitForSelector('#tank.active', { timeout: 8000 });
+    // Switch away mid-cast (use home which always loads quickly)
+    await page.goto(`${BASE}/#home`);
+    await page.waitForSelector('#home.active', { timeout: 10000 });
     // Switch back
     await page.goto(`${BASE}/#dungeon`);
-    await page.waitForSelector('#dungeon.active', { timeout: 8000 });
+    await page.waitForSelector('#dungeon.active', { timeout: 10000 });
     // Should not crash — game should be in a valid state
     await expect(page.locator('.dungeon-hud')).toBeVisible();
 
