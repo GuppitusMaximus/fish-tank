@@ -20,6 +20,7 @@
                     <a data-view="fishtank">Fish Tank</a>
                     <a data-view="battle">Tank Battle</a>
                     <a data-view="fighter">Fighter Fish</a>
+                    <a data-view="dungeon">Dungeon Fisher</a>
                 </div>
             </div>
         </nav>
@@ -56,6 +57,7 @@
         <div class="cloud cloud-2"></div>
         <div class="cloud cloud-3"></div>
     </div>
+    <div id="dungeon"></div>
     <p class="hint" id="hint"></p>
     <div id="signin-modal">
       <div class="signin-card">
@@ -75,6 +77,7 @@
     <script src="js/tank.js"></script>
     <script src="js/battle.js"></script>
     <script src="js/fighter.js"></script>
+    <script src="js/dungeon-fisher.js"></script>
     <script src="js/weather.js"></script>
     <script>
     (() => {
@@ -113,6 +116,13 @@
                 title: 'Fighter Fish',
                 hint: 'Click to scramble a fighter',
                 theme: 'theme-sky'
+            },
+            dungeon: {
+                el: document.getElementById('dungeon'),
+                app: window.DungeonFisherApp,
+                title: 'Dungeon Fisher',
+                hint: '',
+                theme: 'theme-dungeon'
             }
         };
 
@@ -143,7 +153,7 @@
             hint.textContent = view.hint;
             if (view.app) view.app.start();
 
-            const gameViews = ['fishtank', 'battle', 'fighter'];
+            const gameViews = ['fishtank', 'battle', 'fighter', 'dungeon'];
             navLinks.forEach(a => {
                 a.classList.toggle('active', a.dataset.view === name);
             });
