@@ -263,7 +263,6 @@ The following v2 features were verified:
 - Fish Tank simulation (\`tank.js\`) — no tests exist
 - Tank Battle simulation (\`battle.js\`) — no tests exist
 - Fighter Fish simulation (\`fighter.js\`) — no tests exist
-- Dungeon Fisher browser tests (static QA complete; live browser tests not yet written)
 - Theme system (theme-ocean, theme-battle, theme-sky, theme-dungeon)
 - Click-to-spawn interactions
 - CSS animations (bubbles, smoke, debris)
@@ -312,7 +311,8 @@ The following v2 features were verified:
 | \`qa-compass-list-toggle\` | Completed | \`test-compass-list-toggle.sh\` (13 checks) | None (all 13 checks pass) |
 | \`qa-compass-weather-dashboard\` | Completed | \`test-compass-weather-dashboard.sh\` (5 checks) | None (all 5 checks pass) |
 | \`qa-fix-manifest-404\` | Completed | Static code inspection only — no new test files created | None (all 5 checks pass) |
-| \`qa-dungeon-fisher\` | Completed | \`dungeon-fisher-qa.md\` (static QA report — 7 check categories, all pass), \`browser/dungeon-fisher.spec.js\` (35 Playwright tests) | None |
+| \`qa-dungeon-fisher\` | Completed | \`dungeon-fisher-qa.md\` (static QA report — 7 check categories, all pass) | None |
+| \`qa-browser-dungeon-fisher\` | Completed | \`browser/dungeon-fisher.spec.js\` (35 Playwright tests, all pass), \`dungeon-fisher-browser-qa.md\` (browser QA report) | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
