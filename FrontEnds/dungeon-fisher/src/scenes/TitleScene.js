@@ -10,7 +10,13 @@ export default class TitleScene extends Phaser.Scene {
         super('TitleScene');
     }
 
-    create() {
+    create(data) {
+        if (data && data.selectedFisher) {
+            this._selectedFisher = data.selectedFisher;
+            this.showStarterSelection();
+            return;
+        }
+
         const { width, height } = this.scale;
 
         this._createParticleTextures();
@@ -164,7 +170,7 @@ export default class TitleScene extends Phaser.Scene {
 
         newBtn.on('pointerover', () => newBtn.setColor('#ffffff'));
         newBtn.on('pointerout', () => newBtn.setColor('#aaaacc'));
-        newBtn.on('pointerdown', () => this._transitionTo(() => this.showStarterSelection()));
+        newBtn.on('pointerdown', () => this._transitionTo(() => this.scene.start('CharacterSelectScene')));
 
         this.tweens.add({
             targets: newBtn,
@@ -315,7 +321,8 @@ export default class TitleScene extends Phaser.Scene {
             gold: 0,
             party: [starterFish],
             inventory: [],
-            campFloor: 1
+            campFloor: 1,
+            fisherId: this._selectedFisher || 'andy'
         };
 
         SaveSystem.save(gameState);
@@ -331,7 +338,8 @@ export default class TitleScene extends Phaser.Scene {
             gold: saveData.gold,
             party: saveData.party,
             inventory: saveData.inventory,
-            campFloor: saveData.campFloor
+            campFloor: saveData.campFloor,
+            fisherId: saveData.fisherId || 'andy'
         };
 
         this.scene.start('FloorScene', { gameState });

@@ -14,7 +14,8 @@ export default class SaveSystem {
             gold: gameState.gold,
             party: gameState.party,
             inventory: gameState.inventory,
-            campFloor: gameState.campFloor  // last camp checkpoint
+            campFloor: gameState.campFloor,  // last camp checkpoint
+            fisherId: gameState.fisherId || 'andy'
         };
         try {
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -48,11 +49,13 @@ export default class SaveSystem {
     // Migrate save data from older versions to current version.
     // Returns migrated data or null if migration is not possible.
     static migrate(data) {
-        // Future version migrations go here as chained if-blocks:
-        // if (data.version === 1) { /* migrate v1 → v2 */; data.version = 2; }
-        // if (data.version === 2) { /* migrate v2 → v3 */; data.version = 3; }
-        // For now, v1 is the only version — no migrations needed yet.
-        // If we can't recognize the version at all, discard.
+        if (data.version === 1) {
+            data.fisherId = 'andy';
+            data.version = 2;
+        }
+
+        if (data.version === SAVE_FORMAT_VERSION) return data;
+
         console.warn(`Unknown save version ${data.version}, cannot migrate`);
         return null;
     }
