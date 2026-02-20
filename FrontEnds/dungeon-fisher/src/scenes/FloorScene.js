@@ -3,7 +3,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { getBackgroundKey } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class FloorScene extends Phaser.Scene {
@@ -40,7 +40,7 @@ export default class FloorScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
-        this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
+        coverBackground(this, bgKey);
 
         // Flavor text
         this.add.text(W / 2, 10, this.getFlavorText(gs.floor), TEXT_STYLES.FLAVOR).setOrigin(0.5);
@@ -127,7 +127,7 @@ export default class FloorScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
-        this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
+        coverBackground(this, bgKey);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
 
         this.add.text(W / 2, H * 0.12, 'Floor ' + gs.floor + ' Reward!',

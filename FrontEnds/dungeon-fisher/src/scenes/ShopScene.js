@@ -1,6 +1,6 @@
 import EconomySystem from '../systems/EconomySystem.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { getBackgroundKey } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class ShopScene extends Phaser.Scene {
@@ -25,7 +25,7 @@ export default class ShopScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
-        this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
+        coverBackground(this, bgKey);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55);
 
         // Header

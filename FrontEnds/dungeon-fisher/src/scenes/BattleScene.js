@@ -3,7 +3,7 @@ import PartySystem from '../systems/PartySystem.js';
 import EconomySystem from '../systems/EconomySystem.js';
 import { ITEMS } from '../data/items.js';
 import MOVES from '../data/moves.js';
-import { getBackgroundKey } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class BattleScene extends Phaser.Scene {
@@ -47,7 +47,7 @@ export default class BattleScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(this.gameState.floor);
-        this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
+        coverBackground(this, bgKey);
 
         // Readability panels over text-heavy areas
         this.add.rectangle(W * 0.25, 18, W * 0.5, 30, 0x000000, 0.5);
