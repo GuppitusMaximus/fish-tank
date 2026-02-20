@@ -126,12 +126,13 @@ else
     check "Menu button starts hidden (setVisible(false))" "fail"
 fi
 
-# 13. Event handler hides button for hidden scenes
-if grep -q "setVisible(false)" "$OVERLAY" 2>/dev/null && \
-   grep -q "hiddenScenes" "$OVERLAY" 2>/dev/null; then
-    check "Event handler hides button on TitleScene/BootScene start" "pass"
+# 13. update() method hides button for hidden scenes (replaces event listener approach)
+if grep -q "update()" "$OVERLAY" 2>/dev/null && \
+   grep -q "BootScene\|TitleScene" "$OVERLAY" 2>/dev/null && \
+   grep -q "setVisible" "$OVERLAY" 2>/dev/null; then
+    check "update() method hides button on TitleScene/BootScene" "pass"
 else
-    check "Event handler hides button on TitleScene/BootScene start" "fail"
+    check "update() method hides button on TitleScene/BootScene" "fail"
 fi
 
 echo ""
@@ -140,19 +141,25 @@ echo ""
 
 echo "--- Check 3: Button visible on gameplay scenes ---"
 
-# 14. setVisible(true) called for non-hidden scenes
-if grep -q "setVisible(true)" "$OVERLAY" 2>/dev/null; then
-    check "setVisible(true) for non-hidden scenes" "pass"
+# 14. update() method uses setVisible(!hide) to show/hide based on active scenes
+if grep -q "setVisible(!hide)" "$OVERLAY" 2>/dev/null; then
+    check "update() calls setVisible(!hide) for dynamic show/hide" "pass"
 else
-    check "setVisible(true) for non-hidden scenes" "fail"
+    check "update() calls setVisible(!hide) for dynamic show/hide" "fail"
 fi
 
-# 15. Scene start event listener registered on scene.manager
-if grep -q "scene.manager.on('start'" "$OVERLAY" 2>/dev/null || \
-   grep -q "scene.manager.on(\"start\"" "$OVERLAY" 2>/dev/null; then
-    check "scene.manager.on('start') event handler registered" "pass"
+# 15. update() uses getScenes(true) to poll active scenes (no crash-prone event listener)
+if grep -q "getScenes(true)" "$OVERLAY" 2>/dev/null; then
+    check "update() uses getScenes(true) — no scene.manager.on() event listener" "pass"
 else
-    check "scene.manager.on('start') event handler registered" "fail"
+    check "update() uses getScenes(true) — no scene.manager.on() event listener" "fail"
+fi
+
+# 15b. Confirm scene.manager.on is NOT present (the crash was caused by this)
+if grep -q "scene.manager.on" "$OVERLAY" 2>/dev/null; then
+    check "scene.manager.on NOT present (crash-causing listener removed)" "fail"
+else
+    check "scene.manager.on NOT present (crash-causing listener removed)" "pass"
 fi
 
 echo ""
@@ -217,11 +224,11 @@ else
     check "pointerdown handler stops ZonePreviewScene" "fail"
 fi
 
-# 24. Starts TitleScene
-if grep -q "scene.start('TitleScene')" "$OVERLAY" 2>/dev/null; then
-    check "pointerdown handler starts TitleScene" "pass"
+# 24. Starts TitleScene via scene.run() (not scene.start — avoids stopping UIOverlay)
+if grep -q "scene.run('TitleScene')" "$OVERLAY" 2>/dev/null; then
+    check "pointerdown handler runs TitleScene via scene.run()" "pass"
 else
-    check "pointerdown handler starts TitleScene" "fail"
+    check "pointerdown handler runs TitleScene via scene.run()" "fail"
 fi
 
 echo ""
