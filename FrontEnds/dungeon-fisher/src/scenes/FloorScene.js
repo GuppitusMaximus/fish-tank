@@ -38,17 +38,17 @@ export default class FloorScene extends Phaser.Scene {
 
         // Flavor text
         this.add.text(W / 2, 10, this.getFlavorText(gs.floor), {
-            fontSize: '7px', fontFamily: 'monospace', color: '#666688', fontStyle: 'italic'
+            fontSize: '11px', fontFamily: 'monospace', color: '#666688', fontStyle: 'italic'
         }).setOrigin(0.5);
 
         // Floor title
         this.add.text(W / 2, 26, 'Floor ' + gs.floor + ' / 100', {
-            fontSize: '12px', fontFamily: 'monospace', color: '#f0c040'
+            fontSize: '16px', fontFamily: 'monospace', color: '#f0c040'
         }).setOrigin(0.5);
 
         // Gold + Inventory
         this.add.text(W / 2, 42, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY, {
-            fontSize: '8px', fontFamily: 'monospace', color: '#cccc80'
+            fontSize: '12px', fontFamily: 'monospace', color: '#cccc80'
         }).setOrigin(0.5);
 
         // Party display with HP bars
@@ -59,7 +59,7 @@ export default class FloorScene extends Phaser.Scene {
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
             this.add.text(10, py, fish.name + ' Lv.' + fish.level, {
-                fontSize: '7px', fontFamily: 'monospace', color: alive ? '#88ccff' : '#cc4444'
+                fontSize: '11px', fontFamily: 'monospace', color: alive ? '#88ccff' : '#cc4444'
             });
 
             // HP bar background
@@ -74,15 +74,15 @@ export default class FloorScene extends Phaser.Scene {
 
             // HP text
             this.add.text(barX + barW + 5, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED', {
-                fontSize: '7px', fontFamily: 'monospace', color: alive ? '#aaaaaa' : '#cc4444'
+                fontSize: '11px', fontFamily: 'monospace', color: alive ? '#aaaaaa' : '#cc4444'
             });
-            py += 14;
+            py += 18;
         });
 
         // Action buttons
         const btnY = Math.max(py + 12, H * 0.5);
         const battleBtn = this.add.text(W / 2, btnY, '[ ENTER BATTLE ]', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#aaaacc'
+            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         battleBtn.on('pointerover', () => battleBtn.setColor('#ffffff'));
         battleBtn.on('pointerout', () => battleBtn.setColor('#aaaacc'));
@@ -92,14 +92,14 @@ export default class FloorScene extends Phaser.Scene {
         });
 
         const shopBtn = this.add.text(W / 2, btnY + 22, '[ SHOP ]', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#aaaacc'
+            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         shopBtn.on('pointerover', () => shopBtn.setColor('#ffffff'));
         shopBtn.on('pointerout', () => shopBtn.setColor('#aaaacc'));
         shopBtn.on('pointerdown', () => this.scene.start('ShopScene', { gameState: gs }));
 
         const campBtn = this.add.text(W / 2, btnY + 44, '[ CAMP ]', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#aaaacc'
+            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         campBtn.on('pointerover', () => campBtn.setColor('#ffffff'));
         campBtn.on('pointerout', () => campBtn.setColor('#aaaacc'));
@@ -122,7 +122,7 @@ export default class FloorScene extends Phaser.Scene {
         const gs = this.gameState;
 
         this.add.text(W / 2, H * 0.12, 'Floor ' + gs.floor + ' Reward!', {
-            fontSize: '14px', fontFamily: 'monospace', color: '#ffd700', fontStyle: 'bold'
+            fontSize: '18px', fontFamily: 'monospace', color: '#ffd700', fontStyle: 'bold'
         }).setOrigin(0.5);
 
         // Offer a free fish if party has room, otherwise a free item
@@ -148,18 +148,18 @@ export default class FloorScene extends Phaser.Scene {
         const gs = this.gameState;
 
         this.add.text(W / 2, H * 0.3, 'A wild ' + species.name + ' wants to join!', {
-            fontSize: '9px', fontFamily: 'monospace', color: '#ccccee'
+            fontSize: '13px', fontFamily: 'monospace', color: '#ccccee'
         }).setOrigin(0.5);
 
         this.add.text(W / 2, H * 0.4, 'HP:' + species.baseHp + ' ATK:' + species.baseAtk +
             ' DEF:' + species.baseDef + ' SPD:' + species.baseSpd, {
-            fontSize: '7px', fontFamily: 'monospace', color: '#888888'
+            fontSize: '11px', fontFamily: 'monospace', color: '#888888'
         }).setOrigin(0.5);
 
         this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(3);
 
         const acceptBtn = this.add.text(W / 2 - 60, H * 0.7, '[ ACCEPT ]', {
-            fontSize: '10px', fontFamily: 'monospace', color: '#88cc88'
+            fontSize: '14px', fontFamily: 'monospace', color: '#88cc88'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         acceptBtn.on('pointerover', () => acceptBtn.setColor('#ffffff'));
         acceptBtn.on('pointerout', () => acceptBtn.setColor('#88cc88'));
@@ -170,7 +170,7 @@ export default class FloorScene extends Phaser.Scene {
         });
 
         const declineBtn = this.add.text(W / 2 + 60, H * 0.7, '[ DECLINE ]', {
-            fontSize: '10px', fontFamily: 'monospace', color: '#888888'
+            fontSize: '14px', fontFamily: 'monospace', color: '#888888'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         declineBtn.on('pointerover', () => declineBtn.setColor('#ffffff'));
         declineBtn.on('pointerout', () => declineBtn.setColor('#888888'));
@@ -187,11 +187,11 @@ export default class FloorScene extends Phaser.Scene {
         const item = ITEMS[itemId];
 
         this.add.text(W / 2, H * 0.4, 'You found a ' + item.name + '!', {
-            fontSize: '10px', fontFamily: 'monospace', color: '#ccccee'
+            fontSize: '14px', fontFamily: 'monospace', color: '#ccccee'
         }).setOrigin(0.5);
 
         const takeBtn = this.add.text(W / 2, H * 0.6, '[ TAKE ]', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#88cc88'
+            fontSize: '15px', fontFamily: 'monospace', color: '#88cc88'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         takeBtn.on('pointerover', () => takeBtn.setColor('#ffffff'));
         takeBtn.on('pointerout', () => takeBtn.setColor('#88cc88'));

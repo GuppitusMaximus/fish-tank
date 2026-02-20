@@ -38,24 +38,24 @@ export default class BattleScene extends Phaser.Scene {
             hpBarW: 120,
             fishInfoY: Math.floor(H * 0.65),
             msgY: Math.floor(H * 0.82),
-            btnY: H - 18, btnW: 95, btnCols: 4
+            btnY: H - 18, btnW: 100, btnCols: 4
         };
 
         const L = this.layout;
 
         // Monster info (top-left)
         this.monsterNameTxt = this.add.text(10, 8, this.monster.name, {
-            fontSize: '9px', fontFamily: 'monospace', color: '#ff9999'
+            fontSize: '13px', fontFamily: 'monospace', color: '#ff9999'
         });
         this.add.graphics().fillStyle(0x333333, 1).fillRect(10, 22, L.hpBarW, 8);
         this.monsterHpBar = this.add.graphics();
         this.monsterHpTxt = this.add.text(L.hpBarW + 15, 21, '', {
-            fontSize: '7px', fontFamily: 'monospace', color: '#aaaaaa'
+            fontSize: '11px', fontFamily: 'monospace', color: '#aaaaaa'
         });
 
         // Floor (top-right)
         this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor, {
-            fontSize: '8px', fontFamily: 'monospace', color: '#666666'
+            fontSize: '12px', fontFamily: 'monospace', color: '#666666'
         }).setOrigin(1, 0);
 
         // Sprites
@@ -65,19 +65,19 @@ export default class BattleScene extends Phaser.Scene {
         // Fish info
         this.fishInfoY = L.fishInfoY;
         this.fishNameTxt = this.add.text(10, this.fishInfoY, '', {
-            fontSize: '9px', fontFamily: 'monospace', color: '#88ccff'
+            fontSize: '13px', fontFamily: 'monospace', color: '#88ccff'
         });
         this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 14, L.hpBarW, 8);
         this.fishHpBar = this.add.graphics();
         this.fishHpTxt = this.add.text(L.hpBarW + 15, this.fishInfoY + 13, '', {
-            fontSize: '7px', fontFamily: 'monospace', color: '#aaaaaa'
+            fontSize: '11px', fontFamily: 'monospace', color: '#aaaaaa'
         });
         this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 25, L.hpBarW, 4);
         this.fishXpBar = this.add.graphics();
 
         // Message text
         this.msgTxt = this.add.text(W / 2, L.msgY, '', {
-            fontSize: '8px', fontFamily: 'monospace', color: '#cccccc',
+            fontSize: '12px', fontFamily: 'monospace', color: '#cccccc',
             align: 'center', wordWrap: { width: W - 20 }
         }).setOrigin(0.5);
 
@@ -153,7 +153,7 @@ export default class BattleScene extends Phaser.Scene {
 
     makeBtn(x, y, label, color, cb) {
         const btn = this.add.text(x, y, label, {
-            fontSize: '8px', fontFamily: 'monospace', color: color,
+            fontSize: '12px', fontFamily: 'monospace', color: color,
             backgroundColor: '#2a2a4a', padding: { x: 6, y: 4 },
             fixedWidth: this.layout.btnW, align: 'center'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -443,7 +443,7 @@ export default class BattleScene extends Phaser.Scene {
 
     addMenuItem(x, y, label, color, cb) {
         const style = {
-            fontSize: '9px', fontFamily: 'monospace', color: color
+            fontSize: '13px', fontFamily: 'monospace', color: color
         };
         if (cb) {
             style.backgroundColor = '#2a2a4a';
