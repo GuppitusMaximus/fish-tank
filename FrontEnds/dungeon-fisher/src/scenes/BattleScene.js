@@ -4,6 +4,7 @@ import EconomySystem from '../systems/EconomySystem.js';
 import { ITEMS } from '../data/items.js';
 import MOVES from '../data/moves.js';
 import { getBackgroundKey } from '../utils/zones.js';
+import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class BattleScene extends Phaser.Scene {
     constructor() {
@@ -54,19 +55,17 @@ export default class BattleScene extends Phaser.Scene {
         this.add.rectangle(W / 2, L.msgY, W * 0.7, 22, 0x000000, 0.5);
 
         // Monster info (top-left)
-        this.monsterNameTxt = this.add.text(10, 8, this.monster.name, {
-            fontSize: '13px', fontFamily: 'monospace', color: '#ff9999'
-        });
+        this.monsterNameTxt = this.add.text(10, 8, this.monster.name, TEXT_STYLES.MONSTER_NAME);
         this.add.graphics().fillStyle(0x333333, 1).fillRect(10, 22, L.hpBarW, 8);
         this.monsterHpBar = this.add.graphics();
-        this.monsterHpTxt = this.add.text(L.hpBarW + 15, 21, '', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#aaaaaa'
-        });
+        this.monsterHpTxt = this.add.text(L.hpBarW + 15, 21, '',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
+        );
 
         // Floor (top-right)
-        this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor, {
-            fontSize: '12px', fontFamily: 'monospace', color: '#666666'
-        }).setOrigin(1, 0);
+        this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#666666' })
+        ).setOrigin(1, 0);
 
         // Sprites
         this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5);
@@ -74,22 +73,19 @@ export default class BattleScene extends Phaser.Scene {
 
         // Fish info
         this.fishInfoY = L.fishInfoY;
-        this.fishNameTxt = this.add.text(10, this.fishInfoY, '', {
-            fontSize: '13px', fontFamily: 'monospace', color: '#88ccff'
-        });
+        this.fishNameTxt = this.add.text(10, this.fishInfoY, '', TEXT_STYLES.FISH_NAME);
         this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 14, L.hpBarW, 8);
         this.fishHpBar = this.add.graphics();
-        this.fishHpTxt = this.add.text(L.hpBarW + 15, this.fishInfoY + 13, '', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#aaaaaa'
-        });
+        this.fishHpTxt = this.add.text(L.hpBarW + 15, this.fishInfoY + 13, '',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
+        );
         this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 25, L.hpBarW, 4);
         this.fishXpBar = this.add.graphics();
 
         // Message text
-        this.msgTxt = this.add.text(W / 2, L.msgY, '', {
-            fontSize: '12px', fontFamily: 'monospace', color: '#cccccc',
-            align: 'center', wordWrap: { width: W - 20 }
-        }).setOrigin(0.5);
+        this.msgTxt = this.add.text(W / 2, L.msgY, '',
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#cccccc', align: 'center', wordWrap: { width: W - 20 } })
+        ).setOrigin(0.5);
 
         // UI containers
         this.actionBtns = [];
@@ -162,11 +158,13 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     makeBtn(x, y, label, color, cb) {
-        const btn = this.add.text(x, y, label, {
-            fontSize: '12px', fontFamily: 'monospace', color: color,
-            backgroundColor: '#2a2a4a', padding: { x: 6, y: 4 },
-            fixedWidth: this.layout.btnW, align: 'center'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const btn = this.add.text(x, y, label,
+            makeStyle(TEXT_STYLES.BUTTON, {
+                fontSize: '12px', color: color,
+                backgroundColor: '#2a2a4a', padding: { x: 6, y: 4 },
+                fixedWidth: this.layout.btnW, align: 'center'
+            })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffffff'));
         btn.on('pointerout', () => btn.setColor(color));
         btn.on('pointerdown', () => { if (!this.busy) cb(); });
@@ -452,9 +450,7 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     addMenuItem(x, y, label, color, cb) {
-        const style = {
-            fontSize: '13px', fontFamily: 'monospace', color: color
-        };
+        const style = makeStyle(TEXT_STYLES.BODY, { color: color });
         if (cb) {
             style.backgroundColor = '#2a2a4a';
             style.padding = { x: 10, y: 3 };

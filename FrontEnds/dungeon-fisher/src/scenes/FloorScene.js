@@ -4,6 +4,7 @@ import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey } from '../utils/zones.js';
+import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class FloorScene extends Phaser.Scene {
     constructor() {
@@ -42,19 +43,17 @@ export default class FloorScene extends Phaser.Scene {
         this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
 
         // Flavor text
-        this.add.text(W / 2, 10, this.getFlavorText(gs.floor), {
-            fontSize: '11px', fontFamily: 'monospace', color: '#666688', fontStyle: 'italic'
-        }).setOrigin(0.5);
+        this.add.text(W / 2, 10, this.getFlavorText(gs.floor), TEXT_STYLES.FLAVOR).setOrigin(0.5);
 
         // Floor title
-        this.add.text(W / 2, 26, 'Floor ' + gs.floor + ' / 100', {
-            fontSize: '16px', fontFamily: 'monospace', color: '#f0c040'
-        }).setOrigin(0.5);
+        this.add.text(W / 2, 26, 'Floor ' + gs.floor + ' / 100',
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' })
+        ).setOrigin(0.5);
 
         // Gold + Inventory
-        this.add.text(W / 2, 42, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY, {
-            fontSize: '12px', fontFamily: 'monospace', color: '#cccc80'
-        }).setOrigin(0.5);
+        this.add.text(W / 2, 42, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
+            makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: '#cccc80' })
+        ).setOrigin(0.5);
 
         // Party display with HP bars
         const isPortrait = this.registry.get('isPortrait');
@@ -63,9 +62,9 @@ export default class FloorScene extends Phaser.Scene {
         let py = 56;
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
-            this.add.text(10, py, fish.name + ' Lv.' + fish.level, {
-                fontSize: '11px', fontFamily: 'monospace', color: alive ? '#88ccff' : '#cc4444'
-            });
+            this.add.text(10, py, fish.name + ' Lv.' + fish.level,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#88ccff' : '#cc4444' })
+            );
 
             // HP bar background
             this.add.graphics().fillStyle(0x333333, 1).fillRect(barX, py + 1, barW, 6);
@@ -78,17 +77,17 @@ export default class FloorScene extends Phaser.Scene {
             }
 
             // HP text
-            this.add.text(barX + barW + 5, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED', {
-                fontSize: '11px', fontFamily: 'monospace', color: alive ? '#aaaaaa' : '#cc4444'
-            });
+            this.add.text(barX + barW + 5, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED',
+                makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#aaaaaa' : '#cc4444' })
+            );
             py += 18;
         });
 
         // Action buttons
         const btnY = Math.max(py + 12, H * 0.5);
-        const battleBtn = this.add.text(W / 2, btnY, '[ ENTER BATTLE ]', {
-            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const battleBtn = this.add.text(W / 2, btnY, '[ ENTER BATTLE ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         battleBtn.on('pointerover', () => battleBtn.setColor('#ffffff'));
         battleBtn.on('pointerout', () => battleBtn.setColor('#aaaacc'));
         battleBtn.on('pointerdown', () => {
@@ -96,16 +95,16 @@ export default class FloorScene extends Phaser.Scene {
             this.scene.start('BattleScene', { gameState: gs, monster: monster });
         });
 
-        const shopBtn = this.add.text(W / 2, btnY + 22, '[ SHOP ]', {
-            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const shopBtn = this.add.text(W / 2, btnY + 22, '[ SHOP ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         shopBtn.on('pointerover', () => shopBtn.setColor('#ffffff'));
         shopBtn.on('pointerout', () => shopBtn.setColor('#aaaacc'));
         shopBtn.on('pointerdown', () => this.scene.start('ShopScene', { gameState: gs }));
 
-        const campBtn = this.add.text(W / 2, btnY + 44, '[ CAMP ]', {
-            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const campBtn = this.add.text(W / 2, btnY + 44, '[ CAMP ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         campBtn.on('pointerover', () => campBtn.setColor('#ffffff'));
         campBtn.on('pointerout', () => campBtn.setColor('#aaaacc'));
         campBtn.on('pointerdown', () => this.scene.start('CampScene', { gameState: gs }));
@@ -131,9 +130,9 @@ export default class FloorScene extends Phaser.Scene {
         this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
 
-        this.add.text(W / 2, H * 0.12, 'Floor ' + gs.floor + ' Reward!', {
-            fontSize: '18px', fontFamily: 'monospace', color: '#ffd700', fontStyle: 'bold'
-        }).setOrigin(0.5);
+        this.add.text(W / 2, H * 0.12, 'Floor ' + gs.floor + ' Reward!',
+            TEXT_STYLES.TITLE_MEDIUM
+        ).setOrigin(0.5);
 
         // Offer a free fish if party has room, otherwise a free item
         if (gs.party.length < 3) {
@@ -157,20 +156,20 @@ export default class FloorScene extends Phaser.Scene {
         const H = this.scale.height;
         const gs = this.gameState;
 
-        this.add.text(W / 2, H * 0.3, 'A wild ' + species.name + ' wants to join!', {
-            fontSize: '13px', fontFamily: 'monospace', color: '#ccccee'
-        }).setOrigin(0.5);
+        this.add.text(W / 2, H * 0.3, 'A wild ' + species.name + ' wants to join!',
+            TEXT_STYLES.BODY
+        ).setOrigin(0.5);
 
         this.add.text(W / 2, H * 0.4, 'HP:' + species.baseHp + ' ATK:' + species.baseAtk +
-            ' DEF:' + species.baseDef + ' SPD:' + species.baseSpd, {
-            fontSize: '11px', fontFamily: 'monospace', color: '#888888'
-        }).setOrigin(0.5);
+            ' DEF:' + species.baseDef + ' SPD:' + species.baseSpd,
+            TEXT_STYLES.BODY_SMALL
+        ).setOrigin(0.5);
 
         this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(0.75);
 
-        const acceptBtn = this.add.text(W / 2 - 60, H * 0.7, '[ ACCEPT ]', {
-            fontSize: '14px', fontFamily: 'monospace', color: '#88cc88'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const acceptBtn = this.add.text(W / 2 - 60, H * 0.7, '[ ACCEPT ]',
+            makeStyle(TEXT_STYLES.BUTTON, { color: '#88cc88' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         acceptBtn.on('pointerover', () => acceptBtn.setColor('#ffffff'));
         acceptBtn.on('pointerout', () => acceptBtn.setColor('#88cc88'));
         acceptBtn.on('pointerdown', () => {
@@ -179,9 +178,9 @@ export default class FloorScene extends Phaser.Scene {
             this.buildFloorUI();
         });
 
-        const declineBtn = this.add.text(W / 2 + 60, H * 0.7, '[ DECLINE ]', {
-            fontSize: '14px', fontFamily: 'monospace', color: '#888888'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const declineBtn = this.add.text(W / 2 + 60, H * 0.7, '[ DECLINE ]',
+            makeStyle(TEXT_STYLES.BUTTON, { color: '#888888' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         declineBtn.on('pointerover', () => declineBtn.setColor('#ffffff'));
         declineBtn.on('pointerout', () => declineBtn.setColor('#888888'));
         declineBtn.on('pointerdown', () => {
@@ -196,13 +195,13 @@ export default class FloorScene extends Phaser.Scene {
         const gs = this.gameState;
         const item = ITEMS[itemId];
 
-        this.add.text(W / 2, H * 0.4, 'You found a ' + item.name + '!', {
-            fontSize: '14px', fontFamily: 'monospace', color: '#ccccee'
-        }).setOrigin(0.5);
+        this.add.text(W / 2, H * 0.4, 'You found a ' + item.name + '!',
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '14px' })
+        ).setOrigin(0.5);
 
-        const takeBtn = this.add.text(W / 2, H * 0.6, '[ TAKE ]', {
-            fontSize: '15px', fontFamily: 'monospace', color: '#88cc88'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const takeBtn = this.add.text(W / 2, H * 0.6, '[ TAKE ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px', color: '#88cc88' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         takeBtn.on('pointerover', () => takeBtn.setColor('#ffffff'));
         takeBtn.on('pointerout', () => takeBtn.setColor('#88cc88'));
         takeBtn.on('pointerdown', () => {

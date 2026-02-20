@@ -2,6 +2,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { VERSION } from '../version.js';
+import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -79,12 +80,7 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Animated title text — drops in like a fishing line
-        const titleText = this.add.text(width / 2, -50, 'DUNGEON FISHER', {
-            fontSize: '28px',
-            fontFamily: 'monospace',
-            color: '#f0c040',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+        const titleText = this.add.text(width / 2, -50, 'DUNGEON FISHER', TEXT_STYLES.TITLE_LARGE).setOrigin(0.5);
 
         this.tweens.add({
             targets: titleText,
@@ -103,11 +99,9 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Subtitle fades in 0.5s after title lands
-        const subtitle = this.add.text(width / 2, height * 0.35, 'A Turn-Based Fish RPG', {
-            fontSize: '14px',
-            fontFamily: 'monospace',
-            color: '#8888aa'
-        }).setOrigin(0.5).setAlpha(0);
+        const subtitle = this.add.text(width / 2, height * 0.35, 'A Turn-Based Fish RPG',
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#8888aa' })
+        ).setOrigin(0.5).setAlpha(0);
 
         this.tweens.add({
             targets: subtitle,
@@ -138,11 +132,9 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Buttons fade in after a short delay
-        const newBtn = this.add.text(width / 2, height * 0.55, '[ NEW GAME ]', {
-            fontSize: '16px',
-            fontFamily: 'monospace',
-            color: '#aaaacc'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
+        const newBtn = this.add.text(width / 2, height * 0.55, '[ NEW GAME ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
 
         newBtn.on('pointerover', () => newBtn.setColor('#ffffff'));
         newBtn.on('pointerout', () => newBtn.setColor('#aaaacc'));
@@ -156,11 +148,9 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         if (SaveSystem.hasSave()) {
-            const contBtn = this.add.text(width / 2, height * 0.65, '[ CONTINUE ]', {
-                fontSize: '16px',
-                fontFamily: 'monospace',
-                color: '#aaaacc'
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
+            const contBtn = this.add.text(width / 2, height * 0.65, '[ CONTINUE ]',
+                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
+            ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
 
             contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
             contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
@@ -175,11 +165,7 @@ export default class TitleScene extends Phaser.Scene {
         }
 
         // Version label
-        this.add.text(width - 5, height - 5, `v${VERSION}`, {
-            fontSize: '10px',
-            fontFamily: 'monospace',
-            color: '#555566'
-        }).setOrigin(1, 1);
+        this.add.text(width - 5, height - 5, `v${VERSION}`, TEXT_STYLES.VERSION).setOrigin(1, 1);
     }
 
     _createParticleTextures() {
@@ -218,11 +204,9 @@ export default class TitleScene extends Phaser.Scene {
         this.add.image(width / 2, height / 2, 'bg_title').setDisplaySize(width, height);
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
 
-        this.add.text(width / 2, 20, 'Choose your starter fish:', {
-            fontSize: '15px',
-            fontFamily: 'monospace',
-            color: '#ccccee'
-        }).setOrigin(0.5);
+        this.add.text(width / 2, 20, 'Choose your starter fish:',
+            makeStyle(TEXT_STYLES.TITLE_SMALL, { color: '#ccccee' })
+        ).setOrigin(0.5);
 
         const isPortrait = this.registry.get('isPortrait');
         const starters = FISH_SPECIES.filter(s => s.isStarter);
@@ -233,19 +217,19 @@ export default class TitleScene extends Phaser.Scene {
 
                 this.add.image(45, y, `fish_${species.id}`).setScale(0.5);
 
-                this.add.text(85, y - 16, species.name, {
-                    fontSize: '13px', fontFamily: 'monospace', color: '#ffffff'
-                });
-                this.add.text(85, y - 4, `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef}`, {
-                    fontSize: '10px', fontFamily: 'monospace', color: '#888888'
-                });
-                this.add.text(85, y + 6, `SPD:${species.baseSpd}`, {
-                    fontSize: '10px', fontFamily: 'monospace', color: '#888888'
-                });
+                this.add.text(85, y - 16, species.name,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { color: '#ffffff' })
+                );
+                this.add.text(85, y - 4, `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef}`,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
+                );
+                this.add.text(85, y + 6, `SPD:${species.baseSpd}`,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
+                );
 
-                const btn = this.add.text(width - 40, y, '[ SELECT ]', {
-                    fontSize: '12px', fontFamily: 'monospace', color: '#aaaacc'
-                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                const btn = this.add.text(width - 40, y, '[ SELECT ]',
+                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
+                ).setOrigin(0.5).setInteractive({ useHandCursor: true });
                 btn.on('pointerover', () => btn.setColor('#ffffff'));
                 btn.on('pointerout', () => btn.setColor('#aaaacc'));
                 btn.on('pointerdown', () => this.startNewGame(species.id));
@@ -259,22 +243,21 @@ export default class TitleScene extends Phaser.Scene {
 
                 this.add.image(x, y - 20, `fish_${species.id}`).setScale(0.5);
 
-                this.add.text(x, y + 5, species.name, {
-                    fontSize: '13px', fontFamily: 'monospace', color: '#ffffff'
-                }).setOrigin(0.5);
+                this.add.text(x, y + 5, species.name,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { color: '#ffffff' })
+                ).setOrigin(0.5);
 
-                this.add.text(x, y + 18, `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef} SPD:${species.baseSpd}`, {
-                    fontSize: '10px', fontFamily: 'monospace', color: '#888888'
-                }).setOrigin(0.5);
+                this.add.text(x, y + 18, `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef} SPD:${species.baseSpd}`,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
+                ).setOrigin(0.5);
 
-                this.add.text(x, y + 28, species.description, {
-                    fontSize: '10px', fontFamily: 'monospace', color: '#666688',
-                    wordWrap: { width: 110 }, align: 'center'
-                }).setOrigin(0.5);
+                this.add.text(x, y + 28, species.description,
+                    makeStyle(TEXT_STYLES.FLAVOR, { fontSize: '10px', wordWrap: { width: 110 }, align: 'center' })
+                ).setOrigin(0.5);
 
-                const btn = this.add.text(x, y + 45, '[ SELECT ]', {
-                    fontSize: '12px', fontFamily: 'monospace', color: '#aaaacc'
-                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                const btn = this.add.text(x, y + 45, '[ SELECT ]',
+                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
+                ).setOrigin(0.5).setInteractive({ useHandCursor: true });
                 btn.on('pointerover', () => btn.setColor('#ffffff'));
                 btn.on('pointerout', () => btn.setColor('#aaaacc'));
                 btn.on('pointerdown', () => this.startNewGame(species.id));
