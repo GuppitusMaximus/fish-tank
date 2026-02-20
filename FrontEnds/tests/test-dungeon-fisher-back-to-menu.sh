@@ -224,11 +224,19 @@ else
     check "pointerdown handler stops ZonePreviewScene" "fail"
 fi
 
-# 24. Starts TitleScene via scene.run() (not scene.start — avoids stopping UIOverlay)
-if grep -q "scene.run('TitleScene')" "$OVERLAY" 2>/dev/null; then
-    check "pointerdown handler runs TitleScene via scene.run()" "pass"
+# 24. Starts TitleScene via scene.run() with empty object (avoids stopping UIOverlay, resets init data)
+if grep -q "scene.run('TitleScene', {})" "$OVERLAY" 2>/dev/null; then
+    check "pointerdown handler runs TitleScene via scene.run('TitleScene', {})" "pass"
 else
-    check "pointerdown handler runs TitleScene via scene.run()" "fail"
+    check "pointerdown handler runs TitleScene via scene.run('TitleScene', {})" "fail"
+fi
+
+# 24b. TitleScene is first in scenesToStop (so it gets stopped before being re-run)
+if grep -q "'TitleScene'" "$OVERLAY" 2>/dev/null && \
+   awk "/scenesToStop = \[/{found=1} found && /TitleScene/{print; exit}" "$OVERLAY" | grep -q "TitleScene"; then
+    check "TitleScene is first entry in scenesToStop array" "pass"
+else
+    check "TitleScene is first entry in scenesToStop array" "fail"
 fi
 
 echo ""
