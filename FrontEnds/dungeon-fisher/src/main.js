@@ -7,6 +7,7 @@ import ShopScene from './scenes/ShopScene.js';
 import CampScene from './scenes/CampScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
 import ZonePreviewScene from './scenes/ZonePreviewScene.js';
+import UIOverlayScene from './scenes/UIOverlayScene.js';
 
 const isPortrait = window.innerHeight > window.innerWidth;
 
@@ -30,7 +31,8 @@ const config = {
         ShopScene,
         CampScene,
         VictoryScene,
-        ZonePreviewScene
+        ZonePreviewScene,
+        UIOverlayScene
     ]
 };
 

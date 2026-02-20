@@ -32,6 +32,7 @@ export default class BootScene extends Phaser.Scene {
     }
 
     create() {
+        this.scene.launch('UIOverlay');
         this.scene.start('TitleScene');
     }
 }
