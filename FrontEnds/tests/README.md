@@ -46,10 +46,11 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-card-redesign.sh` | Shell script | Verifies compass card redesign: HTML satellite cards (compass-layout, compass-center, compass-satellite, compass-stack), CSS classes, prefers-reduced-motion, accessibility (aria-label, tabindex), distance_mi, old .compass-station removed (17 checks) |
 | `test-compass-list-toggle.sh` | Shell script | Verifies compass list view toggle: toggle button (compass-toggle, aria-label), list rendering (compass-list, compass-list-item, list-direction, list-distance, list-temp), localStorage persistence (compass-view-mode), CSS classes (13 checks) |
 | `test-compass-weather-dashboard.sh` | Shell script | Verifies compass on weather dashboard: dash-compass-container in renderV2, loadDashCompass function, renderCompass targetId parameter, weather-public.json fallback fetch, CSS for dashboard compass (5 checks) |
-| `test-dungeon-fisher-split-title.sh` | Shell script | Verifies Dungeon Fisher title split: `'DUNGEON\nFISHER'` with `align:'center'`, TEXT_STYLES.TITLE_LARGE, bounce-in from y=-50, pulse glow onComplete tween, no old single-line string (9 checks) |
+| `test-dungeon-fisher-split-title.sh` | Shell script | Verifies Dungeon Fisher title split: `'DUNGEON\nFISHER'` with `align:'center'`, TEXT_STYLES.TITLE_LARGE, fade-in (setAlpha(0), Sine.Out), pulse glow onComplete tween, no old single-line string (9 checks; updated by qa-title-text-effects to replace stale bounce-in checks) |
 | `test-dungeon-fisher-move-buttons-up.sh` | Shell script | Verifies NEW GAME button at `height * 0.36` (not 0.55), CONTINUE button at `height * 0.43` (not 0.65), both fade in with delay:1500 tween, all 6 pointer event handlers (pointerover/out/down) intact (12 checks) |
 | `test-dungeon-fisher-bg-cover.sh` | Shell script | Verifies coverBackground() uses Math.max cover-crop scaling: helper in zones.js, no setDisplaySize in scenes, all 6 scenes import coverBackground, all 8 call sites present, TitleScene Ken Burns tween reads from image instance, overlay draw order correct (18 checks) |
 | `test-dungeon-fisher-bg-animations.sh` | Shell script | Verifies zone-aware ambient background effects: BackgroundEffects.js exports addEffects, all 7 zone presets (sewers, goblin-caves, bone-crypts, deep-dungeon, shadow-realm, ancient-chambers, dungeon-heart), particle texture creation with textures.exists() guards, 6 call sites across 5 scenes, render order (effects before dark overlays), import correctness, TitleScene unchanged with own particle system (31 checks) |
+| `test-dungeon-fisher-title-text-effects.sh` | Shell script | Verifies title fade-into-focus and water drip effects: no bounce animation (no Bounce.Out/y=-50), fade-in tween (alpha→1, scale→1, Sine.Out, 2500ms), dripEmitter in onComplete using particle_dot with blue tints and gravityY, drip x/y from getBounds(), button delays >= 2500ms, dripEmitter destroyed in _transitionTo(), no regressions (Ken Burns, dark overlay, mist, stars, crystal embers) (25 checks) |
 
 ### Static Code Analysis Reports
 
@@ -154,6 +155,7 @@ bash tests/test-dungeon-fisher-split-title.sh
 bash tests/test-dungeon-fisher-move-buttons-up.sh
 bash tests/test-dungeon-fisher-bg-cover.sh
 bash tests/test-dungeon-fisher-bg-animations.sh
+bash tests/test-dungeon-fisher-title-text-effects.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -256,6 +258,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Dungeon Fisher move buttons up: NEW GAME at height×0.36, CONTINUE at height×0.43, fade-in tweens, all 6 pointer handlers** | \`test-dungeon-fisher-move-buttons-up.sh\` |
 | **Dungeon Fisher background cover-crop fix: coverBackground() Math.max scaling, no setDisplaySize, all 6 scene imports, all 8 call sites, Ken Burns tween from instance, correct draw order** | \`test-dungeon-fisher-bg-cover.sh\` |
 | **Dungeon Fisher zone-aware ambient effects: BackgroundEffects.js module, all 7 zone presets, particle texture guards, 6 call sites across 5 scenes, render order, TitleScene unchanged** | \`test-dungeon-fisher-bg-animations.sh\` |
+| **Dungeon Fisher title text effects: fade-into-focus (no bounce), Sine.Out tween, water drip emitter in onComplete, drip position from getBounds(), button delays 2500ms, drip cleanup, no regressions** | \`test-dungeon-fisher-title-text-effects.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -367,6 +370,7 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher-wag-tail\` | Completed | \`browser/dungeon-fisher-wag-tail.spec.js\` (8 Playwright tests, all pass — tail-wag.png fetched HTTP 200, no JS errors on load/transition, portrait mode, 3 screenshots), \`qa-dungeon-fisher-wag-tail-results.md\` (8 static checks + 8 browser tests, all pass) | None |
 | \`qa-fix-bg-cover-dungeon-fisher\` | Completed | \`test-dungeon-fisher-bg-cover.sh\` (18 static checks, all pass — coverBackground Math.max formula, no setDisplaySize in scenes, all 6 scene imports, all 8 call sites, Ken Burns tween from instance, overlay draw order), \`qa-fix-bg-cover-dungeon-fisher-results.md\` | None |
 | \`qa-bg-animations-dungeon-fisher\` | Completed | \`test-dungeon-fisher-bg-animations.sh\` (31 static checks, all pass — BackgroundEffects.js module, all 7 zone presets, particle_soft/particle_dot texture guards, 6 call sites across 5 scenes, render order (effects before dark overlays), all scene imports, TitleScene unchanged with own particle system), \`qa-bg-animations-dungeon-fisher-results.md\` | None |
+| \`qa-title-text-effects-dungeon-fisher\` | Completed | \`test-dungeon-fisher-title-text-effects.sh\` (25 static checks, all pass — no bounce animation, fade-in tween params, dripEmitter in onComplete, drip position from getBounds(), button delays 2500ms, drip cleanup, 5 regression checks); updated \`test-dungeon-fisher-split-title.sh\` (replaced 2 stale bounce-in checks, 9/9 pass), \`qa-title-text-effects-dungeon-fisher-results.md\` | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
