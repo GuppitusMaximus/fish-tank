@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Test: Dungeon Fisher Title Text Effects Verification
-# Plan: qa-title-text-effects-dungeon-fisher
+# Plans: qa-title-text-effects-dungeon-fisher, qa-title-emerge-from-stars-dungeon-fisher
 #
-# Verifies fade-into-focus title animation and water drip particle effects.
-# Checks: no bounce animation, fade-in tween params, drip emitter, drip position,
-#         button delay, drip cleanup, and no regressions.
+# Verifies the two-phase "emerge from stars" title animation and water drip particle effects.
+# Checks: no bounce animation, two-phase tween params, ADD blend mode, depth layering,
+#         drip emitter, drip position, button delay, drip cleanup, and no regressions.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TITLE_SCENE="$SCRIPT_DIR/../dungeon-fisher/src/scenes/TitleScene.js"
@@ -44,15 +44,23 @@ echo "--- Check 1: No bounce animation ---"
 check_not "No Bounce.Out ease in TitleScene" "Bounce.Out"
 check_not "Title does not start at y=-50" ", -50,"
 check     "Title starts transparent (setAlpha(0))" ".setAlpha(0)"
-check     "Title starts oversized (setScale(1.4))" ".setScale(1.4)"
+check     "Title starts oversized (setScale(2.0))" ".setScale(2.0)"
+check     "Title starts with ADD blend mode" ".setBlendMode('ADD')"
+check     "Title starts at depth 0 (behind overlay)" ".setDepth(0).setBlendMode"
 
 echo ""
-echo "--- Check 2: Fade-in tween params ---"
-check "Fade-in tweens alpha to 1" "alpha: 1,"
-check "Fade-in tweens scaleX to 1" "scaleX: 1,"
-check "Fade-in tweens scaleY to 1" "scaleY: 1,"
-check "Fade-in duration is 2500ms" "duration: 2500,"
-check "Fade-in ease is Sine.Out" "ease: 'Sine.Out',"
+echo "--- Check 2: Two-phase emerge tween params ---"
+check "Phase 1 tweens alpha to 0.6" "alpha: 0.6,"
+check "Phase 1 tweens scaleX to 1.5" "scaleX: 1.5,"
+check "Phase 1 tweens scaleY to 1.5" "scaleY: 1.5,"
+check "Phase 1 duration is 2000ms" "duration: 2000,"
+check "Phase 2 tweens alpha to 1" "alpha: 1,"
+check "Phase 2 tweens scaleX to 1" "scaleX: 1,"
+check "Phase 2 tweens scaleY to 1" "scaleY: 1,"
+check "Phase 2 duration is 1500ms" "duration: 1500,"
+check "Phase 2 ease is Sine.Out" "ease: 'Sine.Out',"
+check "Depth switches to 10 before phase 2" "titleText.setDepth(10);"
+check "Blend switches to NORMAL before phase 2" "titleText.setBlendMode(Phaser.BlendModes.NORMAL);"
 
 echo ""
 echo "--- Check 3: Water drip emitter ---"
@@ -68,8 +76,8 @@ check "Drip x uses bounds.right" "bounds.right"
 check "Drip y starts at bounds.bottom" "bounds.bottom"
 
 echo ""
-echo "--- Check 5: Button delay >= 2500ms ---"
-check "NEW GAME button fade-in delay is 2500" "delay: 2500"
+echo "--- Check 5: Button delay >= 3500ms (after both title phases: 2000+1500ms) ---"
+check "NEW GAME button fade-in delay is 3500" "delay: 3500"
 
 echo ""
 echo "--- Check 6: Drip emitter cleanup ---"
