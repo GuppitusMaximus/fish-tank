@@ -1705,11 +1705,3 @@ body.theme-dungeon {
 #dungeon iframe {
     border-radius: 12px;
 }
-
-@media (min-width: 601px) {
-    #dungeon {
-        height: auto;
-        flex: 1;
-        min-height: 0;
-    }
-}
