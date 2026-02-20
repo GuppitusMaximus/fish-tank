@@ -56,6 +56,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `dungeon-fisher-browser-qa.md` | Browser QA report for Dungeon Fisher: 35 Playwright tests covering navigation, initial state, fishing, upgrades, combat, floor progression, victory, visual quality, and edge cases — all passed |
 | `dungeon-fisher-v2-qa.md` | Static QA report for Dungeon Fisher V2 (Phaser/Vite standalone): project structure, data completeness (10 fish, 10 moves, 13 monsters, 5 items), 4 game systems, 7 scenes with all transitions, all 13 AC criteria — all passed |
 | `dungeon-fisher-browser-qa-v2.md` | Browser QA report for Dungeon Fisher V2: 32 Playwright tests covering page boot, title screen, new game flow, battle, shop, camp, save/load, responsive layout, game logic, and victory — all 32 tests passed, no bugs found |
+| `qa-embed-results.md` | Static QA report for Dungeon Fisher V2 iframe embed into the SPA: 6 checks covering iframe wrapper, V1 CSS cleanup, V2 build output, CI workflow, SPA integration, and package-lock — all passed |
 
 ### Playwright Browser Tests
 
@@ -319,6 +320,7 @@ The following v2 features were verified:
 | \`qa-browser-dungeon-fisher\` | Completed | \`browser/dungeon-fisher.spec.js\` (35 Playwright tests, all pass), \`dungeon-fisher-browser-qa.md\` (browser QA report) | None |
 | \`qa-dungeon-fisher-v2\` | Completed | \`dungeon-fisher-v2-qa.md\` (static QA — 6 steps, 13 ACs, all pass, 2 minor code quality notes) | None |
 | \`qa-browser-dungeon-fisher-v2\` | Completed | \`browser/dungeon-fisher-v2.spec.js\` (32 Playwright tests, all pass), \`dungeon-fisher-browser-qa-v2.md\` (browser QA report) — 15 baseline screenshots | None |
+| \`qa-dungeon-fisher-v2-embed\` | Completed | \`qa-embed-results.md\` (static QA — 6 checks, all pass) | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
