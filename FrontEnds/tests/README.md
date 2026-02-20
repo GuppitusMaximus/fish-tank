@@ -50,6 +50,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-dungeon-fisher-move-buttons-up.sh` | Shell script | Verifies NEW GAME button at `height * 0.36` (not 0.55), CONTINUE button at `height * 0.43` (not 0.65), both fade in with delay:1500 tween, all 6 pointer event handlers (pointerover/out/down) intact (12 checks) |
 | `test-dungeon-fisher-bg-cover.sh` | Shell script | Verifies coverBackground() uses Math.max cover-crop scaling: helper in zones.js, no setDisplaySize in scenes, all 6 scenes import coverBackground, all 8 call sites present, TitleScene Ken Burns tween reads from image instance, overlay draw order correct (18 checks) |
 | `test-dungeon-fisher-bg-animations.sh` | Shell script | Verifies zone-aware ambient background effects: BackgroundEffects.js exports addEffects, all 7 zone presets (sewers, goblin-caves, bone-crypts, deep-dungeon, shadow-realm, ancient-chambers, dungeon-heart), particle texture creation with textures.exists() guards, 6 call sites across 5 scenes, render order (effects before dark overlays), import correctness, TitleScene unchanged with own particle system (31 checks) |
+| `test-dungeon-fisher-intensify-bg.sh` | Shell script | Verifies intensified background effects: all 7 zones have non-null mist, all particle presets have quantity 2 or 3, particle alpha starts at 0.7, particle scale starts at 0.8, mist reads m.frequency/m.quantity per-preset, ambient pulse range from ambientAlpha×0.5 to ambientAlpha×3.0, all hex colors valid 6-digit format, no JS syntax errors (22 checks) |
 | `test-dungeon-fisher-title-text-effects.sh` | Shell script | Verifies title fade-into-focus and water drip effects: no bounce animation (no Bounce.Out/y=-50), fade-in tween (alpha→1, scale→1, Sine.Out, 2500ms), dripEmitter in onComplete using particle_dot with blue tints and gravityY, drip x/y from getBounds(), button delays >= 2500ms, dripEmitter destroyed in _transitionTo(), no regressions (Ken Burns, dark overlay, mist, stars, crystal embers) (25 checks) |
 
 ### Static Code Analysis Reports
@@ -155,6 +156,7 @@ bash tests/test-dungeon-fisher-split-title.sh
 bash tests/test-dungeon-fisher-move-buttons-up.sh
 bash tests/test-dungeon-fisher-bg-cover.sh
 bash tests/test-dungeon-fisher-bg-animations.sh
+bash tests/test-dungeon-fisher-intensify-bg.sh
 bash tests/test-dungeon-fisher-title-text-effects.sh
 ```
 
@@ -258,6 +260,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Dungeon Fisher move buttons up: NEW GAME at height×0.36, CONTINUE at height×0.43, fade-in tweens, all 6 pointer handlers** | \`test-dungeon-fisher-move-buttons-up.sh\` |
 | **Dungeon Fisher background cover-crop fix: coverBackground() Math.max scaling, no setDisplaySize, all 6 scene imports, all 8 call sites, Ken Burns tween from instance, correct draw order** | \`test-dungeon-fisher-bg-cover.sh\` |
 | **Dungeon Fisher zone-aware ambient effects: BackgroundEffects.js module, all 7 zone presets, particle texture guards, 6 call sites across 5 scenes, render order, TitleScene unchanged** | \`test-dungeon-fisher-bg-animations.sh\` |
+| **Dungeon Fisher intensified background effects: all 7 zones have mist, particle quantity 2-3, alpha 0.7, scale 0.8, mist per-preset frequency/quantity, ambient pulse ambientAlpha×0.5 to ×3.0** | \`test-dungeon-fisher-intensify-bg.sh\` |
 | **Dungeon Fisher title text effects: fade-into-focus (no bounce), Sine.Out tween, water drip emitter in onComplete, drip position from getBounds(), button delays 2500ms, drip cleanup, no regressions** | \`test-dungeon-fisher-title-text-effects.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
@@ -370,6 +373,7 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher-wag-tail\` | Completed | \`browser/dungeon-fisher-wag-tail.spec.js\` (8 Playwright tests, all pass — tail-wag.png fetched HTTP 200, no JS errors on load/transition, portrait mode, 3 screenshots), \`qa-dungeon-fisher-wag-tail-results.md\` (8 static checks + 8 browser tests, all pass) | None |
 | \`qa-fix-bg-cover-dungeon-fisher\` | Completed | \`test-dungeon-fisher-bg-cover.sh\` (18 static checks, all pass — coverBackground Math.max formula, no setDisplaySize in scenes, all 6 scene imports, all 8 call sites, Ken Burns tween from instance, overlay draw order), \`qa-fix-bg-cover-dungeon-fisher-results.md\` | None |
 | \`qa-bg-animations-dungeon-fisher\` | Completed | \`test-dungeon-fisher-bg-animations.sh\` (31 static checks, all pass — BackgroundEffects.js module, all 7 zone presets, particle_soft/particle_dot texture guards, 6 call sites across 5 scenes, render order (effects before dark overlays), all scene imports, TitleScene unchanged with own particle system), \`qa-bg-animations-dungeon-fisher-results.md\` | None |
+| \`qa-intensify-bg-effects-dungeon-fisher\` | Completed | \`test-dungeon-fisher-intensify-bg.sh\` (22 static checks, all pass — all 7 zones have non-null mist, all particle presets have quantity 2 or 3, alpha start 0.7, scale start 0.8, mist reads m.frequency/m.quantity per-preset, ambient pulse ambientAlpha×0.5 to ambientAlpha×3.0, all hex colors valid, no JS syntax errors), \`qa-intensify-bg-effects-dungeon-fisher-results.md\` | None |
 | \`qa-title-text-effects-dungeon-fisher\` | Completed | \`test-dungeon-fisher-title-text-effects.sh\` (25 static checks, all pass — no bounce animation, fade-in tween params, dripEmitter in onComplete, drip position from getBounds(), button delays 2500ms, drip cleanup, 5 regression checks); updated \`test-dungeon-fisher-split-title.sh\` (replaced 2 stale bounce-in checks, 9/9 pass), \`qa-title-text-effects-dungeon-fisher-results.md\` | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
