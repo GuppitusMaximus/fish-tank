@@ -11,6 +11,10 @@ export default class TitleScene extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
+        // Sewers background (starting zone)
+        this.add.image(width / 2, height / 2, 'bg_sewers').setDisplaySize(width, height);
+        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5);
+
         // Title text
         this.add.text(width / 2, height * 0.25, 'DUNGEON FISHER', {
             fontSize: '28px',
@@ -62,6 +66,10 @@ export default class TitleScene extends Phaser.Scene {
         this.children.removeAll();
 
         const { width, height } = this.scale;
+
+        // Sewers background with dark overlay for readability
+        this.add.image(width / 2, height / 2, 'bg_sewers').setDisplaySize(width, height);
+        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
 
         this.add.text(width / 2, 20, 'Choose your starter fish:', {
             fontSize: '15px',

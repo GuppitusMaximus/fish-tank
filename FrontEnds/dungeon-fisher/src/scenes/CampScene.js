@@ -1,5 +1,6 @@
 import PartySystem from '../systems/PartySystem.js';
 import SaveSystem from '../systems/SaveSystem.js';
+import { getBackgroundKey } from '../utils/zones.js';
 
 export default class CampScene extends Phaser.Scene {
     constructor() {
@@ -14,6 +15,11 @@ export default class CampScene extends Phaser.Scene {
         const W = this.scale.width;
         const H = this.scale.height;
         const gs = this.gameState;
+
+        // Zone background
+        const bgKey = getBackgroundKey(gs.floor);
+        this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
+        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
 
         // Title
         this.add.text(W / 2, 15, 'CAMP \u2014 Floor ' + gs.floor, {
