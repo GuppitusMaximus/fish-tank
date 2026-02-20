@@ -1,6 +1,7 @@
 import PartySystem from '../systems/PartySystem.js';
 import SaveSystem from '../systems/SaveSystem.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
+import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class CampScene extends Phaser.Scene {
@@ -20,6 +21,7 @@ export default class CampScene extends Phaser.Scene {
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
         coverBackground(this, bgKey);
+        addEffects(this, bgKey);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
 
         // Title
