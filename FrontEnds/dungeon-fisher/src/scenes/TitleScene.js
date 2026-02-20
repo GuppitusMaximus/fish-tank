@@ -3,6 +3,7 @@ import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { VERSION } from '../version.js';
 import { coverBackground } from '../utils/zones.js';
+import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class TitleScene extends Phaser.Scene {
@@ -256,7 +257,8 @@ export default class TitleScene extends Phaser.Scene {
             starters.forEach((species, i) => {
                 const y = height * 0.2 + i * (height * 0.22);
 
-                this.add.image(45, y, `fish_${species.id}`).setScale(0.5);
+                const fishImg = this.add.image(45, y, `fish_${species.id}`).setScale(0.5);
+                new SpriteAnimator(this, fishImg).idle();
 
                 this.add.text(85, y - 16, species.name,
                     makeStyle(TEXT_STYLES.FISH_NAME, { color: '#ffffff' })
@@ -282,7 +284,8 @@ export default class TitleScene extends Phaser.Scene {
                 const x = startX + i * 120;
                 const y = height * 0.45;
 
-                this.add.image(x, y - 20, `fish_${species.id}`).setScale(0.5);
+                const fishImg = this.add.image(x, y - 20, `fish_${species.id}`).setScale(0.5);
+                new SpriteAnimator(this, fishImg).idle();
 
                 this.add.text(x, y + 5, species.name,
                     makeStyle(TEXT_STYLES.FISH_NAME, { color: '#ffffff' })

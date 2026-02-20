@@ -5,6 +5,7 @@ import { ITEMS } from '../data/items.js';
 import MOVES from '../data/moves.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
+import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class BattleScene extends Phaser.Scene {
@@ -72,6 +73,9 @@ export default class BattleScene extends Phaser.Scene {
         // Sprites
         this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5);
         this.fishSpr = this.add.image(L.fishX, L.fishY, 'fish_' + this.fish.speciesId).setScale(0.75);
+
+        this.monsterAnim = new SpriteAnimator(this, this.monsterSpr).idle();
+        this.fishAnim = new SpriteAnimator(this, this.fishSpr).idle();
 
         // Fish info
         this.fishInfoY = L.fishInfoY;
@@ -208,10 +212,16 @@ export default class BattleScene extends Phaser.Scene {
         const result = CombatSystem.executeMove(attacker, defender, moveId);
         this.msgTxt.setText(result.message);
         this.refreshBars();
+
+        const isPlayerAttacking = defenderSpr === this.monsterSpr;
+        const attackerAnim = isPlayerAttacking ? this.fishAnim : this.monsterAnim;
+        const defenderAnim = isPlayerAttacking ? this.monsterAnim : this.fishAnim;
+
         if (result.type === 'attack') {
-            this.tweens.add({
-                targets: defenderSpr, alpha: 0.2, duration: 100, yoyo: true,
-                onComplete: () => this.time.delayedCall(300, cb)
+            attackerAnim.attack(defenderSpr.x, defenderSpr.y).then(() => {
+                return defenderAnim.hit();
+            }).then(() => {
+                this.time.delayedCall(300, cb);
             });
         } else {
             this.time.delayedCall(500, cb);
@@ -246,19 +256,21 @@ export default class BattleScene extends Phaser.Scene {
     // --- Battle outcomes ---
 
     onMonsterDead() {
-        this.gameState.gold += this.monster.goldReward;
-        const xpMsgs = PartySystem.awardXP(this.fish, this.monster.xpReward);
-        this.refreshBars();
-        const lines = [this.monster.name + ' defeated! +' + this.monster.goldReward + 'g +' + this.monster.xpReward + 'xp'];
-        lines.push(...xpMsgs);
-        this.msgTxt.setText(lines.join('\n'));
+        this.monsterAnim.faint().then(() => {
+            this.gameState.gold += this.monster.goldReward;
+            const xpMsgs = PartySystem.awardXP(this.fish, this.monster.xpReward);
+            this.refreshBars();
+            const lines = [this.monster.name + ' defeated! +' + this.monster.goldReward + 'g +' + this.monster.xpReward + 'xp'];
+            lines.push(...xpMsgs);
+            this.msgTxt.setText(lines.join('\n'));
 
-        this.time.delayedCall(1500, () => {
-            if (this.fish.pendingMove) {
-                this.showLearnMenu();
-            } else {
-                this.advanceFloor();
-            }
+            this.time.delayedCall(1500, () => {
+                if (this.fish.pendingMove) {
+                    this.showLearnMenu();
+                } else {
+                    this.advanceFloor();
+                }
+            });
         });
     }
 
@@ -273,21 +285,23 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     onFishDead() {
-        const alive = PartySystem.getAliveFish(this.gameState.party);
-        if (alive.length === 0) {
-            this.msgTxt.setText('All fish fainted!');
-            this.time.delayedCall(1000, () => {
-                for (const f of this.gameState.party) PartySystem.fullHeal(f);
-                this.gameState.floor = this.gameState.campFloor;
-                this.msgTxt.setText('Returning to camp...');
+        this.fishAnim.faint().then(() => {
+            const alive = PartySystem.getAliveFish(this.gameState.party);
+            if (alive.length === 0) {
+                this.msgTxt.setText('All fish fainted!');
                 this.time.delayedCall(1000, () => {
-                    this.scene.start('FloorScene', { gameState: this.gameState });
+                    for (const f of this.gameState.party) PartySystem.fullHeal(f);
+                    this.gameState.floor = this.gameState.campFloor;
+                    this.msgTxt.setText('Returning to camp...');
+                    this.time.delayedCall(1000, () => {
+                        this.scene.start('FloorScene', { gameState: this.gameState });
+                    });
                 });
-            });
-        } else {
-            this.msgTxt.setText(this.fish.name + ' fainted!');
-            this.time.delayedCall(600, () => this.showSwitchMenu());
-        }
+            } else {
+                this.msgTxt.setText(this.fish.name + ' fainted!');
+                this.time.delayedCall(600, () => this.showSwitchMenu());
+            }
+        });
     }
 
     // --- Switch fish menu ---
@@ -311,6 +325,9 @@ export default class BattleScene extends Phaser.Scene {
                 '#88cc88', () => {
                     this.activeFishIndex = e.idx;
                     this.fishSpr.setTexture('fish_' + this.fish.speciesId);
+                    this.fishSpr.setAlpha(1).setAngle(0);
+                    this.fishAnim.destroy();
+                    this.fishAnim = new SpriteAnimator(this, this.fishSpr).idle();
                     this.clearMenu();
                     this.refreshBars();
                     this.busy = false;
