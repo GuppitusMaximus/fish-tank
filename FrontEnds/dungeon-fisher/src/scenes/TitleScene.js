@@ -28,6 +28,40 @@ export default class TitleScene extends Phaser.Scene {
             repeat: -1
         });
 
+        // Animated tail wag overlay — cropped from title.png and rotated in place
+        const cropX = 650, cropY = 960;
+        const pivotRelX = 70, pivotRelY = 50;
+        const tailStartX = (cropX + pivotRelX) * baseScaleX;
+        const tailStartY = (cropY + pivotRelY) * baseScaleY;
+        const tail = this.add.image(tailStartX, tailStartY, 'tail_wag');
+        tail.setScale(baseScaleX, baseScaleY);
+        tail.setOrigin(pivotRelX / tail.width, pivotRelY / tail.height);
+
+        // Sync tail with Ken Burns zoom so it tracks the background
+        const tailEndX = width / 2 + (tailStartX - width / 2) * 1.08;
+        const tailEndY = height / 2 + (tailStartY - height / 2) * 1.08;
+        this.tweens.add({
+            targets: tail,
+            x: tailEndX,
+            y: tailEndY,
+            scaleX: baseScaleX * 1.08,
+            scaleY: baseScaleY * 1.08,
+            duration: 18000,
+            ease: 'Sine.InOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Gentle tail wag rotation
+        this.tweens.add({
+            targets: tail,
+            angle: { from: -4, to: 4 },
+            duration: 600,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.InOut'
+        });
+
         // Dark overlay
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
 

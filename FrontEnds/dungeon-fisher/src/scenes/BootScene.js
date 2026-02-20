@@ -29,6 +29,8 @@ export default class BootScene extends Phaser.Scene {
             const filename = key.replace('bg_', '');
             this.load.image(key, `backgrounds/${filename}.png`);
         }
+
+        this.load.image('tail_wag', 'backgrounds/tail-wag.png');
     }
 
     create() {
