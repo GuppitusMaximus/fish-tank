@@ -84,7 +84,8 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/auth-theme.spec.js` | Auth modal theming: card background/padding, blue/ocean gradient, fish element present, mobile 375px responsive, desktop 1280px centered layout, screenshots (5 tests, all pass) |
 | `browser/compass-station-view.spec.js` | Compass rose on home page: container present in DOM, visibility, cardinal labels (N/S/E/W), station dots rendered (>10), temperature labels with degree values, color coding, hover tooltip, metadata station count, mobile responsive viewport, concentric rings (11 tests, all pass) |
 | `browser/dungeon-fisher-portrait.spec.js` | Dungeon Fisher V2 portrait mode (iPhone 15 Pro 393×852): canvas boots in portrait, no horizontal overflow, portrait canvas taller than wide, game-container fills viewport, isPortrait flag true, orientation change triggers landscape layout, landscape/desktop viewports correct — 17 tests, all pass (runs against localhost:8080 dev server) |
-| `browser/dungeon-fisher-backgrounds.spec.js` | Dungeon Fisher V2 zone-based backgrounds: all 7 PNG assets fetched (200 status), no JS errors on boot, sewers background on title/floor1/battle, zone transition to goblin caves at floor 11, battle at floor 11, portrait mode rendering and overflow, save/continue path — 17 tests, all pass (runs against localhost:8080 dev server) |
+| `browser/dungeon-fisher-backgrounds.spec.js` | Dungeon Fisher V2 zone-based backgrounds: all 8 PNG assets fetched (200 status, includes title.png), no JS errors on boot, zone transition to goblin caves at floor 11, battle at floor 11, portrait mode rendering and overflow, save/continue path — 17 tests, all pass (runs against localhost:8080 dev server) |
+| `browser/dungeon-fisher-animated-title.spec.js` | Dungeon Fisher animated title screen: title.png fetched (bg_title replaces sewers), all 8 backgrounds loaded, no JS errors, canvas renders 16:9, screenshots at 0.5s and 2s, NEW GAME button clickable after fade-in, scene transition to starter selection without tween/emitter errors, portrait mode (title.png loaded, no overflow), texture cache verification — 18 tests, all pass (runs against localhost:8080 dev server) |
 
 ### Test Reports
 
@@ -234,7 +235,8 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Compass list view toggle: toggle button, list rendering, localStorage persistence** | \`test-compass-list-toggle.sh\` |
 | **Compass on weather dashboard: renderV2 container, loadDashCompass, targetId param, fallback fetch** | \`test-compass-weather-dashboard.sh\` |
 | **Dungeon Fisher zone backgrounds: 7 assets loaded, getBackgroundKey() boundary floors, all 8 scene views, readability overlays, portrait fill, preload performance** | \`qa-dungeon-fisher-backgrounds-results.md\` |
-| **Dungeon Fisher zone backgrounds browser: 7 PNGs fetched with HTTP 200, sewers on title/floor/battle, goblin caves zone transition at floor 11, portrait mode, no JS errors** | \`browser/dungeon-fisher-backgrounds.spec.js\` |
+| **Dungeon Fisher zone backgrounds browser: 8 PNGs fetched with HTTP 200 (incl. title.png), goblin caves zone transition at floor 11, portrait mode, no JS errors** | \`browser/dungeon-fisher-backgrounds.spec.js\` |
+| **Dungeon Fisher animated title screen: bg_title loaded, 6 animation layers (zoom, mist, stars, embers, title drop, fishing line), button fade-in, clean scene transition, portrait mode** | \`browser/dungeon-fisher-animated-title.spec.js\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -337,7 +339,8 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher-v2-versioning\` | Completed | \`qa-dungeon-fisher-v2-versioning-results.md\` (static QA — 5 checks, all pass: version.js exports, SaveSystem imports, TitleScene display, package.json version, save compatibility) | None |
 | \`qa-wire-sprites-dungeon-fisher\` | Completed | \`qa-wire-sprites-dungeon-fisher.md\` (static QA — 7 checks, all pass: BootScene sprite loading, sprite files exist, pixelArt mode, scale factors, texture key consistency, button_bg removal, regression checks) | None |
 | \`qa-dungeon-fisher-backgrounds\` | Completed | \`qa-dungeon-fisher-backgrounds-results.md\` (static QA — 10 checks, all pass: asset loading, zone mapping boundary floors, FloorScene x2, BattleScene readability panels, ShopScene overlay, CampScene overlay, VictoryScene dungeon-heart, TitleScene sewers, portrait mode fill, preload performance) | None |
-| \`qa-browser-dungeon-fisher-backgrounds\` | Completed | \`browser/dungeon-fisher-backgrounds.spec.js\` (17 Playwright tests, all pass — asset loading, HTTP 200, no JS errors, sewers on title/floor1/battle, goblin caves zone transition floor 11, battle at floor 11, portrait mode, continue save path) — 8 baseline screenshots | None |
+| \`qa-browser-dungeon-fisher-backgrounds\` | Completed | \`browser/dungeon-fisher-backgrounds.spec.js\` (17 Playwright tests, all pass — asset loading, HTTP 200, no JS errors, zone transition floor 11, portrait mode, continue save path; updated portrait count: toBe(8)) — 8 baseline screenshots | None |
+| \`qa-dungeon-fisher-animated-title\` | Completed | \`browser/dungeon-fisher-animated-title.spec.js\` (18 Playwright tests, all pass — bg_title loaded, all 8 backgrounds, no JS errors, canvas 16:9, screenshots, button fade-in, scene transition cleanup, portrait mode, texture cache) — 6 baseline screenshots | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
