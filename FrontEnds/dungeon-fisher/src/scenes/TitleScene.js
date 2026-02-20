@@ -85,14 +85,14 @@ export default class TitleScene extends Phaser.Scene {
         // Title text — emerges from the stars
         const titleText = this.add.text(width / 2, height * 0.22, 'DUNGEON\nFISHER',
             makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center' })
-        ).setOrigin(0.5).setAlpha(0).setScale(2.0).setDepth(0).setBlendMode('ADD');
+        ).setOrigin(0.5).setAlpha(0).setScale(0.3).setDepth(0).setBlendMode('ADD');
 
         // Phase 1: Glow into existence behind the overlay (0-2s)
         this.tweens.add({
             targets: titleText,
             alpha: 0.6,
-            scaleX: 1.5,
-            scaleY: 1.5,
+            scaleX: 0.7,
+            scaleY: 0.7,
             duration: 2000,
             ease: 'Sine.InOut',
             onComplete: () => {
