@@ -138,27 +138,33 @@ test('title: no save file on fresh start', async ({ page }) => {
     expect(hasSave).toBe(false);
 });
 
-// ─── Step 3: New Game → Starter Selection → FloorScene ───────────────────────
+// ─── Step 3: New Game → CharacterSelect → Starter Selection → FloorScene ──────
+// Flow: Title → NEW GAME → CharacterSelectScene → SELECT → TitleScene.showStarterSelection()
+// NEW GAME button: (W/2, H*0.36) = (240, 97)
+// CharacterSelect SELECT button landscape: (W*0.65, H*0.78) = (312, 211)
+// Starter SELECT buttons: x=120/240/360 at y = H*0.45+45 = 166 (unchanged)
 
-test('new game: clicking NEW GAME transitions to starter selection', async ({ page }) => {
+test('new game: clicking NEW GAME transitions to character select', async ({ page }) => {
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    // NEW GAME button: (W/2, H*0.55) = (240, 148)
-    await clickGame(page, 240, 148);
+    // NEW GAME button: (W/2, H*0.36) = (240, 97)
+    await clickGame(page, 240, 97);
     await page.waitForTimeout(500);
 
-    await page.screenshot({ path: 'tests/browser/screenshots/v2-03-starter-selection.png' });
+    await page.screenshot({ path: 'tests/browser/screenshots/v2-03-character-select.png' });
     expect(errors).toHaveLength(0);
 });
 
 test('new game: selecting starter creates save with guppy at floor 1', async ({ page }) => {
     await freshStart(page);
-    // Click NEW GAME
-    await clickGame(page, 240, 148);
+    // Click NEW GAME → CharacterSelect → SELECT Andy → starter selection
+    await clickGame(page, 240, 97);   // NEW GAME (H*0.36=97)
     await page.waitForTimeout(300);
-    // First starter (Guppy) SELECT button: x=120, y = H*0.45+45 = 121.5+45 = 166.5
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT (W*0.65, H*0.78)
+    await page.waitForTimeout(300);
+    // First starter (Guppy) SELECT button: x=120, y = H*0.45+45 = 166
     await clickGame(page, 120, 166);
     await page.waitForTimeout(800);
 
@@ -178,7 +184,9 @@ test('new game: selecting starter creates save with guppy at floor 1', async ({ 
 
 test('new game: pufferfish starter creates save with correct species', async ({ page }) => {
     await freshStart(page);
-    await clickGame(page, 240, 148);
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     // Second starter (Pufferfish) SELECT at x=240, y=166
     await clickGame(page, 240, 166);
@@ -192,7 +200,9 @@ test('new game: pufferfish starter creates save with correct species', async ({ 
 
 test('new game: swordfish starter creates save with correct species', async ({ page }) => {
     await freshStart(page);
-    await clickGame(page, 240, 148);
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     // Third starter (Swordfish) SELECT at x=360, y=166
     await clickGame(page, 360, 166);
@@ -211,7 +221,9 @@ test('battle: entering battle from floor 1 has no JS errors', async ({ page }) =
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    await clickGame(page, 240, 148);  // NEW GAME
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
     await page.waitForTimeout(600);
@@ -225,7 +237,9 @@ test('battle: entering battle from floor 1 has no JS errors', async ({ page }) =
 
 test('battle: canvas still renders after entering battle', async ({ page }) => {
     await freshStart(page);
-    await clickGame(page, 240, 148);
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);
     await page.waitForTimeout(600);
@@ -241,7 +255,9 @@ test('battle: using move button does not crash game', async ({ page }) => {
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    await clickGame(page, 240, 148);
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);
     await page.waitForTimeout(600);
@@ -265,7 +281,9 @@ test('shop: entering shop has no JS errors', async ({ page }) => {
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    await clickGame(page, 240, 148);  // NEW GAME
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
     await page.waitForTimeout(600);
@@ -292,8 +310,8 @@ test('shop: buy item with sufficient gold updates inventory', async ({ page }) =
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1500);
 
-    // CONTINUE at (240, 175)
-    await clickGame(page, 240, 175);
+    // CONTINUE at (240, 116) — H*0.43 = 270*0.43 = 116
+    await clickGame(page, 240, 116);
     await page.waitForTimeout(600);
     // SHOP at (240, 157)
     await clickGame(page, 240, 157);
@@ -319,7 +337,9 @@ test('shop: back button returns to floor scene', async ({ page }) => {
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    await clickGame(page, 240, 148);
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);
     await page.waitForTimeout(600);
@@ -352,8 +372,8 @@ test('camp: entering camp heals fish and saves checkpoint', async ({ page }) => 
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1500);
 
-    // CONTINUE
-    await clickGame(page, 240, 175);
+    // CONTINUE at (240, 116) — H*0.43
+    await clickGame(page, 240, 116);
     await page.waitForTimeout(600);
     // CAMP at (W/2, btnY+44) = (240, 179)
     await clickGame(page, 240, 179);
@@ -387,7 +407,7 @@ test('camp: continue button returns to floor scene', async ({ page }) => {
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1500);
 
-    await clickGame(page, 240, 175);  // CONTINUE
+    await clickGame(page, 240, 116);  // CONTINUE (H*0.43=116)
     await page.waitForTimeout(600);
     await clickGame(page, 240, 179);  // CAMP
     await page.waitForTimeout(500);
@@ -403,20 +423,23 @@ test('camp: continue button returns to floor scene', async ({ page }) => {
 
 test('save: save data has correct structure', async ({ page }) => {
     await freshStart(page);
-    await clickGame(page, 240, 148);
+    await clickGame(page, 240, 97);   // NEW GAME
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
     await page.waitForTimeout(800);
 
     const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
     expect(save).not.toBeNull();
-    expect(save).toHaveProperty('version', 1);
+    expect(save).toHaveProperty('version', 2);  // SAVE_FORMAT_VERSION is now 2
     expect(save).toHaveProperty('floor');
     expect(save).toHaveProperty('gold');
     expect(save).toHaveProperty('party');
     expect(save).toHaveProperty('inventory');
     expect(save).toHaveProperty('campFloor');
     expect(save).toHaveProperty('savedAt');
+    expect(save).toHaveProperty('fisherId', 'andy');  // new field added in v2
     expect(Array.isArray(save.party)).toBe(true);
     expect(Array.isArray(save.inventory)).toBe(true);
 });
@@ -436,8 +459,8 @@ test('load: CONTINUE button loads correct floor', async ({ page }) => {
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1500);
 
-    // CONTINUE at (240, 175)
-    await clickGame(page, 240, 175);
+    // CONTINUE at (240, 116) — H*0.43
+    await clickGame(page, 240, 116);
     await page.waitForTimeout(600);
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-07-load-floor7.png' });
@@ -466,7 +489,9 @@ test('load: new game overwrites old save', async ({ page }) => {
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1500);
 
-    await clickGame(page, 240, 148);  // NEW GAME (overwrites)
+    await clickGame(page, 240, 97);   // NEW GAME (overwrites)
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 360, 166);  // SELECT swordfish
     await page.waitForTimeout(800);
@@ -665,8 +690,8 @@ test('victory: injecting floor 101 triggers victory in game state', async ({ pag
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1500);
 
-    // CONTINUE → floor 100
-    await clickGame(page, 240, 175);
+    // CONTINUE → floor 100 at (240, 116) — H*0.43
+    await clickGame(page, 240, 116);
     await page.waitForTimeout(600);
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-11-floor100.png' });

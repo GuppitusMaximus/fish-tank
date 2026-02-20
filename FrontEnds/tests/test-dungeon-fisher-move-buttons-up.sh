@@ -60,20 +60,21 @@ else
     check "CONTINUE button NOT at old position (0.65)" "pass"
 fi
 
-# 5. NEW GAME button fades in with delay tween (alpha: 1, delay: 1500)
-if grep -A5 "newBtn" "$TITLE_SCENE" | grep -q "delay: 1500"; then
-    check "NEW GAME button fade-in tween with delay:1500" "pass"
-elif grep -q "delay: 1500" "$TITLE_SCENE" 2>/dev/null; then
-    check "NEW GAME button fade-in tween with delay:1500" "pass"
+# 5. NEW GAME button fades in with delay tween (alpha: 1, delay: 3500)
+# Note: delay was updated to 3500ms by the title-text-effects plan (2000ms phase1 + 1500ms phase2)
+if grep -A5 "newBtn" "$TITLE_SCENE" | grep -q "delay: 3500"; then
+    check "NEW GAME button fade-in tween with delay:3500" "pass"
+elif grep -q "delay: 3500" "$TITLE_SCENE" 2>/dev/null; then
+    check "NEW GAME button fade-in tween with delay:3500" "pass"
 else
-    check "NEW GAME button fade-in tween with delay:1500" "fail"
+    check "NEW GAME button fade-in tween with delay:3500" "fail"
 fi
 
-# 6. CONTINUE button fades in with delay tween
-if grep -A5 "contBtn" "$TITLE_SCENE" | grep -q "delay: 1500"; then
-    check "CONTINUE button fade-in tween with delay:1500" "pass"
+# 6. CONTINUE button fades in with delay tween (3500ms)
+if grep -A5 "contBtn" "$TITLE_SCENE" | grep -q "delay: 3500"; then
+    check "CONTINUE button fade-in tween with delay:3500" "pass"
 else
-    check "CONTINUE button fade-in tween with delay:1500" "fail"
+    check "CONTINUE button fade-in tween with delay:3500" "fail"
 fi
 
 # 7. NEW GAME button has pointerover handler
