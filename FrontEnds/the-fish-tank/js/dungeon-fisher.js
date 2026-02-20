@@ -8,7 +8,7 @@ window.DungeonFisherApp = (() => {
         iframe.src = 'dungeon-fisher/index.html';
         iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
         iframe.setAttribute('allowfullscreen', '');
-        iframe.setAttribute('title', 'Dungeon Fisher');
+        iframe.setAttribute('title', 'Dungeon Angler');
         container.appendChild(iframe);
     }
 
