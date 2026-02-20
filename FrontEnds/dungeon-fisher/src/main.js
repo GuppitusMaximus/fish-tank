@@ -7,11 +7,13 @@ import ShopScene from './scenes/ShopScene.js';
 import CampScene from './scenes/CampScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
 
+const isPortrait = window.innerHeight > window.innerWidth;
+
 const config = {
     type: Phaser.AUTO,
     parent: 'game-container',
-    width: 480,
-    height: 270,
+    width: isPortrait ? 270 : 480,
+    height: isPortrait ? 480 : 270,
     backgroundColor: '#1a1a2e',
     pixelArt: true,
     roundPixels: true,
@@ -30,4 +32,17 @@ const config = {
     ]
 };
 
-export default new Phaser.Game(config);
+const game = new Phaser.Game(config);
+game.registry.set('isPortrait', isPortrait);
+
+// Reload on orientation change to reinitialize with correct resolution
+let currentOrientation = isPortrait;
+window.addEventListener('resize', () => {
+    const nowPortrait = window.innerHeight > window.innerWidth;
+    if (nowPortrait !== currentOrientation) {
+        currentOrientation = nowPortrait;
+        window.location.reload();
+    }
+});
+
+export default game;
