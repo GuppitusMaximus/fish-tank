@@ -326,6 +326,7 @@ export default class TitleScene extends Phaser.Scene {
         };
 
         SaveSystem.save(gameState);
+        this.registry.set('gameState', gameState);
         this.scene.start('FloorScene', { gameState });
     }
 
@@ -342,6 +343,7 @@ export default class TitleScene extends Phaser.Scene {
             fisherId: saveData.fisherId || 'andy'
         };
 
+        this.registry.set('gameState', gameState);
         this.scene.start('FloorScene', { gameState });
     }
 }
