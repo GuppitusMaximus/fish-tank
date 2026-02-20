@@ -15,5 +15,6 @@ export const BACKGROUND_KEYS = [
     'bg_deep-dungeon',
     'bg_shadow-realm',
     'bg_ancient-chambers',
-    'bg_dungeon-heart'
+    'bg_dungeon-heart',
+    'bg_title'
 ];
