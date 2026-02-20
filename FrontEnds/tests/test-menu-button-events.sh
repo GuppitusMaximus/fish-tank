@@ -140,12 +140,12 @@ echo ""
 
 # ─── Check 5: Click handler uses scene.run (not scene.start) ──────────────────
 
-echo "--- Check 5: Click handler uses scene.run('TitleScene') ---"
+echo "--- Check 5: Click handler uses scene.run('TitleScene', {}) ---"
 
-if grep -q "scene.run('TitleScene')" "$OVERLAY" 2>/dev/null; then
-    check "Click handler uses this.scene.run('TitleScene') not scene.start" "pass"
+if grep -q "scene.run('TitleScene', {})" "$OVERLAY" 2>/dev/null; then
+    check "Click handler uses this.scene.run('TitleScene', {}) not scene.start" "pass"
 else
-    check "Click handler uses this.scene.run('TitleScene') not scene.start" "fail"
+    check "Click handler uses this.scene.run('TitleScene', {}) not scene.start" "fail"
 fi
 
 # Confirm scene.start('TitleScene') is NOT used
@@ -161,7 +161,7 @@ echo ""
 
 echo "--- Check 6: scenesToStop array includes all gameplay scenes ---"
 
-for scene in CharacterSelectScene FloorScene BattleScene ShopScene CampScene VictoryScene ZonePreviewScene; do
+for scene in TitleScene CharacterSelectScene FloorScene BattleScene ShopScene CampScene VictoryScene ZonePreviewScene; do
     if grep -q "$scene" "$OVERLAY" 2>/dev/null; then
         check "$scene in scenesToStop" "pass"
     else
