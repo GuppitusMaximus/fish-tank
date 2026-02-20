@@ -8,11 +8,13 @@ export function getBackgroundKey(floor) {
     return 'bg_dungeon-heart';
 }
 
-export function coverBackground(scene, key) {
+export function coverBackground(scene, key, mode = 'cover') {
     const W = scene.scale.width;
     const H = scene.scale.height;
     const img = scene.add.image(W / 2, H / 2, key);
-    const scale = Math.max(W / img.width, H / img.height);
+    const scale = mode === 'contain'
+        ? Math.min(W / img.width, H / img.height)
+        : Math.max(W / img.width, H / img.height);
     img.setScale(scale);
     return img;
 }
