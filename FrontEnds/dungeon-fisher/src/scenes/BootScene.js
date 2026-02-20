@@ -24,6 +24,12 @@ export default class BootScene extends Phaser.Scene {
             this.load.image(`monster_${id}`, `sprites/monsters/${id}.png`);
         }
 
+        // Fisher portraits
+        const fishers = ['andy'];
+        for (const id of fishers) {
+            this.load.image(`fisher_${id}`, `sprites/fishers/${id}.png`);
+        }
+
         // Background images (1792x1024)
         for (const key of BACKGROUND_KEYS) {
             const filename = key.replace('bg_', '');
