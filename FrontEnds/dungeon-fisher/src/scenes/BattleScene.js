@@ -3,6 +3,7 @@ import PartySystem from '../systems/PartySystem.js';
 import EconomySystem from '../systems/EconomySystem.js';
 import { ITEMS } from '../data/items.js';
 import MOVES from '../data/moves.js';
+import { getBackgroundKey } from '../utils/zones.js';
 
 export default class BattleScene extends Phaser.Scene {
     constructor() {
@@ -42,6 +43,15 @@ export default class BattleScene extends Phaser.Scene {
         };
 
         const L = this.layout;
+
+        // Zone background
+        const bgKey = getBackgroundKey(this.gameState.floor);
+        this.add.image(W / 2, H / 2, bgKey).setDisplaySize(W, H);
+
+        // Readability panels over text-heavy areas
+        this.add.rectangle(W * 0.25, 18, W * 0.5, 30, 0x000000, 0.5);
+        this.add.rectangle(W * 0.25, L.fishInfoY + 15, W * 0.5, 30, 0x000000, 0.5);
+        this.add.rectangle(W / 2, L.msgY, W * 0.7, 22, 0x000000, 0.5);
 
         // Monster info (top-left)
         this.monsterNameTxt = this.add.text(10, 8, this.monster.name, {

@@ -1,3 +1,5 @@
+import { BACKGROUND_KEYS } from '../utils/zones.js';
+
 export default class BootScene extends Phaser.Scene {
     constructor() {
         super('BootScene');
@@ -20,6 +22,12 @@ export default class BootScene extends Phaser.Scene {
         ];
         for (const id of monsters) {
             this.load.image(`monster_${id}`, `sprites/monsters/${id}.png`);
+        }
+
+        // Background images (1792x1024)
+        for (const key of BACKGROUND_KEYS) {
+            const filename = key.replace('bg_', '');
+            this.load.image(key, `backgrounds/${filename}.png`);
         }
     }
 
