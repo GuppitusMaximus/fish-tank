@@ -172,6 +172,20 @@ export default class TitleScene extends Phaser.Scene {
             });
         }
 
+        const zonesBtn = this.add.text(width / 2, height * 0.50, '[ ZONES ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '14px' })
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0).setDepth(10);
+        zonesBtn.on('pointerover', () => zonesBtn.setColor('#ffffff'));
+        zonesBtn.on('pointerout', () => zonesBtn.setColor('#aaaacc'));
+        zonesBtn.on('pointerdown', () => this._transitionTo(() => this.scene.start('ZonePreviewScene')));
+
+        this.tweens.add({
+            targets: zonesBtn,
+            alpha: 1,
+            duration: 500,
+            delay: 3500
+        });
+
         // Version label
         this.add.text(width - 5, height - 5, `v${VERSION}`, TEXT_STYLES.VERSION).setOrigin(1, 1).setDepth(10);
     }

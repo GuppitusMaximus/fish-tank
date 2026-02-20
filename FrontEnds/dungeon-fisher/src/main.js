@@ -6,6 +6,7 @@ import FloorScene from './scenes/FloorScene.js';
 import ShopScene from './scenes/ShopScene.js';
 import CampScene from './scenes/CampScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
+import ZonePreviewScene from './scenes/ZonePreviewScene.js';
 
 const isPortrait = window.innerHeight > window.innerWidth;
 
@@ -28,7 +29,8 @@ const config = {
         BattleScene,
         ShopScene,
         CampScene,
-        VictoryScene
+        VictoryScene,
+        ZonePreviewScene
     ]
 };
 
