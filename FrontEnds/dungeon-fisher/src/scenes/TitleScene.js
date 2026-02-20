@@ -1,6 +1,7 @@
 import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
+import { VERSION } from '../version.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -34,6 +35,13 @@ export default class TitleScene extends Phaser.Scene {
         newBtn.on('pointerover', () => newBtn.setColor('#ffffff'));
         newBtn.on('pointerout', () => newBtn.setColor('#aaaacc'));
         newBtn.on('pointerdown', () => this.showStarterSelection());
+
+        // Version label
+        this.add.text(width - 5, height - 5, `v${VERSION}`, {
+            fontSize: '10px',
+            fontFamily: 'monospace',
+            color: '#555566'
+        }).setOrigin(1, 1);
 
         // Continue button (only if save exists)
         if (SaveSystem.hasSave()) {

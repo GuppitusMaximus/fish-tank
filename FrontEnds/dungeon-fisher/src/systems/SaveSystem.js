@@ -1,12 +1,14 @@
+import { VERSION, SAVE_FORMAT_VERSION } from '../version.js';
+
 const SAVE_KEY = 'dungeon-fisher-save';
-const SAVE_VERSION = 1;
 
 export default class SaveSystem {
 
     // Save complete game state
     static save(gameState) {
         const data = {
-            version: SAVE_VERSION,
+            version: SAVE_FORMAT_VERSION,
+            gameVersion: VERSION,
             savedAt: Date.now(),
             floor: gameState.floor,
             gold: gameState.gold,
@@ -29,7 +31,7 @@ export default class SaveSystem {
             const raw = localStorage.getItem(SAVE_KEY);
             if (!raw) return null;
             const data = JSON.parse(raw);
-            if (data.version !== SAVE_VERSION) {
+            if (data.version !== SAVE_FORMAT_VERSION) {
                 const migrated = this.migrate(data);
                 if (!migrated) return null;
                 // Re-save with current version
