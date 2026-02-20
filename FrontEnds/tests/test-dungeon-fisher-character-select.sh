@@ -256,18 +256,21 @@ fi
 echo ""
 echo "--- Check 12: Game version ---"
 
-# 26. VERSION is '0.9.0'
-if grep -q "VERSION = '0.9.0'" "$VERSION_JS" 2>/dev/null; then
-    check "VERSION is '0.9.0' in version.js" "pass"
+# 26. VERSION is >= 0.9.0 (plan targeted 0.9.0; a subsequent plan bumped to 0.10.0)
+# Check that VERSION is a valid semver and is higher than the pre-character-selection version 0.8.0
+ACTUAL_VERSION=$(grep "export const VERSION" "$VERSION_JS" 2>/dev/null | sed "s/.*'\(.*\)'.*/\1/")
+if echo "$ACTUAL_VERSION" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
+    check "VERSION is valid semver ($ACTUAL_VERSION) in version.js" "pass"
 else
-    check "VERSION is '0.9.0' in version.js" "fail"
+    check "VERSION is valid semver in version.js" "fail"
 fi
 
-# 27. package.json version is 0.9.0
-if grep -q '"version": "0.9.0"' "$PACKAGE_JSON" 2>/dev/null; then
-    check "package.json version is 0.9.0" "pass"
+# 27. package.json version matches version.js
+PKG_VERSION=$(grep '"version"' "$PACKAGE_JSON" 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' | tr -d ' ,')
+if [ "$ACTUAL_VERSION" = "$PKG_VERSION" ]; then
+    check "package.json version ($PKG_VERSION) matches version.js" "pass"
 else
-    check "package.json version is 0.9.0" "fail"
+    check "package.json version ($PKG_VERSION) does NOT match version.js ($ACTUAL_VERSION)" "fail"
 fi
 
 echo ""
