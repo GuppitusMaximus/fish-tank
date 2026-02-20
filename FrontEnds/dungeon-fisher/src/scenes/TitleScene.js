@@ -17,6 +17,7 @@ export default class TitleScene extends Phaser.Scene {
 
         // Title background with slow Ken Burns zoom
         this.bg = coverBackground(this, 'bg_title');
+        this.bg.setDepth(0);
         this.tweens.add({
             targets: this.bg,
             scaleX: this.bg.scaleX * 1.08,
@@ -28,7 +29,8 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Dark overlay
-        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
+        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
+        overlay.setDepth(1);
 
         // Rising mist particles from the abyss (bottom third)
         this.mistEmitter = this.add.particles(0, 0, 'particle_soft', {
@@ -44,6 +46,7 @@ export default class TitleScene extends Phaser.Scene {
             quantity: 1,
             blendMode: 'ADD'
         });
+        this.mistEmitter.setDepth(2);
 
         // Twinkling stars in the sky area
         for (let i = 0; i < 10; i++) {
@@ -51,7 +54,7 @@ export default class TitleScene extends Phaser.Scene {
                 Phaser.Math.Between(width * 0.1, width * 0.9),
                 Phaser.Math.Between(height * 0.02, height * 0.25),
                 'particle_dot'
-            ).setAlpha(Phaser.Math.FloatBetween(0.2, 1.0)).setScale(0.5);
+            ).setAlpha(Phaser.Math.FloatBetween(0.2, 1.0)).setScale(0.5).setDepth(2);
 
             this.tweens.add({
                 targets: star,
@@ -77,45 +80,61 @@ export default class TitleScene extends Phaser.Scene {
             quantity: 1,
             blendMode: 'ADD'
         });
+        this.crystalEmitter.setDepth(2);
 
-        // Title text — fades into focus from the stars
-        const titleText = this.add.text(width / 2, height * 0.20, 'DUNGEON\nFISHER',
+        // Title text — emerges from the stars
+        const titleText = this.add.text(width / 2, height * 0.22, 'DUNGEON\nFISHER',
             makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center' })
-        ).setOrigin(0.5).setAlpha(0).setScale(1.4);
+        ).setOrigin(0.5).setAlpha(0).setScale(2.0).setDepth(0).setBlendMode('ADD');
 
+        // Phase 1: Glow into existence behind the overlay (0-2s)
         this.tweens.add({
             targets: titleText,
-            alpha: 1,
-            scaleX: 1,
-            scaleY: 1,
-            y: height * 0.22,
-            duration: 2500,
-            ease: 'Sine.Out',
+            alpha: 0.6,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            duration: 2000,
+            ease: 'Sine.InOut',
             onComplete: () => {
-                // Gentle glow pulse after settling
+                // Phase 2: Break through to the foreground (2-3.5s)
+                titleText.setDepth(10);
+                titleText.setBlendMode(Phaser.BlendModes.NORMAL);
+
                 this.tweens.add({
                     targets: titleText,
-                    alpha: { from: 0.85, to: 1.0 },
+                    alpha: 1,
+                    scaleX: 1,
+                    scaleY: 1,
                     duration: 1500,
-                    yoyo: true,
-                    repeat: -1
-                });
+                    ease: 'Sine.Out',
+                    onComplete: () => {
+                        // Gentle glow pulse
+                        this.tweens.add({
+                            targets: titleText,
+                            alpha: { from: 0.85, to: 1.0 },
+                            duration: 1500,
+                            yoyo: true,
+                            repeat: -1
+                        });
 
-                // Water dripping from the letters
-                const bounds = titleText.getBounds();
-                this.dripEmitter = this.add.particles(0, 0, 'particle_dot', {
-                    x: { min: bounds.left + 5, max: bounds.right - 5 },
-                    y: bounds.bottom,
-                    lifespan: 2000,
-                    speedY: { min: 20, max: 50 },
-                    speedX: { min: -2, max: 2 },
-                    scale: { start: 0.6, end: 0.2 },
-                    alpha: { start: 0.7, end: 0 },
-                    tint: [0x44aaff, 0x66ccff, 0x88ddff],
-                    frequency: 150,
-                    quantity: 1,
-                    gravityY: 40,
-                    blendMode: 'ADD'
+                        // Water dripping from the letters
+                        const bounds = titleText.getBounds();
+                        this.dripEmitter = this.add.particles(0, 0, 'particle_dot', {
+                            x: { min: bounds.left + 5, max: bounds.right - 5 },
+                            y: bounds.bottom,
+                            lifespan: 2000,
+                            speedY: { min: 20, max: 50 },
+                            speedX: { min: -2, max: 2 },
+                            scale: { start: 0.6, end: 0.2 },
+                            alpha: { start: 0.7, end: 0 },
+                            tint: [0x44aaff, 0x66ccff, 0x88ddff],
+                            frequency: 150,
+                            quantity: 1,
+                            gravityY: 40,
+                            blendMode: 'ADD'
+                        });
+                        this.dripEmitter.setDepth(10);
+                    }
                 });
             }
         });
@@ -123,7 +142,7 @@ export default class TitleScene extends Phaser.Scene {
         // Buttons fade in after a short delay
         const newBtn = this.add.text(width / 2, height * 0.36, '[ NEW GAME ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0).setDepth(10);
 
         newBtn.on('pointerover', () => newBtn.setColor('#ffffff'));
         newBtn.on('pointerout', () => newBtn.setColor('#aaaacc'));
@@ -133,13 +152,13 @@ export default class TitleScene extends Phaser.Scene {
             targets: newBtn,
             alpha: 1,
             duration: 500,
-            delay: 2500
+            delay: 3500
         });
 
         if (SaveSystem.hasSave()) {
             const contBtn = this.add.text(width / 2, height * 0.43, '[ CONTINUE ]',
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-            ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
+            ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0).setDepth(10);
 
             contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
             contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
@@ -149,12 +168,12 @@ export default class TitleScene extends Phaser.Scene {
                 targets: contBtn,
                 alpha: 1,
                 duration: 500,
-                delay: 2500
+                delay: 3500
             });
         }
 
         // Version label
-        this.add.text(width - 5, height - 5, `v${VERSION}`, TEXT_STYLES.VERSION).setOrigin(1, 1);
+        this.add.text(width - 5, height - 5, `v${VERSION}`, TEXT_STYLES.VERSION).setOrigin(1, 1).setDepth(10);
     }
 
     _createParticleTextures() {
