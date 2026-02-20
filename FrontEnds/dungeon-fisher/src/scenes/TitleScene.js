@@ -108,13 +108,31 @@ export default class TitleScene extends Phaser.Scene {
                     duration: 1500,
                     ease: 'Sine.Out',
                     onComplete: () => {
-                        // Gentle glow pulse
-                        this.tweens.add({
-                            targets: titleText,
-                            alpha: { from: 0.85, to: 1.0 },
-                            duration: 1500,
-                            yoyo: true,
-                            repeat: -1
+                        // Gold shimmer sweep
+                        const baseGold = 0xf0c040;
+                        const brightGold = 0xffeeaa;
+                        function lerpColor(a, b, t) {
+                            const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+                            const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+                            const r = Math.round(ar + (br - ar) * t);
+                            const g = Math.round(ag + (bg - ag) * t);
+                            const bl = Math.round(ab + (bb - ab) * t);
+                            return (r << 16) | (g << 8) | bl;
+                        }
+                        this.tweens.addCounter({
+                            from: 0,
+                            to: 1,
+                            duration: 3000,
+                            repeat: -1,
+                            ease: 'Sine.InOut',
+                            onUpdate: (tween) => {
+                                const t = tween.getValue();
+                                const leftT = Math.max(0, Math.sin(t * Math.PI * 2));
+                                const rightT = Math.max(0, Math.sin((t - 0.25) * Math.PI * 2));
+                                const left = lerpColor(baseGold, brightGold, leftT);
+                                const right = lerpColor(baseGold, brightGold, rightT);
+                                titleText.setTint(left, right, left, right);
+                            }
                         });
 
                         // Water dripping from the letters
