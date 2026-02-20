@@ -135,7 +135,7 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Buttons fade in after a short delay
-        const newBtn = this.add.text(width / 2, height * 0.55, '[ NEW GAME ]',
+        const newBtn = this.add.text(width / 2, height * 0.36, '[ NEW GAME ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
         ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
 
@@ -151,7 +151,7 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         if (SaveSystem.hasSave()) {
-            const contBtn = this.add.text(width / 2, height * 0.65, '[ CONTINUE ]',
+            const contBtn = this.add.text(width / 2, height * 0.43, '[ CONTINUE ]',
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
             ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
 
