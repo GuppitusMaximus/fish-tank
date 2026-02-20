@@ -52,6 +52,9 @@ export default class FloorScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Party display with HP bars
+        const isPortrait = this.registry.get('isPortrait');
+        const barX = isPortrait ? Math.floor(W * 0.4) : 120;
+        const barW = isPortrait ? Math.floor(W * 0.22) : 60;
         let py = 56;
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
@@ -60,17 +63,17 @@ export default class FloorScene extends Phaser.Scene {
             });
 
             // HP bar background
-            this.add.graphics().fillStyle(0x333333, 1).fillRect(120, py + 1, 60, 6);
+            this.add.graphics().fillStyle(0x333333, 1).fillRect(barX, py + 1, barW, 6);
 
             // HP bar fill
             if (alive) {
                 const ratio = Math.max(0, fish.hp / fish.maxHp);
                 const color = ratio > 0.5 ? 0x33cc33 : ratio > 0.25 ? 0xcccc33 : 0xcc3333;
-                this.add.graphics().fillStyle(color, 1).fillRect(120, py + 1, ratio * 60, 6);
+                this.add.graphics().fillStyle(color, 1).fillRect(barX, py + 1, ratio * barW, 6);
             }
 
             // HP text
-            this.add.text(185, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED', {
+            this.add.text(barX + barW + 5, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED', {
                 fontSize: '7px', fontFamily: 'monospace', color: alive ? '#aaaaaa' : '#cc4444'
             });
             py += 14;

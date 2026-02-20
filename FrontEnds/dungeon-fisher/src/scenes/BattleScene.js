@@ -23,14 +23,33 @@ export default class BattleScene extends Phaser.Scene {
     create() {
         const W = this.scale.width;
         const H = this.scale.height;
+        const isPortrait = this.registry.get('isPortrait');
+
+        this.layout = isPortrait ? {
+            monsterX: W * 0.5, monsterY: H * 0.18,
+            fishX: W * 0.5, fishY: H * 0.45,
+            hpBarW: Math.floor(W * 0.4),
+            fishInfoY: Math.floor(H * 0.55),
+            msgY: Math.floor(H * 0.68),
+            btnY: H - 60, btnW: Math.floor(W * 0.42), btnCols: 2
+        } : {
+            monsterX: W * 0.68, monsterY: H * 0.28,
+            fishX: W * 0.28, fishY: H * 0.52,
+            hpBarW: 120,
+            fishInfoY: Math.floor(H * 0.65),
+            msgY: Math.floor(H * 0.82),
+            btnY: H - 18, btnW: 95, btnCols: 4
+        };
+
+        const L = this.layout;
 
         // Monster info (top-left)
         this.monsterNameTxt = this.add.text(10, 8, this.monster.name, {
             fontSize: '9px', fontFamily: 'monospace', color: '#ff9999'
         });
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, 22, 120, 8);
+        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, 22, L.hpBarW, 8);
         this.monsterHpBar = this.add.graphics();
-        this.monsterHpTxt = this.add.text(135, 21, '', {
+        this.monsterHpTxt = this.add.text(L.hpBarW + 15, 21, '', {
             fontSize: '7px', fontFamily: 'monospace', color: '#aaaaaa'
         });
 
@@ -40,24 +59,24 @@ export default class BattleScene extends Phaser.Scene {
         }).setOrigin(1, 0);
 
         // Sprites
-        this.monsterSpr = this.add.image(W * 0.68, H * 0.28, 'monster_' + this.monster.id).setScale(3);
-        this.fishSpr = this.add.image(W * 0.28, H * 0.52, 'fish_' + this.fish.speciesId).setScale(3);
+        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(3);
+        this.fishSpr = this.add.image(L.fishX, L.fishY, 'fish_' + this.fish.speciesId).setScale(3);
 
         // Fish info
-        this.fishInfoY = Math.floor(H * 0.65);
+        this.fishInfoY = L.fishInfoY;
         this.fishNameTxt = this.add.text(10, this.fishInfoY, '', {
             fontSize: '9px', fontFamily: 'monospace', color: '#88ccff'
         });
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 14, 120, 8);
+        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 14, L.hpBarW, 8);
         this.fishHpBar = this.add.graphics();
-        this.fishHpTxt = this.add.text(135, this.fishInfoY + 13, '', {
+        this.fishHpTxt = this.add.text(L.hpBarW + 15, this.fishInfoY + 13, '', {
             fontSize: '7px', fontFamily: 'monospace', color: '#aaaaaa'
         });
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 25, 120, 4);
+        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 25, L.hpBarW, 4);
         this.fishXpBar = this.add.graphics();
 
         // Message text
-        this.msgTxt = this.add.text(W / 2, Math.floor(H * 0.82), '', {
+        this.msgTxt = this.add.text(W / 2, L.msgY, '', {
             fontSize: '8px', fontFamily: 'monospace', color: '#cccccc',
             align: 'center', wordWrap: { width: W - 20 }
         }).setOrigin(0.5);
@@ -78,7 +97,7 @@ export default class BattleScene extends Phaser.Scene {
         this.monsterHpBar.clear();
         const mRatio = Math.max(0, m.hp / m.maxHp);
         this.monsterHpBar.fillStyle(mRatio > 0.25 ? 0xcc3333 : 0xcc6633, 1)
-            .fillRect(10, 22, mRatio * 120, 8);
+            .fillRect(10, 22, mRatio * this.layout.hpBarW, 8);
         this.monsterHpTxt.setText(m.hp + '/' + m.maxHp);
 
         const f = this.fish;
@@ -87,13 +106,13 @@ export default class BattleScene extends Phaser.Scene {
         const fRatio = Math.max(0, f.hp / f.maxHp);
         const fColor = fRatio > 0.5 ? 0x33cc33 : fRatio > 0.25 ? 0xcccc33 : 0xcc3333;
         this.fishHpBar.fillStyle(fColor, 1)
-            .fillRect(10, this.fishInfoY + 14, fRatio * 120, 8);
+            .fillRect(10, this.fishInfoY + 14, fRatio * this.layout.hpBarW, 8);
         this.fishHpTxt.setText(f.hp + '/' + f.maxHp);
 
         this.fishXpBar.clear();
         const xRatio = f.xpToNext > 0 ? Math.min(1, f.xp / f.xpToNext) : 0;
         this.fishXpBar.fillStyle(0x6666cc, 1)
-            .fillRect(10, this.fishInfoY + 25, xRatio * 120, 4);
+            .fillRect(10, this.fishInfoY + 25, xRatio * this.layout.hpBarW, 4);
     }
 
     // --- Action menu (move buttons + items) ---
@@ -102,25 +121,29 @@ export default class BattleScene extends Phaser.Scene {
         this.clearActionBtns();
         if (this.busy) return;
         const W = this.scale.width;
-        const H = this.scale.height;
-        const y = H - 18;
+        const L = this.layout;
         const moves = this.fish.moves;
-        const numBtns = moves.length + 1;
-        const bw = 95;
+        const cols = L.btnCols;
+        const bw = L.btnW;
         const gap = 4;
-        const totalW = numBtns * bw + (numBtns - 1) * gap;
-        let x = (W - totalW) / 2 + bw / 2;
 
+        const btns = [];
         for (const moveId of moves) {
-            const move = MOVES[moveId];
-            this.actionBtns.push(
-                this.makeBtn(x, y, move.name, '#aaccff', () => this.onMove(moveId))
-            );
-            x += bw + gap;
+            btns.push({ label: MOVES[moveId].name, color: '#aaccff', cb: () => this.onMove(moveId) });
         }
-        this.actionBtns.push(
-            this.makeBtn(x, y, 'Items', '#ccaa66', () => this.showItemMenu())
-        );
+        btns.push({ label: 'Items', color: '#ccaa66', cb: () => this.showItemMenu() });
+
+        const usedCols = Math.min(cols, btns.length);
+        const rowW = usedCols * bw + (usedCols - 1) * gap;
+        const startX = (W - rowW) / 2 + bw / 2;
+
+        btns.forEach((b, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const x = startX + col * (bw + gap);
+            const y = L.btnY + row * 22;
+            this.actionBtns.push(this.makeBtn(x, y, b.label, b.color, b.cb));
+        });
     }
 
     clearActionBtns() {
@@ -132,7 +155,7 @@ export default class BattleScene extends Phaser.Scene {
         const btn = this.add.text(x, y, label, {
             fontSize: '8px', fontFamily: 'monospace', color: color,
             backgroundColor: '#2a2a4a', padding: { x: 6, y: 4 },
-            fixedWidth: 95, align: 'center'
+            fixedWidth: this.layout.btnW, align: 'center'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffffff'));
         btn.on('pointerout', () => btn.setColor(color));

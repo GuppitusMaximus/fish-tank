@@ -28,10 +28,19 @@ export default class VictoryScene extends Phaser.Scene {
             fontSize: '9px', fontFamily: 'monospace', color: '#aaaacc'
         }).setOrigin(0.5);
 
-        const partyLine = gs.party.map(f => f.name + ' Lv.' + f.level).join('  \u2022  ');
-        this.add.text(W / 2, H * 0.5, partyLine, {
-            fontSize: '8px', fontFamily: 'monospace', color: '#88ccff'
-        }).setOrigin(0.5);
+        const isPortrait = this.registry.get('isPortrait');
+        if (isPortrait) {
+            gs.party.forEach((f, i) => {
+                this.add.text(W / 2, H * 0.46 + i * 16, f.name + ' Lv.' + f.level, {
+                    fontSize: '8px', fontFamily: 'monospace', color: '#88ccff'
+                }).setOrigin(0.5);
+            });
+        } else {
+            const partyLine = gs.party.map(f => f.name + ' Lv.' + f.level).join('  \u2022  ');
+            this.add.text(W / 2, H * 0.5, partyLine, {
+                fontSize: '8px', fontFamily: 'monospace', color: '#88ccff'
+            }).setOrigin(0.5);
+        }
 
         // Gold
         this.add.text(W / 2, H * 0.62, 'Gold earned: ' + gs.gold.toLocaleString(), {

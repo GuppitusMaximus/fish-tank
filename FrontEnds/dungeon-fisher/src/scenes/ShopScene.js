@@ -19,6 +19,7 @@ export default class ShopScene extends Phaser.Scene {
         const W = this.scale.width;
         const H = this.scale.height;
         const gs = this.gameState;
+        const isPortrait = this.registry.get('isPortrait');
 
         // Header
         this.add.text(10, 8, 'SHOP', {
@@ -49,9 +50,16 @@ export default class ShopScene extends Phaser.Scene {
             this.add.text(10, y, item.name + ' (' + item.price + 'g)', {
                 fontSize: '8px', fontFamily: 'monospace', color: canBuy ? '#ccccee' : '#555555'
             });
-            this.add.text(195, y, item.description, {
-                fontSize: '6px', fontFamily: 'monospace', color: '#555577'
-            });
+
+            if (isPortrait) {
+                this.add.text(20, y + 11, item.description, {
+                    fontSize: '6px', fontFamily: 'monospace', color: '#555577'
+                });
+            } else {
+                this.add.text(195, y, item.description, {
+                    fontSize: '6px', fontFamily: 'monospace', color: '#555577'
+                });
+            }
 
             if (canBuy) {
                 const btn = this.add.text(W - 25, y + 1, 'BUY', {
@@ -64,7 +72,7 @@ export default class ShopScene extends Phaser.Scene {
                     if (EconomySystem.buyItem(gs, key)) this.buildShop();
                 });
             }
-            y += 13;
+            y += isPortrait ? 24 : 13;
         }
 
         // Fish section
@@ -79,7 +87,7 @@ export default class ShopScene extends Phaser.Scene {
             this.add.text(10, y, gs.party.length >= 3 ? 'Party full!' : 'No fish available', {
                 fontSize: '8px', fontFamily: 'monospace', color: '#555555'
             });
-            y += 13;
+            y += isPortrait ? 24 : 13;
         } else {
             for (const species of shopFish) {
                 const canBuy = gs.gold >= species.shopPrice && gs.party.length < 3;
@@ -87,10 +95,18 @@ export default class ShopScene extends Phaser.Scene {
                 this.add.text(10, y, species.name + ' (' + species.shopPrice + 'g)', {
                     fontSize: '8px', fontFamily: 'monospace', color: canBuy ? '#ccccee' : '#555555'
                 });
-                this.add.text(195, y, 'HP:' + species.baseHp + ' ATK:' + species.baseAtk +
-                    ' DEF:' + species.baseDef + ' SPD:' + species.baseSpd, {
-                    fontSize: '6px', fontFamily: 'monospace', color: '#555577'
-                });
+
+                if (isPortrait) {
+                    this.add.text(20, y + 11, 'HP:' + species.baseHp + ' ATK:' + species.baseAtk +
+                        ' DEF:' + species.baseDef + ' SPD:' + species.baseSpd, {
+                        fontSize: '6px', fontFamily: 'monospace', color: '#555577'
+                    });
+                } else {
+                    this.add.text(195, y, 'HP:' + species.baseHp + ' ATK:' + species.baseAtk +
+                        ' DEF:' + species.baseDef + ' SPD:' + species.baseSpd, {
+                        fontSize: '6px', fontFamily: 'monospace', color: '#555577'
+                    });
+                }
 
                 if (canBuy) {
                     const btn = this.add.text(W - 25, y + 1, 'BUY', {
@@ -103,7 +119,7 @@ export default class ShopScene extends Phaser.Scene {
                         if (EconomySystem.buyFish(gs, species.id)) this.buildShop();
                     });
                 }
-                y += 13;
+                y += isPortrait ? 24 : 13;
             }
         }
 

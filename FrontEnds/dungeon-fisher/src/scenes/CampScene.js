@@ -35,6 +35,8 @@ export default class CampScene extends Phaser.Scene {
         SaveSystem.save(gs);
 
         // Show party with before → after HP
+        const isPortrait = this.registry.get('isPortrait');
+        const hpColX = isPortrait ? Math.floor(W * 0.45) : 140;
         let y = 60;
         gs.party.forEach((f, i) => {
             const old = oldHp[i];
@@ -42,7 +44,7 @@ export default class CampScene extends Phaser.Scene {
             this.add.text(20, y, f.name + '  Lv.' + f.level, {
                 fontSize: '8px', fontFamily: 'monospace', color: '#88ccff'
             });
-            this.add.text(140, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp, {
+            this.add.text(hpColX, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp, {
                 fontSize: '8px', fontFamily: 'monospace', color: '#88cc88'
             });
             this.add.text(W - 30, y, '\u2713', {
