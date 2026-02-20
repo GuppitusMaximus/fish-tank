@@ -98,39 +98,6 @@ export default class TitleScene extends Phaser.Scene {
             }
         });
 
-        // Subtitle fades in 0.5s after title lands
-        const subtitle = this.add.text(width / 2, height * 0.35, 'A Turn-Based Fish RPG',
-            makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#8888aa' })
-        ).setOrigin(0.5).setAlpha(0);
-
-        this.tweens.add({
-            targets: subtitle,
-            alpha: 1,
-            duration: 500,
-            delay: 2000
-        });
-
-        // Glowing fishing line shimmer
-        const lineX = width * 0.52;
-        const lineStartY = height * 0.35;
-        const lineEndY = height * 0.75;
-
-        const lineGfx = this.add.graphics();
-        lineGfx.lineStyle(1, 0xaaddff, 0.3);
-        lineGfx.lineBetween(lineX, lineStartY, lineX, lineEndY);
-
-        const spot = this.add.image(lineX, lineStartY, 'particle_dot')
-            .setScale(1.5).setAlpha(0.7).setBlendMode('ADD');
-
-        this.tweens.add({
-            targets: spot,
-            y: lineEndY,
-            duration: 3000,
-            ease: 'Sine.InOut',
-            yoyo: true,
-            repeat: -1
-        });
-
         // Buttons fade in after a short delay
         const newBtn = this.add.text(width / 2, height * 0.55, '[ NEW GAME ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
