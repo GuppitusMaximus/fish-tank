@@ -56,6 +56,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-dungeon-fisher-zone-preview.sh` | Shell script | Zone Preview Scene: ZonePreviewScene.js exists and registers as Phaser.Scene subclass, imported in main.js scene array, all 7 zones defined (sewers/goblin-caves/bone-crypts/deep-dungeon/shadow-realm/ancient-chambers/dungeon-heart) with name/floors/flavor, coverBackground() and addEffects() called per zone, effectsHandle.cleanup() before zone switch, navigate() called from arrows/keyboard/touch with bounds checking, camera fadeOut/fadeIn with transitioning guard, [ ZONES ] button on TitleScene, back button + ESC return to TitleScene, no regressions (37 checks) |
 | `test-dungeon-fisher-sprite-animations.sh` | Shell script | SpriteAnimator tween animations: module structure (6 methods: idle/attack/hit/faint/stopIdle/destroy), idle two tweens (y bob + scale breathe, repeat:-1/yoyo:true), attack Promise (lunge, white flash, snap-back, resume idle), hit Promise (red tint, shake), faint Promise (angle 90, alpha, y drop), stopIdle/destroy cleanup, BattleScene integration (idle on create, attack/hit in execAttack, faint on death, fish-switch destroy+replace), TitleScene starter fish idle (portrait + landscape), FloorScene recruit idle, regression: attack().then() chaining (47 checks)) |
 | `test-dynamic-dungeon-sizing.sh` | Shell script | Dynamic dungeon container sizing: no @media (min-width:601px) block exists (removed in v3), shared #tank/#arena/#sky/#dungeon rule has width:94vw/max-width:1200px/height:calc(100vh-6rem), no aspect-ratio/flex:1/min-height:0 in #dungeon block, mobile max-width:600px still sets height:calc(100vh-5rem) (8 checks; updated by qa-fix-dungeon-sizing-v3 to reflect removal of broken desktop override) |
+| `test-title-bg-contain-scaling.sh` | Shell script | Title background contain scaling: coverBackground() mode parameter defaults to 'cover', 'contain' uses Math.min, TitleScene calls with 'contain' in both create() and showStarterSelection(), no other scene passes 'contain', backward-compatible default behavior (17 checks) |
 
 ### Static Code Analysis Reports
 
@@ -167,6 +168,7 @@ bash tests/test-dungeon-fisher-title-text-effects.sh
 bash tests/test-dungeon-fisher-title-emerge-from-stars.sh
 bash tests/test-dungeon-fisher-sprite-animations.sh
 bash tests/test-dynamic-dungeon-sizing.sh
+bash tests/test-title-bg-contain-scaling.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -275,6 +277,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Dungeon Fisher gold shimmer: alpha pulse (0.85→1.0) removed from titleText, tweens.addCounter updates setTint() with per-corner left/right gold lerp, baseGold=0xf0c040 / brightGold=0xffeeaa (lighter), repeat:-1 infinite, Phase 1 glow + Phase 2 break-through entrance intact, no JS errors at shimmer start or after sustained cycle** | \`browser/qa-dungeon-fisher-gold-shimmer.spec.js\`, \`qa-dungeon-fisher-gold-shimmer-results.md\` |
 | **Dungeon Fisher sprite tween animations: SpriteAnimator class with idle (two tweens: y bob + scale breathe, repeat:-1/yoyo:true), attack (Promise, lunge, white flash, snap-back, resume idle), hit (Promise, red tint, horizontal shake), faint (Promise, angle 90, alpha 0.3, y drop); BattleScene idle on create + attack/hit/faint in combat; TitleScene starter fish idle (portrait + landscape); FloorScene recruit idle; fish-switch destroy+replace with no regressions** | \`test-dungeon-fisher-sprite-animations.sh\`, \`qa-sprite-animations-dungeon-fisher-results.md\` |
 | **Dynamic dungeon container sizing v3: no @media (min-width:601px) block (removed — was broken); shared game container rule has width:94vw/max-width:1200px/height:calc(100vh-6rem); no aspect-ratio/flex:1/min-height:0 in #dungeon block; mobile height:calc(100vh-5rem) intact** | \`test-dynamic-dungeon-sizing.sh\` |
+| **Title background contain scaling: coverBackground() mode param defaults to 'cover', 'contain' uses Math.min, TitleScene uses 'contain' in create() + showStarterSelection(), all other scenes use default 'cover', backward-compatible** | \`test-title-bg-contain-scaling.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -396,6 +399,7 @@ The following v2 features were verified:
 | \`qa-rename-dungeon-angler\` | Completed | Static code inspection only — no new test files created; updated \`test-dungeon-fisher-split-title.sh\` (FISHER→ANGLER, 0.85 pulse→addCounter gold shimmer, 9/9 pass) | None (all 6 verification checks pass: TitleScene DUNGEON\\nANGLER, both index.html titles, nav link + view config, iframe title, unchanged identifiers, no stale "Dungeon Fisher" strings) |
 | \`qa-dynamic-dungeon-sizing\` | Completed | \`test-dynamic-dungeon-sizing.sh\` (9 static checks, all pass — desktop @media min-width:601px block has height:auto/flex:1/min-height:0, no aspect-ratio/max-height, shared rule intact, mobile height preserved, body flex layout present) | None (all 9 checks pass) |
 | \`qa-fix-dungeon-sizing-v3\` | Completed | Updated \`test-dynamic-dungeon-sizing.sh\` (8 static checks, all pass — no @media min-width:601px block, shared rule has width:94vw/max-width:1200px/height:calc(100vh-6rem), no aspect-ratio/flex:1/min-height:0 in #dungeon, mobile height:calc(100vh-5rem) intact) | None (all 8 checks pass) |
+| \`qa-title-bg-contain-scaling\` | Completed | \`test-title-bg-contain-scaling.sh\` (17 static checks, all pass — mode param default 'cover', 'contain' uses Math.min, TitleScene create()+showStarterSelection() both use 'contain', all 6 other scenes use default 'cover', backward-compatible), \`qa-title-bg-contain-scaling-results.md\` | None (all 17 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
