@@ -47,6 +47,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-list-toggle.sh` | Shell script | Verifies compass list view toggle: toggle button (compass-toggle, aria-label), list rendering (compass-list, compass-list-item, list-direction, list-distance, list-temp), localStorage persistence (compass-view-mode), CSS classes (13 checks) |
 | `test-compass-weather-dashboard.sh` | Shell script | Verifies compass on weather dashboard: dash-compass-container in renderV2, loadDashCompass function, renderCompass targetId parameter, weather-public.json fallback fetch, CSS for dashboard compass (5 checks) |
 | `test-dungeon-fisher-split-title.sh` | Shell script | Verifies Dungeon Fisher title split: `'DUNGEON\nFISHER'` with `align:'center'`, TEXT_STYLES.TITLE_LARGE, bounce-in from y=-50, pulse glow onComplete tween, no old single-line string (9 checks) |
+| `test-dungeon-fisher-move-buttons-up.sh` | Shell script | Verifies NEW GAME button at `height * 0.36` (not 0.55), CONTINUE button at `height * 0.43` (not 0.65), both fade in with delay:1500 tween, all 6 pointer event handlers (pointerover/out/down) intact (12 checks) |
 
 ### Static Code Analysis Reports
 
@@ -146,6 +147,7 @@ bash tests/test-compass-card-redesign.sh
 bash tests/test-compass-list-toggle.sh
 bash tests/test-compass-weather-dashboard.sh
 bash tests/test-dungeon-fisher-split-title.sh
+bash tests/test-dungeon-fisher-move-buttons-up.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -244,6 +246,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Dungeon Fisher animated title screen: bg_title loaded, 5 animation layers (zoom, mist, stars, embers, title drop), button fade-in, clean scene transition, portrait mode; fishing line shimmer removed** | \`browser/dungeon-fisher-animated-title.spec.js\` |
 | **Dungeon Fisher font overhaul: Cinzel + Almendra fonts load (HTTP 200, document.fonts confirmed), zero monospace in src/, all 7 scenes use TEXT_STYLES, scene screenshots (title/starter/floor/battle), no overflow portrait/landscape, font fallback to Georgia/serif** | \`browser/dungeon-fisher-font-overhaul.spec.js\`, \`qa-dungeon-fisher-font-overhaul-results.md\` |
 | **Dungeon Fisher split title: two-line DUNGEON/FISHER with align:center, TITLE_LARGE style, bounce-in from y=-50, pulse glow onComplete, no old single-line string** | \`test-dungeon-fisher-split-title.sh\` |
+| **Dungeon Fisher move buttons up: NEW GAME at height×0.36, CONTINUE at height×0.43, fade-in tweens, all 6 pointer handlers** | \`test-dungeon-fisher-move-buttons-up.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -351,6 +354,7 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher-remove-line-anim\` | Completed | \`qa-dungeon-fisher-remove-line-anim-results.md\` (static QA — 4 checks: no lineGfx/spot, no subtitle/"A Turn-Based Fish RPG", all 5 remaining animations present, no new console errors); updated \`browser/dungeon-fisher-animated-title.spec.js\` header comment | None |
 | \`qa-dungeon-fisher-font-overhaul\` | Completed | \`browser/dungeon-fisher-font-overhaul.spec.js\` (14 Playwright tests, all pass — initial run); expanded by \`qa-browser-dungeon-fisher-font-overhaul\` to 23 tests (added document.fonts API, scene-by-scene screenshots for title/starter/floor/battle, portrait mode, end-to-end flow), \`qa-dungeon-fisher-font-overhaul-results.md\` (static + browser QA — 11 checks + 23 browser tests, all pass) | None |
 | \`qa-dungeon-fisher-split-title\` | Completed | \`test-dungeon-fisher-split-title.sh\` (9 static checks, all pass — two-line title string, align:center, TITLE_LARGE, y=-50 start, Bounce.Out, onComplete, alpha 0.85, repeat:-1, no old single-line string), \`qa-dungeon-fisher-split-title-results.md\` | None |
+| \`qa-dungeon-fisher-move-buttons-up\` | Completed | \`test-dungeon-fisher-move-buttons-up.sh\` (12 static checks, all pass — NEW GAME at 0.36 not 0.55, CONTINUE at 0.43 not 0.65, both fade-in tweens with delay:1500, all 6 pointer event handlers intact) | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
