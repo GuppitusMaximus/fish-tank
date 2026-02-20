@@ -17,11 +17,11 @@ export default class CampScene extends Phaser.Scene {
 
         // Title
         this.add.text(W / 2, 15, 'CAMP \u2014 Floor ' + gs.floor, {
-            fontSize: '12px', fontFamily: 'monospace', color: '#f0c040', fontStyle: 'bold'
+            fontSize: '16px', fontFamily: 'monospace', color: '#f0c040', fontStyle: 'bold'
         }).setOrigin(0.5);
 
         this.add.text(W / 2, 35, 'Your party rests by the fire...', {
-            fontSize: '9px', fontFamily: 'monospace', color: '#888888'
+            fontSize: '13px', fontFamily: 'monospace', color: '#888888'
         }).setOrigin(0.5);
 
         // Capture old HP before healing
@@ -42,25 +42,25 @@ export default class CampScene extends Phaser.Scene {
             const old = oldHp[i];
             const before = old.fainted ? 'FAINTED' : old.hp + '/' + old.maxHp;
             this.add.text(20, y, f.name + '  Lv.' + f.level, {
-                fontSize: '8px', fontFamily: 'monospace', color: '#88ccff'
+                fontSize: '12px', fontFamily: 'monospace', color: '#88ccff'
             });
             this.add.text(hpColX, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp, {
-                fontSize: '8px', fontFamily: 'monospace', color: '#88cc88'
+                fontSize: '12px', fontFamily: 'monospace', color: '#88cc88'
             });
             this.add.text(W - 30, y, '\u2713', {
-                fontSize: '10px', fontFamily: 'monospace', color: '#44ff44'
+                fontSize: '14px', fontFamily: 'monospace', color: '#44ff44'
             });
-            y += 18;
+            y += 22;
         });
 
         // Checkpoint message
         this.add.text(W / 2, y + 15, 'Checkpoint saved!', {
-            fontSize: '9px', fontFamily: 'monospace', color: '#ccaa66'
+            fontSize: '13px', fontFamily: 'monospace', color: '#ccaa66'
         }).setOrigin(0.5);
 
         // Continue button
         const contBtn = this.add.text(W / 2, H - 30, '[ CONTINUE ]', {
-            fontSize: '11px', fontFamily: 'monospace', color: '#aaaacc'
+            fontSize: '15px', fontFamily: 'monospace', color: '#aaaacc'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
         contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
