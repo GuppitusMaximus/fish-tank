@@ -1,0 +1,88 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1771566866,
+        "firmware": 300,
+        "wifi_status": 39,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1771566863,
+          "Temperature": 20.4,
+          "CO2": 551,
+          "Humidity": 32,
+          "Noise": 67,
+          "Pressure": 1014.6,
+          "AbsolutePressure": 988.3,
+          "min_temp": 19.2,
+          "max_temp": 20.4,
+          "date_max_temp": 1771566863,
+          "date_min_temp": 1771564745,
+          "temp_trend": "up",
+          "pressure_trend": "stable"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1771566865,
+            "last_seen": 1771566858,
+            "rf_status": 60,
+            "battery_vp": 6060,
+            "dashboard_data": {
+              "time_utc": 1771566858,
+              "Temperature": -5.7,
+              "Humidity": 65,
+              "min_temp": -5.7,
+              "max_temp": -5.2,
+              "date_max_temp": 1771563833,
+              "date_min_temp": 1771566551,
+              "temp_trend": "down"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.04211091995239258,
+  "time_server": 1771567215
+}
