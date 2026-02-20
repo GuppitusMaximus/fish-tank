@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Test: Dungeon Fisher Split Title Verification
-# Plan: qa-dungeon-fisher-split-title
+# Plan: qa-dungeon-fisher-split-title (updated by qa-rename-dungeon-angler)
 #
-# Verifies that TitleScene.js uses the two-line 'DUNGEON\nFISHER' title
+# Verifies that TitleScene.js uses the two-line 'DUNGEON\nANGLER' title
 # with correct styling, animation, and no leftover single-line references.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,8 +39,8 @@ echo "=== Dungeon Fisher Split Title — Static Code Checks ==="
 echo "File: $TITLE_SCENE"
 echo ""
 
-# Step 1: Title uses 'DUNGEON\nFISHER' with align: 'center'
-check "Title text uses two-line DUNGEON\\nFISHER" 'DUNGEON\nFISHER'
+# Step 1: Title uses 'DUNGEON\nANGLER' with align: 'center'
+check "Title text uses two-line DUNGEON\\nANGLER" 'DUNGEON\nANGLER'
 check "Title text has align: 'center'" "align: 'center'"
 
 # Step 2: Title uses TEXT_STYLES.TITLE_LARGE
@@ -52,7 +52,7 @@ check "Fade-in tween uses Sine.Out ease" "Sine.Out"
 
 # Step 4: Pulse glow tween runs after bounce completes
 check "Bounce-in has onComplete callback" "onComplete"
-check "Pulse glow alpha starts at 0.85" "0.85"
+check "Gold shimmer uses addCounter" "addCounter"
 check "Pulse glow is looping (repeat: -1)" "repeat: -1"
 
 # Step 5: No old single-line 'DUNGEON FISHER' string
