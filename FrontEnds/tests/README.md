@@ -46,6 +46,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-compass-card-redesign.sh` | Shell script | Verifies compass card redesign: HTML satellite cards (compass-layout, compass-center, compass-satellite, compass-stack), CSS classes, prefers-reduced-motion, accessibility (aria-label, tabindex), distance_mi, old .compass-station removed (17 checks) |
 | `test-compass-list-toggle.sh` | Shell script | Verifies compass list view toggle: toggle button (compass-toggle, aria-label), list rendering (compass-list, compass-list-item, list-direction, list-distance, list-temp), localStorage persistence (compass-view-mode), CSS classes (13 checks) |
 | `test-compass-weather-dashboard.sh` | Shell script | Verifies compass on weather dashboard: dash-compass-container in renderV2, loadDashCompass function, renderCompass targetId parameter, weather-public.json fallback fetch, CSS for dashboard compass (5 checks) |
+| `test-dungeon-fisher-split-title.sh` | Shell script | Verifies Dungeon Fisher title split: `'DUNGEON\nFISHER'` with `align:'center'`, TEXT_STYLES.TITLE_LARGE, bounce-in from y=-50, pulse glow onComplete tween, no old single-line string (9 checks) |
 
 ### Static Code Analysis Reports
 
@@ -144,6 +145,7 @@ bash tests/test-compass-floating.sh
 bash tests/test-compass-card-redesign.sh
 bash tests/test-compass-list-toggle.sh
 bash tests/test-compass-weather-dashboard.sh
+bash tests/test-dungeon-fisher-split-title.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -241,6 +243,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Dungeon Fisher zone backgrounds browser: 8 PNGs fetched with HTTP 200 (incl. title.png), goblin caves zone transition at floor 11, portrait mode, no JS errors** | \`browser/dungeon-fisher-backgrounds.spec.js\` |
 | **Dungeon Fisher animated title screen: bg_title loaded, 5 animation layers (zoom, mist, stars, embers, title drop), button fade-in, clean scene transition, portrait mode; fishing line shimmer removed** | \`browser/dungeon-fisher-animated-title.spec.js\` |
 | **Dungeon Fisher font overhaul: Cinzel + Almendra fonts load (HTTP 200), zero monospace in src/, all 7 scenes use TEXT_STYLES, no overflow portrait/landscape, font fallback to Georgia/serif** | \`browser/dungeon-fisher-font-overhaul.spec.js\`, \`qa-dungeon-fisher-font-overhaul-results.md\` |
+| **Dungeon Fisher split title: two-line DUNGEON/FISHER with align:center, TITLE_LARGE style, bounce-in from y=-50, pulse glow onComplete, no old single-line string** | \`test-dungeon-fisher-split-title.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -347,6 +350,7 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher-animated-title\` | Completed | \`browser/dungeon-fisher-animated-title.spec.js\` (18 Playwright tests, all pass — bg_title loaded, all 8 backgrounds, no JS errors, canvas 16:9, screenshots, button fade-in, scene transition cleanup, portrait mode, texture cache) — 6 baseline screenshots | None |
 | \`qa-dungeon-fisher-remove-line-anim\` | Completed | \`qa-dungeon-fisher-remove-line-anim-results.md\` (static QA — 4 checks: no lineGfx/spot, no subtitle/"A Turn-Based Fish RPG", all 5 remaining animations present, no new console errors); updated \`browser/dungeon-fisher-animated-title.spec.js\` header comment | None |
 | \`qa-dungeon-fisher-font-overhaul\` | Completed | \`browser/dungeon-fisher-font-overhaul.spec.js\` (14 Playwright tests, all pass — Cinzel + Almendra fonts load, HTTP 200, no JS errors, no overflow portrait/landscape, HTML link tags, 3 screenshots), \`qa-dungeon-fisher-font-overhaul-results.md\` (static + browser QA — 11 checks, all pass: font loading, textStyles.js presets, makeStyle, zero monospace in src/, all 7 scenes verified, font fallback) | None |
+| \`qa-dungeon-fisher-split-title\` | Completed | \`test-dungeon-fisher-split-title.sh\` (9 static checks, all pass — two-line title string, align:center, TITLE_LARGE, y=-50 start, Bounce.Out, onComplete, alpha 0.85, repeat:-1, no old single-line string), \`qa-dungeon-fisher-split-title-results.md\` | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
