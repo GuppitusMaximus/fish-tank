@@ -27,7 +27,7 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         menuBtn.on('pointerdown', () => {
             const scenesToStop = [
-                'CharacterSelectScene', 'FloorScene', 'BattleScene',
+                'TitleScene', 'CharacterSelectScene', 'FloorScene', 'BattleScene',
                 'ShopScene', 'CampScene', 'VictoryScene', 'ZonePreviewScene'
             ];
             for (const key of scenesToStop) {
@@ -35,7 +35,7 @@ export default class UIOverlayScene extends Phaser.Scene {
                     this.scene.stop(key);
                 }
             }
-            this.scene.run('TitleScene');
+            this.scene.run('TitleScene', {});
         });
 
         this.menuBtn = menuBtn;
