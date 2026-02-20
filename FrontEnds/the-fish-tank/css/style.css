@@ -1709,7 +1709,7 @@ body.theme-dungeon {
 @media (min-width: 601px) {
     #dungeon {
         height: auto;
-        aspect-ratio: 16 / 9;
-        max-height: calc(100vh - 6rem);
+        flex: 1;
+        min-height: 0;
     }
 }
