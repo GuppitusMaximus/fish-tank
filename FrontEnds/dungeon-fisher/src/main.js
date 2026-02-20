@@ -15,7 +15,7 @@ const config = {
     width: isPortrait ? 270 : 480,
     height: isPortrait ? 480 : 270,
     backgroundColor: '#1a1a2e',
-    pixelArt: false,
+    pixelArt: true,
     roundPixels: true,
     scale: {
         mode: Phaser.Scale.FIT,

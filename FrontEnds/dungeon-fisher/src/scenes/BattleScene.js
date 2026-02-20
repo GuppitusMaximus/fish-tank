@@ -59,8 +59,8 @@ export default class BattleScene extends Phaser.Scene {
         }).setOrigin(1, 0);
 
         // Sprites
-        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(3);
-        this.fishSpr = this.add.image(L.fishX, L.fishY, 'fish_' + this.fish.speciesId).setScale(3);
+        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5);
+        this.fishSpr = this.add.image(L.fishX, L.fishY, 'fish_' + this.fish.speciesId).setScale(0.75);
 
         // Fish info
         this.fishInfoY = L.fishInfoY;

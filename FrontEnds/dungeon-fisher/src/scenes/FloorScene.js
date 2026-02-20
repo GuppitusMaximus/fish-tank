@@ -156,7 +156,7 @@ export default class FloorScene extends Phaser.Scene {
             fontSize: '11px', fontFamily: 'monospace', color: '#888888'
         }).setOrigin(0.5);
 
-        this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(3);
+        this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(0.75);
 
         const acceptBtn = this.add.text(W / 2 - 60, H * 0.7, '[ ACCEPT ]', {
             fontSize: '14px', fontFamily: 'monospace', color: '#88cc88'

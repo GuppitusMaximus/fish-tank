@@ -76,7 +76,7 @@ export default class TitleScene extends Phaser.Scene {
             starters.forEach((species, i) => {
                 const y = height * 0.2 + i * (height * 0.22);
 
-                this.add.image(45, y, `fish_${species.id}`).setScale(2);
+                this.add.image(45, y, `fish_${species.id}`).setScale(0.5);
 
                 this.add.text(85, y - 16, species.name, {
                     fontSize: '13px', fontFamily: 'monospace', color: '#ffffff'
@@ -102,7 +102,7 @@ export default class TitleScene extends Phaser.Scene {
                 const x = startX + i * 120;
                 const y = height * 0.45;
 
-                this.add.image(x, y - 20, `fish_${species.id}`).setScale(2);
+                this.add.image(x, y - 20, `fish_${species.id}`).setScale(0.5);
 
                 this.add.text(x, y + 5, species.name, {
                     fontSize: '13px', fontFamily: 'monospace', color: '#ffffff'
