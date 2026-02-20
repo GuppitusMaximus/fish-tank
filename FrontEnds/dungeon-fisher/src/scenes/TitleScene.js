@@ -11,34 +11,168 @@ export default class TitleScene extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
-        // Sewers background (starting zone)
-        this.add.image(width / 2, height / 2, 'bg_sewers').setDisplaySize(width, height);
-        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5);
+        this._createParticleTextures();
 
-        // Title text
-        this.add.text(width / 2, height * 0.25, 'DUNGEON FISHER', {
+        // Title background with slow Ken Burns zoom
+        this.bg = this.add.image(width / 2, height / 2, 'bg_title').setDisplaySize(width, height);
+        const baseScaleX = this.bg.scaleX;
+        const baseScaleY = this.bg.scaleY;
+        this.tweens.add({
+            targets: this.bg,
+            scaleX: baseScaleX * 1.08,
+            scaleY: baseScaleY * 1.08,
+            duration: 18000,
+            ease: 'Sine.InOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Dark overlay
+        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
+
+        // Rising mist particles from the abyss (bottom third)
+        this.mistEmitter = this.add.particles(0, 0, 'particle_soft', {
+            x: { min: 0, max: width },
+            y: { min: height * 0.7, max: height },
+            lifespan: 4000,
+            speedY: { min: -15, max: -8 },
+            speedX: { min: -5, max: 5 },
+            scale: { start: 0.4, end: 0.1 },
+            alpha: { start: 0.4, end: 0 },
+            tint: [0xaaddff, 0xccddff, 0xeeeeff],
+            frequency: 200,
+            quantity: 1,
+            blendMode: 'ADD'
+        });
+
+        // Twinkling stars in the sky area
+        for (let i = 0; i < 10; i++) {
+            const star = this.add.image(
+                Phaser.Math.Between(width * 0.1, width * 0.9),
+                Phaser.Math.Between(height * 0.02, height * 0.25),
+                'particle_dot'
+            ).setAlpha(Phaser.Math.FloatBetween(0.2, 1.0)).setScale(0.5);
+
+            this.tweens.add({
+                targets: star,
+                alpha: { from: 0.2, to: 1.0 },
+                duration: Phaser.Math.Between(1000, 3000),
+                yoyo: true,
+                repeat: -1,
+                delay: Phaser.Math.Between(0, 2000)
+            });
+        }
+
+        // Floating crystal embers in mid-section (abyss walls)
+        this.crystalEmitter = this.add.particles(0, 0, 'particle_dot', {
+            x: { min: 0, max: width },
+            y: { min: height * 0.4, max: height * 0.7 },
+            lifespan: 5000,
+            speedY: { min: -8, max: -3 },
+            speedX: { min: -3, max: 3 },
+            scale: { start: 0.5, end: 0.1 },
+            alpha: { start: 0.6, end: 0 },
+            tint: [0x40ffcc, 0x60ddff, 0x80aaff],
+            frequency: 500,
+            quantity: 1,
+            blendMode: 'ADD'
+        });
+
+        // Animated title text — drops in like a fishing line
+        const titleText = this.add.text(width / 2, -50, 'DUNGEON FISHER', {
             fontSize: '28px',
             fontFamily: 'monospace',
             color: '#f0c040',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        this.add.text(width / 2, height * 0.35, 'A Turn-Based Fish RPG', {
+        this.tweens.add({
+            targets: titleText,
+            y: height * 0.25,
+            duration: 1500,
+            ease: 'Bounce.Out',
+            onComplete: () => {
+                this.tweens.add({
+                    targets: titleText,
+                    alpha: { from: 0.85, to: 1.0 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1
+                });
+            }
+        });
+
+        // Subtitle fades in 0.5s after title lands
+        const subtitle = this.add.text(width / 2, height * 0.35, 'A Turn-Based Fish RPG', {
             fontSize: '14px',
             fontFamily: 'monospace',
             color: '#8888aa'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setAlpha(0);
 
-        // New Game button
+        this.tweens.add({
+            targets: subtitle,
+            alpha: 1,
+            duration: 500,
+            delay: 2000
+        });
+
+        // Glowing fishing line shimmer
+        const lineX = width * 0.52;
+        const lineStartY = height * 0.35;
+        const lineEndY = height * 0.75;
+
+        const lineGfx = this.add.graphics();
+        lineGfx.lineStyle(1, 0xaaddff, 0.3);
+        lineGfx.lineBetween(lineX, lineStartY, lineX, lineEndY);
+
+        const spot = this.add.image(lineX, lineStartY, 'particle_dot')
+            .setScale(1.5).setAlpha(0.7).setBlendMode('ADD');
+
+        this.tweens.add({
+            targets: spot,
+            y: lineEndY,
+            duration: 3000,
+            ease: 'Sine.InOut',
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Buttons fade in after a short delay
         const newBtn = this.add.text(width / 2, height * 0.55, '[ NEW GAME ]', {
             fontSize: '16px',
             fontFamily: 'monospace',
             color: '#aaaacc'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
 
         newBtn.on('pointerover', () => newBtn.setColor('#ffffff'));
         newBtn.on('pointerout', () => newBtn.setColor('#aaaacc'));
-        newBtn.on('pointerdown', () => this.showStarterSelection());
+        newBtn.on('pointerdown', () => this._transitionTo(() => this.showStarterSelection()));
+
+        this.tweens.add({
+            targets: newBtn,
+            alpha: 1,
+            duration: 500,
+            delay: 1500
+        });
+
+        if (SaveSystem.hasSave()) {
+            const contBtn = this.add.text(width / 2, height * 0.65, '[ CONTINUE ]', {
+                fontSize: '16px',
+                fontFamily: 'monospace',
+                color: '#aaaacc'
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0);
+
+            contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
+            contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
+            contBtn.on('pointerdown', () => this._transitionTo(() => this.continueGame()));
+
+            this.tweens.add({
+                targets: contBtn,
+                alpha: 1,
+                duration: 500,
+                delay: 1500
+            });
+        }
 
         // Version label
         this.add.text(width - 5, height - 5, `v${VERSION}`, {
@@ -46,19 +180,32 @@ export default class TitleScene extends Phaser.Scene {
             fontFamily: 'monospace',
             color: '#555566'
         }).setOrigin(1, 1);
+    }
 
-        // Continue button (only if save exists)
-        if (SaveSystem.hasSave()) {
-            const contBtn = this.add.text(width / 2, height * 0.65, '[ CONTINUE ]', {
-                fontSize: '16px',
-                fontFamily: 'monospace',
-                color: '#aaaacc'
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-            contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
-            contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
-            contBtn.on('pointerdown', () => this.continueGame());
+    _createParticleTextures() {
+        if (!this.textures.exists('particle_soft')) {
+            const gfx = this.make.graphics({ add: false });
+            gfx.fillStyle(0xffffff, 0.6);
+            gfx.fillCircle(6, 6, 6);
+            gfx.fillStyle(0xffffff, 0.3);
+            gfx.fillCircle(6, 6, 3);
+            gfx.generateTexture('particle_soft', 12, 12);
+            gfx.destroy();
         }
+        if (!this.textures.exists('particle_dot')) {
+            const gfx = this.make.graphics({ add: false });
+            gfx.fillStyle(0xffffff, 1);
+            gfx.fillCircle(2, 2, 2);
+            gfx.generateTexture('particle_dot', 4, 4);
+            gfx.destroy();
+        }
+    }
+
+    _transitionTo(callback) {
+        this.tweens.killAll();
+        if (this.mistEmitter) { this.mistEmitter.destroy(); this.mistEmitter = null; }
+        if (this.crystalEmitter) { this.crystalEmitter.destroy(); this.crystalEmitter = null; }
+        callback();
     }
 
     showStarterSelection() {
@@ -67,8 +214,8 @@ export default class TitleScene extends Phaser.Scene {
 
         const { width, height } = this.scale;
 
-        // Sewers background with dark overlay for readability
-        this.add.image(width / 2, height / 2, 'bg_sewers').setDisplaySize(width, height);
+        // Title background with dark overlay for readability
+        this.add.image(width / 2, height / 2, 'bg_title').setDisplaySize(width, height);
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
 
         this.add.text(width / 2, 20, 'Choose your starter fish:', {
