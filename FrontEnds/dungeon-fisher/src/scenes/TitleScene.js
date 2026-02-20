@@ -80,11 +80,13 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Animated title text — drops in like a fishing line
-        const titleText = this.add.text(width / 2, -50, 'DUNGEON FISHER', TEXT_STYLES.TITLE_LARGE).setOrigin(0.5);
+        const titleText = this.add.text(width / 2, -50, 'DUNGEON\nFISHER',
+            makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center' })
+        ).setOrigin(0.5);
 
         this.tweens.add({
             targets: titleText,
-            y: height * 0.25,
+            y: height * 0.22,
             duration: 1500,
             ease: 'Bounce.Out',
             onComplete: () => {
