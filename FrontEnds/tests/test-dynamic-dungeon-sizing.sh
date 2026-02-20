@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# QA test for qa-dynamic-dungeon-sizing
-# Verifies that #dungeon uses flex-based sizing on desktop instead of fixed aspect-ratio
+# QA test for qa-fix-dungeon-sizing-v3
+# Verifies that #dungeon uses the shared viewport-height rule (no broken desktop override)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CSS="$SCRIPT_DIR/../the-fish-tank/css/style.css"
@@ -20,69 +20,65 @@ check() {
     fi
 }
 
-# 1. Desktop media query has height: auto for #dungeon
-if grep -A 10 '@media (min-width: 601px)' "$CSS" | grep -q 'height: auto'; then
-    check "Desktop @media (min-width: 601px) sets height: auto on #dungeon" pass
+# 1. No desktop @media (min-width: 601px) block targeting #dungeon
+if grep -q '@media (min-width: 601px)' "$CSS"; then
+    check "No @media (min-width: 601px) block exists (was removed)" fail
 else
-    check "Desktop @media (min-width: 601px) sets height: auto on #dungeon" fail
+    check "No @media (min-width: 601px) block exists (was removed)" pass
 fi
 
-# 2. Desktop media query has flex: 1 for #dungeon
-if grep -A 10 '@media (min-width: 601px)' "$CSS" | grep -q 'flex: 1'; then
-    check "Desktop @media (min-width: 601px) sets flex: 1 on #dungeon" pass
-else
-    check "Desktop @media (min-width: 601px) sets flex: 1 on #dungeon" fail
-fi
-
-# 3. Desktop media query has min-height: 0 for #dungeon
-if grep -A 10 '@media (min-width: 601px)' "$CSS" | grep -q 'min-height: 0'; then
-    check "Desktop @media (min-width: 601px) sets min-height: 0 on #dungeon" pass
-else
-    check "Desktop @media (min-width: 601px) sets min-height: 0 on #dungeon" fail
-fi
-
-# 4. No aspect-ratio in the desktop media query block for #dungeon
-DESKTOP_BLOCK=$(awk '/@media \(min-width: 601px\)/,/^}/' "$CSS")
-if echo "$DESKTOP_BLOCK" | grep -q 'aspect-ratio'; then
-    check "No aspect-ratio property in desktop media query" fail
-else
-    check "No aspect-ratio property in desktop media query" pass
-fi
-
-# 5. No max-height in the desktop media query block
-if echo "$DESKTOP_BLOCK" | grep -q 'max-height'; then
-    check "No max-height property in desktop media query" fail
-else
-    check "No max-height property in desktop media query" pass
-fi
-
-# 6. Shared rule for #tank, #arena, #sky, #dungeon is intact (not split)
+# 2. Shared rule for all game containers exists
 if grep -q '#tank, #arena, #sky, #dungeon' "$CSS"; then
-    check "Shared rule #tank, #arena, #sky, #dungeon exists (not split)" pass
+    check "Shared rule #tank, #arena, #sky, #dungeon exists" pass
 else
-    check "Shared rule #tank, #arena, #sky, #dungeon exists (not split)" fail
+    check "Shared rule #tank, #arena, #sky, #dungeon exists" fail
 fi
 
-# 7. Mobile query still sets explicit height for #dungeon
+# 3. Shared rule sets width: 94vw
+SHARED_BLOCK=$(awk '/#tank, #arena, #sky, #dungeon \{/,/^}/' "$CSS" | head -20)
+if echo "$SHARED_BLOCK" | grep -q 'width: 94vw'; then
+    check "Shared rule sets width: 94vw" pass
+else
+    check "Shared rule sets width: 94vw" fail
+fi
+
+# 4. Shared rule sets max-width: 1200px
+if echo "$SHARED_BLOCK" | grep -q 'max-width: 1200px'; then
+    check "Shared rule sets max-width: 1200px" pass
+else
+    check "Shared rule sets max-width: 1200px" fail
+fi
+
+# 5. Shared rule sets height: calc(100vh - 6rem)
+if echo "$SHARED_BLOCK" | grep -q 'height: calc(100vh - 6rem)'; then
+    check "Shared rule sets height: calc(100vh - 6rem)" pass
+else
+    check "Shared rule sets height: calc(100vh - 6rem)" fail
+fi
+
+# Extract dungeon-specific block for checks 6 and 7
+DUNGEON_RULES=$(grep -A 5 '^#dungeon {' "$CSS")
+
+# 6. No aspect-ratio in the dungeon-specific block
+if echo "$DUNGEON_RULES" | grep -q 'aspect-ratio'; then
+    check "No aspect-ratio property in #dungeon block" fail
+else
+    check "No aspect-ratio property in #dungeon block" pass
+fi
+
+# 7. No flex: 1 or min-height: 0 applied to #dungeon
+if echo "$DUNGEON_RULES" | grep -qE 'flex: 1|min-height: 0'; then
+    check "No flex: 1 or min-height: 0 on #dungeon block" fail
+else
+    check "No flex: 1 or min-height: 0 on #dungeon block" pass
+fi
+
+# 8. Mobile media query still sets height: calc(100vh - 5rem) for game containers
 MOBILE_BLOCK=$(awk '/@media \(max-width: 600px\)/,/^}/' "$CSS")
-if echo "$MOBILE_BLOCK" | grep -q '#dungeon' && echo "$MOBILE_BLOCK" | grep -q 'height:'; then
-    check "Mobile @media (max-width: 600px) still sets height on #dungeon" pass
+if echo "$MOBILE_BLOCK" | grep -q 'height: calc(100vh - 5rem)'; then
+    check "Mobile @media (max-width: 600px) sets height: calc(100vh - 5rem)" pass
 else
-    check "Mobile @media (max-width: 600px) still sets height on #dungeon" fail
-fi
-
-# 8. Body has display: flex
-if grep -A 5 '^body {' "$CSS" | grep -q 'display: flex'; then
-    check "Body has display: flex" pass
-else
-    check "Body has display: flex" fail
-fi
-
-# 9. Body has flex-direction: column
-if grep -A 5 '^body {' "$CSS" | grep -q 'flex-direction: column'; then
-    check "Body has flex-direction: column" pass
-else
-    check "Body has flex-direction: column" fail
+    check "Mobile @media (max-width: 600px) sets height: calc(100vh - 5rem)" fail
 fi
 
 echo ""
