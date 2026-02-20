@@ -5,6 +5,7 @@ import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
+import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class FloorScene extends Phaser.Scene {
@@ -168,7 +169,8 @@ export default class FloorScene extends Phaser.Scene {
             TEXT_STYLES.BODY_SMALL
         ).setOrigin(0.5);
 
-        this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(0.75);
+        const recruitImg = this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(0.75);
+        new SpriteAnimator(this, recruitImg).idle();
 
         const acceptBtn = this.add.text(W / 2 - 60, H * 0.7, '[ ACCEPT ]',
             makeStyle(TEXT_STYLES.BUTTON, { color: '#88cc88' })
