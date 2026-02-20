@@ -126,13 +126,13 @@ else
     check "Menu button starts hidden (setVisible(false))" "fail"
 fi
 
-# 13. update() method hides button for hidden scenes (replaces event listener approach)
-if grep -q "update()" "$OVERLAY" 2>/dev/null && \
-   grep -q "BootScene\|TitleScene" "$OVERLAY" 2>/dev/null && \
-   grep -q "setVisible" "$OVERLAY" 2>/dev/null; then
-    check "update() method hides button on TitleScene/BootScene" "pass"
+# 13. Event-driven approach: registers 'start' listeners on each scene's sys.events
+if grep -q "sys.events.on" "$OVERLAY" 2>/dev/null && \
+   grep -q "'start'" "$OVERLAY" 2>/dev/null && \
+   grep -q "hiddenScenes" "$OVERLAY" 2>/dev/null; then
+    check "Event-driven: sys.events.on('start') registered per scene" "pass"
 else
-    check "update() method hides button on TitleScene/BootScene" "fail"
+    check "Event-driven: sys.events.on('start') registered per scene" "fail"
 fi
 
 echo ""
@@ -141,18 +141,18 @@ echo ""
 
 echo "--- Check 3: Button visible on gameplay scenes ---"
 
-# 14. update() method uses setVisible(!hide) to show/hide based on active scenes
-if grep -q "setVisible(!hide)" "$OVERLAY" 2>/dev/null; then
-    check "update() calls setVisible(!hide) for dynamic show/hide" "pass"
+# 14. Visibility controlled via hiddenScenes.has() in event listener
+if grep -q "hiddenScenes.has" "$OVERLAY" 2>/dev/null; then
+    check "Visibility uses hiddenScenes.has(s.scene.key)" "pass"
 else
-    check "update() calls setVisible(!hide) for dynamic show/hide" "fail"
+    check "Visibility uses hiddenScenes.has(s.scene.key)" "fail"
 fi
 
-# 15. update() uses getScenes(true) to poll active scenes (no crash-prone event listener)
-if grep -q "getScenes(true)" "$OVERLAY" 2>/dev/null; then
-    check "update() uses getScenes(true) — no scene.manager.on() event listener" "pass"
+# 15. Iterates scene.manager.scenes (not polling — event-driven registration)
+if grep -q "scene.manager.scenes" "$OVERLAY" 2>/dev/null; then
+    check "Iterates this.scene.manager.scenes to register event listeners" "pass"
 else
-    check "update() uses getScenes(true) — no scene.manager.on() event listener" "fail"
+    check "Iterates this.scene.manager.scenes to register event listeners" "fail"
 fi
 
 # 15b. Confirm scene.manager.on is NOT present (the crash was caused by this)
