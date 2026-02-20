@@ -49,6 +49,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-dungeon-fisher-split-title.sh` | Shell script | Verifies Dungeon Fisher title split: `'DUNGEON\nFISHER'` with `align:'center'`, TEXT_STYLES.TITLE_LARGE, bounce-in from y=-50, pulse glow onComplete tween, no old single-line string (9 checks) |
 | `test-dungeon-fisher-move-buttons-up.sh` | Shell script | Verifies NEW GAME button at `height * 0.36` (not 0.55), CONTINUE button at `height * 0.43` (not 0.65), both fade in with delay:1500 tween, all 6 pointer event handlers (pointerover/out/down) intact (12 checks) |
 | `test-dungeon-fisher-bg-cover.sh` | Shell script | Verifies coverBackground() uses Math.max cover-crop scaling: helper in zones.js, no setDisplaySize in scenes, all 6 scenes import coverBackground, all 8 call sites present, TitleScene Ken Burns tween reads from image instance, overlay draw order correct (18 checks) |
+| `test-dungeon-fisher-bg-animations.sh` | Shell script | Verifies zone-aware ambient background effects: BackgroundEffects.js exports addEffects, all 7 zone presets (sewers, goblin-caves, bone-crypts, deep-dungeon, shadow-realm, ancient-chambers, dungeon-heart), particle texture creation with textures.exists() guards, 6 call sites across 5 scenes, render order (effects before dark overlays), import correctness, TitleScene unchanged with own particle system (31 checks) |
 
 ### Static Code Analysis Reports
 
@@ -152,6 +153,7 @@ bash tests/test-compass-weather-dashboard.sh
 bash tests/test-dungeon-fisher-split-title.sh
 bash tests/test-dungeon-fisher-move-buttons-up.sh
 bash tests/test-dungeon-fisher-bg-cover.sh
+bash tests/test-dungeon-fisher-bg-animations.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -253,6 +255,7 @@ Tests run headless Chromium against the live site. Results include screenshots o
 | **Dungeon Fisher dog tail wag: tail-wag.png asset (310×440 PNG), BootScene preload, TitleScene overlay, rotation tween ±4° yoyo repeat:-1, scale positioning from 1024×1792 source, cleanup on transition** | \`browser/dungeon-fisher-wag-tail.spec.js\`, \`qa-dungeon-fisher-wag-tail-results.md\` |
 | **Dungeon Fisher move buttons up: NEW GAME at height×0.36, CONTINUE at height×0.43, fade-in tweens, all 6 pointer handlers** | \`test-dungeon-fisher-move-buttons-up.sh\` |
 | **Dungeon Fisher background cover-crop fix: coverBackground() Math.max scaling, no setDisplaySize, all 6 scene imports, all 8 call sites, Ken Burns tween from instance, correct draw order** | \`test-dungeon-fisher-bg-cover.sh\` |
+| **Dungeon Fisher zone-aware ambient effects: BackgroundEffects.js module, all 7 zone presets, particle texture guards, 6 call sites across 5 scenes, render order, TitleScene unchanged** | \`test-dungeon-fisher-bg-animations.sh\` |
 | **Sign-out: cache cleared, token removed, navigation** | \`test_signout.js\` |
 | **switchView() initial active class fix** | \`verify-switchview-initial-active-fix.md\` |
 | **View switching & refresh regressions (browser)** | \`browser/view-switching.spec.js\` (16 Playwright tests) |
@@ -363,6 +366,7 @@ The following v2 features were verified:
 | \`qa-dungeon-fisher-move-buttons-up\` | Completed | \`test-dungeon-fisher-move-buttons-up.sh\` (12 static checks, all pass — NEW GAME at 0.36 not 0.55, CONTINUE at 0.43 not 0.65, both fade-in tweens with delay:1500, all 6 pointer event handlers intact) | None |
 | \`qa-dungeon-fisher-wag-tail\` | Completed | \`browser/dungeon-fisher-wag-tail.spec.js\` (8 Playwright tests, all pass — tail-wag.png fetched HTTP 200, no JS errors on load/transition, portrait mode, 3 screenshots), \`qa-dungeon-fisher-wag-tail-results.md\` (8 static checks + 8 browser tests, all pass) | None |
 | \`qa-fix-bg-cover-dungeon-fisher\` | Completed | \`test-dungeon-fisher-bg-cover.sh\` (18 static checks, all pass — coverBackground Math.max formula, no setDisplaySize in scenes, all 6 scene imports, all 8 call sites, Ken Burns tween from instance, overlay draw order), \`qa-fix-bg-cover-dungeon-fisher-results.md\` | None |
+| \`qa-bg-animations-dungeon-fisher\` | Completed | \`test-dungeon-fisher-bg-animations.sh\` (31 static checks, all pass — BackgroundEffects.js module, all 7 zone presets, particle_soft/particle_dot texture guards, 6 call sites across 5 scenes, render order (effects before dark overlays), all scene imports, TitleScene unchanged with own particle system), \`qa-bg-animations-dungeon-fisher-results.md\` | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
