@@ -8,9 +8,9 @@
  * - Twinkling stars in sky area
  * - Floating crystal embers in mid-section
  * - Animated title text drop with bounce ease
- * - Glowing fishing line shimmer
  * - Button fade-in with delay
  * - Clean scene transition to starter selection
+ * Note: fishing line shimmer and subtitle removed (plan: dungeon-fisher-remove-line-anim)
  *
  * Runs against local dev server at localhost:8080.
  * All game elements are in a Phaser WebGL canvas.
