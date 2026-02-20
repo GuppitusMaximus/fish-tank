@@ -46,9 +46,9 @@ check "Title text has align: 'center'" "align: 'center'"
 # Step 2: Title uses TEXT_STYLES.TITLE_LARGE
 check "Title uses TEXT_STYLES.TITLE_LARGE" "TEXT_STYLES.TITLE_LARGE"
 
-# Step 3: Bounce-in tween drops from y=-50 with Bounce.Out
-check "Title text starts at y=-50 (constructor arg)" ", -50,"
-check "Bounce-in tween uses Bounce.Out ease" "Bounce.Out"
+# Step 3: Fade-into-focus tween (replaced bounce-in in title-text-effects-dungeon-fisher plan)
+check "Title text starts invisible (setAlpha(0))" ".setAlpha(0)"
+check "Fade-in tween uses Sine.Out ease" "Sine.Out"
 
 # Step 4: Pulse glow tween runs after bounce completes
 check "Bounce-in has onComplete callback" "onComplete"
