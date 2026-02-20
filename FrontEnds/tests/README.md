@@ -58,6 +58,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `dungeon-fisher-browser-qa-v2.md` | Browser QA report for Dungeon Fisher V2: 32 Playwright tests covering page boot, title screen, new game flow, battle, shop, camp, save/load, responsive layout, game logic, and victory — all 32 tests passed, no bugs found |
 | `qa-embed-results.md` | Static QA report for Dungeon Fisher V2 iframe embed into the SPA: 6 checks covering iframe wrapper, V1 CSS cleanup, V2 build output, CI workflow, SPA integration, and package-lock — all passed |
 | `qa-dungeon-fisher-v2-portrait-results.md` | Static QA report for Dungeon Fisher V2 portrait mode: 8 steps verifying orientation detection in main.js, layout adaptation in all 6 scenes (BattleScene, TitleScene, FloorScene, ShopScene, CampScene, VictoryScene), and landscape regression check — all passed |
+| `dungeon-fisher-portrait-qa.md` | Browser QA report for Dungeon Fisher V2 portrait mode: 17 Playwright tests covering portrait boot, starter selection, battle, floor scene, shop, camp (code review), orientation change (landscape fallback), and desktop — all steps passed, 6 screenshots captured |
 
 ### Playwright Browser Tests
 
@@ -78,6 +79,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `browser/dungeon-fisher-v2.spec.js` | Dungeon Fisher V2 (Phaser/Vite standalone at localhost:8080): page boot (4 tests), title screen (2 tests), new game flow (3 tests), battle (3 tests), shop (3 tests), camp (2 tests), save/load (3 tests), responsive (2 tests), game logic (8 tests), victory (1 test) — 32 total tests |
 | `browser/auth-theme.spec.js` | Auth modal theming: card background/padding, blue/ocean gradient, fish element present, mobile 375px responsive, desktop 1280px centered layout, screenshots (5 tests, all pass) |
 | `browser/compass-station-view.spec.js` | Compass rose on home page: container present in DOM, visibility, cardinal labels (N/S/E/W), station dots rendered (>10), temperature labels with degree values, color coding, hover tooltip, metadata station count, mobile responsive viewport, concentric rings (11 tests, all pass) |
+| `browser/dungeon-fisher-portrait.spec.js` | Dungeon Fisher V2 portrait mode (iPhone 15 Pro 393×852): canvas boots in portrait, no horizontal overflow, portrait canvas taller than wide, game-container fills viewport, isPortrait flag true, orientation change triggers landscape layout, landscape/desktop viewports correct — 17 tests, all pass (runs against localhost:8080 dev server) |
 
 ### Test Reports
 
@@ -323,6 +325,7 @@ The following v2 features were verified:
 | \`qa-browser-dungeon-fisher-v2\` | Completed | \`browser/dungeon-fisher-v2.spec.js\` (32 Playwright tests, all pass), \`dungeon-fisher-browser-qa-v2.md\` (browser QA report) — 15 baseline screenshots | None |
 | \`qa-dungeon-fisher-v2-embed\` | Completed | \`qa-embed-results.md\` (static QA — 6 checks, all pass) | None |
 | \`qa-dungeon-fisher-v2-portrait\` | Completed | \`qa-dungeon-fisher-v2-portrait-results.md\` (static QA — 8 steps, all pass) | None |
+| \`qa-browser-dungeon-fisher-v2-portrait\` | Completed | \`browser/dungeon-fisher-portrait.spec.js\` (17 Playwright tests, all pass), \`dungeon-fisher-portrait-qa.md\` (browser QA report — 8 steps, all pass) — 6 baseline screenshots | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
