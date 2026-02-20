@@ -17,7 +17,7 @@ export default class TitleScene extends Phaser.Scene {
         this._createParticleTextures();
 
         // Title background with slow Ken Burns zoom
-        this.bg = coverBackground(this, 'bg_title');
+        this.bg = coverBackground(this, 'bg_title', 'contain');
         this.bg.setDepth(0);
         this.tweens.add({
             targets: this.bg,
@@ -243,7 +243,7 @@ export default class TitleScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Title background with dark overlay for readability
-        coverBackground(this, 'bg_title');
+        coverBackground(this, 'bg_title', 'contain');
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
 
         this.add.text(width / 2, 20, 'Choose your starter fish:',
