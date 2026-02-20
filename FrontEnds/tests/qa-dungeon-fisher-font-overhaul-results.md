@@ -93,32 +93,44 @@
 ## Browser Tests (Playwright)
 
 **Test file:** `tests/browser/dungeon-fisher-font-overhaul.spec.js`
-**Tests run:** 14 / 14 passed
+**Tests run:** 23 / 23 passed (expanded QA run — qa-browser-dungeon-fisher-font-overhaul)
 
 | Test | Result |
 |------|--------|
 | fonts: Cinzel Google Fonts request made on page load | ✅ PASS |
 | fonts: Almendra Google Fonts request made on page load | ✅ PASS |
 | fonts: Google Fonts CSS response is HTTP 200 | ✅ PASS |
-| no-errors: no JS errors during boot and title screen | ✅ PASS |
-| no-errors: no network request failures on boot | ✅ PASS |
-| canvas: game canvas renders with content in landscape | ✅ PASS |
-| canvas: game canvas renders in portrait viewport | ✅ PASS |
-| overflow: no horizontal overflow in landscape 900×600 | ✅ PASS |
-| overflow: no horizontal overflow in portrait 393×852 | ✅ PASS |
-| html: index.html has Cinzel Google Font link tag | ✅ PASS |
-| html: index.html has Almendra Google Font link tag | ✅ PASS |
-| screenshot: landscape title screen with fantasy fonts | ✅ PASS |
-| screenshot: portrait title screen with fantasy fonts | ✅ PASS |
-| screenshot: landscape battle scene (starter selection) with fantasy fonts | ✅ PASS |
+| fonts: index.html has Cinzel Google Font link tag | ✅ PASS |
+| fonts: index.html has Almendra Google Font link tag | ✅ PASS |
+| fonts: document.fonts confirms Cinzel is available after load | ✅ PASS |
+| fonts: document.fonts confirms Almendra is available after load | ✅ PASS |
+| title screen: no JS errors on load with new fonts | ✅ PASS |
+| title screen: no network request failures | ✅ PASS |
+| title screen: canvas visible with correct 16:9 aspect ratio | ✅ PASS |
+| title screen: screenshot in landscape — verify Cinzel fantasy title | ✅ PASS |
+| starter selection: no JS errors after NEW GAME click | ✅ PASS |
+| starter selection: screenshot showing fish names and stats | ✅ PASS |
+| floor scene: no JS errors entering floor 1 | ✅ PASS |
+| floor scene: screenshot showing Cinzel floor header | ✅ PASS |
+| battle scene: no JS errors entering a battle | ✅ PASS |
+| battle scene: screenshot showing combat text legibility | ✅ PASS |
+| portrait mode: no JS errors with new fonts at 393×852 | ✅ PASS |
+| portrait mode: no horizontal overflow | ✅ PASS |
+| portrait mode: title screenshot verifying no text clipping | ✅ PASS |
+| portrait mode: no overflow in landscape | ✅ PASS |
+| end-to-end: no JS errors through title → starter → floor | ✅ PASS |
+| end-to-end: canvas renders at each scene transition | ✅ PASS |
 
 ### Visual Verification (Screenshots)
 
 Screenshots saved to `tests/browser/screenshots/`:
 
-- `font-overhaul-01-landscape-title.png` — "DUNGEON FISHER" in Cinzel bold gold, "[ NEW GAME ]" in Almendra. Typography is clear and readable at 900×600.
-- `font-overhaul-02-portrait-title.png` — Title and button readable at 393×852 portrait. No overflow.
-- `font-overhaul-03-battle-scene.png` — Starter selection screen showing "Choose Your Starter Fish:" in Cinzel, fish names/stats/buttons in Almendra. All text fits within bounds.
+- `font-overhaul-01-landscape-title.png` — "DUNGEON FISHER" in Cinzel bold gold, "[ NEW GAME ]" in Almendra bracket style. Fantasy RPG aesthetic confirmed. Typography clear and readable at 900×600.
+- `font-overhaul-02-starter-selection.png` — "CHOOSE YOUR STARTER FISH:" in Cinzel, fish names (Guppy, Pufferfish, Swordfish) in Almendra blue bold, stats in Almendra small, [SELECT] buttons in Almendra. All text fits within card bounds.
+- `font-overhaul-03-floor-scene.png` — "FLOOR 1/100" in Cinzel gold top-center. Action buttons (ENTER BATTLE, FISH, CAMP, SHOP) in Almendra. Dungeon background visible with readable overlay text.
+- `font-overhaul-04-battle-scene.png` — "Cave Bat" in Almendra red bold, "Guppy Lv.1" in Almendra blue bold, HP bars labeled, "Splash" and "Items" action buttons in Almendra. All text legible against dungeon background with readability panel.
+- `font-overhaul-05-portrait-title.png` — Portrait layout (393×852): "DUNGEON FISHER" readable in Cinzel, no text clipping or horizontal overflow.
+- `font-overhaul-06-end-to-end.png` — Floor scene reached via full navigation flow (title → starter → floor) with no JS errors at any transition.
 
 ---
 
