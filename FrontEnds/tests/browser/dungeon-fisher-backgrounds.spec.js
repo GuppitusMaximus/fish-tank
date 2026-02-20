@@ -316,8 +316,8 @@ test('portrait mode: all backgrounds still load in portrait mode', async ({ page
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1000);
 
-    // All 7 backgrounds should still load even in portrait orientation
-    expect(loaded.length).toBe(7);
+    // All 8 backgrounds should load: 7 gameplay zones + title screen
+    expect(loaded.length).toBe(8);
 });
 
 // ─── Step 7: Continue Game (Saved State) ──────────────────────────────────────
