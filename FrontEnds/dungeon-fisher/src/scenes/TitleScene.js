@@ -2,6 +2,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { VERSION } from '../version.js';
+import { coverBackground } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class TitleScene extends Phaser.Scene {
@@ -15,13 +16,11 @@ export default class TitleScene extends Phaser.Scene {
         this._createParticleTextures();
 
         // Title background with slow Ken Burns zoom
-        this.bg = this.add.image(width / 2, height / 2, 'bg_title').setDisplaySize(width, height);
-        const baseScaleX = this.bg.scaleX;
-        const baseScaleY = this.bg.scaleY;
+        this.bg = coverBackground(this, 'bg_title');
         this.tweens.add({
             targets: this.bg,
-            scaleX: baseScaleX * 1.08,
-            scaleY: baseScaleY * 1.08,
+            scaleX: this.bg.scaleX * 1.08,
+            scaleY: this.bg.scaleY * 1.08,
             duration: 18000,
             ease: 'Sine.InOut',
             yoyo: true,
@@ -170,7 +169,7 @@ export default class TitleScene extends Phaser.Scene {
         const { width, height } = this.scale;
 
         // Title background with dark overlay for readability
-        this.add.image(width / 2, height / 2, 'bg_title').setDisplaySize(width, height);
+        coverBackground(this, 'bg_title');
         this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
 
         this.add.text(width / 2, 20, 'Choose your starter fish:',

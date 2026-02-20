@@ -8,6 +8,15 @@ export function getBackgroundKey(floor) {
     return 'bg_dungeon-heart';
 }
 
+export function coverBackground(scene, key) {
+    const W = scene.scale.width;
+    const H = scene.scale.height;
+    const img = scene.add.image(W / 2, H / 2, key);
+    const scale = Math.max(W / img.width, H / img.height);
+    img.setScale(scale);
+    return img;
+}
+
 export const BACKGROUND_KEYS = [
     'bg_sewers',
     'bg_goblin-caves',

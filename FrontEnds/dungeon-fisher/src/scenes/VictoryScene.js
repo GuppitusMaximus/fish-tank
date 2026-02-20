@@ -1,5 +1,5 @@
 import SaveSystem from '../systems/SaveSystem.js';
-import { getBackgroundKey } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class VictoryScene extends Phaser.Scene {
@@ -17,7 +17,7 @@ export default class VictoryScene extends Phaser.Scene {
         const gs = this.gameState;
 
         // Dungeon heart background (floor 100 boss arena)
-        this.add.image(W / 2, H / 2, 'bg_dungeon-heart').setDisplaySize(W, H);
+        coverBackground(this, 'bg_dungeon-heart');
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.35);
 
         // Title
