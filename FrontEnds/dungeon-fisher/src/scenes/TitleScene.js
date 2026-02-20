@@ -78,23 +78,44 @@ export default class TitleScene extends Phaser.Scene {
             blendMode: 'ADD'
         });
 
-        // Animated title text — drops in like a fishing line
-        const titleText = this.add.text(width / 2, -50, 'DUNGEON\nFISHER',
+        // Title text — fades into focus from the stars
+        const titleText = this.add.text(width / 2, height * 0.20, 'DUNGEON\nFISHER',
             makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center' })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setAlpha(0).setScale(1.4);
 
         this.tweens.add({
             targets: titleText,
+            alpha: 1,
+            scaleX: 1,
+            scaleY: 1,
             y: height * 0.22,
-            duration: 1500,
-            ease: 'Bounce.Out',
+            duration: 2500,
+            ease: 'Sine.Out',
             onComplete: () => {
+                // Gentle glow pulse after settling
                 this.tweens.add({
                     targets: titleText,
                     alpha: { from: 0.85, to: 1.0 },
                     duration: 1500,
                     yoyo: true,
                     repeat: -1
+                });
+
+                // Water dripping from the letters
+                const bounds = titleText.getBounds();
+                this.dripEmitter = this.add.particles(0, 0, 'particle_dot', {
+                    x: { min: bounds.left + 5, max: bounds.right - 5 },
+                    y: bounds.bottom,
+                    lifespan: 2000,
+                    speedY: { min: 20, max: 50 },
+                    speedX: { min: -2, max: 2 },
+                    scale: { start: 0.6, end: 0.2 },
+                    alpha: { start: 0.7, end: 0 },
+                    tint: [0x44aaff, 0x66ccff, 0x88ddff],
+                    frequency: 150,
+                    quantity: 1,
+                    gravityY: 40,
+                    blendMode: 'ADD'
                 });
             }
         });
@@ -112,7 +133,7 @@ export default class TitleScene extends Phaser.Scene {
             targets: newBtn,
             alpha: 1,
             duration: 500,
-            delay: 1500
+            delay: 2500
         });
 
         if (SaveSystem.hasSave()) {
@@ -128,7 +149,7 @@ export default class TitleScene extends Phaser.Scene {
                 targets: contBtn,
                 alpha: 1,
                 duration: 500,
-                delay: 1500
+                delay: 2500
             });
         }
 
@@ -159,6 +180,7 @@ export default class TitleScene extends Phaser.Scene {
         this.tweens.killAll();
         if (this.mistEmitter) { this.mistEmitter.destroy(); this.mistEmitter = null; }
         if (this.crystalEmitter) { this.crystalEmitter.destroy(); this.crystalEmitter = null; }
+        if (this.dripEmitter) { this.dripEmitter.destroy(); this.dripEmitter = null; }
         callback();
     }
 
