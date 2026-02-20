@@ -35,20 +35,19 @@ export default class UIOverlayScene extends Phaser.Scene {
                     this.scene.stop(key);
                 }
             }
-            this.scene.start('TitleScene');
+            this.scene.run('TitleScene');
         });
 
-        const hiddenScenes = ['BootScene', 'TitleScene'];
         this.menuBtn = menuBtn;
-
-        this.scene.manager.on('start', (scene) => {
-            if (hiddenScenes.includes(scene.scene.key)) {
-                this.menuBtn.setVisible(false);
-            } else {
-                this.menuBtn.setVisible(true);
-            }
-        });
-
         menuBtn.setVisible(false);
+    }
+
+    update() {
+        if (!this.menuBtn) return;
+        const active = this.scene.manager.getScenes(true);
+        const hide = active.some(s =>
+            s.scene.key === 'BootScene' || s.scene.key === 'TitleScene'
+        );
+        this.menuBtn.setVisible(!hide);
     }
 }
