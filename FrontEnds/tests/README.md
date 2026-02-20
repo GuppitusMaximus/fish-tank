@@ -60,6 +60,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-dungeon-fisher-v2-portrait-results.md` | Static QA report for Dungeon Fisher V2 portrait mode: 8 steps verifying orientation detection in main.js, layout adaptation in all 6 scenes (BattleScene, TitleScene, FloorScene, ShopScene, CampScene, VictoryScene), and landscape regression check — all passed |
 | `qa-text-readability-results.md` | Static QA report for Dungeon Fisher V2 text readability: 5 checks verifying pixelArt:false, minimum 10px font size across all scenes, layout spacing (FloorScene 18px rows, ShopScene 16px rows, CampScene 22px rows), BattleScene button widths, and full cross-scene font audit — all passed |
 | `qa-dungeon-fisher-v2-versioning-results.md` | Static QA report for Dungeon Fisher V2 versioning: 5 checks verifying version.js exports (VERSION, SAVE_FORMAT_VERSION), SaveSystem uses centralized constants, TitleScene displays muted version label in corner, package.json version matches — all passed |
+| `qa-wire-sprites-dungeon-fisher.md` | Static QA report for sprite integration: 7 checks verifying BootScene loads 10 fish + 13 monster sprites, all PNG files exist, pixelArt mode on, scale factors appropriate for 128px sprites, texture key consistency across all scenes, button_bg removed, no regressions — all passed |
 | `dungeon-fisher-portrait-qa.md` | Browser QA report for Dungeon Fisher V2 portrait mode: 17 Playwright tests covering portrait boot, starter selection, battle, floor scene, shop, camp (code review), orientation change (landscape fallback), and desktop — all steps passed, 6 screenshots captured |
 
 ### Playwright Browser Tests
@@ -330,6 +331,7 @@ The following v2 features were verified:
 | \`qa-browser-dungeon-fisher-v2-portrait\` | Completed | \`browser/dungeon-fisher-portrait.spec.js\` (17 Playwright tests, all pass), \`dungeon-fisher-portrait-qa.md\` (browser QA report — 8 steps, all pass) — 6 baseline screenshots | None |
 | \`qa-dungeon-fisher-v2-text-readability\` | Completed | \`qa-text-readability-results.md\` (static QA — 5 checks, all pass: pixelArt setting, minimum font size, layout spacing, button widths, cross-scene verification) | None |
 | \`qa-dungeon-fisher-v2-versioning\` | Completed | \`qa-dungeon-fisher-v2-versioning-results.md\` (static QA — 5 checks, all pass: version.js exports, SaveSystem imports, TitleScene display, package.json version, save compatibility) | None |
+| \`qa-wire-sprites-dungeon-fisher\` | Completed | \`qa-wire-sprites-dungeon-fisher.md\` (static QA — 7 checks, all pass: BootScene sprite loading, sprite files exist, pixelArt mode, scale factors, texture key consistency, button_bg removal, regression checks) | None |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
