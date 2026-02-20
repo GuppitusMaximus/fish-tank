@@ -6,39 +6,39 @@
 
 const ZONE_PRESETS = {
     'bg_sewers': {
-        particles: { tints: [0x88cc44, 0x66aa33], speedY: [-12, -6], frequency: 300 },
-        ambientColor: 0x44aa44, ambientAlpha: 0.06,
-        mist: { tints: [0x88aa66, 0xaabb88], y: [0.75, 1.0] }
+        particles: { tints: [0x88cc44, 0x66aa33, 0xaaee55], speedY: [-18, -8], frequency: 140, quantity: 2 },
+        ambientColor: 0x44aa44, ambientAlpha: 0.10,
+        mist: { tints: [0x88aa66, 0xaabb88, 0x669944], y: [0.65, 1.0], frequency: 150, quantity: 2 }
     },
     'bg_goblin-caves': {
-        particles: { tints: [0xff8833, 0xffaa44, 0xff6622], speedY: [-18, -8], frequency: 200 },
-        ambientColor: 0xff6600, ambientAlpha: 0.05,
-        mist: null
+        particles: { tints: [0xff8833, 0xffaa44, 0xff6622, 0xffcc66], speedY: [-25, -10], frequency: 100, quantity: 3 },
+        ambientColor: 0xff6600, ambientAlpha: 0.10,
+        mist: { tints: [0x553322, 0x664433], y: [0.7, 1.0], frequency: 250, quantity: 1 }
     },
     'bg_bone-crypts': {
-        particles: { tints: [0xaa88cc, 0x8866aa], speedY: [-6, -2], frequency: 500 },
-        ambientColor: 0x6633aa, ambientAlpha: 0.06,
-        mist: { tints: [0x9977bb, 0x886699], y: [0.6, 1.0] }
+        particles: { tints: [0xaa88cc, 0x8866aa, 0xcc99ee], speedY: [-10, -3], frequency: 200, quantity: 2 },
+        ambientColor: 0x6633aa, ambientAlpha: 0.12,
+        mist: { tints: [0x9977bb, 0x886699, 0x7755aa], y: [0.5, 1.0], frequency: 150, quantity: 2 }
     },
     'bg_deep-dungeon': {
-        particles: { tints: [0x44dddd, 0x33bbcc, 0x66eeff], speedY: [-20, -10], frequency: 250 },
-        ambientColor: 0x33cccc, ambientAlpha: 0.05,
-        mist: { tints: [0x66ccdd, 0x88ddee], y: [0.7, 1.0] }
+        particles: { tints: [0x44dddd, 0x33bbcc, 0x66eeff, 0x22aacc], speedY: [-28, -12], frequency: 120, quantity: 2 },
+        ambientColor: 0x33cccc, ambientAlpha: 0.10,
+        mist: { tints: [0x66ccdd, 0x88ddee, 0x44bbcc], y: [0.6, 1.0], frequency: 140, quantity: 2 }
     },
     'bg_shadow-realm': {
-        particles: { tints: [0xcc44ff, 0x44ffcc, 0x88ddff], speedY: [-10, -4], frequency: 350 },
-        ambientColor: 0x6644cc, ambientAlpha: 0.07,
-        mist: null
+        particles: { tints: [0xcc44ff, 0x44ffcc, 0x88ddff, 0xee66ff], speedY: [-14, -5], frequency: 150, quantity: 2 },
+        ambientColor: 0x6644cc, ambientAlpha: 0.14,
+        mist: { tints: [0x6633aa, 0x442288], y: [0.6, 1.0], frequency: 180, quantity: 2 }
     },
     'bg_ancient-chambers': {
-        particles: { tints: [0x66aaff, 0xaaccff, 0xffffff], speedY: [-8, -3], frequency: 400 },
-        ambientColor: 0x4488ff, ambientAlpha: 0.06,
-        mist: null
+        particles: { tints: [0x66aaff, 0xaaccff, 0xffffff, 0x88bbff], speedY: [-12, -4], frequency: 180, quantity: 2 },
+        ambientColor: 0x4488ff, ambientAlpha: 0.12,
+        mist: { tints: [0x4466aa, 0x5577bb], y: [0.65, 1.0], frequency: 200, quantity: 1 }
     },
     'bg_dungeon-heart': {
-        particles: { tints: [0xff3344, 0xcc2233, 0xff6666], speedY: [-14, -6], frequency: 200 },
-        ambientColor: 0xcc0022, ambientAlpha: 0.08,
-        mist: { tints: [0x332244, 0x221133], y: [0.65, 1.0] }
+        particles: { tints: [0xff3344, 0xcc2233, 0xff6666, 0xff4455], speedY: [-20, -8], frequency: 90, quantity: 3 },
+        ambientColor: 0xcc0022, ambientAlpha: 0.15,
+        mist: { tints: [0x332244, 0x221133, 0x441155], y: [0.5, 1.0], frequency: 120, quantity: 2 }
     }
 };
 
@@ -72,15 +72,15 @@ export function addEffects(scene, bgKey) {
     const p = preset.particles;
     const particleEmitter = scene.add.particles(0, 0, 'particle_dot', {
         x: { min: 0, max: W },
-        y: { min: H * 0.2, max: H * 0.8 },
-        lifespan: 4000,
+        y: { min: H * 0.1, max: H * 0.9 },
+        lifespan: 5000,
         speedY: { min: p.speedY[0], max: p.speedY[1] },
-        speedX: { min: -4, max: 4 },
-        scale: { start: 0.5, end: 0.1 },
-        alpha: { start: 0.5, end: 0 },
+        speedX: { min: -6, max: 6 },
+        scale: { start: 0.8, end: 0.2 },
+        alpha: { start: 0.7, end: 0 },
         tint: p.tints,
         frequency: p.frequency,
-        quantity: 1,
+        quantity: p.quantity || 2,
         blendMode: 'ADD'
     });
     emitters.push(particleEmitter);
@@ -91,14 +91,14 @@ export function addEffects(scene, bgKey) {
         const mistEmitter = scene.add.particles(0, 0, 'particle_soft', {
             x: { min: 0, max: W },
             y: { min: H * m.y[0], max: H * m.y[1] },
-            lifespan: 5000,
-            speedY: { min: -10, max: -4 },
-            speedX: { min: -3, max: 3 },
-            scale: { start: 0.4, end: 0.1 },
-            alpha: { start: 0.3, end: 0 },
+            lifespan: 6000,
+            speedY: { min: -14, max: -5 },
+            speedX: { min: -5, max: 5 },
+            scale: { start: 0.7, end: 0.15 },
+            alpha: { start: 0.5, end: 0 },
             tint: m.tints,
-            frequency: 350,
-            quantity: 1,
+            frequency: m.frequency || 150,
+            quantity: m.quantity || 2,
             blendMode: 'ADD'
         });
         emitters.push(mistEmitter);
@@ -111,8 +111,8 @@ export function addEffects(scene, bgKey) {
     );
     scene.tweens.add({
         targets: ambientRect,
-        alpha: { from: preset.ambientAlpha, to: preset.ambientAlpha * 2.5 },
-        duration: 3000,
+        alpha: { from: preset.ambientAlpha * 0.5, to: preset.ambientAlpha * 3.0 },
+        duration: 2500,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.InOut'
