@@ -1,7 +1,6 @@
 import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
-import { VERSION } from '../version.js';
 import { coverBackground } from '../utils/zones.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
@@ -205,8 +204,6 @@ export default class TitleScene extends Phaser.Scene {
             delay: 3500
         });
 
-        // Version label
-        this.add.text(width - 5, height - 5, `v${VERSION}`, TEXT_STYLES.VERSION).setOrigin(1, 1).setDepth(10);
     }
 
     _createParticleTextures() {

@@ -70,7 +70,9 @@ export const TEXT_STYLES = {
     VERSION: {
         fontSize: '10px',
         fontFamily: BODY_FONT,
-        color: '#555566'
+        color: '#aaaabb',
+        stroke: '#000000',
+        strokeThickness: 2
     }
 };
 
