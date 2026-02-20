@@ -402,6 +402,7 @@ The following v2 features were verified:
 | \`qa-fix-dungeon-sizing-v3\` | Completed | Updated \`test-dynamic-dungeon-sizing.sh\` (8 static checks, all pass — no @media min-width:601px block, shared rule has width:94vw/max-width:1200px/height:calc(100vh-6rem), no aspect-ratio/flex:1/min-height:0 in #dungeon, mobile height:calc(100vh-5rem) intact) | None (all 8 checks pass) |
 | \`qa-title-bg-contain-scaling\` | Completed | \`test-title-bg-contain-scaling.sh\` (17 static checks, all pass — mode param default 'cover', 'contain' uses Math.min, TitleScene create()+showStarterSelection() both use 'contain', all 6 other scenes use default 'cover', backward-compatible), \`qa-title-bg-contain-scaling-results.md\` | None (all 17 checks pass) |
 | \`qa-version-overlay-update\` | Completed | \`qa-version-overlay-update-results.md\` (static QA — 7 checks, all pass: VERSION=0.8.0, textStyles VERSION style with lighter color+stroke, UIOverlayScene Phaser.Scene subclass with depth 1000+scrollFactor 0, UIOverlayScene in main.js scene array, BootScene launches UIOverlay, TitleScene has no VERSION reference, no other scenes add version text) | None (all 7 checks pass) |
+| \`qa-bump-package-version\` | Completed | Static code inspection only — no new test files created; verified \`dungeon-fisher/package.json\` has \`"version": "0.8.0"\` and no other fields were modified | None (all 2 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
