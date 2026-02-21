@@ -551,7 +551,7 @@ def train_6hr_rc():
 
     X, y = build_6hr_rc_windows(df, error_lookup, RC_ALL_COLS)
 
-    print(f"Built {len(X)} 6hrRC sliding windows (lookback={RC_LOOKBACK}h, features=68)")
+    print(f"Built {len(X)} 6hrRC sliding windows (lookback={RC_LOOKBACK}h, features=86)")
 
     if len(X) < 2:
         print("Not enough data for 6hrRC model. Need at least 7 consecutive hourly readings.")

@@ -174,14 +174,14 @@ The system trains four models. All run on every training invocation but skip gra
 
 ### 6hrRC Model (6h lookback + residual correction)
 
-- 12 features per hour × 6 hours = 72-dimensional input vector (9 base + 3 spatial per hour, plus 12 error lags + 2 averages)
+- 12 features per hour × 6 hours + 12 error lags + 2 averages = 86-dimensional input vector (9 base + 3 spatial per hour, plus 6 indoor + 6 outdoor error lags + 2 rolling averages)
 - Error features: prediction errors from the 3hrRaw model for the past 6 hours (indoor + outdoor), plus rolling averages
 - Requires 7+ consecutive hourly readings to build training windows
 - Trains on prediction errors to apply residual correction on top of base predictions
 
 ### 24hr_pubRA_RC3_GB Model (24h lookback + public stations + rain + gradient boosting)
 
-- Uses LightGBM (`GradientBoostingRegressor`) instead of RandomForest
+- Uses LightGBM (`LGBMRegressor`) instead of RandomForest
 - 33 enriched features per hour × 24 hours = 792-dimensional base, plus 72 multi-model error lags (24 lags × 3 RC model types × indoor/outdoor)
 - Enriched features: all 22 base features + `battery_vp` + 10 spatial/weather features (`regional_avg_temp`, `regional_temp_delta`, `regional_temp_spread`, `regional_avg_humidity`, `regional_avg_pressure`, `regional_station_count`, `regional_avg_rain_60min`, `regional_avg_rain_24h`, `regional_avg_wind_strength`, `regional_avg_gust_strength`)
 - Requires 336+ readings (2 weeks) to train; skips otherwise
