@@ -16,7 +16,7 @@ export function themedPanel(scene, x, y, w, h, theme, opts = {}) {
 }
 
 function createNineSlicePanel(scene, x, y, w, h, theme, opts) {
-  const cornerSize = Math.min(32, Math.floor(Math.min(w, h) / 4));
+  const cornerSize = Math.min(16, Math.floor(Math.min(w, h) / 12));
   const ns = scene.add.nineslice(
     x + w / 2, y + h / 2,
     theme.atlasKey,

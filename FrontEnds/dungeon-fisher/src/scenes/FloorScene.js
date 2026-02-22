@@ -135,7 +135,7 @@ export default class FloorScene extends Phaser.Scene {
         }
         cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66' });
 
-        const cardH = Math.min(90, H - py - 50);
+        const cardH = Math.min(105, H - py - 50);
         const cardW = Math.floor(cardH * 0.85);
 
         // Inverted pyramid: shop/camp top row, delve below center
@@ -163,7 +163,7 @@ export default class FloorScene extends Phaser.Scene {
             themedPanel(this, cx, cy, cardW, cardH, zone);
 
             // Inset matching the NineSlice corner size for this card
-            const inset = Math.min(32, Math.floor(Math.min(cardW, cardH) / 4));
+            const inset = Math.min(16, Math.floor(Math.min(cardW, cardH) / 12));
 
             // Card image — fit within the border's content area
             const contentH = cardH - inset * 2;
