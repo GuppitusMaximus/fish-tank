@@ -6,6 +6,7 @@ import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopCardKey, getShopName } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
+import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import dungeonPanel from '../ui/DungeonPanel.js';
 
@@ -237,6 +238,7 @@ export default class FloorScene extends Phaser.Scene {
             TEXT_STYLES.BODY_SMALL
         ).setOrigin(0.5);
 
+        new WaterEffect(this, W / 2, H * 0.52, { width: 80, height: 35 });
         const recruitImg = this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(0.75);
         new SpriteAnimator(this, recruitImg).idle();
 

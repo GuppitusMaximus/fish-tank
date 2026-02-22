@@ -4,6 +4,7 @@ import MOVES from '../data/moves.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
+import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import dungeonPanel from '../ui/DungeonPanel.js';
 
@@ -76,6 +77,7 @@ export default class BattleScene extends Phaser.Scene {
         for (let i = 0; i < this.combatState.fish.length; i++) {
             const f = this.combatState.fish[i];
             const pos = positions[i];
+            new WaterEffect(this, pos.x, pos.y);
             const spr = this.add.image(pos.x, pos.y, 'fish_' + f.ref.speciesId).setScale(0.75);
             const anim = new SpriteAnimator(this, spr).idle();
             this.fishSprites.push(spr);
