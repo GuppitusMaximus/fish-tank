@@ -120,11 +120,11 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        if (!this.combatState.running) return;
-
-        // Tick combat engine
-        const events = CombatSystem.update(this.combatState, delta);
-        for (const e of events) this.eventQueue.push(e);
+        // Tick combat engine (only while running)
+        if (this.combatState.running) {
+            const events = CombatSystem.update(this.combatState, delta);
+            for (const e of events) this.eventQueue.push(e);
+        }
 
         // Process event queue with staggering
         this.eventTimer -= delta;
