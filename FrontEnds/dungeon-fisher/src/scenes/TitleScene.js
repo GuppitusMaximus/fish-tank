@@ -5,7 +5,7 @@ import { coverBackground } from '../utils/zones.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
-import { TITLE_THEME, getZoneByFloor } from '../data/themes.js';
+import { TITLE_THEME, getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -201,8 +201,10 @@ export default class TitleScene extends Phaser.Scene {
             () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME);
 
         if (SaveSystem.hasSave()) {
+            const saveData = SaveSystem.load();
+            const charTheme = getCharacterTheme(saveData?.fisherId || 'andy');
             this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
-                () => this.continueGame(), 3700, '16px', continueTheme);
+                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme));
         }
 
         this._createTitleButton(width / 2, height * 0.50, 'ZONES',
@@ -229,9 +231,10 @@ export default class TitleScene extends Phaser.Scene {
         }
     }
 
-    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME) {
+    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null) {
+        const btnColor = textColor || '#aaaacc';
         const text = this.add.text(x, y + 15, label,
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize })
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize, color: btnColor })
         ).setOrigin(0.5).setAlpha(0).setDepth(10);
 
         // Themed panel behind text
@@ -263,7 +266,7 @@ export default class TitleScene extends Phaser.Scene {
             panel.setAlpha(1);
         });
         text.on('pointerout', () => {
-            text.setColor('#aaaacc');
+            text.setColor(btnColor);
             if (hoverTween) hoverTween.stop();
             hoverTween = this.tweens.add({
                 targets: text,

@@ -4,7 +4,7 @@ import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopCardKey, getShopName } from '../utils/zones.js';
-import { getZoneByFloor, getCharacterTheme } from '../data/themes.js';
+import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
@@ -95,12 +95,13 @@ export default class FloorScene extends Phaser.Scene {
 
         // Floor title
         this.add.text(W / 2, 26, 'Floor ' + gs.floor + ' / 100',
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' })
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         ).setOrigin(0.5);
 
         // Gold + Inventory
+        const character = getCharacterTheme(gs.fisherId);
         this.add.text(W / 2, 42, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
-            makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: '#cccc80' })
+            makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: accentHex(character) })
         ).setOrigin(0.5);
 
         // Party display with HP bars

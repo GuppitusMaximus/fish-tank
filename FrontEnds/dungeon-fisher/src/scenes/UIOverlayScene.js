@@ -2,7 +2,7 @@ import { VERSION } from '../version.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
-import { TITLE_THEME } from '../data/themes.js';
+import { TITLE_THEME, accentHex } from '../data/themes.js';
 
 export default class UIOverlayScene extends Phaser.Scene {
     constructor() {
@@ -129,13 +129,13 @@ export default class UIOverlayScene extends Phaser.Scene {
         const contentLeft = panelX + 12;
 
         const header = this.add.text(centerX, panelY + 12, 'INVENTORY',
-            makeStyle(TEXT_STYLES.TITLE_SMALL))
+            makeStyle(TEXT_STYLES.TITLE_SMALL, { color: accentHex(character) }))
             .setOrigin(0.5).setDepth(1002).setScrollFactor(0);
         this.inventoryElements.push(header);
 
         const count = gameState.inventory.length;
         const countText = this.add.text(panelX + panelW - 12, panelY + 12, `${count}/${MAX_INVENTORY}`,
-            makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#ccccee' }))
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex(character) }))
             .setOrigin(1, 0).setDepth(1002).setScrollFactor(0);
         this.inventoryElements.push(countText);
 
@@ -149,7 +149,7 @@ export default class UIOverlayScene extends Phaser.Scene {
             if (itemId) {
                 const item = ITEMS[itemId];
                 const nameText = this.add.text(contentLeft, y, `${i + 1}. ${item.name}`,
-                    makeStyle(TEXT_STYLES.BODY, { color: '#ccaa66' }))
+                    makeStyle(TEXT_STYLES.BODY, { color: accentHex(character) }))
                     .setDepth(1002).setScrollFactor(0);
                 this.inventoryElements.push(nameText);
 

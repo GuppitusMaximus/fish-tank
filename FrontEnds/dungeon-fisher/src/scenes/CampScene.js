@@ -3,7 +3,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import { getZoneByFloor } from '../data/themes.js';
+import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
 
 export default class CampScene extends Phaser.Scene {
@@ -27,13 +27,14 @@ export default class CampScene extends Phaser.Scene {
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
 
         const zone = getZoneByFloor(gs.floor);
+        const character = getCharacterTheme(gs.fisherId);
         this.zone = zone;
         themedPanel(this, 4, 4, W - 8, 42, zone);
         themedPanel(this, 4, 52, W - 8, gs.party.length * 22 + 32, zone);
 
         // Title
         this.add.text(W / 2, 15, 'CAMP \u2014 Floor ' + gs.floor,
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' })
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         ).setOrigin(0.5);
 
         this.add.text(W / 2, 35, 'Your party rests by the fire...',
@@ -71,7 +72,7 @@ export default class CampScene extends Phaser.Scene {
 
         // Checkpoint message
         this.add.text(W / 2, y + 15, 'Checkpoint saved!',
-            makeStyle(TEXT_STYLES.GOLD, { color: '#ccaa66' })
+            makeStyle(TEXT_STYLES.GOLD, { color: accentHex(character) })
         ).setOrigin(0.5);
 
         // Party order section
@@ -103,7 +104,7 @@ export default class CampScene extends Phaser.Scene {
         this.orderObjects.push(orderPanel);
 
         const header = this.add.text(W / 2, y, 'PARTY ORDER',
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '13px' })
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '13px', color: accentHex(this.zone) })
         ).setOrigin(0.5);
         this.orderObjects.push(header);
         y += 15;

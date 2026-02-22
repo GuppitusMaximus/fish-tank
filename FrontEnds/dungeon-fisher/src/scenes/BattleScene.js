@@ -7,7 +7,7 @@ import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
-import { getZoneByFloor, getCharacterTheme } from '../data/themes.js';
+import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 
 export default class BattleScene extends Phaser.Scene {
     constructor() {
@@ -57,7 +57,7 @@ export default class BattleScene extends Phaser.Scene {
         // Floor indicator (top-right)
         themedPanel(this, W - 74, 4, 70, 20, zone);
         this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#999999' })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) })
         ).setOrigin(1, 0);
 
         // --- Monster ---
@@ -114,7 +114,7 @@ export default class BattleScene extends Phaser.Scene {
         this.partyHpBar = this.add.graphics();
         themedPanel(this, L.hpBarX + L.hpBarW * 0.3, L.hpBarY + L.hpBarH + 2, L.hpBarW * 0.4, 16, character);
         this.partyHpTxt = this.add.text(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 4, '',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#cccccc', fontSize: '10px' })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex(character), fontSize: '10px' })
         ).setOrigin(0.5, 0);
 
         // --- Message text ---

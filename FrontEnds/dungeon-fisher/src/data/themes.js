@@ -221,3 +221,7 @@ export function getZoneTheme(zoneId) {
 export function getCharacterTheme(charId) {
     return CHARACTER_THEMES[charId] || CHARACTER_THEMES.andy;
 }
+
+export function accentHex(theme) {
+    return '#' + theme.panel.accent.toString(16).padStart(6, '0');
+}

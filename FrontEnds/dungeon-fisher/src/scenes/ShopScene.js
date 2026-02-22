@@ -3,7 +3,7 @@ import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import { getZoneByFloor } from '../data/themes.js';
+import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
 
 export default class ShopScene extends Phaser.Scene {
@@ -34,15 +34,16 @@ export default class ShopScene extends Phaser.Scene {
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55);
 
         const zone = getZoneByFloor(gs.floor);
+        const character = getCharacterTheme(gs.fisherId);
         themedPanel(this, 4, 2, W - 8, 34, zone);
         themedPanel(this, 4, 38, W - 8, H - 62, zone);
 
         // Header
         this.add.text(10, 8, 'SHOP',
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' })
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         );
         this.add.text(W - 10, 8, 'Gold: ' + gs.gold,
-            makeStyle(TEXT_STYLES.GOLD, { fontSize: '14px' })
+            makeStyle(TEXT_STYLES.GOLD, { fontSize: '14px', color: accentHex(character) })
         ).setOrigin(1, 0);
         this.add.text(W - 10, 22, 'Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
             TEXT_STYLES.BODY_SMALL
@@ -54,7 +55,7 @@ export default class ShopScene extends Phaser.Scene {
         // Items section
         let y = 40;
         this.add.text(10, y, '-- ITEMS --',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#666688' })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) })
         );
         y += 16;
 
@@ -96,7 +97,7 @@ export default class ShopScene extends Phaser.Scene {
         // Fish section
         y += 6;
         this.add.text(10, y, '-- FISH --',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#666688' })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) })
         );
         y += 16;
 
