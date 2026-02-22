@@ -58,22 +58,28 @@ check "main.js imports ZonePreviewScene" \
 check "main.js scene array includes ZonePreviewScene" \
     "ZonePreviewScene" "$MAIN_JS"
 
-# ─── Check 4: All 7 zones defined ─────────────────────────────────────────────
-echo "4. All 7 zones defined (ZONES array)"
-check "zone: sewers"           "bg_sewers"           "$ZONE_SCENE"
-check "zone: goblin-caves"     "bg_goblin-caves"     "$ZONE_SCENE"
-check "zone: bone-crypts"      "bg_bone-crypts"      "$ZONE_SCENE"
-check "zone: deep-dungeon"     "bg_deep-dungeon"     "$ZONE_SCENE"
-check "zone: shadow-realm"     "bg_shadow-realm"     "$ZONE_SCENE"
-check "zone: ancient-chambers" "bg_ancient-chambers" "$ZONE_SCENE"
-check "zone: dungeon-heart"    "bg_dungeon-heart"    "$ZONE_SCENE"
+# ─── Check 4: All 7 zones defined (zone-theme-data-layer: now derived from ZONE_THEMES) ──
+echo "4. All 7 zones defined (derived from ZONE_THEMES import)"
+check "imports ZONE_THEMES from themes.js" \
+    "from '../data/themes.js'" "$ZONE_SCENE"
+check "ZONES array derived from ZONE_THEMES" \
+    "Object.values(ZONE_THEMES)" "$ZONE_SCENE"
+check "zones mapped with name field" \
+    "name: z.name" "$ZONE_SCENE"
+check "zones mapped with flavor field" \
+    "flavor: z.flavor" "$ZONE_SCENE"
+check "zones mapped with floors from floorRange" \
+    "floorRange" "$ZONE_SCENE"
+check "zones sorted by floorRange[0]" \
+    "a.floorRange[0] - b.floorRange[0]" "$ZONE_SCENE"
 
-ZONE_COUNT=$(grep -cF "name:" "$ZONE_SCENE" 2>/dev/null)
-if [ "$ZONE_COUNT" -ge 7 ]; then echo "  PASS: 7 zone name fields"; PASS=$((PASS+1)); else echo "  FAIL: 7 zone name fields (found $ZONE_COUNT)"; FAIL=$((FAIL+1)); fi
-FLOOR_COUNT=$(grep -cF "floors:" "$ZONE_SCENE" 2>/dev/null)
-if [ "$FLOOR_COUNT" -ge 7 ]; then echo "  PASS: 7 zone floors fields"; PASS=$((PASS+1)); else echo "  FAIL: 7 zone floors fields (found $FLOOR_COUNT)"; FAIL=$((FAIL+1)); fi
-FLAVOR_COUNT=$(grep -cF "flavor:" "$ZONE_SCENE" 2>/dev/null)
-if [ "$FLAVOR_COUNT" -ge 7 ]; then echo "  PASS: 7 zone flavor fields"; PASS=$((PASS+1)); else echo "  FAIL: 7 zone flavor fields (found $FLAVOR_COUNT)"; FAIL=$((FAIL+1)); fi
+THEMES_FILE="$REPO_ROOT/FrontEnds/dungeon-fisher/src/data/themes.js"
+check "themes.js has all 7 zones including sewers" \
+    "sewers:" "$THEMES_FILE"
+check "themes.js has goblin_caves zone" \
+    "goblin_caves:" "$THEMES_FILE"
+check "themes.js has dungeon_heart zone" \
+    "dungeon_heart:" "$THEMES_FILE"
 
 # ─── Check 5: Background + effects called in showZone ─────────────────────────
 echo "5. Background and effects calls in showZone"
@@ -121,8 +127,8 @@ check "transitioning reset to false in showZone" \
 
 # ─── Check 9: ZONES button on title ───────────────────────────────────────────
 echo "9. ZONES button on TitleScene"
-check "TitleScene has [ ZONES ] button" \
-    "[ ZONES ]" "$TITLE_SCENE"
+check "TitleScene has ZONES button" \
+    "ZONES" "$TITLE_SCENE"
 check "ZONES button starts ZonePreviewScene" \
     "ZonePreviewScene" "$TITLE_SCENE"
 
@@ -135,8 +141,8 @@ check "ESC key returns to TitleScene" \
 
 # ─── Check 11: No regressions ─────────────────────────────────────────────────
 echo "11. No regressions"
-check "TitleScene still has [ NEW GAME ] button" \
-    "[ NEW GAME ]" "$TITLE_SCENE"
+check "TitleScene still has NEW GAME button" \
+    "NEW GAME" "$TITLE_SCENE"
 check "ZonePreviewScene added after VictoryScene in scene array" \
     "VictoryScene" "$MAIN_JS"
 

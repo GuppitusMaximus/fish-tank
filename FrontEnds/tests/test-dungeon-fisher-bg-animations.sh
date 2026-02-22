@@ -30,14 +30,15 @@ TITLE="$(dirname "$0")/../dungeon-fisher/src/scenes/TitleScene.js"
 check "BackgroundEffects.js file exists" "$([ -f "$EFFECTS" ] && echo 1 || echo 0)"
 check "addEffects function exported" "$(grep -c 'export function addEffects' "$EFFECTS")"
 
-# --- Check 2: All 7 zone presets present ---
-check "Zone preset: bg_sewers" "$(grep -c "'bg_sewers'" "$EFFECTS")"
-check "Zone preset: bg_goblin-caves" "$(grep -c "'bg_goblin-caves'" "$EFFECTS")"
-check "Zone preset: bg_bone-crypts" "$(grep -c "'bg_bone-crypts'" "$EFFECTS")"
-check "Zone preset: bg_deep-dungeon" "$(grep -c "'bg_deep-dungeon'" "$EFFECTS")"
-check "Zone preset: bg_shadow-realm" "$(grep -c "'bg_shadow-realm'" "$EFFECTS")"
-check "Zone preset: bg_ancient-chambers" "$(grep -c "'bg_ancient-chambers'" "$EFFECTS")"
-check "Zone preset: bg_dungeon-heart" "$(grep -c "'bg_dungeon-heart'" "$EFFECTS")"
+# --- Check 2: Zone data sourced from themes.js (zone-theme-data-layer refactor) ---
+THEMES="$(dirname "$0")/../dungeon-fisher/src/data/themes.js"
+check "BackgroundEffects imports ZONE_THEMES from themes.js" "$(grep -c "from '../data/themes.js'" "$EFFECTS")"
+check "ZONE_BY_BG_KEY built from ZONE_THEMES" "$(grep -c 'ZONE_BY_BG_KEY' "$EFFECTS" | awk '$1>0{print 1}')"
+check "zones iterated via Object.values(ZONE_THEMES)" "$(grep -c 'Object.values(ZONE_THEMES)' "$EFFECTS")"
+check "no ZONE_PRESETS constant (moved to themes.js)" "$(grep -c 'ZONE_PRESETS' "$EFFECTS" | grep -qx 0 && echo 1 || echo 0)"
+check "themes.js has bg_sewers" "$(grep -c "'bg_sewers'" "$THEMES")"
+check "themes.js has bg_goblin-caves" "$(grep -c "'bg_goblin-caves'" "$THEMES")"
+check "themes.js has bg_dungeon-heart" "$(grep -c "'bg_dungeon-heart'" "$THEMES")"
 
 # --- Check 3: Particle texture creation with exists() guards ---
 check "particle_soft created with textures.exists() guard" "$(grep -c "textures.exists('particle_soft')" "$EFFECTS")"

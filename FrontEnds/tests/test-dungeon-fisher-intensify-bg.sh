@@ -6,6 +6,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FILE="$SCRIPT_DIR/../dungeon-fisher/src/effects/BackgroundEffects.js"
+THEMES="$SCRIPT_DIR/../dungeon-fisher/src/data/themes.js"
 
 PASS=0
 FAIL=0
@@ -19,21 +20,22 @@ if [ ! -f "$FILE" ]; then
 fi
 
 # ─── Check 1: All 7 zones have mist ──────────────────────────────────────────
-# Each zone block must contain mist: { ... } (not mist: null)
+# Zone data moved to themes.js (zone-theme-data-layer refactor).
+# Each zone in ZONE_THEMES must have mist: { ... } in its ambient block.
 
-ZONES="bg_sewers bg_goblin-caves bg_bone-crypts bg_deep-dungeon bg_shadow-realm bg_ancient-chambers bg_dungeon-heart"
+ZONE_IDS="sewers goblin_caves bone_crypts deep_dungeon shadow_realm ancient_chambers dungeon_heart"
 
-for zone in $ZONES; do
+for zone in $ZONE_IDS; do
     result=$(node -e "
 const fs = require('fs');
-const src = fs.readFileSync('$FILE', 'utf8');
-const start = src.indexOf(\"'$zone':\");
+const src = fs.readFileSync('$THEMES', 'utf8');
+const start = src.indexOf('$zone:');
 if (start === -1) { console.log('missing'); process.exit(0); }
-const allZones = ['bg_sewers','bg_goblin-caves','bg_bone-crypts','bg_deep-dungeon','bg_shadow-realm','bg_ancient-chambers','bg_dungeon-heart'];
+const allZones = ['sewers:','goblin_caves:','bone_crypts:','deep_dungeon:','shadow_realm:','ancient_chambers:','dungeon_heart:'];
 let nextStart = src.length;
 for (const z of allZones) {
-  if (z === '$zone') continue;
-  const pos = src.indexOf(\"'\" + z + \"':\", start + 1);
+  if (z === '$zone:') continue;
+  const pos = src.indexOf(z, start + 1);
   if (pos !== -1 && pos < nextStart) nextStart = pos;
 }
 const block = src.slice(start, nextStart);
@@ -49,17 +51,17 @@ done
 
 # ─── Check 2: All presets have particle quantity 2 or 3 ──────────────────────
 
-for zone in $ZONES; do
+for zone in $ZONE_IDS; do
     result=$(node -e "
 const fs = require('fs');
-const src = fs.readFileSync('$FILE', 'utf8');
-const start = src.indexOf(\"'$zone':\");
+const src = fs.readFileSync('$THEMES', 'utf8');
+const start = src.indexOf('$zone:');
 if (start === -1) { console.log('missing'); process.exit(0); }
-const allZones = ['bg_sewers','bg_goblin-caves','bg_bone-crypts','bg_deep-dungeon','bg_shadow-realm','bg_ancient-chambers','bg_dungeon-heart'];
+const allZones = ['sewers:','goblin_caves:','bone_crypts:','deep_dungeon:','shadow_realm:','ancient_chambers:','dungeon_heart:'];
 let nextStart = src.length;
 for (const z of allZones) {
-  if (z === '$zone') continue;
-  const pos = src.indexOf(\"'\" + z + \"':\", start + 1);
+  if (z === '$zone:') continue;
+  const pos = src.indexOf(z, start + 1);
   if (pos !== -1 && pos < nextStart) nextStart = pos;
 }
 const block = src.slice(start, nextStart);
