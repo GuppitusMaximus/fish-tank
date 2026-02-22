@@ -14,10 +14,6 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setOrigin(1, 1)
             .setDepth(1000)
             .setScrollFactor(0);
-        const vb = verTxt.getBounds();
-        this.add.rectangle(vb.x + vb.width / 2, vb.y + vb.height / 2, vb.width + 8, vb.height + 6, 0x000000, 0.5)
-            .setDepth(999).setScrollFactor(0);
-
         const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
             stroke: '#000000',
