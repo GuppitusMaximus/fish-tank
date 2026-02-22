@@ -1,7 +1,6 @@
 // Each fish species definition
 // Stats are base stats at level 1. On level up: HP +5, ATK +2, DEF +1, SPD +1
-// starterMoves: move IDs the fish knows at level 1
-// learnableMoves: [{ level, moveId }] — moves learned on level up
+// specialMove: the unique special move ID for this species
 
 const FISH_SPECIES = [
     {
@@ -9,10 +8,9 @@ const FISH_SPECIES = [
         name: 'Guppy',
         description: 'A reliable starter. Balanced stats.',
         baseHp: 30, baseAtk: 8, baseDef: 5, baseSpd: 6,
-        starterMoves: ['splash'],
-        learnableMoves: [{ level: 3, moveId: 'tackle' }, { level: 6, moveId: 'bubble_shot' }],
-        color: 0xe8734a,  // orange (placeholder sprite color)
-        shopPrice: 0,     // starter, not sold in shop
+        specialMove: 'bubble_volley',
+        color: 0xe8734a,
+        shopPrice: 0,
         isStarter: true
     },
     {
@@ -20,9 +18,8 @@ const FISH_SPECIES = [
         name: 'Pufferfish',
         description: 'Tanky. High HP, strong defense, slow.',
         baseHp: 45, baseAtk: 5, baseDef: 9, baseSpd: 3,
-        starterMoves: ['tackle'],
-        learnableMoves: [{ level: 3, moveId: 'harden' }, { level: 6, moveId: 'poison_bite' }],
-        color: 0xf0c040,  // yellow
+        specialMove: 'spike_shield',
+        color: 0xf0c040,
         shopPrice: 60,
         isStarter: true
     },
@@ -31,9 +28,8 @@ const FISH_SPECIES = [
         name: 'Swordfish',
         description: 'Glass cannon. Hits hard, fragile.',
         baseHp: 22, baseAtk: 14, baseDef: 3, baseSpd: 8,
-        starterMoves: ['fin_slash'],
-        learnableMoves: [{ level: 3, moveId: 'deep_strike' }, { level: 6, moveId: 'tidal_crush' }],
-        color: 0x4a90d9,  // blue
+        specialMove: 'deep_strike',
+        color: 0x4a90d9,
         shopPrice: 80,
         isStarter: true
     },
@@ -42,9 +38,8 @@ const FISH_SPECIES = [
         name: 'Clownfish',
         description: 'Speedy. Always acts first.',
         baseHp: 28, baseAtk: 7, baseDef: 5, baseSpd: 10,
-        starterMoves: ['tackle'],
-        learnableMoves: [{ level: 3, moveId: 'bubble_shot' }, { level: 6, moveId: 'fin_slash' }],
-        color: 0xe05080,  // pink-red
+        specialMove: 'trick_shot',
+        color: 0xe05080,
         shopPrice: 70,
         isStarter: false
     },
@@ -53,9 +48,8 @@ const FISH_SPECIES = [
         name: 'Anglerfish',
         description: 'Deep dweller. Strong special attacks.',
         baseHp: 32, baseAtk: 10, baseDef: 6, baseSpd: 4,
-        starterMoves: ['splash'],
-        learnableMoves: [{ level: 3, moveId: 'thunder_jolt' }, { level: 6, moveId: 'deep_strike' }],
-        color: 0x3a5060,  // dark teal
+        specialMove: 'abyssal_beam',
+        color: 0x3a5060,
         shopPrice: 90,
         isStarter: false
     },
@@ -64,9 +58,8 @@ const FISH_SPECIES = [
         name: 'Barracuda',
         description: 'Aggressive hunter. Fast and strong.',
         baseHp: 26, baseAtk: 12, baseDef: 4, baseSpd: 9,
-        starterMoves: ['fin_slash'],
-        learnableMoves: [{ level: 3, moveId: 'tackle' }, { level: 6, moveId: 'tidal_crush' }],
-        color: 0x5a5a5a,  // silver
+        specialMove: 'razor_rush',
+        color: 0x5a5a5a,
         shopPrice: 100,
         isStarter: false
     },
@@ -75,9 +68,8 @@ const FISH_SPECIES = [
         name: 'Jellyfish',
         description: 'Venomous. Poisons enemies over time.',
         baseHp: 25, baseAtk: 6, baseDef: 7, baseSpd: 7,
-        starterMoves: ['poison_bite'],
-        learnableMoves: [{ level: 3, moveId: 'heal_splash' }, { level: 6, moveId: 'thunder_jolt' }],
-        color: 0x9b6dcc,  // purple
+        specialMove: 'venom_sting',
+        color: 0x9b6dcc,
         shopPrice: 85,
         isStarter: false
     },
@@ -86,9 +78,8 @@ const FISH_SPECIES = [
         name: 'Seahorse',
         description: 'Supportive. Can heal itself in battle.',
         baseHp: 35, baseAtk: 5, baseDef: 6, baseSpd: 5,
-        starterMoves: ['heal_splash'],
-        learnableMoves: [{ level: 3, moveId: 'bubble_shot' }, { level: 6, moveId: 'harden' }],
-        color: 0x50c878,  // green
+        specialMove: 'healing_tide',
+        color: 0x50c878,
         shopPrice: 75,
         isStarter: false
     },
@@ -97,9 +88,8 @@ const FISH_SPECIES = [
         name: 'Manta Ray',
         description: 'Sturdy all-rounder. No weaknesses.',
         baseHp: 38, baseAtk: 9, baseDef: 7, baseSpd: 5,
-        starterMoves: ['tackle'],
-        learnableMoves: [{ level: 3, moveId: 'tidal_crush' }, { level: 6, moveId: 'heal_splash' }],
-        color: 0x3068a8,  // dark blue
+        specialMove: 'tidal_crush',
+        color: 0x3068a8,
         shopPrice: 120,
         isStarter: false
     },
@@ -108,9 +98,8 @@ const FISH_SPECIES = [
         name: 'Golden Koi',
         description: 'Rare and powerful. Excellent stats.',
         baseHp: 34, baseAtk: 11, baseDef: 8, baseSpd: 7,
-        starterMoves: ['bubble_shot'],
-        learnableMoves: [{ level: 3, moveId: 'thunder_jolt' }, { level: 6, moveId: 'deep_strike' }],
-        color: 0xffd700,  // gold
+        specialMove: 'golden_aura',
+        color: 0xffd700,
         shopPrice: 200,
         isStarter: false
     }

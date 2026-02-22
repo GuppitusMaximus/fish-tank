@@ -1,5 +1,4 @@
 import FISH_SPECIES from '../data/fish.js';
-import MOVES from '../data/moves.js';
 
 export default class PartySystem {
 
@@ -14,13 +13,13 @@ export default class PartySystem {
             color: species.color,
             level: 1,
             xp: 0,
-            xpToNext: 25,  // level * 25
+            xpToNext: 25,
             hp: species.baseHp,
             maxHp: species.baseHp,
             atk: species.baseAtk,
             def: species.baseDef,
             spd: species.baseSpd,
-            moves: [...species.starterMoves],
+            moves: [species.specialMove],
             poisoned: null,
             buffs: []
         };
@@ -38,26 +37,12 @@ export default class PartySystem {
 
             // Stat increases on level up
             fish.maxHp += 5;
-            fish.hp += 5;  // heal the gained HP
+            fish.hp += 5;
             fish.atk += 2;
             fish.def += 1;
             fish.spd += 1;
 
             messages.push(`${fish.name} grew to level ${fish.level}!`);
-
-            // Check for new move
-            const species = FISH_SPECIES.find(s => s.id === fish.speciesId);
-            const newMove = species.learnableMoves.find(m => m.level === fish.level);
-            if (newMove && !fish.moves.includes(newMove.moveId)) {
-                if (fish.moves.length < 3) {
-                    fish.moves.push(newMove.moveId);
-                    messages.push(`${fish.name} learned ${MOVES[newMove.moveId].name}!`);
-                } else {
-                    // Move slots full — store pending move for player to choose
-                    fish.pendingMove = newMove.moveId;
-                    messages.push(`${fish.name} wants to learn ${MOVES[newMove.moveId].name}!`);
-                }
-            }
         }
 
         return messages;
@@ -72,7 +57,7 @@ export default class PartySystem {
 
     // Revive a fainted fish to a percentage of max HP
     static revive(fish, hpPercent) {
-        if (fish.hp > 0) return false;  // not fainted
+        if (fish.hp > 0) return false;
         fish.hp = Math.floor(fish.maxHp * hpPercent);
         fish.poisoned = null;
         fish.buffs = [];
