@@ -62,6 +62,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-menu-button-events.sh` | Shell script | Event-driven menu button visibility: no update() method (polling removed), event listener registration via s.sys.events.on('start') in create() loop that skips UIOverlay and uses hiddenScenes.has(), hiddenScenes Set contains exactly BootScene+TitleScene, button styling (11px, stroke, depth 1000, scrollFactor 0), click handler uses scene.run('TitleScene', {}) not scene.start, scenesToStop includes TitleScene+all 7 gameplay scenes, version label intact, no scene.manager.on() (26 checks) |
 | `test-camp-party-order.sh` | Shell script | Camp party order UI: section presence in create() after HP display+checkpoint and before continue button, PARTY ORDER header, subtext, (FRONT) label on first fish, ▲/▼ arrow characters, up/down swap logic (destructuring swap), SaveSystem.save after each swap, re-render on swap, edge-case arrow visibility (i>0/i<length-1), continue button uses Math.max for layout fit, 18px row spacing (24 checks) |
 | `test-auto-battler-battle-ui.sh` | Shell script | Auto-battler BattleScene and SpriteAnimator: SpriteAnimator projectile/damageNumber static methods + existing methods preserved, BattleScene init/create/update structure, no turn-based UI methods, triangle formation (1/2/3 fish), combined HP bar (Graphics, species color, proportional segments, total text), cooldown indicators (base+special, timer-driven fills, hide on KO), all 10 event types handled, victory flow (awardXP/gold/advanceFloor), defeat flow (fullHeal/floor reset/FloorScene transition), FloorScene compatibility (54 checks; 1 known fail: buff_expired unhandled — see bug) |
+| `test-auto-battler-engine.sh` | Shell script | Auto-battler data and system integrity: 23 moves (10 fish + 13 monster specials) with all required fields (id/name/damage/cooldown/effect/animation/description), effect type validation (poison/heal/buff fields), no old format fields; 10 fish species with specialMove + no starterMoves/learnableMoves; 13 monster types with specialMove + no old moves array, floor 1 HP=84/floor 100 HP=975; CombatSystem createCombatState/update API, all 11 event types, no old turn-based methods, state.running=false on end; PartySystem createFish uses specialMove, awardXP simplified, level-up +5HP +2ATK +1DEF +1SPD, all utility methods; SaveSystem v2→v3 migration (specialMove replacement, pendingMove deletion, FISH_SPECIES import, v1→v2→v3 chain); version.js VERSION='1.0.0' and SAVE_FORMAT_VERSION=3 (89 checks, all pass) |
 
 ### Static Code Analysis Reports
 
@@ -178,6 +179,7 @@ bash tests/test-dynamic-dungeon-sizing.sh
 bash tests/test-title-bg-contain-scaling.sh
 bash tests/test-dungeon-fisher-back-to-menu.sh
 bash tests/test-camp-party-order.sh
+bash tests/test-auto-battler-engine.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -329,6 +331,8 @@ The following v2 features were verified:
 
 **Bugs Found:** None (all previously identified bugs have been fixed)
 
+| **Auto-battler engine data integrity: 23 moves with all fields/types, 10 fish with specialMove (no starterMoves/learnableMoves), 13 monsters with specialMove (no old moves array), stat scaling (floor 1 HP=84, floor 100 HP=975), CombatSystem API (createCombatState/update, 11 event types, no old turn-based methods), PartySystem createFish+awardXP, SaveSystem v2→v3 migration, version constants** | `test-auto-battler-engine.sh` |
+
 ### What's Not Yet Tested
 
 - Fish Tank simulation (\`tank.js\`) — no tests exist
@@ -422,6 +426,7 @@ The following v2 features were verified:
 | \`qa-fix-menu-returns-to-title\` | Completed | Updated \`test-dungeon-fisher-back-to-menu.sh\` (35 checks — updated scene.run pattern to scene.run('TitleScene', {}), added TitleScene-first-in-scenesToStop check); updated \`test-menu-button-events.sh\` (26 checks — updated scene.run pattern, added TitleScene to scenesToStop loop) | None (all 35+26 checks pass) |
 | \`qa-character-inventory\` | Completed | \`browser/dungeon-fisher-character-inventory.spec.js\` (7 Playwright tests, all pass — no JS errors on FloorScene navigation, BAG click, inventory close, BAG with items, SORT, MENU from inventory open, version load; 6 screenshots); 14 code inspection checks all pass (TitleScene registry.set, BAG button styling, visibility rules per scene, overlay blocker, 10-slot display, SORT logic, CLOSE cleanup, ITEMS dict lookup, MENU unchanged, BattleScene unchanged, MAX_INVENTORY=10, VERSION=0.11.0) | None (all checks pass) |
 | `qa-auto-battler-camp-ordering` | Completed | `test-camp-party-order.sh` (24 static checks, all pass — PARTY ORDER section in create() after HP display+checkpoint+before continue, header/subtext/FRONT label/▲▼ arrows, up/down swap via destructuring, SaveSystem.save after each swap, re-render on swap, edge-case arrow visibility for 1/2/3-fish parties, continue button Math.max layout fit), `qa-auto-battler-camp-ordering-results.md` | None (all 24 checks pass) |
+| `qa-auto-battler-engine` | Completed | `test-auto-battler-engine.sh` (89 static checks, all pass — moves.js 23 moves with all required fields + effect validation + no old format; fish.js 10 species with specialMove + no starterMoves/learnableMoves; monsters.js 13 types with specialMove + no old moves array + correct stat scaling; CombatSystem API (createCombatState/update), all 11 event types, no old turn-based methods; PartySystem createFish/awardXP/utility methods; SaveSystem v2→v3 migration; version constants) | None (all 89 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
