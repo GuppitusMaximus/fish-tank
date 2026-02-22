@@ -107,11 +107,14 @@ test('fresh: no save in localStorage', async ({ page }) => {
     expect(hasSave).toBe(false);
 });
 
-test('fresh: no network request failures', async ({ page }) => {
+test('fresh: no game asset request failures', async ({ page }) => {
     const failedRequests = [];
     page.on('requestfailed', req => {
         const url = req.url();
-        if (!url.includes('favicon')) failedRequests.push(url);
+        // Exclude favicon and external CDN (Google Fonts may fail offline)
+        if (!url.includes('favicon') && !url.includes('fonts.gstatic.com') && !url.includes('fonts.googleapis.com')) {
+            failedRequests.push(url);
+        }
     });
 
     await freshStart(page);

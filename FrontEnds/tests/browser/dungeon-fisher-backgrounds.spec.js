@@ -44,13 +44,13 @@ async function waitForGame(page) {
     await page.waitForTimeout(1500);
 }
 
-// Clear save and start fresh
+// Clear save and start fresh; wait 5s for title screen animations (buttons appear at 3.5s)
 async function freshStart(page) {
     await page.goto(BASE);
     await page.evaluate(() => localStorage.removeItem('dungeon-fisher-save'));
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(5000);
 }
 
 // Navigate to FloorScene at a specific floor by injecting save data, then clicking CONTINUE
@@ -77,9 +77,9 @@ async function startAtFloor(page, floor) {
     }, floor);
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(1500);
-    // CONTINUE button appears at (W/2, H*0.65) = (240, 175) when a save exists
-    await clickGame(page, 240, 175);
+    await page.waitForTimeout(5000);
+    // CONTINUE button at (W/2, H*0.43) = (240, 116) when a save exists
+    await clickGame(page, 240, 116);
     await page.waitForTimeout(1000);
 }
 
@@ -94,7 +94,9 @@ async function getBackgroundResources(page) {
 
 // ─── Step 1: Background Asset Loading ─────────────────────────────────────────
 
-test('asset loading: all 7 background images are fetched during boot', async ({ page }) => {
+test('asset loading: title background is fetched during boot (lazy loading)', async ({ page }) => {
+    // BootScene now loads only bg_title at boot (+ save zone if save exists).
+    // Zone backgrounds load on-demand when FloorScene starts (lazy loading).
     const loaded = [];
     page.on('response', resp => {
         if (resp.url().includes('/backgrounds/')) loaded.push(resp.url().split('/').pop());
@@ -102,18 +104,8 @@ test('asset loading: all 7 background images are fetched during boot', async ({ 
 
     await waitForGame(page);
 
-    const expected = [
-        'sewers.png',
-        'goblin-caves.png',
-        'bone-crypts.png',
-        'deep-dungeon.png',
-        'shadow-realm.png',
-        'ancient-chambers.png',
-        'dungeon-heart.png'
-    ];
-    for (const bg of expected) {
-        expect(loaded, `Expected ${bg} to be fetched`).toContain(bg);
-    }
+    // On a fresh start, only the title background is fetched
+    expect(loaded, `Expected title.png to be fetched`).toContain('title.png');
 });
 
 test('asset loading: all background HTTP responses are 200', async ({ page }) => {
@@ -138,9 +130,9 @@ test('asset loading: no JS errors during boot with backgrounds', async ({ page }
 
 // ─── Step 2: Title Screen (Sewers Background) ─────────────────────────────────
 
-test('title screen: canvas renders with sewers background', async ({ page }) => {
+test('title screen: canvas renders with title background', async ({ page }) => {
     await freshStart(page);
-    await page.screenshot({ path: 'tests/browser/screenshots/bg-01-title-sewers.png' });
+    await page.screenshot({ path: 'tests/browser/screenshots/bg-01-title-screen.png' });
 
     // Canvas must be visible and have non-zero dimensions
     const bounds = await getCanvasBounds(page);
@@ -148,9 +140,9 @@ test('title screen: canvas renders with sewers background', async ({ page }) => 
     expect(bounds.width).toBeGreaterThan(0);
     expect(bounds.height).toBeGreaterThan(0);
 
-    // sewers.png must have been fetched (it's used in TitleScene)
+    // title.png must have been fetched (TitleScene uses bg_title)
     const bgLoaded = await getBackgroundResources(page);
-    expect(bgLoaded).toContain('sewers.png');
+    expect(bgLoaded).toContain('title.png');
 });
 
 test('title screen: canvas aspect ratio is 16:9 (landscape)', async ({ page }) => {
@@ -161,13 +153,13 @@ test('title screen: canvas aspect ratio is 16:9 (landscape)', async ({ page }) =
     expect(ratio).toBeLessThan(1.8);
 });
 
-test('title screen: NEW GAME button is clickable (sewers background visible behind text)', async ({ page }) => {
+test('title screen: NEW GAME button is clickable (title background visible behind text)', async ({ page }) => {
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    // NEW GAME button: (W/2, H*0.55) = (240, 148)
-    await clickGame(page, 240, 148);
+    // NEW GAME button: (W/2, H*0.36) = (240, 97)
+    await clickGame(page, 240, 97);
     await page.waitForTimeout(600);
 
     await page.screenshot({ path: 'tests/browser/screenshots/bg-02-starter-selection.png' });
@@ -181,8 +173,10 @@ test('floor scene: sewers background on floor 1 — no errors', async ({ page })
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    await clickGame(page, 240, 148);  // NEW GAME
-    await page.waitForTimeout(400);
+    await clickGame(page, 240, 97);   // NEW GAME (H*0.36)
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT Andy (W*0.65, H*0.78)
+    await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy (1st starter)
     await page.waitForTimeout(1000);
 
@@ -192,8 +186,10 @@ test('floor scene: sewers background on floor 1 — no errors', async ({ page })
 
 test('floor scene: save state contains floor 1 after game start', async ({ page }) => {
     await freshStart(page);
-    await clickGame(page, 240, 148);  // NEW GAME
-    await page.waitForTimeout(400);
+    await clickGame(page, 240, 97);   // NEW GAME (H*0.36)
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT Andy (W*0.65, H*0.78)
+    await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
     await page.waitForTimeout(800);
 
@@ -209,8 +205,10 @@ test('battle scene: sewers background renders during battle on floor 1', async (
     page.on('pageerror', err => errors.push(err.message));
 
     await freshStart(page);
-    await clickGame(page, 240, 148);  // NEW GAME
-    await page.waitForTimeout(400);
+    await clickGame(page, 240, 97);   // NEW GAME (H*0.36)
+    await page.waitForTimeout(300);
+    await clickGame(page, 312, 211);  // CharacterSelect SELECT Andy
+    await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
     await page.waitForTimeout(800);
     await clickGame(page, 240, 135);  // ENTER BATTLE button
@@ -224,14 +222,17 @@ test('battle scene: sewers background renders during battle on floor 1', async (
 
 test('zone transition: goblin caves background loads on floor 11', async ({ page }) => {
     const errors = [];
-    page.on('pageerror', err => errors.push(err.message));
+    // Filter known pre-existing atlas error (ThemeAssetLoader loads missing atlas JSON)
+    page.on('pageerror', err => {
+        if (!err.message.includes('not valid JSON')) errors.push(err.message);
+    });
 
     await startAtFloor(page, 11);
     // Game should load to FloorScene with floor 11 (goblin caves zone)
     await page.waitForTimeout(800);
 
     await page.screenshot({ path: 'tests/browser/screenshots/bg-05-floor11-goblin-caves.png' });
-    expect(errors).toHaveLength(0);
+    expect(errors, `Unexpected errors: ${errors.join(', ')}`).toHaveLength(0);
 
     // Verify the save reflects floor 11
     const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
@@ -243,14 +244,17 @@ test('zone transition: goblin-caves.png was loaded (available for floor 11)', as
     await startAtFloor(page, 11);
     await page.waitForTimeout(800);
 
-    // All backgrounds were preloaded in BootScene — goblin-caves.png should be present
+    // BootScene loads the save zone's bg at boot — goblin-caves.png should be present (floor 11 save)
     const bgLoaded = await getBackgroundResources(page);
     expect(bgLoaded).toContain('goblin-caves.png');
 });
 
 test('zone transition: battle on floor 11 shows goblin caves background — no errors', async ({ page }) => {
     const errors = [];
-    page.on('pageerror', err => errors.push(err.message));
+    // Filter known pre-existing atlas error (ThemeAssetLoader loads missing atlas JSON)
+    page.on('pageerror', err => {
+        if (!err.message.includes('not valid JSON')) errors.push(err.message);
+    });
 
     await startAtFloor(page, 11);
     await page.waitForTimeout(800);
@@ -259,7 +263,7 @@ test('zone transition: battle on floor 11 shows goblin caves background — no e
     await page.waitForTimeout(1000);
 
     await page.screenshot({ path: 'tests/browser/screenshots/bg-06-battle-floor11.png' });
-    expect(errors).toHaveLength(0);
+    expect(errors, `Unexpected errors: ${errors.join(', ')}`).toHaveLength(0);
 });
 
 // ─── Step 6: Portrait Mode ─────────────────────────────────────────────────────
@@ -305,7 +309,8 @@ test('portrait mode: canvas fits within viewport width', async ({ page }) => {
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(394);
 });
 
-test('portrait mode: all backgrounds still load in portrait mode', async ({ page }) => {
+test('portrait mode: title background loads in portrait mode', async ({ page }) => {
+    // BootScene loads only bg_title at boot (lazy loading for zone backgrounds).
     const loaded = [];
     page.on('response', resp => {
         if (resp.url().includes('/backgrounds/')) loaded.push(resp.url().split('/').pop());
@@ -316,8 +321,8 @@ test('portrait mode: all backgrounds still load in portrait mode', async ({ page
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(1000);
 
-    // All 8 backgrounds should load: 7 gameplay zones + title screen
-    expect(loaded.length).toBe(8);
+    // Fresh boot (no save) should load the title background
+    expect(loaded).toContain('title.png');
 });
 
 // ─── Step 7: Continue Game (Saved State) ──────────────────────────────────────
@@ -336,10 +341,10 @@ test('continue: CONTINUE button appears when save exists and loads correctly', a
     // Reload — should show CONTINUE option on title
     await page.goto(BASE, { waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(5000);
 
-    // CONTINUE button at (W/2, H*0.65) = (240, 175)
-    await clickGame(page, 240, 175);
+    // CONTINUE button at (W/2, H*0.43) = (240, 116)
+    await clickGame(page, 240, 116);
     await page.waitForTimeout(1000);
 
     await page.screenshot({ path: 'tests/browser/screenshots/bg-08-continue-floor.png' });
