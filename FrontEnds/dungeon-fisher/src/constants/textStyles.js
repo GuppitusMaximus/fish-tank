@@ -72,9 +72,11 @@ export const TEXT_STYLES = {
         fontFamily: BODY_FONT,
         color: '#aaaabb',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1
     }
 };
+
+for (const key in TEXT_STYLES) TEXT_STYLES[key].resolution = 2;
 
 export function makeStyle(preset, overrides) {
     return { ...preset, ...overrides };
