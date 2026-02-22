@@ -9,10 +9,18 @@ export default class UIOverlayScene extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
+        this.add.rectangle(width - 28, height - 8, 60, 16, 0x000000, 0.6)
+            .setDepth(999)
+            .setScrollFactor(0);
         this.add.text(width - 4, height - 3, `v${VERSION}`, TEXT_STYLES.VERSION)
             .setOrigin(1, 1)
             .setDepth(1000)
             .setScrollFactor(0);
+
+        this.btnScrim = this.add.rectangle(70, height - 14, 150, 22, 0x000000, 0.6)
+            .setDepth(999)
+            .setScrollFactor(0)
+            .setVisible(false);
 
         const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
@@ -68,6 +76,7 @@ export default class UIOverlayScene extends Phaser.Scene {
             if (s.scene.key === 'UIOverlay') continue;
             s.sys.events.on('start', () => {
                 this.menuBtn.setVisible(!menuHiddenScenes.has(s.scene.key));
+                this.btnScrim.setVisible(!menuHiddenScenes.has(s.scene.key));
                 this.bagBtn.setVisible(!bagHiddenScenes.has(s.scene.key));
                 this.closeInventory();
             });
