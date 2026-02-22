@@ -37,13 +37,8 @@ export default class FloorScene extends Phaser.Scene {
         }
         this.registry.set('previousZone', zone);
 
-        // Ensure zone background is loaded before building the scene
-        if (!this.textures.exists(zone.bgKey)) {
-            loadZoneTheme(this, zone, () => this.onZoneReady());
-            return;
-        }
-        loadZoneTheme(this, zone);
-        this.onZoneReady();
+        // Always wait for zone assets (bg + atlas) before building the scene
+        loadZoneTheme(this, zone, () => this.onZoneReady());
     }
 
     onZoneReady() {
