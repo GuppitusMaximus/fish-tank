@@ -6,7 +6,8 @@ import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import dungeonPanel from '../ui/DungeonPanel.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
+import { getZoneByFloor, getCharacterTheme } from '../data/themes.js';
 
 export default class BattleScene extends Phaser.Scene {
     constructor() {
@@ -45,20 +46,23 @@ export default class BattleScene extends Phaser.Scene {
 
         const L = this.layout;
 
+        const zone = getZoneByFloor(this.gameState.floor);
+        const character = getCharacterTheme(this.gameState.fisherId);
+
         // Zone background
         const bgKey = getBackgroundKey(this.gameState.floor);
         coverBackground(this, bgKey);
         addEffects(this, bgKey);
 
         // Floor indicator (top-right)
-        dungeonPanel(this, W - 74, 4, 70, 20);
+        themedPanel(this, W - 74, 4, 70, 20, zone);
         this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
             makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#999999' })
         ).setOrigin(1, 0);
 
         // --- Monster ---
         // Name
-        dungeonPanel(this, 2, 2, W * 0.5, 22);
+        themedPanel(this, 2, 2, W * 0.5, 22, zone);
         this.add.text(10, 6, this.monster.name, TEXT_STYLES.MONSTER_NAME);
 
         // Monster HP bar
@@ -108,13 +112,13 @@ export default class BattleScene extends Phaser.Scene {
         this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH / 2 + 0.5,
             L.hpBarW + 2, L.hpBarH + 2, 0x222222);
         this.partyHpBar = this.add.graphics();
-        dungeonPanel(this, L.hpBarX + L.hpBarW * 0.3, L.hpBarY + L.hpBarH + 2, L.hpBarW * 0.4, 16);
+        themedPanel(this, L.hpBarX + L.hpBarW * 0.3, L.hpBarY + L.hpBarH + 2, L.hpBarW * 0.4, 16, character);
         this.partyHpTxt = this.add.text(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 4, '',
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#cccccc', fontSize: '10px' })
         ).setOrigin(0.5, 0);
 
         // --- Message text ---
-        dungeonPanel(this, 0, H - 30, W, 30);
+        themedPanel(this, 0, H - 30, W, 30, zone);
         this.msgTxt = this.add.text(W / 2, H - 16, '',
             makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc', align: 'center' })
         ).setOrigin(0.5);

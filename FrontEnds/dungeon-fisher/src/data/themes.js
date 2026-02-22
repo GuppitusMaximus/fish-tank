@@ -196,6 +196,12 @@ export const CHARACTER_THEMES = {
         accent: 0x88ccff,
         emblemKey: 'emblem_andy',
         panelTint: 0x1a2a3a,
+        panel: {
+            fill: 0x0a1520,
+            outer: 0x4477aa,
+            inner: 0x1a2a3a,
+            accent: 0x88ccff,
+        },
     },
 };
 

@@ -3,6 +3,8 @@ import SaveSystem from '../systems/SaveSystem.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import { getZoneByFloor } from '../data/themes.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
 
 export default class CampScene extends Phaser.Scene {
     constructor() {
@@ -23,6 +25,11 @@ export default class CampScene extends Phaser.Scene {
         coverBackground(this, bgKey);
         addEffects(this, bgKey);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
+
+        const zone = getZoneByFloor(gs.floor);
+        this.zone = zone;
+        themedPanel(this, 4, 4, W - 8, 42, zone);
+        themedPanel(this, 4, 52, W - 8, gs.party.length * 22 + 32, zone);
 
         // Title
         this.add.text(W / 2, 15, 'CAMP \u2014 Floor ' + gs.floor,
@@ -90,6 +97,10 @@ export default class CampScene extends Phaser.Scene {
         this.orderObjects = [];
 
         let y = this.orderStartY;
+
+        const orderH = 31 + gs.party.length * 18 + 4;
+        const orderPanel = themedPanel(this, 4, this.orderStartY - 4, W - 8, orderH, this.zone);
+        this.orderObjects.push(orderPanel);
 
         const header = this.add.text(W / 2, y, 'PARTY ORDER',
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '13px' })

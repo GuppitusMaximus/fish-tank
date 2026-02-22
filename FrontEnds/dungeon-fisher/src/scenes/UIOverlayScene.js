@@ -1,7 +1,8 @@
 import { VERSION } from '../version.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import dungeonPanel from '../ui/DungeonPanel.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
+import { TITLE_THEME } from '../data/themes.js';
 
 export default class UIOverlayScene extends Phaser.Scene {
     constructor() {
@@ -62,11 +63,12 @@ export default class UIOverlayScene extends Phaser.Scene {
         // Scrim sized to actual button bounds
         const mb = menuBtn.getBounds();
         const bb = bagBtn.getBounds();
-        const scrimX = mb.x - 4;
-        const scrimW = (bb.x + bb.width) - mb.x + 8;
-        const scrimH = Math.max(mb.height, bb.height) + 6;
-        const scrimY = mb.y + mb.height / 2;
-        this.btnScrim = dungeonPanel(this, scrimX, scrimY - scrimH / 2, scrimW, scrimH, { depth: 999 });
+        this._scrimX = mb.x - 4;
+        this._scrimW = (bb.x + bb.width) - mb.x + 8;
+        this._scrimH = Math.max(mb.height, bb.height) + 6;
+        this._scrimY = mb.y + mb.height / 2;
+        const scrimTheme = this.registry.get('currentZone') || TITLE_THEME;
+        this.btnScrim = themedPanel(this, this._scrimX, this._scrimY - this._scrimH / 2, this._scrimW, this._scrimH, scrimTheme, { depth: 999 });
         this.btnScrim.setVisible(false);
 
         this.inventoryElements = [];
@@ -83,6 +85,12 @@ export default class UIOverlayScene extends Phaser.Scene {
                 this.closeInventory();
             });
         }
+
+        this.registry.events.on('changedata-currentZone', (parent, value) => {
+            if (this.btnScrim) { this.btnScrim.destroy(); }
+            this.btnScrim = themedPanel(this, this._scrimX, this._scrimY - this._scrimH / 2,
+                this._scrimW, this._scrimH, value, { depth: 999 });
+        });
     }
 
     toggleInventory() {
@@ -112,11 +120,9 @@ export default class UIOverlayScene extends Phaser.Scene {
         const panelW = W - panelX * 2;
         const panelH = H - panelY * 2;
 
-        const bg = this.add.graphics().setDepth(1002).setScrollFactor(0);
-        bg.fillStyle(0x1a1a2e, 0.95);
-        bg.fillRect(panelX, panelY, panelW, panelH);
-        bg.lineStyle(1, 0x4a4a8a, 1);
-        bg.strokeRect(panelX, panelY, panelW, panelH);
+        const character = this.registry.get('currentCharacter') || TITLE_THEME;
+        const bg = themedPanel(this, panelX, panelY, panelW, panelH, character, { alpha: 0.95, depth: 1002 });
+        bg.setScrollFactor(0);
         this.inventoryElements.push(bg);
 
         const centerX = W / 2;

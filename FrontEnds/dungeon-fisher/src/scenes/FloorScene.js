@@ -4,12 +4,12 @@ import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopCardKey, getShopName } from '../utils/zones.js';
-import { getZoneByFloor } from '../data/themes.js';
+import { getZoneByFloor, getCharacterTheme } from '../data/themes.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import dungeonPanel from '../ui/DungeonPanel.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
 
 export default class FloorScene extends Phaser.Scene {
     constructor() {
@@ -48,8 +48,12 @@ export default class FloorScene extends Phaser.Scene {
         coverBackground(this, bgKey);
         addEffects(this, bgKey);
 
+        const zone = getZoneByFloor(gs.floor);
+        this.registry.set('currentZone', zone);
+        this.registry.set('currentCharacter', getCharacterTheme(gs.fisherId));
+
         // Top info panel
-        dungeonPanel(this, 0, 0, W, 56 + gs.party.length * 18);
+        themedPanel(this, 0, 0, W, 56 + gs.party.length * 18, zone);
 
         // Flavor text with warm shimmer sweep
         const flavorTxt = this.add.text(W / 2, 10, getZoneByFloor(gs.floor).flavor,
@@ -140,7 +144,7 @@ export default class FloorScene extends Phaser.Scene {
             const midY = cy + cardH / 2;
 
             // Panel frame
-            dungeonPanel(this, cx, cy, cardW, cardH);
+            themedPanel(this, cx, cy, cardW, cardH, zone);
 
             // Card image (fill the panel interior)
             const img = this.add.image(midX, cy + (cardH - 18) / 2, card.key);

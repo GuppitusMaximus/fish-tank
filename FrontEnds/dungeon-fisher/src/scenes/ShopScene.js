@@ -3,6 +3,8 @@ import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import { getZoneByFloor } from '../data/themes.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
 
 export default class ShopScene extends Phaser.Scene {
     constructor() {
@@ -30,6 +32,10 @@ export default class ShopScene extends Phaser.Scene {
         coverBackground(this, bgKey);
         if (!shopBgKey) addEffects(this, bgKey);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55);
+
+        const zone = getZoneByFloor(gs.floor);
+        themedPanel(this, 4, 2, W - 8, 34, zone);
+        themedPanel(this, 4, 38, W - 8, H - 62, zone);
 
         // Header
         this.add.text(10, 8, 'SHOP',
