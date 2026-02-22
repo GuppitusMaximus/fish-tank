@@ -118,8 +118,8 @@ export default class FloorScene extends Phaser.Scene {
         const cardW = Math.floor(cardH * 0.85);
 
         // Inverted pyramid: shop/camp top row, delve below center
-        const topY = py + 6;
-        const delveY = topY + cardH + 8;
+        const delveY = Math.floor(H * 0.67) - cardH / 2;
+        const topY = delveY - cardH - 8;
 
         const positions = {};
         positions['delve'] = { x: Math.floor((W - cardW) / 2), y: delveY };
