@@ -72,17 +72,17 @@ check_not "No blue drip tint (0x44aaff removed)" "0x44aaff"
 check_not "No drip emitter assigned in onComplete" "this.dripEmitter = this.add.particles"
 
 echo ""
-echo "--- Check 4: Warm amber shimmer (replaces drip) ---"
-check     "Warm shimmer uses addCounter tween" "tweens.addCounter("
-check     "Warm shimmer cycles to Math.PI * 2" "to: Math.PI * 2,"
-check     "Warm shimmer uses GetColor formula" "GetColor("
-check     "Warm shimmer sets four-corner tint" "setTint(c1, c2, c1, c2)"
+echo "--- Check 4: Zone color shimmer (replaces warm amber shimmer) ---"
+check     "Zone shimmer uses addCounter tween" "tweens.addCounter("
+check     "Zone shimmer uses GetColor formula" "GetColor("
+check     "Zone shimmer sets four-corner tint (c1, c2, c1, c2)" "setTint(c1, c2, c1, c2)"
 check_not "No gravityY (drip physics removed)" "gravityY:"
-check_not "No bounds.bottom (drip positioning removed)" "bounds.bottom"
+# Note: bounds.bottom is now used for zone particle emitter origin (not drip)
 
 echo ""
 echo "--- Check 5: Button delay >= 3500ms (after both title phases: 2000+1500ms) ---"
-check "NEW GAME button fade-in delay is 3500" "delay: 3500"
+# _createTitleButton is called with 3500 as delay argument for NEW GAME
+check "NEW GAME button delay arg is 3500" ", 3500)"
 
 echo ""
 echo "--- Check 6: Drip emitter cleanup ---"
