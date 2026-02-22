@@ -48,8 +48,23 @@ export default class FloorScene extends Phaser.Scene {
         // Top info scrim
         this.add.rectangle(W / 2, 0, W, 56 + gs.party.length * 18, 0x000000, 0.45).setOrigin(0.5, 0);
 
-        // Flavor text
-        this.add.text(W / 2, 10, this.getFlavorText(gs.floor), TEXT_STYLES.FLAVOR).setOrigin(0.5);
+        // Flavor text with warm shimmer sweep
+        const flavorTxt = this.add.text(W / 2, 10, this.getFlavorText(gs.floor),
+            makeStyle(TEXT_STYLES.FLAVOR, { color: '#ffffff' })
+        ).setOrigin(0.5);
+        this.tweens.addCounter({
+            from: 0, to: Math.PI * 2,
+            duration: 3000,
+            repeat: -1,
+            onUpdate: (tween) => {
+                const p = tween.getValue();
+                const l1 = 0.5 + 0.5 * Math.sin(p);
+                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 80 + l1 * 80, 30 + l1 * 30);
+                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 80 + l2 * 80, 30 + l2 * 30);
+                flavorTxt.setTint(c1, c2, c1, c2);
+            }
+        });
 
         // Floor title
         this.add.text(W / 2, 26, 'Floor ' + gs.floor + ' / 100',
