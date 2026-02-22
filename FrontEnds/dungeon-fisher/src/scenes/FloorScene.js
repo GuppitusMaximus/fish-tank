@@ -162,14 +162,19 @@ export default class FloorScene extends Phaser.Scene {
             // Panel frame
             themedPanel(this, cx, cy, cardW, cardH, zone);
 
-            // Card image (fill the panel interior)
-            const img = this.add.image(midX, cy + (cardH - 18) / 2, card.key);
-            const imgScale = Math.min((cardW - 8) / img.width, (cardH - 22) / img.height);
+            // Inset matching the NineSlice corner size for this card
+            const inset = Math.min(32, Math.floor(Math.min(cardW, cardH) / 4));
+
+            // Card image — fit within the border's content area
+            const contentH = cardH - inset * 2;
+            const labelSpace = 14;
+            const img = this.add.image(midX, cy + inset + (contentH - labelSpace) / 2, card.key);
+            const imgScale = Math.min((cardW - inset * 2) / img.width, (contentH - labelSpace) / img.height);
             img.setScale(imgScale);
 
-            // Label at bottom
-            const label = this.add.text(midX, cy + cardH - 10, card.label,
-                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color })
+            // Label — inside the bottom content area, with stroke for readability
+            const label = this.add.text(midX, cy + cardH - inset - 2, card.label,
+                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5);
 
             // Hit zone
