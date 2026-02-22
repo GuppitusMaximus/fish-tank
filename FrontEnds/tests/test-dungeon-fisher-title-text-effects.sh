@@ -82,7 +82,7 @@ check_not "No gravityY (drip physics removed)" "gravityY:"
 echo ""
 echo "--- Check 5: Button delay >= 3500ms (after both title phases: 2000+1500ms) ---"
 # _createTitleButton is called with 3500 as delay argument for NEW GAME
-check "NEW GAME button delay arg is 3500" ", 3500)"
+check "NEW GAME button delay arg is 3500" ", 3500,"
 
 echo ""
 echo "--- Check 6: Drip emitter cleanup ---"

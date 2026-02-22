@@ -81,7 +81,7 @@ check     "Warm shimmer four-corner tint applied"  "setTint(c1, c2, c1, c2)"
 
 echo ""
 echo "--- Check 7: Button delay >= 3500ms ---"
-check "NEW GAME button delay is 3500ms" "delay: 3500"
+check "NEW GAME button delay arg is 3500ms" ", 3500,"
 check_not "Button does NOT use old 2500ms delay" "delay: 2500"
 
 echo ""

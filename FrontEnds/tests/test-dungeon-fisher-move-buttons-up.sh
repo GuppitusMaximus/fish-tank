@@ -106,8 +106,8 @@ check_grep "pointerdown handler in _createTitleButton" "text.on('pointerdown'"
 # 11. Hover scale 1.08 in _createTitleButton
 check_grep "Hover tween scales to 1.08" "scaleX: 1.08,"
 
-# 12. Panel created via dungeonPanel()
-check_grep "Panel created via dungeonPanel()" "dungeonPanel("
+# 12. Panel created via themedPanel() (migrated from dungeonPanel by zone-theme-title-screen)
+check_grep "Panel created via themedPanel()" "themedPanel("
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
