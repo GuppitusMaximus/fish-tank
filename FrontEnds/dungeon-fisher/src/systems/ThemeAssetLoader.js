@@ -40,6 +40,15 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
         if (onComplete) onComplete();
     });
 
+    // Suppress error when atlas files don't exist yet — panel falls back to DungeonPanel graphics
+    if (needsAtlas) {
+        scene.load.once('loaderror', (file) => {
+            if (file.key === zoneTheme.atlasKey) {
+                console.debug(`[ThemeAssetLoader] Atlas not found for ${zoneTheme.id}, using fallback`);
+            }
+        });
+    }
+
     scene.load.start();
 }
 
