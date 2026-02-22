@@ -48,13 +48,16 @@ async function waitForGame(page) {
     await page.waitForTimeout(1500);
 }
 
-// Clear localStorage save and reload
+// Clear localStorage save and reload.
+// TitleScene buttons have a 3.5s fade-in delay (alpha=0 → non-interactive until animation completes).
+// Phaser's inputCandidate() calls willRender(), which returns false for alpha=0 objects.
+// Wait 5s to ensure buttons are fully visible and interactive.
 async function freshStart(page) {
     await page.goto(BASE);
     await page.evaluate(() => localStorage.removeItem('dungeon-fisher-save'));
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(5000);
 }
 
 // ─── Step 1: Page Boot ────────────────────────────────────────────────────────
@@ -166,7 +169,7 @@ test('new game: selecting starter creates save with guppy at floor 1', async ({ 
     await page.waitForTimeout(300);
     // First starter (Guppy) SELECT button: x=120, y = H*0.45+45 = 166
     await clickGame(page, 120, 166);
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-03b-floor-scene.png' });
 
@@ -190,7 +193,7 @@ test('new game: pufferfish starter creates save with correct species', async ({ 
     await page.waitForTimeout(300);
     // Second starter (Pufferfish) SELECT at x=240, y=166
     await clickGame(page, 240, 166);
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
 
     const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
     expect(save).not.toBeNull();
@@ -206,7 +209,7 @@ test('new game: swordfish starter creates save with correct species', async ({ p
     await page.waitForTimeout(300);
     // Third starter (Swordfish) SELECT at x=360, y=166
     await clickGame(page, 360, 166);
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
 
     const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
     expect(save).not.toBeNull();
@@ -250,7 +253,9 @@ test('battle: canvas still renders after entering battle', async ({ page }) => {
     await expect(canvas).toBeVisible();
 });
 
-test('battle: using move button does not crash game', async ({ page }) => {
+test('battle: auto-battler runs without player input and has no JS errors', async ({ page }) => {
+    // The battle scene is a real-time auto-battler — no move buttons exist.
+    // All fish attack automatically on their own cooldown timers.
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 
@@ -262,15 +267,9 @@ test('battle: using move button does not crash game', async ({ page }) => {
     await clickGame(page, 120, 166);
     await page.waitForTimeout(600);
     await clickGame(page, 240, 135);  // ENTER BATTLE
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(2000);  // Wait for auto-battle to run for a couple seconds
 
-    // Move buttons at y = H - 18 = 252, spread across width
-    // With 1 move + items = 2 buttons: totalW = 2*95 + 1*4 = 194, x starts at (480-194)/2 + 95/2 = 191
-    // First move button center: 191
-    await clickGame(page, 191, 252);
-    await page.waitForTimeout(1500);
-
-    await page.screenshot({ path: 'tests/browser/screenshots/v2-04b-battle-after-move.png' });
+    await page.screenshot({ path: 'tests/browser/screenshots/v2-04b-battle-auto.png' });
     expect(errors).toHaveLength(0);
 });
 
@@ -370,7 +369,7 @@ test('camp: entering camp heals fish and saves checkpoint', async ({ page }) => 
     });
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(5000);
 
     // CONTINUE at (240, 116) — H*0.43
     await clickGame(page, 240, 116);
@@ -428,11 +427,11 @@ test('save: save data has correct structure', async ({ page }) => {
     await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
 
     const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
     expect(save).not.toBeNull();
-    expect(save).toHaveProperty('version', 2);  // SAVE_FORMAT_VERSION is now 2
+    expect(save).toHaveProperty('version', 3);  // SAVE_FORMAT_VERSION is now 3
     expect(save).toHaveProperty('floor');
     expect(save).toHaveProperty('gold');
     expect(save).toHaveProperty('party');
@@ -487,14 +486,18 @@ test('load: new game overwrites old save', async ({ page }) => {
     });
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(5000);
 
     await clickGame(page, 240, 97);   // NEW GAME (overwrites)
     await page.waitForTimeout(300);
     await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 360, 166);  // SELECT swordfish
-    await page.waitForTimeout(800);
+    await page.waitForFunction(() => {
+        const raw = localStorage.getItem('dungeon-fisher-save');
+        if (!raw) return false;
+        return JSON.parse(raw).floor === 1;
+    }, { timeout: 5000 });
 
     const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
     expect(save).not.toBeNull();
@@ -521,9 +524,9 @@ test('responsive: canvas scales correctly on mobile (375x667)', async ({ browser
     expect(bounds.width).toBeLessThanOrEqual(375);
     expect(bounds.height).toBeLessThanOrEqual(667);
     expect(bounds.width).toBeGreaterThan(100);
-    // 16:9 aspect ratio
-    expect(bounds.width / bounds.height).toBeGreaterThan(1.7);
-    expect(bounds.width / bounds.height).toBeLessThan(1.8);
+    // Portrait viewport → game is 270x480 (9:16). Landscape → 480x270 (16:9).
+    const ratio = bounds.width / bounds.height;
+    expect(ratio > 1.7 || ratio < 0.6).toBe(true);
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-10-mobile-375x667.png' });
     await ctx.close();
@@ -540,8 +543,9 @@ test('responsive: canvas scales correctly on iPad (768x1024)', async ({ browser 
     const bounds = await page.locator('canvas').first().boundingBox();
     expect(bounds.width).toBeLessThanOrEqual(768);
     expect(bounds.height).toBeLessThanOrEqual(1024);
-    expect(bounds.width / bounds.height).toBeGreaterThan(1.7);
-    expect(bounds.width / bounds.height).toBeLessThan(1.8);
+    // Portrait viewport → game is 270x480 (9:16). Landscape → 480x270 (16:9).
+    const ratio = bounds.width / bounds.height;
+    expect(ratio > 1.7 || ratio < 0.6).toBe(true);
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-10b-ipad-768x1024.png' });
     await ctx.close();
