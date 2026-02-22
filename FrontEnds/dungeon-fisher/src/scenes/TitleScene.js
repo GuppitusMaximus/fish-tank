@@ -4,6 +4,7 @@ import FISH_SPECIES from '../data/fish.js';
 import { coverBackground } from '../utils/zones.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import dungeonPanel from '../ui/DungeonPanel.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -186,52 +187,17 @@ export default class TitleScene extends Phaser.Scene {
             }
         });
 
-        // Buttons fade in after a short delay
-        const newBtn = this.add.text(width / 2, height * 0.36, '[ NEW GAME ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0).setDepth(10);
-
-        newBtn.on('pointerover', () => newBtn.setColor('#ffffff'));
-        newBtn.on('pointerout', () => newBtn.setColor('#aaaacc'));
-        newBtn.on('pointerdown', () => this._transitionTo(() => this.scene.start('CharacterSelectScene')));
-
-        this.tweens.add({
-            targets: newBtn,
-            alpha: 1,
-            duration: 500,
-            delay: 3500
-        });
+        // Animated title buttons
+        this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
+            () => this.scene.start('CharacterSelectScene'), 3500);
 
         if (SaveSystem.hasSave()) {
-            const contBtn = this.add.text(width / 2, height * 0.43, '[ CONTINUE ]',
-                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-            ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0).setDepth(10);
-
-            contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
-            contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
-            contBtn.on('pointerdown', () => this._transitionTo(() => this.continueGame()));
-
-            this.tweens.add({
-                targets: contBtn,
-                alpha: 1,
-                duration: 500,
-                delay: 3500
-            });
+            this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
+                () => this.continueGame(), 3700);
         }
 
-        const zonesBtn = this.add.text(width / 2, height * 0.50, '[ ZONES ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '14px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true }).setAlpha(0).setDepth(10);
-        zonesBtn.on('pointerover', () => zonesBtn.setColor('#ffffff'));
-        zonesBtn.on('pointerout', () => zonesBtn.setColor('#aaaacc'));
-        zonesBtn.on('pointerdown', () => this._transitionTo(() => this.scene.start('ZonePreviewScene')));
-
-        this.tweens.add({
-            targets: zonesBtn,
-            alpha: 1,
-            duration: 500,
-            delay: 3500
-        });
+        this._createTitleButton(width / 2, height * 0.50, 'ZONES',
+            () => this.scene.start('ZonePreviewScene'), 3900, '14px');
 
     }
 
@@ -252,6 +218,77 @@ export default class TitleScene extends Phaser.Scene {
             gfx.generateTexture('particle_dot', 4, 4);
             gfx.destroy();
         }
+    }
+
+    _createTitleButton(x, y, label, callback, delay, fontSize = '16px') {
+        const text = this.add.text(x, y + 15, label,
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize })
+        ).setOrigin(0.5).setAlpha(0).setDepth(10);
+
+        // Stone panel behind text
+        const padX = 22, padY = 8;
+        const pw = text.width + padX * 2;
+        const ph = text.height + padY * 2;
+        const panel = dungeonPanel(this, x - pw / 2, y + 15 - ph / 2, pw, ph, { depth: 9 });
+        panel.setAlpha(0);
+
+        // Extend hit area to cover full panel
+        text.setInteractive(
+            new Phaser.Geom.Rectangle(text.width / 2 - pw / 2, text.height / 2 - ph / 2, pw, ph),
+            Phaser.Geom.Rectangle.Contains
+        );
+        text.input.cursor = 'pointer';
+
+        // Hover effects
+        let hoverTween = null;
+        text.on('pointerover', () => {
+            text.setColor('#ffffff');
+            if (hoverTween) hoverTween.stop();
+            hoverTween = this.tweens.add({
+                targets: text,
+                scaleX: 1.08,
+                scaleY: 1.08,
+                duration: 150,
+                ease: 'Back.Out'
+            });
+            panel.setAlpha(1);
+        });
+        text.on('pointerout', () => {
+            text.setColor('#aaaacc');
+            if (hoverTween) hoverTween.stop();
+            hoverTween = this.tweens.add({
+                targets: text,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 150
+            });
+            panel.setAlpha(0.7);
+        });
+        text.on('pointerdown', () => this._transitionTo(callback));
+
+        // Entrance: slide up + fade in
+        this.tweens.add({
+            targets: [text, panel],
+            y: '-=15',
+            alpha: { from: 0, to: 0.7 },
+            duration: 600,
+            delay: delay,
+            ease: 'Back.Out',
+            onComplete: () => {
+                text.setAlpha(1);
+                // Idle: subtle panel breathing
+                this.tweens.add({
+                    targets: panel,
+                    alpha: { from: 0.6, to: 0.8 },
+                    duration: 2500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.InOut'
+                });
+            }
+        });
+
+        return { text, panel };
     }
 
     _transitionTo(callback) {
