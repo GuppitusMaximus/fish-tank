@@ -135,22 +135,18 @@ export default class FloorScene extends Phaser.Scene {
         }
         cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66' });
 
-        const cardH = Math.min(105, H - py - 50);
+        const cardH = Math.min(84, H - py - 50);
         const cardW = Math.floor(cardH * 0.85);
 
-        // Inverted pyramid: shop/camp top row, delve below center
-        const delveY = Math.floor(H * 0.67) - cardH / 2;
+        const margin = 8;
+        const delveY = Math.floor(H * 0.74) - cardH / 2;
         const topY = delveY - cardH - 8;
 
-        const positions = {};
-        positions['delve'] = { x: Math.floor((W - cardW) / 2), y: delveY };
-        if (shopAvailable) {
-            const spread = cardW + 12;
-            positions['shop'] = { x: Math.floor(W / 2 - spread - cardW / 2), y: topY };
-            positions['camp'] = { x: Math.floor(W / 2 + spread - cardW / 2), y: topY };
-        } else {
-            positions['camp'] = { x: Math.floor((W - cardW) / 2), y: topY };
-        }
+        const positions = {
+            'shop':  { x: margin, y: topY },
+            'delve': { x: Math.floor((W - cardW) / 2), y: delveY },
+            'camp':  { x: W - cardW - margin, y: topY }
+        };
 
         cards.forEach((card) => {
             const pos = positions[card.type];
