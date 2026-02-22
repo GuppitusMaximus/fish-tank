@@ -7,6 +7,7 @@ import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import dungeonPanel from '../ui/DungeonPanel.js';
 
 export default class FloorScene extends Phaser.Scene {
     constructor() {
@@ -45,8 +46,8 @@ export default class FloorScene extends Phaser.Scene {
         coverBackground(this, bgKey);
         addEffects(this, bgKey);
 
-        // Top info scrim
-        this.add.rectangle(W / 2, 0, W, 56 + gs.party.length * 18, 0x000000, 0.6).setOrigin(0.5, 0);
+        // Top info panel
+        dungeonPanel(this, 0, 0, W, 56 + gs.party.length * 18);
 
         // Flavor text with warm shimmer sweep
         const flavorTxt = this.add.text(W / 2, 10, this.getFlavorText(gs.floor),
@@ -106,7 +107,7 @@ export default class FloorScene extends Phaser.Scene {
 
         // Action buttons
         const btnY = Math.max(py + 12, H * 0.5);
-        this.add.rectangle(W / 2, btnY + 22, W * 0.6, 80, 0x000000, 0.6);
+        dungeonPanel(this, W * 0.2, btnY - 8, W * 0.6, 80);
         const battleBtn = this.add.text(W / 2, btnY, '[ ENTER BATTLE ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
         ).setOrigin(0.5).setInteractive({ useHandCursor: true });

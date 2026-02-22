@@ -5,6 +5,7 @@ import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import dungeonPanel from '../ui/DungeonPanel.js';
 
 export default class BattleScene extends Phaser.Scene {
     constructor() {
@@ -49,14 +50,14 @@ export default class BattleScene extends Phaser.Scene {
         addEffects(this, bgKey);
 
         // Floor indicator (top-right)
-        this.add.rectangle(W - 35, 14, 70, 18, 0x000000, 0.55);
+        dungeonPanel(this, W - 74, 4, 70, 20);
         this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
             makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#999999' })
         ).setOrigin(1, 0);
 
         // --- Monster ---
         // Name
-        this.add.rectangle(W * 0.25, 12, W * 0.5, 18, 0x000000, 0.5);
+        dungeonPanel(this, 2, 2, W * 0.5, 22);
         this.add.text(10, 6, this.monster.name, TEXT_STYLES.MONSTER_NAME);
 
         // Monster HP bar
@@ -105,13 +106,13 @@ export default class BattleScene extends Phaser.Scene {
         this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH / 2 + 0.5,
             L.hpBarW + 2, L.hpBarH + 2, 0x222222);
         this.partyHpBar = this.add.graphics();
-        this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 10, L.hpBarW * 0.4, 14, 0x000000, 0.55);
+        dungeonPanel(this, L.hpBarX + L.hpBarW * 0.3, L.hpBarY + L.hpBarH + 2, L.hpBarW * 0.4, 16);
         this.partyHpTxt = this.add.text(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 4, '',
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#cccccc', fontSize: '10px' })
         ).setOrigin(0.5, 0);
 
         // --- Message text ---
-        this.add.rectangle(W / 2, H - 16, W, 28, 0x000000, 0.6);
+        dungeonPanel(this, 0, H - 30, W, 30);
         this.msgTxt = this.add.text(W / 2, H - 16, '',
             makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc', align: 'center' })
         ).setOrigin(0.5);

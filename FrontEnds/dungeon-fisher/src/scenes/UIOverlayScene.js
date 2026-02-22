@@ -1,6 +1,7 @@
 import { VERSION } from '../version.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
+import dungeonPanel from '../ui/DungeonPanel.js';
 
 export default class UIOverlayScene extends Phaser.Scene {
     constructor() {
@@ -14,9 +15,7 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setDepth(1000)
             .setScrollFactor(0);
         const vb = verTxt.getBounds();
-        this.add.rectangle(vb.x + vb.width / 2, vb.y + vb.height / 2, vb.width + 8, vb.height + 6, 0x000000, 0.6)
-            .setDepth(999)
-            .setScrollFactor(0);
+        dungeonPanel(this, vb.x - 4, vb.y - 3, vb.width + 8, vb.height + 6, { depth: 999 });
 
         const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
@@ -70,10 +69,8 @@ export default class UIOverlayScene extends Phaser.Scene {
         const scrimW = (bb.x + bb.width) - mb.x + 8;
         const scrimH = Math.max(mb.height, bb.height) + 6;
         const scrimY = mb.y + mb.height / 2;
-        this.btnScrim = this.add.rectangle(scrimX + scrimW / 2, scrimY, scrimW, scrimH, 0x000000, 0.6)
-            .setDepth(999)
-            .setScrollFactor(0)
-            .setVisible(false);
+        this.btnScrim = dungeonPanel(this, scrimX, scrimY - scrimH / 2, scrimW, scrimH, { depth: 999 });
+        this.btnScrim.setVisible(false);
 
         this.inventoryElements = [];
 
