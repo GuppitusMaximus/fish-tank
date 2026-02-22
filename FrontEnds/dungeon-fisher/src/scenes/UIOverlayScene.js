@@ -15,7 +15,8 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setDepth(1000)
             .setScrollFactor(0);
         const vb = verTxt.getBounds();
-        dungeonPanel(this, vb.x - 4, vb.y - 3, vb.width + 8, vb.height + 6, { depth: 999 });
+        this.add.rectangle(vb.x + vb.width / 2, vb.y + vb.height / 2, vb.width + 8, vb.height + 6, 0x000000, 0.5)
+            .setDepth(999).setScrollFactor(0);
 
         const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
