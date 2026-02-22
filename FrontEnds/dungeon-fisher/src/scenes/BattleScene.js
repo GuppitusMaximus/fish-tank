@@ -69,7 +69,7 @@ export default class BattleScene extends Phaser.Scene {
         );
 
         // Monster sprite
-        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5);
+        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5).setDepth(2);
         this.monsterAnim = new SpriteAnimator(this, this.monsterSpr).idle();
 
         // --- Fish (triangle formation) ---
@@ -78,7 +78,7 @@ export default class BattleScene extends Phaser.Scene {
             const f = this.combatState.fish[i];
             const pos = positions[i];
             new WaterEffect(this, pos.x, pos.y);
-            const spr = this.add.image(pos.x, pos.y, 'fish_' + f.ref.speciesId).setScale(0.75);
+            const spr = this.add.image(pos.x, pos.y, 'fish_' + f.ref.speciesId).setScale(0.75).setDepth(2);
             const anim = new SpriteAnimator(this, spr).idle();
             this.fishSprites.push(spr);
             this.fishAnimators.push(anim);

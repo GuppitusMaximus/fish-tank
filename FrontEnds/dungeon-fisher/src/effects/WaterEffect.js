@@ -3,7 +3,7 @@ export default class WaterEffect {
         this.scene = scene;
         this.x = x;
         this.y = y;
-        const depth = opts.depth ?? -1;
+        const depth = opts.depth ?? 1;
         const discW = opts.width ?? 70;
         const discH = opts.height ?? 30;
 
