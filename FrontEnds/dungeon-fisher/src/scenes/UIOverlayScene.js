@@ -128,7 +128,16 @@ export default class UIOverlayScene extends Phaser.Scene {
         const centerX = W / 2;
         const contentLeft = panelX + 12;
 
-        const header = this.add.text(centerX, panelY + 12, 'INVENTORY',
+        const emblemKey = character.emblemKey;
+        let headerX = centerX;
+        if (emblemKey && this.textures.exists(emblemKey)) {
+            const emblem = this.add.image(centerX - 46, panelY + 16, emblemKey)
+                .setScale(0.5).setDepth(1002).setScrollFactor(0);
+            this.inventoryElements.push(emblem);
+            headerX = centerX + 6;
+        }
+
+        const header = this.add.text(headerX, panelY + 12, 'INVENTORY',
             makeStyle(TEXT_STYLES.TITLE_SMALL, { color: accentHex(character) }))
             .setOrigin(0.5).setDepth(1002).setScrollFactor(0);
         this.inventoryElements.push(header);

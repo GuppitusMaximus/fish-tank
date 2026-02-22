@@ -31,6 +31,9 @@ export default class BootScene extends Phaser.Scene {
             this.load.image(`fisher_${id}`, `sprites/fishers/${id}.png`);
         }
 
+        // Character emblems
+        this.load.image('emblem_andy', 'sprites/emblems/andy.png');
+
         // Background images — load only title + save zone at boot (others load on demand)
         this.load.image('bg_title', 'backgrounds/title.png');
         if (SaveSystem.hasSave()) {
