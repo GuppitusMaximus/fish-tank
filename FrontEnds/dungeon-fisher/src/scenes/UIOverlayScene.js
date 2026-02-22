@@ -14,7 +14,7 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setDepth(1000)
             .setScrollFactor(0);
 
-        const menuBtn = this.add.text(4, 3, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
+        const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
             stroke: '#000000',
             strokeThickness: 2
@@ -43,7 +43,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         this.menuBtn = menuBtn;
         menuBtn.setVisible(false);
 
-        const bagBtn = this.add.text(menuBtn.x + menuBtn.width + 6, 3, '[ BAG ]', makeStyle(TEXT_STYLES.BUTTON, {
+        const bagBtn = this.add.text(menuBtn.x + menuBtn.width + 6, height - 18, '[ BAG ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
             stroke: '#000000',
             strokeThickness: 2
