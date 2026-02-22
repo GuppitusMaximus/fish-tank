@@ -2,7 +2,7 @@ import EconomySystem from '../systems/EconomySystem.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopBackground, getShopMerchant } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
-import SpriteAnimator from '../effects/SpriteAnimator.js';
+import MerchantAnimator from '../effects/MerchantAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class ShopScene extends Phaser.Scene {
@@ -39,7 +39,7 @@ export default class ShopScene extends Phaser.Scene {
             const merchantY = isPortrait ? H * 0.25 : H * 0.4;
             const merchantImg = this.add.image(merchantX, merchantY, merchantKey)
                 .setScale(isPortrait ? 0.35 : 0.45);
-            new SpriteAnimator(this, merchantImg).idle();
+            new MerchantAnimator(this, merchantImg).animate();
         }
 
         // Header
