@@ -114,30 +114,19 @@ export default class TitleScene extends Phaser.Scene {
                     duration: 1500,
                     ease: 'Sine.Out',
                     onComplete: () => {
-                        // Gold shimmer sweep
-                        const baseGold = 0xf0c040;
-                        const brightGold = 0xffeeaa;
-                        function lerpColor(a, b, t) {
-                            const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
-                            const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
-                            const r = Math.round(ar + (br - ar) * t);
-                            const g = Math.round(ag + (bg - ag) * t);
-                            const bl = Math.round(ab + (bb - ab) * t);
-                            return (r << 16) | (g << 8) | bl;
-                        }
+                        // Warm amber shimmer sweep
                         this.tweens.addCounter({
                             from: 0,
-                            to: 1,
+                            to: Math.PI * 2,
                             duration: 3000,
                             repeat: -1,
-                            ease: 'Sine.InOut',
                             onUpdate: (tween) => {
-                                const t = tween.getValue();
-                                const leftT = Math.max(0, Math.sin(t * Math.PI * 2));
-                                const rightT = Math.max(0, Math.sin((t - 0.25) * Math.PI * 2));
-                                const left = lerpColor(baseGold, brightGold, leftT);
-                                const right = lerpColor(baseGold, brightGold, rightT);
-                                titleText.setTint(left, right, left, right);
+                                const p = tween.getValue();
+                                const l1 = 0.5 + 0.5 * Math.sin(p);
+                                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 80 + l1 * 80, 30 + l1 * 30);
+                                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 80 + l2 * 80, 30 + l2 * 30);
+                                titleText.setTint(c1, c2, c1, c2);
                             }
                         });
 
