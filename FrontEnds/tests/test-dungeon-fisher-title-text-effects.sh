@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Test: Dungeon Fisher Title Text Effects Verification
-# Plans: qa-title-text-effects-dungeon-fisher, qa-title-emerge-from-stars-dungeon-fisher
+# Plans: qa-title-text-effects-dungeon-fisher, qa-title-emerge-from-stars-dungeon-fisher,
+#        qa-restyle-title-font
 #
-# Verifies the two-phase "emerge from stars" title animation and water drip particle effects.
+# Verifies the two-phase "emerge from stars" title animation and warm amber shimmer.
+# Drip effect was removed by restyle-title-font; replaced with warm shimmer.
 # Checks: no bounce animation, two-phase tween params, ADD blend mode, depth layering,
-#         drip emitter, drip position, button delay, drip cleanup, and no regressions.
+#         MedievalSharp font, warm shimmer, button delay, cleanup, and no regressions.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TITLE_SCENE="$SCRIPT_DIR/../dungeon-fisher/src/scenes/TitleScene.js"
@@ -63,17 +65,20 @@ check "Depth switches to 10 before phase 2" "titleText.setDepth(10);"
 check "Blend switches to NORMAL before phase 2" "titleText.setBlendMode(Phaser.BlendModes.NORMAL);"
 
 echo ""
-echo "--- Check 3: Water drip emitter ---"
-check "dripEmitter created in onComplete callback" "this.dripEmitter = this.add.particles"
-check "Drip emitter uses particle_dot texture" "'particle_dot'"
-check "Drip has blue tint (0x44aaff)" "0x44aaff"
-check "Drip has downward gravityY" "gravityY:"
+echo "--- Check 3: MedievalSharp font restyle (restyle-title-font) ---"
+check     "Title uses MedievalSharp font family" "'MedievalSharp'"
+check     "Font stack includes Georgia serif fallback" "'Georgia', serif"
+check_not "No blue drip tint (0x44aaff removed)" "0x44aaff"
+check_not "No drip emitter assigned in onComplete" "this.dripEmitter = this.add.particles"
 
 echo ""
-echo "--- Check 4: Drip position ---"
-check "Drip x uses bounds.left" "bounds.left"
-check "Drip x uses bounds.right" "bounds.right"
-check "Drip y starts at bounds.bottom" "bounds.bottom"
+echo "--- Check 4: Warm amber shimmer (replaces drip) ---"
+check     "Warm shimmer uses addCounter tween" "tweens.addCounter("
+check     "Warm shimmer cycles to Math.PI * 2" "to: Math.PI * 2,"
+check     "Warm shimmer uses GetColor formula" "GetColor("
+check     "Warm shimmer sets four-corner tint" "setTint(c1, c2, c1, c2)"
+check_not "No gravityY (drip physics removed)" "gravityY:"
+check_not "No bounds.bottom (drip positioning removed)" "bounds.bottom"
 
 echo ""
 echo "--- Check 5: Button delay >= 3500ms (after both title phases: 2000+1500ms) ---"

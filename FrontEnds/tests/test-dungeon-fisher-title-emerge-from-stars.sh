@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Test: Dungeon Fisher — Title Emerges From Stars
-# Plan: qa-title-emerge-from-stars-dungeon-fisher
+# Plans: qa-title-emerge-from-stars-dungeon-fisher, qa-restyle-title-font
 #
 # Verifies depth layering, ADD blend mode, two-phase emergence tween,
-# depth/blend switch between phases, water drips, button delay, and no regressions.
+# depth/blend switch between phases, warm shimmer (drip removed), button delay, and no regressions.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TITLE_SCENE="$SCRIPT_DIR/../dungeon-fisher/src/scenes/TitleScene.js"
@@ -70,14 +70,14 @@ check "Depth set to 10 in phase 1 onComplete"  "titleText.setDepth(10);"
 check "Blend switched to NORMAL before phase 2" "titleText.setBlendMode(Phaser.BlendModes.NORMAL);"
 
 echo ""
-echo "--- Check 6: Water drips in phase 2 onComplete ---"
-check "dripEmitter created in nested onComplete" "this.dripEmitter = this.add.particles"
-check "Drip positioned at titleText bounds"       "titleText.getBounds()"
-check "Drip x spread uses bounds.left"            "bounds.left"
-check "Drip x spread uses bounds.right"           "bounds.right"
-check "Drip y starts at bounds.bottom"            "bounds.bottom"
-check "Drip uses blue tint"                       "0x44aaff"
-check "Drip has downward gravity"                 "gravityY:"
+echo "--- Check 6: Warm amber shimmer in phase 2 onComplete (drip removed by restyle-title-font) ---"
+check_not "No dripEmitter assigned in onComplete" "this.dripEmitter = this.add.particles"
+check_not "No blue drip tint (0x44aaff removed)"  "0x44aaff"
+check_not "No gravityY (drip physics removed)"    "gravityY:"
+check     "Warm shimmer uses addCounter tween"     "tweens.addCounter("
+check     "Warm shimmer cycles to Math.PI * 2"     "to: Math.PI * 2,"
+check     "Warm shimmer GetColor formula present"  "GetColor("
+check     "Warm shimmer four-corner tint applied"  "setTint(c1, c2, c1, c2)"
 
 echo ""
 echo "--- Check 7: Button delay >= 3500ms ---"
