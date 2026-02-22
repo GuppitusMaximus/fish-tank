@@ -120,38 +120,19 @@ export default class TitleScene extends Phaser.Scene {
                     duration: 1500,
                     ease: 'Sine.Out',
                     onComplete: () => {
-                        // Zone color cycle shimmer
-                        const zonePalettes = [
-                            [0x88cc44, 0x66aa33],  // Sewers
-                            [0xff8833, 0xff6622],  // Goblin Caves
-                            [0xaa88cc, 0x8866aa],  // Bone Crypts
-                            [0x44dddd, 0x33bbcc],  // Deep Dungeon
-                            [0xcc44ff, 0x44ffcc],  // Shadow Realm
-                            [0x66aaff, 0xaaccff],  // Ancient Chambers
-                            [0xff3344, 0xcc2233]   // Dungeon Heart
-                        ];
-                        const lerpColor = (a, b, t) => {
-                            const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
-                            const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
-                            return Phaser.Display.Color.GetColor(
-                                ar + (br - ar) * t,
-                                ag + (bg - ag) * t,
-                                ab + (bb - ab) * t
-                            );
-                        };
+                        // Gold shimmer sweep
                         this.tweens.addCounter({
                             from: 0,
-                            to: 7,
-                            duration: 21000,
+                            to: Math.PI * 2,
+                            duration: 3500,
                             repeat: -1,
                             onUpdate: (tween) => {
-                                const v = tween.getValue();
-                                const idx = Math.floor(v) % 7;
-                                const next = (idx + 1) % 7;
-                                const t = v - Math.floor(v);
-                                const c1 = lerpColor(zonePalettes[idx][0], zonePalettes[next][0], t);
-                                const c2 = lerpColor(zonePalettes[idx][1], zonePalettes[next][1], t);
-                                titleText.setTint(c1, c2, c2, c1);
+                                const p = tween.getValue();
+                                const l1 = 0.5 + 0.5 * Math.sin(p);
+                                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 170 + l1 * 50, 30 + l1 * 40);
+                                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 170 + l2 * 50, 30 + l2 * 40);
+                                titleText.setTint(c1, c2, c1, c2);
                             }
                         });
 
