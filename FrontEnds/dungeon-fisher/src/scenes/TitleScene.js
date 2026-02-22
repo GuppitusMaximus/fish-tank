@@ -90,7 +90,7 @@ export default class TitleScene extends Phaser.Scene {
 
         // Title text — emerges from the stars
         const titleText = this.add.text(width / 2, height * 0.13, 'DUNGEON\nDELVERS',
-            makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center' })
+            makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center', fontFamily: "'MedievalSharp', 'Georgia', serif", fontSize: '32px' })
         ).setOrigin(0.5).setAlpha(0).setScale(0.3).setDepth(0).setBlendMode('ADD');
 
         // Phase 1: Glow into existence behind the overlay (0-2s)
@@ -130,23 +130,6 @@ export default class TitleScene extends Phaser.Scene {
                             }
                         });
 
-                        // Water dripping from the letters
-                        const bounds = titleText.getBounds();
-                        this.dripEmitter = this.add.particles(0, 0, 'particle_dot', {
-                            x: { min: bounds.left + 5, max: bounds.right - 5 },
-                            y: bounds.bottom,
-                            lifespan: 2000,
-                            speedY: { min: 20, max: 50 },
-                            speedX: { min: -2, max: 2 },
-                            scale: { start: 0.6, end: 0.2 },
-                            alpha: { start: 0.7, end: 0 },
-                            tint: [0x44aaff, 0x66ccff, 0x88ddff],
-                            frequency: 150,
-                            quantity: 1,
-                            gravityY: 40,
-                            blendMode: 'ADD'
-                        });
-                        this.dripEmitter.setDepth(10);
                     }
                 });
             }
