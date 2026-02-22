@@ -49,8 +49,9 @@ export default class BattleScene extends Phaser.Scene {
         addEffects(this, bgKey);
 
         // Floor indicator (top-right)
+        this.add.rectangle(W - 35, 14, 70, 18, 0x000000, 0.4);
         this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#666666' })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#999999' })
         ).setOrigin(1, 0);
 
         // --- Monster ---
@@ -104,11 +105,13 @@ export default class BattleScene extends Phaser.Scene {
         this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH / 2 + 0.5,
             L.hpBarW + 2, L.hpBarH + 2, 0x222222);
         this.partyHpBar = this.add.graphics();
+        this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 10, L.hpBarW * 0.4, 14, 0x000000, 0.4);
         this.partyHpTxt = this.add.text(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 4, '',
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#cccccc', fontSize: '10px' })
         ).setOrigin(0.5, 0);
 
         // --- Message text ---
+        this.add.rectangle(W / 2, H - 16, W, 28, 0x000000, 0.5);
         this.msgTxt = this.add.text(W / 2, H - 16, '',
             makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc', align: 'center' })
         ).setOrigin(0.5);

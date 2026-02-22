@@ -45,6 +45,9 @@ export default class FloorScene extends Phaser.Scene {
         coverBackground(this, bgKey);
         addEffects(this, bgKey);
 
+        // Top info scrim
+        this.add.rectangle(W / 2, 0, W, 56 + gs.party.length * 18, 0x000000, 0.45).setOrigin(0.5, 0);
+
         // Flavor text
         this.add.text(W / 2, 10, this.getFlavorText(gs.floor), TEXT_STYLES.FLAVOR).setOrigin(0.5);
 
@@ -88,6 +91,7 @@ export default class FloorScene extends Phaser.Scene {
 
         // Action buttons
         const btnY = Math.max(py + 12, H * 0.5);
+        this.add.rectangle(W / 2, btnY + 22, W * 0.6, 80, 0x000000, 0.45);
         const battleBtn = this.add.text(W / 2, btnY, '[ ENTER BATTLE ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
         ).setOrigin(0.5).setInteractive({ useHandCursor: true });
