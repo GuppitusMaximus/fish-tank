@@ -60,6 +60,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-title-bg-contain-scaling.sh` | Shell script | Title background contain scaling: coverBackground() mode parameter defaults to 'cover', 'contain' uses Math.min, TitleScene calls with 'contain' in both create() and showStarterSelection(), no other scene passes 'contain', backward-compatible default behavior (17 checks) |
 | `test-dungeon-fisher-back-to-menu.sh` | Shell script | Persistent MENU button: UIOverlayScene creates [ MENU ] at top-left (4,3) with depth 1000, scrollFactor 0, interactive+hover+stroke, hidden on TitleScene/BootScene via event-driven sys.events.on('start') per scene (no crash-prone scene.manager.on, no polling), visible on gameplay scenes via hiddenScenes.has(), click stops TitleScene+all gameplay scenes and runs TitleScene via scene.run('TitleScene', {}), TitleScene is first in scenesToStop, Continue works after return, version label intact, VERSION=0.10.0 in both version.js and package.json (35 checks; updated by qa-fix-menu-returns-to-title for scene.run empty-object arg) |
 | `test-menu-button-events.sh` | Shell script | Event-driven menu button visibility: no update() method (polling removed), event listener registration via s.sys.events.on('start') in create() loop that skips UIOverlay and uses hiddenScenes.has(), hiddenScenes Set contains exactly BootScene+TitleScene, button styling (11px, stroke, depth 1000, scrollFactor 0), click handler uses scene.run('TitleScene', {}) not scene.start, scenesToStop includes TitleScene+all 7 gameplay scenes, version label intact, no scene.manager.on() (26 checks) |
+| `test-camp-party-order.sh` | Shell script | Camp party order UI: section presence in create() after HP display+checkpoint and before continue button, PARTY ORDER header, subtext, (FRONT) label on first fish, ▲/▼ arrow characters, up/down swap logic (destructuring swap), SaveSystem.save after each swap, re-render on swap, edge-case arrow visibility (i>0/i<length-1), continue button uses Math.max for layout fit, 18px row spacing (24 checks) |
 
 ### Static Code Analysis Reports
 
@@ -175,6 +176,7 @@ bash tests/test-dungeon-fisher-sprite-animations.sh
 bash tests/test-dynamic-dungeon-sizing.sh
 bash tests/test-title-bg-contain-scaling.sh
 bash tests/test-dungeon-fisher-back-to-menu.sh
+bash tests/test-camp-party-order.sh
 ```
 
 All scripts print PASS/FAIL for each check and exit with code 0 (all pass) or 1 (any failure).
@@ -418,6 +420,7 @@ The following v2 features were verified:
 | \`qa-menu-button-events\` | Completed | \`test-menu-button-events.sh\` (25 static checks, all pass — no update() polling, sys.events.on('start') registration, hiddenScenes Set, button styling, scene.run not scene.start, scenesToStop 7 scenes, version label, no scene.manager.on); updated \`test-dungeon-fisher-back-to-menu.sh\` (34 checks to reflect event-driven approach) | None (all 25 checks pass) |
 | \`qa-fix-menu-returns-to-title\` | Completed | Updated \`test-dungeon-fisher-back-to-menu.sh\` (35 checks — updated scene.run pattern to scene.run('TitleScene', {}), added TitleScene-first-in-scenesToStop check); updated \`test-menu-button-events.sh\` (26 checks — updated scene.run pattern, added TitleScene to scenesToStop loop) | None (all 35+26 checks pass) |
 | \`qa-character-inventory\` | Completed | \`browser/dungeon-fisher-character-inventory.spec.js\` (7 Playwright tests, all pass — no JS errors on FloorScene navigation, BAG click, inventory close, BAG with items, SORT, MENU from inventory open, version load; 6 screenshots); 14 code inspection checks all pass (TitleScene registry.set, BAG button styling, visibility rules per scene, overlay blocker, 10-slot display, SORT logic, CLOSE cleanup, ITEMS dict lookup, MENU unchanged, BattleScene unchanged, MAX_INVENTORY=10, VERSION=0.11.0) | None (all checks pass) |
+| `qa-auto-battler-camp-ordering` | Completed | `test-camp-party-order.sh` (24 static checks, all pass — PARTY ORDER section in create() after HP display+checkpoint+before continue, header/subtext/FRONT label/▲▼ arrows, up/down swap via destructuring, SaveSystem.save after each swap, re-render on swap, edge-case arrow visibility for 1/2/3-fish parties, continue button Math.max layout fit), `qa-auto-battler-camp-ordering-results.md` | None (all 24 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
