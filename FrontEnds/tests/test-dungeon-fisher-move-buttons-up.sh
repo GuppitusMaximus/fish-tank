@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# QA test: qa-dungeon-fisher-move-buttons-up
-# Verifies NEW GAME and CONTINUE buttons were moved up on the title screen.
+# QA test: qa-dungeon-fisher-move-buttons-up (updated for title-button-animations)
+# Verifies title buttons are positioned correctly via _createTitleButton helper.
+# Updated by qa-title-button-animations: old newBtn/contBtn vars replaced by helper.
 
 set -euo pipefail
 
@@ -22,102 +23,91 @@ check() {
     fi
 }
 
+check_grep() {
+    local label="$1"
+    local pattern="$2"
+    if grep -qF "$pattern" "$TITLE_SCENE" 2>/dev/null; then
+        check "$label" "pass"
+    else
+        check "$label" "fail"
+    fi
+}
+
+check_not_grep() {
+    local label="$1"
+    local pattern="$2"
+    if ! grep -qF "$pattern" "$TITLE_SCENE" 2>/dev/null; then
+        check "$label" "pass"
+    else
+        check "$label" "fail"
+    fi
+}
+
 echo "=== qa-dungeon-fisher-move-buttons-up ==="
 echo "File: $TITLE_SCENE"
 echo ""
 
-# 1. NEW GAME button Y is height * 0.36
-if grep -q "height \* 0\.36.*NEW GAME\|NEW GAME.*height \* 0\.36" "$TITLE_SCENE" 2>/dev/null || \
-   grep -q "height \* 0\.36" "$TITLE_SCENE" 2>/dev/null && grep -q "NEW GAME" "$TITLE_SCENE" 2>/dev/null; then
-    # More precise: check the specific line
-    if grep -q "height \* 0\.36, '\[ NEW GAME \]'" "$TITLE_SCENE" 2>/dev/null; then
-        check "NEW GAME button at height * 0.36" "pass"
-    else
-        check "NEW GAME button at height * 0.36" "fail"
-    fi
+# 1. _createTitleButton helper method exists
+check_grep "_createTitleButton helper method exists" "_createTitleButton("
+
+# 2. NEW GAME button at height * 0.36 via _createTitleButton
+if grep -q "height \* 0\.36.*'NEW GAME'" "$TITLE_SCENE" 2>/dev/null; then
+    check "NEW GAME button at height * 0.36" "pass"
 else
     check "NEW GAME button at height * 0.36" "fail"
 fi
 
-# 2. NEW GAME button is NOT at old position 0.55
+# 3. NEW GAME button is NOT at old position 0.55
 if grep -q "height \* 0\.55.*NEW GAME\|NEW GAME.*height \* 0\.55" "$TITLE_SCENE" 2>/dev/null; then
     check "NEW GAME button NOT at old position (0.55)" "fail"
 else
     check "NEW GAME button NOT at old position (0.55)" "pass"
 fi
 
-# 3. CONTINUE button Y is height * 0.43
-if grep -q "height \* 0\.43, '\[ CONTINUE \]'" "$TITLE_SCENE" 2>/dev/null; then
+# 4. CONTINUE button at height * 0.43
+if grep -q "height \* 0\.43.*'CONTINUE'" "$TITLE_SCENE" 2>/dev/null; then
     check "CONTINUE button at height * 0.43" "pass"
 else
     check "CONTINUE button at height * 0.43" "fail"
 fi
 
-# 4. CONTINUE button is NOT at old position 0.65
+# 5. CONTINUE button NOT at old position 0.65
 if grep -q "height \* 0\.65.*CONTINUE\|CONTINUE.*height \* 0\.65" "$TITLE_SCENE" 2>/dev/null; then
     check "CONTINUE button NOT at old position (0.65)" "fail"
 else
     check "CONTINUE button NOT at old position (0.65)" "pass"
 fi
 
-# 5. NEW GAME button fades in with delay tween (alpha: 1, delay: 3500)
-# Note: delay was updated to 3500ms by the title-text-effects plan (2000ms phase1 + 1500ms phase2)
-if grep -A5 "newBtn" "$TITLE_SCENE" | grep -q "delay: 3500"; then
-    check "NEW GAME button fade-in tween with delay:3500" "pass"
-elif grep -q "delay: 3500" "$TITLE_SCENE" 2>/dev/null; then
-    check "NEW GAME button fade-in tween with delay:3500" "pass"
+# 6. NEW GAME button fade-in delay is 3500 (passed as argument to _createTitleButton)
+# Call spans multiple lines: check that 'NEW GAME' block contains 3500 in next line
+if grep -A2 "'NEW GAME'" "$TITLE_SCENE" 2>/dev/null | grep -q "3500"; then
+    check "NEW GAME button fade-in delay is 3500" "pass"
 else
-    check "NEW GAME button fade-in tween with delay:3500" "fail"
+    check "NEW GAME button fade-in delay is 3500" "fail"
 fi
 
-# 6. CONTINUE button fades in with delay tween (3500ms)
-if grep -A5 "contBtn" "$TITLE_SCENE" | grep -q "delay: 3500"; then
-    check "CONTINUE button fade-in tween with delay:3500" "pass"
+# 7. CONTINUE button fade-in delay is 3700
+# Call spans multiple lines: check that 'CONTINUE' block contains 3700 in next line
+if grep -A2 "'CONTINUE'" "$TITLE_SCENE" 2>/dev/null | grep -q "3700"; then
+    check "CONTINUE button fade-in delay is 3700" "pass"
 else
-    check "CONTINUE button fade-in tween with delay:3500" "fail"
+    check "CONTINUE button fade-in delay is 3700" "fail"
 fi
 
-# 7. NEW GAME button has pointerover handler
-if grep -q "newBtn.on('pointerover'" "$TITLE_SCENE" 2>/dev/null; then
-    check "NEW GAME pointerover handler present" "pass"
-else
-    check "NEW GAME pointerover handler present" "fail"
-fi
+# 8. pointerover handler in _createTitleButton
+check_grep "pointerover handler in _createTitleButton" "text.on('pointerover'"
 
-# 8. NEW GAME button has pointerout handler
-if grep -q "newBtn.on('pointerout'" "$TITLE_SCENE" 2>/dev/null; then
-    check "NEW GAME pointerout handler present" "pass"
-else
-    check "NEW GAME pointerout handler present" "fail"
-fi
+# 9. pointerout handler in _createTitleButton
+check_grep "pointerout handler in _createTitleButton" "text.on('pointerout'"
 
-# 9. NEW GAME button has pointerdown handler
-if grep -q "newBtn.on('pointerdown'" "$TITLE_SCENE" 2>/dev/null; then
-    check "NEW GAME pointerdown handler present" "pass"
-else
-    check "NEW GAME pointerdown handler present" "fail"
-fi
+# 10. pointerdown handler in _createTitleButton
+check_grep "pointerdown handler in _createTitleButton" "text.on('pointerdown'"
 
-# 10. CONTINUE button has pointerover handler
-if grep -q "contBtn.on('pointerover'" "$TITLE_SCENE" 2>/dev/null; then
-    check "CONTINUE pointerover handler present" "pass"
-else
-    check "CONTINUE pointerover handler present" "fail"
-fi
+# 11. Hover scale 1.08 in _createTitleButton
+check_grep "Hover tween scales to 1.08" "scaleX: 1.08,"
 
-# 11. CONTINUE button has pointerout handler
-if grep -q "contBtn.on('pointerout'" "$TITLE_SCENE" 2>/dev/null; then
-    check "CONTINUE pointerout handler present" "pass"
-else
-    check "CONTINUE pointerout handler present" "fail"
-fi
-
-# 12. CONTINUE button has pointerdown handler
-if grep -q "contBtn.on('pointerdown'" "$TITLE_SCENE" 2>/dev/null; then
-    check "CONTINUE pointerdown handler present" "pass"
-else
-    check "CONTINUE pointerdown handler present" "fail"
-fi
+# 12. Panel created via dungeonPanel()
+check_grep "Panel created via dungeonPanel()" "dungeonPanel("
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
