@@ -40,6 +40,16 @@ export function getShopCardKey(floor) {
     return 'card_shop_heart';
 }
 
+export function getShopBackground(floor) {
+    if (floor <= 10) return 'bg_shop_sewers';
+    return null;
+}
+
+export function getShopMerchant(floor) {
+    if (floor <= 10) return 'merchant_rat';
+    return null;
+}
+
 export function getShopName(floor) {
     if (floor <= 10) return "Rat's Bargains";
     if (floor <= 20) return 'Goblin Bazaar';

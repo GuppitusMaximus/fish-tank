@@ -46,6 +46,12 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('card_shop_shadow', 'images/card_shop_shadow.png');
         this.load.image('card_shop_ancient', 'images/card_shop_ancient.png');
         this.load.image('card_shop_heart', 'images/card_shop_heart.png');
+
+        // Shop backgrounds
+        this.load.image('bg_shop_sewers', 'backgrounds/shop_sewers.png');
+
+        // Merchant sprites
+        this.load.image('merchant_rat', 'sprites/merchants/rat_merchant.png');
     }
 
     create() {

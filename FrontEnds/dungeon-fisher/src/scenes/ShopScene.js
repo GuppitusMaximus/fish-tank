@@ -1,7 +1,8 @@
 import EconomySystem from '../systems/EconomySystem.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { getBackgroundKey, coverBackground } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground, getShopBackground, getShopMerchant } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
+import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 
 export default class ShopScene extends Phaser.Scene {
@@ -25,10 +26,21 @@ export default class ShopScene extends Phaser.Scene {
         const isPortrait = this.registry.get('isPortrait');
 
         // Zone background
-        const bgKey = getBackgroundKey(gs.floor);
+        const shopBgKey = getShopBackground(gs.floor);
+        const bgKey = shopBgKey || getBackgroundKey(gs.floor);
         coverBackground(this, bgKey);
-        addEffects(this, bgKey);
+        if (!shopBgKey) addEffects(this, bgKey);
         this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55);
+
+        // Merchant sprite
+        const merchantKey = getShopMerchant(gs.floor);
+        if (merchantKey) {
+            const merchantX = isPortrait ? W * 0.5 : W * 0.75;
+            const merchantY = isPortrait ? H * 0.25 : H * 0.4;
+            const merchantImg = this.add.image(merchantX, merchantY, merchantKey)
+                .setScale(isPortrait ? 0.35 : 0.45);
+            new SpriteAnimator(this, merchantImg).idle();
+        }
 
         // Header
         this.add.text(10, 8, 'SHOP',
