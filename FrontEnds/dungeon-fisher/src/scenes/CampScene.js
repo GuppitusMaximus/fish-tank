@@ -67,12 +67,86 @@ export default class CampScene extends Phaser.Scene {
             makeStyle(TEXT_STYLES.GOLD, { color: '#ccaa66' })
         ).setOrigin(0.5);
 
+        // Party order section
+        this.orderStartY = y + 35;
+        this.orderObjects = [];
+        this.renderPartyOrder();
+
         // Continue button
-        const contBtn = this.add.text(W / 2, H - 30, '[ CONTINUE ]',
+        const contY = Math.max(this.orderEndY + 22, H - 30);
+        const contBtn = this.add.text(W / 2, contY, '[ CONTINUE ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
         ).setOrigin(0.5).setInteractive({ useHandCursor: true });
         contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
         contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
         contBtn.on('pointerdown', () => this.scene.start('FloorScene', { gameState: gs }));
+    }
+
+    renderPartyOrder() {
+        const W = this.scale.width;
+        const gs = this.gameState;
+
+        this.orderObjects.forEach(obj => obj.destroy());
+        this.orderObjects = [];
+
+        let y = this.orderStartY;
+
+        const header = this.add.text(W / 2, y, 'PARTY ORDER',
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '13px' })
+        ).setOrigin(0.5);
+        this.orderObjects.push(header);
+        y += 15;
+
+        const sub = this.add.text(W / 2, y, 'First fish takes damage first',
+            makeStyle(TEXT_STYLES.BODY, { color: '#888888', fontSize: '10px' })
+        ).setOrigin(0.5);
+        this.orderObjects.push(sub);
+        y += 16;
+
+        gs.party.forEach((f, i) => {
+            const nameTxt = this.add.text(20, y, f.name + ' Lv.' + f.level,
+                makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
+            );
+            this.orderObjects.push(nameTxt);
+
+            if (i === 0) {
+                const frontTxt = this.add.text(20 + nameTxt.width + 6, y, '(FRONT)',
+                    makeStyle(TEXT_STYLES.BODY, { fontSize: '10px', color: '#f0c040' })
+                );
+                this.orderObjects.push(frontTxt);
+            }
+
+            if (i > 0) {
+                const upBtn = this.add.text(W - 50, y, '\u25b2',
+                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
+                ).setInteractive({ useHandCursor: true });
+                upBtn.on('pointerover', () => upBtn.setColor('#ffffff'));
+                upBtn.on('pointerout', () => upBtn.setColor('#aaaacc'));
+                upBtn.on('pointerdown', () => {
+                    [gs.party[i - 1], gs.party[i]] = [gs.party[i], gs.party[i - 1]];
+                    SaveSystem.save(gs);
+                    this.renderPartyOrder();
+                });
+                this.orderObjects.push(upBtn);
+            }
+
+            if (i < gs.party.length - 1) {
+                const dnBtn = this.add.text(W - 30, y, '\u25bc',
+                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
+                ).setInteractive({ useHandCursor: true });
+                dnBtn.on('pointerover', () => dnBtn.setColor('#ffffff'));
+                dnBtn.on('pointerout', () => dnBtn.setColor('#aaaacc'));
+                dnBtn.on('pointerdown', () => {
+                    [gs.party[i], gs.party[i + 1]] = [gs.party[i + 1], gs.party[i]];
+                    SaveSystem.save(gs);
+                    this.renderPartyOrder();
+                });
+                this.orderObjects.push(dnBtn);
+            }
+
+            y += 18;
+        });
+
+        this.orderEndY = y;
     }
 }
