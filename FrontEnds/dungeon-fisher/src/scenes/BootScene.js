@@ -1,4 +1,5 @@
-import { BACKGROUND_KEYS } from '../utils/zones.js';
+import { getZoneByFloor } from '../data/themes.js';
+import SaveSystem from '../systems/SaveSystem.js';
 
 export default class BootScene extends Phaser.Scene {
     constructor() {
@@ -30,10 +31,17 @@ export default class BootScene extends Phaser.Scene {
             this.load.image(`fisher_${id}`, `sprites/fishers/${id}.png`);
         }
 
-        // Background images (1792x1024)
-        for (const key of BACKGROUND_KEYS) {
-            const filename = key.replace('bg_', '');
-            this.load.image(key, `backgrounds/${filename}.png`);
+        // Background images — load only title + save zone at boot (others load on demand)
+        this.load.image('bg_title', 'backgrounds/title.png');
+        if (SaveSystem.hasSave()) {
+            const saveData = SaveSystem.load();
+            if (saveData) {
+                const zone = getZoneByFloor(saveData.floor);
+                if (zone.bgKey !== 'bg_title') {
+                    const filename = zone.bgKey.replace('bg_', '');
+                    this.load.image(zone.bgKey, `backgrounds/${filename}.png`);
+                }
+            }
         }
 
         // Action card images

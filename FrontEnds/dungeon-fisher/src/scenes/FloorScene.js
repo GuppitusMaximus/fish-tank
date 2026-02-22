@@ -10,6 +10,7 @@ import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
+import { loadZoneTheme, unloadZoneTheme } from '../systems/ThemeAssetLoader.js';
 
 export default class FloorScene extends Phaser.Scene {
     constructor() {
@@ -22,12 +23,31 @@ export default class FloorScene extends Phaser.Scene {
     }
 
     create() {
-        const W = this.scale.width;
-        const H = this.scale.height;
         const gs = this.gameState;
 
         // Auto-save
         SaveSystem.save(gs);
+
+        const zone = getZoneByFloor(gs.floor);
+
+        // Unload previous zone's atlas to free GPU memory
+        const prevZone = this.registry.get('previousZone');
+        if (prevZone && prevZone.id !== zone.id) {
+            unloadZoneTheme(this, prevZone);
+        }
+        this.registry.set('previousZone', zone);
+
+        // Ensure zone background is loaded before building the scene
+        if (!this.textures.exists(zone.bgKey)) {
+            loadZoneTheme(this, zone, () => this.onZoneReady());
+            return;
+        }
+        loadZoneTheme(this, zone);
+        this.onZoneReady();
+    }
+
+    onZoneReady() {
+        const gs = this.gameState;
 
         // Floor reward check (every 10 floors, only when arriving from battle)
         if (this.fromBattle && gs.floor > 1 && gs.floor % 10 === 0) {
