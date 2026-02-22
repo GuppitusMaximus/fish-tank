@@ -39,3 +39,13 @@ export function getShopCardKey(floor) {
     if (floor <= 90) return 'card_shop_ancient';
     return 'card_shop_heart';
 }
+
+export function getShopName(floor) {
+    if (floor <= 10) return "Rat's Bargains";
+    if (floor <= 20) return 'Goblin Bazaar';
+    if (floor <= 30) return 'Crypt Dealer';
+    if (floor <= 50) return 'Underdeep Trader';
+    if (floor <= 70) return 'Shadow Broker';
+    if (floor <= 90) return 'Elder Reliquary';
+    return "Heart's Toll";
+}

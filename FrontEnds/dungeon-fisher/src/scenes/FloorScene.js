@@ -3,7 +3,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { getBackgroundKey, coverBackground, getShopCardKey } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground, getShopCardKey, getShopName } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
@@ -109,7 +109,7 @@ export default class FloorScene extends Phaser.Scene {
         const shopAvailable = gs.floor >= (gs.nextShopFloor || 1);
         const cards = [{ type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#cc9966' }];
         if (shopAvailable) {
-            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: 'Shop', color: '#ccaa44' });
+            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ccaa44' });
         }
         cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66' });
 
