@@ -116,18 +116,18 @@ export default class FloorScene extends Phaser.Scene {
         const cardH = Math.min(90, H - py - 50);
         const cardW = Math.floor(cardH * 0.85);
 
-        // Pyramid layout: delve top-center, shop mid-left, camp mid-right
-        const delveY = py + 6;
-        const bottomY = delveY + cardH + 8;
+        // Inverted pyramid: shop/camp top row, delve below center
+        const topY = py + 6;
+        const delveY = topY + cardH + 8;
 
         const positions = {};
         positions['delve'] = { x: Math.floor((W - cardW) / 2), y: delveY };
         if (shopAvailable) {
             const spread = cardW + 12;
-            positions['shop'] = { x: Math.floor(W / 2 - spread - cardW / 2), y: bottomY };
-            positions['camp'] = { x: Math.floor(W / 2 + spread - cardW / 2), y: bottomY };
+            positions['shop'] = { x: Math.floor(W / 2 - spread - cardW / 2), y: topY };
+            positions['camp'] = { x: Math.floor(W / 2 + spread - cardW / 2), y: topY };
         } else {
-            positions['camp'] = { x: Math.floor((W - cardW) / 2), y: bottomY };
+            positions['camp'] = { x: Math.floor((W - cardW) / 2), y: topY };
         }
 
         cards.forEach((card) => {
