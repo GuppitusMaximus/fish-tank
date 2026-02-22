@@ -113,28 +113,40 @@ export default class FloorScene extends Phaser.Scene {
         }
         cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66' });
 
-        const cardH = Math.min(90, H - py - 30);
+        const cardH = Math.min(90, H - py - 50);
         const cardW = Math.floor(cardH * 0.85);
-        const gap = 8;
-        const totalW = cards.length * cardW + (cards.length - 1) * gap;
-        const startX = Math.floor((W - totalW) / 2);
-        const cardY = Math.max(py + 10, H - cardH - 14);
 
-        cards.forEach((card, i) => {
-            const cx = startX + i * (cardW + gap);
+        // Pyramid layout: delve top-center, shop mid-left, camp mid-right
+        const delveY = py + 6;
+        const bottomY = delveY + cardH + 8;
+
+        const positions = {};
+        positions['delve'] = { x: Math.floor((W - cardW) / 2), y: delveY };
+        if (shopAvailable) {
+            const spread = cardW + 12;
+            positions['shop'] = { x: Math.floor(W / 2 - spread - cardW / 2), y: bottomY };
+            positions['camp'] = { x: Math.floor(W / 2 + spread - cardW / 2), y: bottomY };
+        } else {
+            positions['camp'] = { x: Math.floor((W - cardW) / 2), y: bottomY };
+        }
+
+        cards.forEach((card) => {
+            const pos = positions[card.type];
+            const cx = pos.x;
+            const cy = pos.y;
             const midX = cx + cardW / 2;
-            const midY = cardY + cardH / 2;
+            const midY = cy + cardH / 2;
 
             // Panel frame
-            dungeonPanel(this, cx, cardY, cardW, cardH);
+            dungeonPanel(this, cx, cy, cardW, cardH);
 
             // Card image (fill the panel interior)
-            const img = this.add.image(midX, cardY + (cardH - 18) / 2, card.key);
+            const img = this.add.image(midX, cy + (cardH - 18) / 2, card.key);
             const imgScale = Math.min((cardW - 8) / img.width, (cardH - 22) / img.height);
             img.setScale(imgScale);
 
             // Label at bottom
-            const label = this.add.text(midX, cardY + cardH - 10, card.label,
+            const label = this.add.text(midX, cy + cardH - 10, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color })
             ).setOrigin(0.5);
 
