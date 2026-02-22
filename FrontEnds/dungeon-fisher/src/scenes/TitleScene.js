@@ -4,7 +4,8 @@ import FISH_SPECIES from '../data/fish.js';
 import { coverBackground } from '../utils/zones.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import dungeonPanel from '../ui/DungeonPanel.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
+import { TITLE_THEME, getZoneByFloor } from '../data/themes.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -168,17 +169,44 @@ export default class TitleScene extends Phaser.Scene {
             }
         });
 
+        // Determine Continue button theme from save data
+        let continueTheme = TITLE_THEME;
+        if (SaveSystem.hasSave()) {
+            const saveData = SaveSystem.load();
+            if (saveData) {
+                continueTheme = getZoneByFloor(saveData.floor);
+            }
+        }
+
+        // Master container wrapping all title buttons
+        const firstBtnY = height * 0.36;
+        const lastBtnY = height * 0.50;
+        const masterPad = 20;
+        const masterW = 180;
+        const masterH = (lastBtnY - firstBtnY) + 36 + masterPad * 2;
+        const masterX = width / 2 - masterW / 2;
+        const masterY = firstBtnY - 18 - masterPad;
+        const masterPanel = themedPanel(this, masterX, masterY, masterW, masterH, TITLE_THEME, { depth: 5 });
+        masterPanel.setAlpha(0);
+        this.tweens.add({
+            targets: masterPanel,
+            alpha: 0.6,
+            duration: 800,
+            delay: 3200,
+            ease: 'Sine.InOut'
+        });
+
         // Animated title buttons
         this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
-            () => this.scene.start('CharacterSelectScene'), 3500);
+            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME);
 
         if (SaveSystem.hasSave()) {
             this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
-                () => this.continueGame(), 3700);
+                () => this.continueGame(), 3700, '16px', continueTheme);
         }
 
         this._createTitleButton(width / 2, height * 0.50, 'ZONES',
-            () => this.scene.start('ZonePreviewScene'), 3900, '14px');
+            () => this.scene.start('ZonePreviewScene'), 3900, '14px', TITLE_THEME);
 
     }
 
@@ -201,16 +229,16 @@ export default class TitleScene extends Phaser.Scene {
         }
     }
 
-    _createTitleButton(x, y, label, callback, delay, fontSize = '16px') {
+    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME) {
         const text = this.add.text(x, y + 15, label,
             makeStyle(TEXT_STYLES.BUTTON, { fontSize })
         ).setOrigin(0.5).setAlpha(0).setDepth(10);
 
-        // Stone panel behind text
+        // Themed panel behind text
         const padX = 22, padY = 8;
         const pw = text.width + padX * 2;
         const ph = text.height + padY * 2;
-        const panel = dungeonPanel(this, x - pw / 2, y + 15 - ph / 2, pw, ph, { depth: 9 });
+        const panel = themedPanel(this, x - pw / 2, y + 15 - ph / 2, pw, ph, theme, { depth: 9 });
         panel.setAlpha(0);
 
         // Extend hit area to cover full panel
