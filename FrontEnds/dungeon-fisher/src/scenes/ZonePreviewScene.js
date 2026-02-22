@@ -2,6 +2,7 @@ import { coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ZONE_THEMES } from '../data/themes.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
 
 const ZONES = Object.values(ZONE_THEMES)
     .sort((a, b) => a.floorRange[0] - b.floorRange[0])
@@ -9,7 +10,8 @@ const ZONES = Object.values(ZONE_THEMES)
         key: z.bgKey,
         name: z.name,
         floors: z.floorRange[0] + ' - ' + z.floorRange[1],
-        flavor: z.flavor
+        flavor: z.flavor,
+        theme: z
     }));
 
 export default class ZonePreviewScene extends Phaser.Scene {
@@ -41,9 +43,9 @@ export default class ZonePreviewScene extends Phaser.Scene {
         coverBackground(this, zone.key);
         this.effectsHandle = addEffects(this, zone.key);
 
-        // Dark overlay strips for text readability
-        this.add.rectangle(width / 2, 20, width, 40, 0x000000, 0.5);
-        this.add.rectangle(width / 2, height - 22, width, 44, 0x000000, 0.5);
+        // Themed panels for text readability
+        themedPanel(this, 0, 0, width, 40, zone.theme, { alpha: 0.85 });
+        themedPanel(this, 0, height - 44, width, 44, zone.theme, { alpha: 0.85 });
 
         // Zone name
         this.add.text(width / 2, 10, zone.name,
@@ -58,6 +60,17 @@ export default class ZonePreviewScene extends Phaser.Scene {
         // Flavor text
         this.add.text(width / 2, height - 32, zone.flavor,
             makeStyle(TEXT_STYLES.FLAVOR, { color: '#aaaacc' })
+        ).setOrigin(0.5);
+
+        // Theme sample panel
+        const sampleW = width * 0.6;
+        const sampleH = 70;
+        const sampleX = (width - sampleW) / 2;
+        const sampleY = height * 0.4;
+        themedPanel(this, sampleX, sampleY, sampleW, sampleH, zone.theme, { alpha: 0.9 });
+        const accentHex = '#' + zone.theme.panel.accent.toString(16).padStart(6, '0');
+        this.add.text(width / 2, sampleY + sampleH / 2, 'Theme Preview',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex })
         ).setOrigin(0.5);
 
         // Dot indicators

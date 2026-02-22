@@ -28,10 +28,9 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
         scene.load.image(zoneTheme.bgKey, `backgrounds/${filename}.png`);
     }
     if (needsAtlas) {
-        scene.load.atlas(
+        scene.load.image(
             zoneTheme.atlasKey,
-            `atlases/${zoneTheme.id}.png`,
-            `atlases/${zoneTheme.id}.json`
+            `atlases/${zoneTheme.id}.png`
         );
     }
 
