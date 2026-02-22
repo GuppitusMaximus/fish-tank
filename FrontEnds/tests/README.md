@@ -139,6 +139,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 
 | File | What It Documents |
 |------|-------------------|
+| `qa-fix-card-camp-background-results.md` | Static QA report for fix-card-camp-background: alpha channel ✓, corners transparent ✓, center opaque ✓, file valid ✓, version bumped 1.10.7→1.10.8 ✓ — **FAIL**: flood fill leaked into scene pixels (52.4% transparent, ~51k scene pixels incorrectly erased). Bug filed: `Planning/bugs/qa-fix-card-camp-background-flood-fill-leak.md` |
 | `qa-24hr-pubra-rc3-gb-frontend.md` | **QA report for Feature Rankings sub-tab and average deltas — 16/16 executable tests pass, 11 skip awaiting backend rankings data** |
 | `verify-switchview-initial-active-fix.md` | Verifies switchView() initial active class fix: clears hardcoded .active on first call, guards standalone loadHomeSummary, no regressions in home view or weather sub-tabs |
 | `qa-workflow-trigger-label.md` | Verifies \`workflow_dispatch\` displays as "Scheduled" (not "Manual") |
