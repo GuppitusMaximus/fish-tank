@@ -1,7 +1,5 @@
 import CombatSystem from '../systems/CombatSystem.js';
 import PartySystem from '../systems/PartySystem.js';
-import EconomySystem from '../systems/EconomySystem.js';
-import { ITEMS } from '../data/items.js';
 import MOVES from '../data/moves.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
@@ -16,12 +14,14 @@ export default class BattleScene extends Phaser.Scene {
     init(data) {
         this.gameState = data.gameState;
         this.monster = data.monster;
-        this.activeFishIndex = this.gameState.party.findIndex(f => f.hp > 0);
-        this.busy = false;
-    }
-
-    get fish() {
-        return this.gameState.party[this.activeFishIndex];
+        this.combatState = CombatSystem.createCombatState(this.gameState.party, this.monster);
+        this.eventQueue = [];
+        this.eventTimer = 0;
+        this.fishSprites = [];
+        this.fishAnimators = [];
+        this.cooldownGfx = [];
+        this.displayedMonsterHp = this.monster.hp;
+        this.displayedChunkHps = this.combatState.hpBar.chunks.map(c => c.hp);
     }
 
     create() {
@@ -30,19 +30,15 @@ export default class BattleScene extends Phaser.Scene {
         const isPortrait = this.registry.get('isPortrait');
 
         this.layout = isPortrait ? {
-            monsterX: W * 0.5, monsterY: H * 0.18,
-            fishX: W * 0.5, fishY: H * 0.45,
-            hpBarW: Math.floor(W * 0.4),
-            fishInfoY: Math.floor(H * 0.55),
-            msgY: Math.floor(H * 0.68),
-            btnY: H - 60, btnW: Math.floor(W * 0.42), btnCols: 2
+            monsterX: W * 0.72, monsterY: H * 0.28,
+            fishBaseX: W * 0.22, fishBaseY: H * 0.30,
+            hpBarX: W * 0.1, hpBarY: H * 0.55, hpBarW: W * 0.8, hpBarH: 14,
+            monsterHpX: W * 0.45, monsterHpY: 22, monsterHpW: W * 0.45
         } : {
-            monsterX: W * 0.68, monsterY: H * 0.28,
-            fishX: W * 0.28, fishY: H * 0.52,
-            hpBarW: 120,
-            fishInfoY: Math.floor(H * 0.65),
-            msgY: Math.floor(H * 0.82),
-            btnY: H - 18, btnW: 100, btnCols: 4
+            monsterX: W * 0.72, monsterY: H * 0.32,
+            fishBaseX: W * 0.22, fishBaseY: H * 0.38,
+            hpBarX: W * 0.1, hpBarY: H * 0.68, hpBarW: W * 0.8, hpBarH: 14,
+            monsterHpX: W * 0.45, monsterHpY: 22, monsterHpW: W * 0.45
         };
 
         const L = this.layout;
@@ -52,227 +48,254 @@ export default class BattleScene extends Phaser.Scene {
         coverBackground(this, bgKey);
         addEffects(this, bgKey);
 
-        // Readability panels over text-heavy areas
-        this.add.rectangle(W * 0.25, 18, W * 0.5, 30, 0x000000, 0.5);
-        this.add.rectangle(W * 0.25, L.fishInfoY + 15, W * 0.5, 30, 0x000000, 0.5);
-        this.add.rectangle(W / 2, L.msgY, W * 0.7, 22, 0x000000, 0.5);
-
-        // Monster info (top-left)
-        this.monsterNameTxt = this.add.text(10, 8, this.monster.name, TEXT_STYLES.MONSTER_NAME);
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, 22, L.hpBarW, 8);
-        this.monsterHpBar = this.add.graphics();
-        this.monsterHpTxt = this.add.text(L.hpBarW + 15, 21, '',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
-        );
-
-        // Floor (top-right)
+        // Floor indicator (top-right)
         this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
             makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: '#666666' })
         ).setOrigin(1, 0);
 
-        // Sprites
-        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5);
-        this.fishSpr = this.add.image(L.fishX, L.fishY, 'fish_' + this.fish.speciesId).setScale(0.75);
+        // --- Monster ---
+        // Name
+        this.add.rectangle(W * 0.25, 12, W * 0.5, 18, 0x000000, 0.5);
+        this.add.text(10, 6, this.monster.name, TEXT_STYLES.MONSTER_NAME);
 
-        this.monsterAnim = new SpriteAnimator(this, this.monsterSpr).idle();
-        this.fishAnim = new SpriteAnimator(this, this.fishSpr).idle();
-
-        // Fish info
-        this.fishInfoY = L.fishInfoY;
-        this.fishNameTxt = this.add.text(10, this.fishInfoY, '', TEXT_STYLES.FISH_NAME);
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 14, L.hpBarW, 8);
-        this.fishHpBar = this.add.graphics();
-        this.fishHpTxt = this.add.text(L.hpBarW + 15, this.fishInfoY + 13, '',
+        // Monster HP bar
+        this.add.graphics().fillStyle(0x333333, 1).fillRect(L.monsterHpX, L.monsterHpY, L.monsterHpW, 8);
+        this.monsterHpBar = this.add.graphics();
+        this.monsterHpTxt = this.add.text(L.monsterHpX + L.monsterHpW + 5, L.monsterHpY - 1, '',
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
         );
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(10, this.fishInfoY + 25, L.hpBarW, 4);
-        this.fishXpBar = this.add.graphics();
 
-        // Message text
-        this.msgTxt = this.add.text(W / 2, L.msgY, '',
-            makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#cccccc', align: 'center', wordWrap: { width: W - 20 } })
+        // Monster sprite
+        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5);
+        this.monsterAnim = new SpriteAnimator(this, this.monsterSpr).idle();
+
+        // --- Fish (triangle formation) ---
+        const positions = this._getFormationPositions(this.combatState.fish.length, L);
+        for (let i = 0; i < this.combatState.fish.length; i++) {
+            const f = this.combatState.fish[i];
+            const pos = positions[i];
+            const spr = this.add.image(pos.x, pos.y, 'fish_' + f.ref.speciesId).setScale(0.75);
+            const anim = new SpriteAnimator(this, spr).idle();
+            this.fishSprites.push(spr);
+            this.fishAnimators.push(anim);
+
+            // Cooldown indicators (two small bars near each fish)
+            const cdGroup = { base: null, special: null, baseTrack: null, specialTrack: null };
+            const cdX = pos.x - 18;
+            const cdY = pos.y + 22;
+
+            // Base attack cooldown track + fill
+            cdGroup.baseTrack = this.add.graphics();
+            cdGroup.baseTrack.fillStyle(0x333333, 0.6).fillRect(cdX, cdY, 36, 3);
+            cdGroup.base = this.add.graphics();
+
+            // Special cooldown track + fill
+            cdGroup.specialTrack = this.add.graphics();
+            cdGroup.specialTrack.fillStyle(0x333333, 0.6).fillRect(cdX, cdY + 5, 36, 3);
+            cdGroup.special = this.add.graphics();
+
+            cdGroup.x = cdX;
+            cdGroup.y = cdY;
+            cdGroup.color = f.ref.color;
+            this.cooldownGfx.push(cdGroup);
+        }
+
+        // --- Combined HP bar ---
+        this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH / 2 + 0.5,
+            L.hpBarW + 2, L.hpBarH + 2, 0x222222);
+        this.partyHpBar = this.add.graphics();
+        this.partyHpTxt = this.add.text(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 4, '',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#cccccc', fontSize: '10px' })
+        ).setOrigin(0.5, 0);
+
+        // --- Message text ---
+        this.msgTxt = this.add.text(W / 2, H - 16, '',
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc', align: 'center' })
         ).setOrigin(0.5);
 
-        // UI containers
-        this.actionBtns = [];
-        this.menuBg = this.add.graphics().setVisible(false);
-        this.menuItems = [];
-
-        this.refreshBars();
-        this.showActions();
+        // Initial bar draws
+        this._drawMonsterHp();
+        this._drawPartyHpBar();
+        this._drawCooldowns();
     }
 
-    // --- HP/XP bar updates ---
+    update(time, delta) {
+        if (!this.combatState.running) return;
 
-    refreshBars() {
-        const m = this.monster;
-        this.monsterHpBar.clear();
-        const mRatio = Math.max(0, m.hp / m.maxHp);
-        this.monsterHpBar.fillStyle(mRatio > 0.25 ? 0xcc3333 : 0xcc6633, 1)
-            .fillRect(10, 22, mRatio * this.layout.hpBarW, 8);
-        this.monsterHpTxt.setText(m.hp + '/' + m.maxHp);
+        // Tick combat engine
+        const events = CombatSystem.update(this.combatState, delta);
+        for (const e of events) this.eventQueue.push(e);
 
-        const f = this.fish;
-        this.fishNameTxt.setText(f.name + ' Lv.' + f.level);
-        this.fishHpBar.clear();
-        const fRatio = Math.max(0, f.hp / f.maxHp);
-        const fColor = fRatio > 0.5 ? 0x33cc33 : fRatio > 0.25 ? 0xcccc33 : 0xcc3333;
-        this.fishHpBar.fillStyle(fColor, 1)
-            .fillRect(10, this.fishInfoY + 14, fRatio * this.layout.hpBarW, 8);
-        this.fishHpTxt.setText(f.hp + '/' + f.maxHp);
-
-        this.fishXpBar.clear();
-        const xRatio = f.xpToNext > 0 ? Math.min(1, f.xp / f.xpToNext) : 0;
-        this.fishXpBar.fillStyle(0x6666cc, 1)
-            .fillRect(10, this.fishInfoY + 25, xRatio * this.layout.hpBarW, 4);
-    }
-
-    // --- Action menu (move buttons + items) ---
-
-    showActions() {
-        this.clearActionBtns();
-        if (this.busy) return;
-        const W = this.scale.width;
-        const L = this.layout;
-        const moves = this.fish.moves;
-        const cols = L.btnCols;
-        const bw = L.btnW;
-        const gap = 4;
-
-        const btns = [];
-        for (const moveId of moves) {
-            btns.push({ label: MOVES[moveId].name, color: '#aaccff', cb: () => this.onMove(moveId) });
+        // Process event queue with staggering
+        this.eventTimer -= delta;
+        if (this.eventTimer <= 0 && this.eventQueue.length > 0) {
+            const e = this.eventQueue.shift();
+            this._processEvent(e);
+            this.eventTimer = 150;
         }
-        btns.push({ label: 'Items', color: '#ccaa66', cb: () => this.showItemMenu() });
 
-        const usedCols = Math.min(cols, btns.length);
-        const rowW = usedCols * bw + (usedCols - 1) * gap;
-        const startX = (W - rowW) / 2 + bw / 2;
+        // Smooth HP bar interpolation
+        const lerpRate = 1 - Math.pow(0.05, delta / 1000);
+        this.displayedMonsterHp += (this.monster.hp - this.displayedMonsterHp) * lerpRate;
+        for (let i = 0; i < this.combatState.hpBar.chunks.length; i++) {
+            this.displayedChunkHps[i] += (this.combatState.hpBar.chunks[i].hp - this.displayedChunkHps[i]) * lerpRate;
+        }
 
-        btns.forEach((b, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const x = startX + col * (bw + gap);
-            const y = L.btnY + row * 22;
-            this.actionBtns.push(this.makeBtn(x, y, b.label, b.color, b.cb));
+        this._drawMonsterHp();
+        this._drawPartyHpBar();
+        this._drawCooldowns();
+    }
+
+    // --- Event Processing ---
+
+    _processEvent(e) {
+        switch (e.type) {
+            case 'fish_base_attack': this._onFishAttack(e, 'lunge'); break;
+            case 'fish_special': this._onFishSpecial(e); break;
+            case 'monster_base_attack': this._onMonsterAttack(e, 'lunge'); break;
+            case 'monster_special': this._onMonsterSpecial(e); break;
+            case 'fish_incapacitated': this._onFishIncapacitated(e); break;
+            case 'monster_dead': this._onMonsterDead(); break;
+            case 'party_dead': this._onPartyDead(); break;
+            case 'poison_tick': this._onPoisonTick(e); break;
+            case 'heal': this._onHeal(e); break;
+            case 'buff_applied': this._onBuffApplied(e); break;
+        }
+    }
+
+    _onFishAttack(e, animType) {
+        const fishSpr = this.fishSprites[e.fishIndex];
+        const fishAnim = this.fishAnimators[e.fishIndex];
+        if (!fishSpr || !fishAnim) return;
+
+        if (animType === 'projectile') {
+            SpriteAnimator.projectile(this, fishSpr.x, fishSpr.y,
+                this.monsterSpr.x, this.monsterSpr.y, 0xffffff);
+        } else {
+            fishAnim.attack(this.monsterSpr.x, this.monsterSpr.y);
+        }
+        this.monsterAnim.hit();
+        SpriteAnimator.damageNumber(this, this.monsterSpr.x, this.monsterSpr.y - 15, e.damage, '#ffcccc');
+    }
+
+    _onFishSpecial(e) {
+        const move = MOVES[e.moveId];
+        const animType = move ? move.animation : 'lunge';
+        this._onFishAttack(e, animType);
+    }
+
+    _onMonsterAttack(e, animType) {
+        const targetIdx = this._getFrontFishSpriteIndex();
+        if (targetIdx === -1) return;
+        const targetSpr = this.fishSprites[targetIdx];
+
+        if (animType === 'projectile') {
+            SpriteAnimator.projectile(this, this.monsterSpr.x, this.monsterSpr.y,
+                targetSpr.x, targetSpr.y, 0xff4444);
+        } else {
+            this.monsterAnim.attack(targetSpr.x, targetSpr.y);
+        }
+
+        const targetAnim = this.fishAnimators[targetIdx];
+        if (targetAnim && this.combatState.fish[targetIdx]?.alive) {
+            targetAnim.hit();
+        }
+        SpriteAnimator.damageNumber(this, targetSpr.x, targetSpr.y - 15, e.damage, '#ff8888');
+    }
+
+    _onMonsterSpecial(e) {
+        const move = MOVES[e.moveId];
+        const animType = move ? move.animation : 'lunge';
+        this._onMonsterAttack(e, animType);
+    }
+
+    _onFishIncapacitated(e) {
+        const anim = this.fishAnimators[e.fishIndex];
+        if (anim) anim.faint();
+
+        // Hide cooldown indicators
+        const cd = this.cooldownGfx[e.fishIndex];
+        if (cd) {
+            cd.base.setVisible(false);
+            cd.special.setVisible(false);
+            cd.baseTrack.setVisible(false);
+            cd.specialTrack.setVisible(false);
+        }
+    }
+
+    _onMonsterDead() {
+        this.combatState.running = false;
+        this.monsterAnim.faint();
+
+        // Award XP to each living fish
+        const allMsgs = [];
+        for (const f of this.combatState.fish) {
+            if (f.alive) {
+                const msgs = PartySystem.awardXP(f.ref, this.monster.xpReward);
+                allMsgs.push(...msgs);
+            }
+        }
+        this.gameState.gold += this.monster.goldReward;
+
+        const lines = [this.monster.name + ' defeated! +' + this.monster.goldReward + 'g +' + this.monster.xpReward + 'xp'];
+        lines.push(...allMsgs);
+        this.msgTxt.setText(lines.join(' | '));
+
+        this.time.delayedCall(1500, () => this.advanceFloor());
+    }
+
+    _onPartyDead() {
+        this.combatState.running = false;
+        this.msgTxt.setText('All fish fainted!');
+
+        this.time.delayedCall(1000, () => {
+            for (const f of this.gameState.party) PartySystem.fullHeal(f);
+            this.gameState.floor = this.gameState.campFloor;
+            this.msgTxt.setText('Returning to camp...');
+
+            this.time.delayedCall(1000, () => {
+                this.scene.start('FloorScene', { gameState: this.gameState });
+            });
         });
     }
 
-    clearActionBtns() {
-        for (const b of this.actionBtns) b.destroy();
-        this.actionBtns = [];
-    }
-
-    makeBtn(x, y, label, color, cb) {
-        const btn = this.add.text(x, y, label,
-            makeStyle(TEXT_STYLES.BUTTON, {
-                fontSize: '12px', color: color,
-                backgroundColor: '#2a2a4a', padding: { x: 6, y: 4 },
-                fixedWidth: this.layout.btnW, align: 'center'
-            })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffffff'));
-        btn.on('pointerout', () => btn.setColor(color));
-        btn.on('pointerdown', () => { if (!this.busy) cb(); });
-        return btn;
-    }
-
-    // --- Turn execution ---
-
-    onMove(moveId) {
-        this.busy = true;
-        this.clearActionBtns();
-        const order = CombatSystem.getTurnOrder(this.fish, this.monster);
-        const monsterMoveId = CombatSystem.getMonsterMove(this.monster);
-
-        if (order[0] === 'fish') {
-            this.execAttack(this.fish, this.monster, moveId, this.monsterSpr, () => {
-                if (this.monster.hp <= 0) return this.onMonsterDead();
-                this.time.delayedCall(400, () => {
-                    this.execAttack(this.monster, this.fish, monsterMoveId, this.fishSpr, () => {
-                        if (this.fish.hp <= 0) return this.onFishDead();
-                        this.endOfTurn();
-                    });
-                });
-            });
+    _onPoisonTick(e) {
+        if (e.target === 'monster') {
+            this.monsterSpr.setTint(0x88ff88);
+            this.time.delayedCall(200, () => this.monsterSpr.clearTint());
+            SpriteAnimator.damageNumber(this, this.monsterSpr.x, this.monsterSpr.y - 15, e.damage, '#88ff88');
         } else {
-            this.execAttack(this.monster, this.fish, monsterMoveId, this.fishSpr, () => {
-                if (this.fish.hp <= 0) return this.onFishDead();
-                this.time.delayedCall(400, () => {
-                    this.execAttack(this.fish, this.monster, moveId, this.monsterSpr, () => {
-                        if (this.monster.hp <= 0) return this.onMonsterDead();
-                        this.endOfTurn();
-                    });
-                });
-            });
+            const idx = e.fishIndex;
+            const spr = this.fishSprites[idx];
+            if (spr) {
+                spr.setTint(0x88ff88);
+                this.time.delayedCall(200, () => spr.clearTint());
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.damage, '#88ff88');
+            }
         }
     }
 
-    execAttack(attacker, defender, moveId, defenderSpr, cb) {
-        const result = CombatSystem.executeMove(attacker, defender, moveId);
-        this.msgTxt.setText(result.message);
-        this.refreshBars();
-
-        const isPlayerAttacking = defenderSpr === this.monsterSpr;
-        const attackerAnim = isPlayerAttacking ? this.fishAnim : this.monsterAnim;
-        const defenderAnim = isPlayerAttacking ? this.monsterAnim : this.fishAnim;
-
-        if (result.type === 'attack') {
-            attackerAnim.attack(defenderSpr.x, defenderSpr.y).then(() => {
-                return defenderAnim.hit();
-            }).then(() => {
-                this.time.delayedCall(300, cb);
-            });
-        } else {
-            this.time.delayedCall(500, cb);
+    _onHeal(e) {
+        const spr = this.fishSprites[e.fishIndex];
+        if (spr) {
+            SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, '+' + e.amount, '#44ff44');
         }
     }
 
-    endOfTurn() {
-        const msgs = [];
-        const fp = CombatSystem.processPoison(this.fish);
-        if (fp) msgs.push(fp);
-        const mp = CombatSystem.processPoison(this.monster);
-        if (mp) msgs.push(mp);
-        CombatSystem.processBuffs(this.fish);
-        CombatSystem.processBuffs(this.monster);
-        this.refreshBars();
-
-        if (msgs.length > 0) {
-            this.msgTxt.setText(msgs.join(' '));
-            this.time.delayedCall(600, () => this.postTurnCheck());
+    _onBuffApplied(e) {
+        if (e.target === 'monster') {
+            this.monsterSpr.setTint(0xffd700);
+            this.time.delayedCall(300, () => this.monsterSpr.clearTint());
         } else {
-            this.postTurnCheck();
+            const spr = this.fishSprites[e.fishIndex];
+            if (spr) {
+                spr.setTint(0xffd700);
+                this.time.delayedCall(300, () => spr.clearTint());
+            }
         }
     }
 
-    postTurnCheck() {
-        if (this.monster.hp <= 0) return this.onMonsterDead();
-        if (this.fish.hp <= 0) return this.onFishDead();
-        this.busy = false;
-        this.showActions();
-    }
-
-    // --- Battle outcomes ---
-
-    onMonsterDead() {
-        this.monsterAnim.faint().then(() => {
-            this.gameState.gold += this.monster.goldReward;
-            const xpMsgs = PartySystem.awardXP(this.fish, this.monster.xpReward);
-            this.refreshBars();
-            const lines = [this.monster.name + ' defeated! +' + this.monster.goldReward + 'g +' + this.monster.xpReward + 'xp'];
-            lines.push(...xpMsgs);
-            this.msgTxt.setText(lines.join('\n'));
-
-            this.time.delayedCall(1500, () => {
-                if (this.fish.pendingMove) {
-                    this.showLearnMenu();
-                } else {
-                    this.advanceFloor();
-                }
-            });
-        });
-    }
+    // --- Floor Advance ---
 
     advanceFloor() {
         for (const f of this.gameState.party) PartySystem.clearCombatState(f);
@@ -284,210 +307,110 @@ export default class BattleScene extends Phaser.Scene {
         }
     }
 
-    onFishDead() {
-        this.fishAnim.faint().then(() => {
-            const alive = PartySystem.getAliveFish(this.gameState.party);
-            if (alive.length === 0) {
-                this.msgTxt.setText('All fish fainted!');
-                this.time.delayedCall(1000, () => {
-                    for (const f of this.gameState.party) PartySystem.fullHeal(f);
-                    this.gameState.floor = this.gameState.campFloor;
-                    this.msgTxt.setText('Returning to camp...');
-                    this.time.delayedCall(1000, () => {
-                        this.scene.start('FloorScene', { gameState: this.gameState });
-                    });
-                });
-            } else {
-                this.msgTxt.setText(this.fish.name + ' fainted!');
-                this.time.delayedCall(600, () => this.showSwitchMenu());
+    // --- Drawing Helpers ---
+
+    _drawMonsterHp() {
+        const L = this.layout;
+        this.monsterHpBar.clear();
+        const ratio = Math.max(0, this.displayedMonsterHp / this.monster.maxHp);
+        const color = ratio > 0.25 ? 0xcc3333 : 0xcc6633;
+        this.monsterHpBar.fillStyle(color, 1)
+            .fillRect(L.monsterHpX, L.monsterHpY, ratio * L.monsterHpW, 8);
+        this.monsterHpTxt.setText(Math.max(0, Math.round(this.displayedMonsterHp)) + '/' + this.monster.maxHp);
+    }
+
+    _drawPartyHpBar() {
+        const L = this.layout;
+        const chunks = this.combatState.hpBar.chunks;
+        const totalMax = this.combatState.hpBar.totalMax;
+        this.partyHpBar.clear();
+
+        let x = L.hpBarX;
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const segW = (chunk.maxHp / totalMax) * L.hpBarW;
+
+            // Gray background for segment
+            this.partyHpBar.fillStyle(0x444444, 1);
+            this.partyHpBar.fillRect(x, L.hpBarY, segW, L.hpBarH);
+
+            // Color fill for current HP
+            const displayHp = Math.max(0, this.displayedChunkHps[i]);
+            if (displayHp > 0) {
+                const fillW = (displayHp / chunk.maxHp) * segW;
+                this.partyHpBar.fillStyle(chunk.color, 1);
+                this.partyHpBar.fillRect(x, L.hpBarY, fillW, L.hpBarH);
             }
-        });
-    }
 
-    // --- Switch fish menu ---
-
-    showSwitchMenu() {
-        this.clearMenu();
-        this.showMenuBg();
-        const W = this.scale.width;
-        const H = this.scale.height;
-
-        this.addMenuItem(W / 2, H * 0.3, 'Choose next fish:', '#ffffff');
-
-        const alive = this.gameState.party
-            .map((f, i) => ({ fish: f, idx: i }))
-            .filter(e => e.fish.hp > 0 && e.idx !== this.activeFishIndex);
-
-        alive.forEach((e, i) => {
-            const f = e.fish;
-            this.addMenuItem(W / 2, H * 0.42 + i * 24,
-                f.name + ' Lv.' + f.level + ' HP:' + f.hp + '/' + f.maxHp,
-                '#88cc88', () => {
-                    this.activeFishIndex = e.idx;
-                    this.fishSpr.setTexture('fish_' + this.fish.speciesId);
-                    this.fishSpr.setAlpha(1).setAngle(0);
-                    this.fishAnim.destroy();
-                    this.fishAnim = new SpriteAnimator(this, this.fishSpr).idle();
-                    this.clearMenu();
-                    this.refreshBars();
-                    this.busy = false;
-                    this.showActions();
-                });
-        });
-    }
-
-    // --- Item menu ---
-
-    showItemMenu() {
-        this.busy = true;
-        this.clearActionBtns();
-        this.clearMenu();
-        this.showMenuBg();
-        const W = this.scale.width;
-        const H = this.scale.height;
-        const inv = this.gameState.inventory;
-
-        if (inv.length === 0) {
-            this.addMenuItem(W / 2, H * 0.4, 'No items!', '#888888');
-        } else {
-            const counts = {};
-            inv.forEach(function(id, i) {
-                if (!counts[id]) counts[id] = { id: id, firstIdx: i, count: 0 };
-                counts[id].count++;
-            });
-            const entries = Object.values(counts);
-            entries.forEach((e, i) => {
-                const item = ITEMS[e.id];
-                this.addMenuItem(W / 2, H * 0.3 + i * 18,
-                    item.name + ' x' + e.count, '#ccaa66',
-                    () => this.showItemTargets(e.firstIdx));
-            });
-        }
-
-        this.addMenuItem(W / 2, H * 0.85, '[ BACK ]', '#aaaacc', () => {
-            this.clearMenu();
-            this.busy = false;
-            this.showActions();
-        });
-    }
-
-    showItemTargets(invIdx) {
-        this.clearMenu();
-        this.showMenuBg();
-        const W = this.scale.width;
-        const H = this.scale.height;
-        const itemId = this.gameState.inventory[invIdx];
-        const item = ITEMS[itemId];
-
-        this.addMenuItem(W / 2, H * 0.25, 'Use ' + item.name + ' on:', '#ffffff');
-
-        this.gameState.party.forEach((f, i) => {
-            const canUse = (item.type === 'revive' && f.hp <= 0) ||
-                           (item.type === 'heal' && f.hp > 0 && f.hp < f.maxHp) ||
-                           (item.type === 'stat' && f.hp > 0);
-            const label = f.name + ' HP:' + f.hp + '/' + f.maxHp;
-            if (canUse) {
-                this.addMenuItem(W / 2, H * 0.38 + i * 22, label, '#88cc88',
-                    () => this.useItem(invIdx, i));
-            } else {
-                this.addMenuItem(W / 2, H * 0.38 + i * 22, label, '#555555');
+            // Divider line between segments
+            if (i < chunks.length - 1) {
+                this.partyHpBar.fillStyle(0x111111, 1);
+                this.partyHpBar.fillRect(x + segW - 1, L.hpBarY, 1, L.hpBarH);
             }
-        });
 
-        this.addMenuItem(W / 2, H * 0.85, '[ BACK ]', '#aaaacc',
-            () => this.showItemMenu());
-    }
-
-    useItem(invIdx, fishIdx) {
-        this.clearMenu();
-        const target = this.gameState.party[fishIdx];
-        const result = EconomySystem.useItem(this.gameState, invIdx, target);
-        this.msgTxt.setText(result || 'Failed!');
-        this.refreshBars();
-
-        this.time.delayedCall(500, () => {
-            const mMove = CombatSystem.getMonsterMove(this.monster);
-            this.execAttack(this.monster, this.fish, mMove, this.fishSpr, () => {
-                if (this.fish.hp <= 0) return this.onFishDead();
-                this.endOfTurn();
-            });
-        });
-    }
-
-    // --- Learn move menu ---
-
-    showLearnMenu() {
-        this.clearMenu();
-        this.showMenuBg();
-        const W = this.scale.width;
-        const H = this.scale.height;
-        const f = this.fish;
-        const newMoveId = f.pendingMove;
-        const newMove = MOVES[newMoveId];
-
-        this.addMenuItem(W / 2, H * 0.2,
-            f.name + ' wants to learn ' + newMove.name + '!', '#f0c040');
-        this.addMenuItem(W / 2, H * 0.28, 'Replace which move?', '#cccccc');
-
-        f.moves.forEach((mid, i) => {
-            const m = MOVES[mid];
-            const info = m.type === 'attack' ? ' Pow:' + m.power : ' (' + m.type + ')';
-            this.addMenuItem(W / 2, H * 0.38 + i * 22,
-                m.name + info, '#aaccff', () => {
-                    const oldName = m.name;
-                    f.moves[i] = newMoveId;
-                    f.pendingMove = null;
-                    this.clearMenu();
-                    this.msgTxt.setText('Forgot ' + oldName + ', learned ' + newMove.name + '!');
-                    this.time.delayedCall(800, () => this.advanceFloor());
-                });
-        });
-
-        // New move info
-        const newInfo = newMove.type === 'attack' ? ' Pow:' + newMove.power : ' (' + newMove.type + ')';
-        this.addMenuItem(W / 2, H * 0.38 + f.moves.length * 22,
-            'NEW: ' + newMove.name + newInfo, '#f0c040');
-
-        this.addMenuItem(W / 2, H * 0.38 + (f.moves.length + 1) * 22,
-            "[ DON'T LEARN ]", '#888888', () => {
-                f.pendingMove = null;
-                this.clearMenu();
-                this.advanceFloor();
-            });
-    }
-
-    // --- Menu helpers ---
-
-    showMenuBg() {
-        const W = this.scale.width;
-        const H = this.scale.height;
-        this.menuBg.clear().setVisible(true);
-        this.menuBg.fillStyle(0x1a1a2e, 0.92);
-        this.menuBg.fillRect(15, H * 0.15, W - 30, H * 0.72);
-        this.menuBg.lineStyle(1, 0x4a4a8a, 1);
-        this.menuBg.strokeRect(15, H * 0.15, W - 30, H * 0.72);
-    }
-
-    addMenuItem(x, y, label, color, cb) {
-        const style = makeStyle(TEXT_STYLES.BODY, { color: color });
-        if (cb) {
-            style.backgroundColor = '#2a2a4a';
-            style.padding = { x: 10, y: 3 };
+            x += segW;
         }
-        const txt = this.add.text(x, y, label, style).setOrigin(0.5);
-        if (cb) {
-            txt.setInteractive({ useHandCursor: true });
-            txt.on('pointerover', () => txt.setColor('#ffffff'));
-            txt.on('pointerout', () => txt.setColor(color));
-            txt.on('pointerdown', cb);
-        }
-        this.menuItems.push(txt);
-        return txt;
+
+        const totalCurrent = Math.max(0, Math.round(this.displayedChunkHps.reduce((s, v) => s + v, 0)));
+        this.partyHpTxt.setText(totalCurrent + ' / ' + totalMax);
     }
 
-    clearMenu() {
-        for (const item of this.menuItems) item.destroy();
-        this.menuItems = [];
-        this.menuBg.clear().setVisible(false);
+    _drawCooldowns() {
+        for (let i = 0; i < this.combatState.fish.length; i++) {
+            const f = this.combatState.fish[i];
+            const cd = this.cooldownGfx[i];
+            if (!cd || !f.alive) continue;
+
+            // Base attack cooldown
+            const effSpd = CombatSystem.getEffectiveStat(f, 'spd');
+            const baseCd = CombatSystem.getBaseAttackCooldown(effSpd);
+            const baseFill = Math.min(1, f.baseTimer / baseCd);
+            cd.base.clear();
+            cd.base.fillStyle(0xcccccc, 0.8);
+            cd.base.fillRect(cd.x, cd.y, baseFill * 36, 3);
+
+            // Special cooldown
+            const move = MOVES[f.ref.moves[0]];
+            if (move) {
+                const specFill = Math.min(1, f.specialTimer / move.cooldown);
+                cd.special.clear();
+                cd.special.fillStyle(cd.color, 0.8);
+                cd.special.fillRect(cd.x, cd.y + 5, specFill * 36, 3);
+            }
+        }
+    }
+
+    // --- Layout Helpers ---
+
+    _getFormationPositions(count, L) {
+        const positions = [];
+        if (count === 1) {
+            positions.push({ x: L.fishBaseX, y: L.fishBaseY });
+        } else if (count === 2) {
+            positions.push({ x: L.fishBaseX + 20, y: L.fishBaseY });
+            positions.push({ x: L.fishBaseX - 20, y: L.fishBaseY - 20 });
+        } else if (count >= 3) {
+            positions.push({ x: L.fishBaseX + 20, y: L.fishBaseY });
+            positions.push({ x: L.fishBaseX - 20, y: L.fishBaseY - 25 });
+            positions.push({ x: L.fishBaseX - 20, y: L.fishBaseY + 25 });
+        }
+        return positions;
+    }
+
+    _getFrontFishSpriteIndex() {
+        for (let i = 0; i < this.combatState.fish.length; i++) {
+            if (this.combatState.fish[i].alive) return i;
+        }
+        return -1;
+    }
+
+    // --- Cleanup ---
+
+    shutdown() {
+        this.tweens.killAll();
+        for (const a of this.fishAnimators) a.destroy();
+        this.monsterAnim.destroy();
+        this.eventQueue = [];
+        this.combatState.running = false;
     }
 }

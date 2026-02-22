@@ -137,4 +137,51 @@ export default class SpriteAnimator {
     destroy() {
         this.stopIdle();
     }
+
+    /** Create a projectile that travels from source to target. Returns a Promise. */
+    static projectile(scene, fromX, fromY, toX, toY, color) {
+        return new Promise(resolve => {
+            const gfx = scene.add.graphics();
+            gfx.fillStyle(color, 1);
+            gfx.fillCircle(0, 0, 4);
+            gfx.setPosition(fromX, fromY);
+
+            scene.tweens.add({
+                targets: gfx,
+                x: toX,
+                y: toY,
+                duration: 300,
+                ease: 'Quad.Out',
+                onComplete: () => {
+                    gfx.destroy();
+                    resolve();
+                }
+            });
+        });
+    }
+
+    /** Show a floating damage number that drifts up and fades. Returns a Promise. */
+    static damageNumber(scene, x, y, amount, color) {
+        return new Promise(resolve => {
+            const offsetX = (Math.random() - 0.5) * 10;
+            const txt = scene.add.text(x + offsetX, y, String(amount), {
+                fontSize: '12px',
+                fontFamily: "'Almendra', 'Georgia', serif",
+                fontStyle: 'bold',
+                color: color || '#ffffff'
+            }).setOrigin(0.5);
+
+            scene.tweens.add({
+                targets: txt,
+                y: y - 25,
+                alpha: 0,
+                duration: 600,
+                ease: 'Sine.Out',
+                onComplete: () => {
+                    txt.destroy();
+                    resolve();
+                }
+            });
+        });
+    }
 }
