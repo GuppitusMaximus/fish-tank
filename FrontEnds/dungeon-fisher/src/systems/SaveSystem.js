@@ -16,6 +16,7 @@ export default class SaveSystem {
             party: gameState.party,
             inventory: gameState.inventory,
             campFloor: gameState.campFloor,
+            nextShopFloor: gameState.nextShopFloor || gameState.floor,
             fisherId: gameState.fisherId || 'andy'
         };
         try {

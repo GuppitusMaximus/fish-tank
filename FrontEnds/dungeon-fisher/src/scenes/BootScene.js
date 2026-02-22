@@ -35,6 +35,17 @@ export default class BootScene extends Phaser.Scene {
             const filename = key.replace('bg_', '');
             this.load.image(key, `backgrounds/${filename}.png`);
         }
+
+        // Action card images
+        this.load.image('card_delve', 'images/card_delve.png');
+        this.load.image('card_camp', 'images/card_camp.png');
+        this.load.image('card_shop_sewers', 'images/card_shop_sewers.png');
+        this.load.image('card_shop_goblin', 'images/card_shop_goblin.png');
+        this.load.image('card_shop_crypts', 'images/card_shop_crypts.png');
+        this.load.image('card_shop_deep', 'images/card_shop_deep.png');
+        this.load.image('card_shop_shadow', 'images/card_shop_shadow.png');
+        this.load.image('card_shop_ancient', 'images/card_shop_ancient.png');
+        this.load.image('card_shop_heart', 'images/card_shop_heart.png');
     }
 
     create() {

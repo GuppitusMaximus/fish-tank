@@ -29,3 +29,13 @@ export const BACKGROUND_KEYS = [
     'bg_dungeon-heart',
     'bg_title'
 ];
+
+export function getShopCardKey(floor) {
+    if (floor <= 10) return 'card_shop_sewers';
+    if (floor <= 20) return 'card_shop_goblin';
+    if (floor <= 30) return 'card_shop_crypts';
+    if (floor <= 50) return 'card_shop_deep';
+    if (floor <= 70) return 'card_shop_shadow';
+    if (floor <= 90) return 'card_shop_ancient';
+    return 'card_shop_heart';
+}

@@ -3,7 +3,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { getBackgroundKey, coverBackground } from '../utils/zones.js';
+import { getBackgroundKey, coverBackground, getShopCardKey } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
@@ -105,32 +105,68 @@ export default class FloorScene extends Phaser.Scene {
             py += 18;
         });
 
-        // Action buttons
-        const btnY = Math.max(py + 12, H * 0.5);
-        dungeonPanel(this, W * 0.2, btnY - 8, W * 0.6, 80);
-        const battleBtn = this.add.text(W / 2, btnY, '[ ENTER BATTLE ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        battleBtn.on('pointerover', () => battleBtn.setColor('#ffffff'));
-        battleBtn.on('pointerout', () => battleBtn.setColor('#aaaacc'));
-        battleBtn.on('pointerdown', () => {
-            const monster = generateMonster(gs.floor);
-            this.scene.start('BattleScene', { gameState: gs, monster: monster });
+        // Action cards
+        const shopAvailable = gs.floor >= (gs.nextShopFloor || 1);
+        const cards = [{ type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#cc9966' }];
+        if (shopAvailable) {
+            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: 'Shop', color: '#ccaa44' });
+        }
+        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66' });
+
+        const cardH = Math.min(90, H - py - 30);
+        const cardW = Math.floor(cardH * 0.85);
+        const gap = 8;
+        const totalW = cards.length * cardW + (cards.length - 1) * gap;
+        const startX = Math.floor((W - totalW) / 2);
+        const cardY = Math.max(py + 10, H - cardH - 14);
+
+        cards.forEach((card, i) => {
+            const cx = startX + i * (cardW + gap);
+            const midX = cx + cardW / 2;
+            const midY = cardY + cardH / 2;
+
+            // Panel frame
+            dungeonPanel(this, cx, cardY, cardW, cardH);
+
+            // Card image (fill the panel interior)
+            const img = this.add.image(midX, cardY + (cardH - 18) / 2, card.key);
+            const imgScale = Math.min((cardW - 8) / img.width, (cardH - 22) / img.height);
+            img.setScale(imgScale);
+
+            // Label at bottom
+            const label = this.add.text(midX, cardY + cardH - 10, card.label,
+                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color })
+            ).setOrigin(0.5);
+
+            // Hit zone
+            const hit = this.add.rectangle(midX, midY, cardW, cardH, 0xffffff, 0)
+                .setInteractive({ useHandCursor: true });
+
+            hit.on('pointerover', () => {
+                label.setColor('#ffffff');
+                img.setTint(0xdddddd);
+            });
+            hit.on('pointerout', () => {
+                label.setColor(card.color);
+                img.clearTint();
+            });
+
+            if (card.type === 'delve') {
+                hit.on('pointerdown', () => {
+                    const monster = generateMonster(gs.floor);
+                    this.scene.start('BattleScene', { gameState: gs, monster: monster });
+                });
+            } else if (card.type === 'shop') {
+                hit.on('pointerdown', () => {
+                    gs.nextShopFloor = gs.floor + 1 + Math.floor(Math.random() * 3);
+                    this.scene.start('ShopScene', { gameState: gs });
+                });
+            } else if (card.type === 'camp') {
+                hit.on('pointerdown', () => {
+                    this.scene.start('CampScene', { gameState: gs });
+                });
+            }
         });
-
-        const shopBtn = this.add.text(W / 2, btnY + 22, '[ SHOP ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        shopBtn.on('pointerover', () => shopBtn.setColor('#ffffff'));
-        shopBtn.on('pointerout', () => shopBtn.setColor('#aaaacc'));
-        shopBtn.on('pointerdown', () => this.scene.start('ShopScene', { gameState: gs }));
-
-        const campBtn = this.add.text(W / 2, btnY + 44, '[ CAMP ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        campBtn.on('pointerover', () => campBtn.setColor('#ffffff'));
-        campBtn.on('pointerout', () => campBtn.setColor('#aaaacc'));
-        campBtn.on('pointerdown', () => this.scene.start('CampScene', { gameState: gs }));
     }
 
     getFlavorText(floor) {

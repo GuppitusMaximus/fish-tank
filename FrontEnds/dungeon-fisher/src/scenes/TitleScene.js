@@ -322,6 +322,7 @@ export default class TitleScene extends Phaser.Scene {
             party: [starterFish],
             inventory: [],
             campFloor: 1,
+            nextShopFloor: 1,
             fisherId: this._selectedFisher || 'andy'
         };
 
@@ -340,6 +341,7 @@ export default class TitleScene extends Phaser.Scene {
             party: saveData.party,
             inventory: saveData.inventory,
             campFloor: saveData.campFloor,
+            nextShopFloor: saveData.nextShopFloor || saveData.floor,
             fisherId: saveData.fisherId || 'andy'
         };
 
