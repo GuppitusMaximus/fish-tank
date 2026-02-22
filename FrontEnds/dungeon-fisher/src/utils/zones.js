@@ -1,11 +1,9 @@
+import { ZONE_THEMES, TITLE_THEME, getZoneByFloor } from '../data/themes.js';
+
+export { getZoneByFloor } from '../data/themes.js';
+
 export function getBackgroundKey(floor) {
-    if (floor <= 10) return 'bg_sewers';
-    if (floor <= 20) return 'bg_goblin-caves';
-    if (floor <= 30) return 'bg_bone-crypts';
-    if (floor <= 50) return 'bg_deep-dungeon';
-    if (floor <= 70) return 'bg_shadow-realm';
-    if (floor <= 90) return 'bg_ancient-chambers';
-    return 'bg_dungeon-heart';
+    return getZoneByFloor(floor).bgKey;
 }
 
 export function coverBackground(scene, key, mode = 'cover') {
@@ -20,42 +18,23 @@ export function coverBackground(scene, key, mode = 'cover') {
 }
 
 export const BACKGROUND_KEYS = [
-    'bg_sewers',
-    'bg_goblin-caves',
-    'bg_bone-crypts',
-    'bg_deep-dungeon',
-    'bg_shadow-realm',
-    'bg_ancient-chambers',
-    'bg_dungeon-heart',
-    'bg_title'
+    ...Object.values(ZONE_THEMES).map(z => z.bgKey),
+    TITLE_THEME.bgKey
 ];
 
 export function getShopCardKey(floor) {
-    if (floor <= 10) return 'card_shop_sewers';
-    if (floor <= 20) return 'card_shop_goblin';
-    if (floor <= 30) return 'card_shop_crypts';
-    if (floor <= 50) return 'card_shop_deep';
-    if (floor <= 70) return 'card_shop_shadow';
-    if (floor <= 90) return 'card_shop_ancient';
-    return 'card_shop_heart';
+    return getZoneByFloor(floor).shop.cardKey;
 }
 
 export function getShopBackground(floor) {
-    if (floor <= 10) return 'bg_shop_sewers';
-    return null;
+    return getZoneByFloor(floor).shop.bgKey;
 }
 
 export function getShopMerchant(floor) {
-    if (floor <= 10) return 'merchant_rat';
-    return null;
+    return getZoneByFloor(floor).shop.merchantKey;
 }
 
 export function getShopName(floor) {
-    if (floor <= 10) return "Rat's Bargains";
-    if (floor <= 20) return 'Goblin Bazaar';
-    if (floor <= 30) return 'Crypt Dealer';
-    if (floor <= 50) return 'Underdeep Trader';
-    if (floor <= 70) return 'Shadow Broker';
-    if (floor <= 90) return 'Elder Reliquary';
-    return "Heart's Toll";
+    const zone = getZoneByFloor(floor);
+    return zone.shop.name || zone.name;
 }

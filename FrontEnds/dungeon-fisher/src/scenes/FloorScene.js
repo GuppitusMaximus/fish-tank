@@ -4,6 +4,7 @@ import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopCardKey, getShopName } from '../utils/zones.js';
+import { getZoneByFloor } from '../data/themes.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
@@ -51,7 +52,7 @@ export default class FloorScene extends Phaser.Scene {
         dungeonPanel(this, 0, 0, W, 56 + gs.party.length * 18);
 
         // Flavor text with warm shimmer sweep
-        const flavorTxt = this.add.text(W / 2, 10, this.getFlavorText(gs.floor),
+        const flavorTxt = this.add.text(W / 2, 10, getZoneByFloor(gs.floor).flavor,
             makeStyle(TEXT_STYLES.FLAVOR, { color: '#ffffff' })
         ).setOrigin(0.5);
         this.tweens.addCounter({
@@ -180,16 +181,6 @@ export default class FloorScene extends Phaser.Scene {
                 });
             }
         });
-    }
-
-    getFlavorText(floor) {
-        if (floor <= 10) return 'Damp sewers echo around you...';
-        if (floor <= 20) return 'Goblin laughter echoes in the dark...';
-        if (floor <= 30) return 'Bones crunch underfoot...';
-        if (floor <= 50) return 'The air grows heavy...';
-        if (floor <= 70) return 'Shadows move on their own...';
-        if (floor <= 90) return 'Ancient power radiates from the walls...';
-        return "The dungeon's heart beats...";
     }
 
     showFloorReward() {

@@ -1,16 +1,16 @@
 import { coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import { ZONE_THEMES } from '../data/themes.js';
 
-const ZONES = [
-    { key: 'bg_sewers', name: 'The Sewers', floors: '1 - 10', flavor: 'Damp sewers echo around you...' },
-    { key: 'bg_goblin-caves', name: 'Goblin Caves', floors: '11 - 20', flavor: 'Goblin laughter echoes in the dark...' },
-    { key: 'bg_bone-crypts', name: 'Bone Crypts', floors: '21 - 30', flavor: 'Bones crunch underfoot...' },
-    { key: 'bg_deep-dungeon', name: 'Deep Dungeon', floors: '31 - 50', flavor: 'The air grows heavy...' },
-    { key: 'bg_shadow-realm', name: 'Shadow Realm', floors: '51 - 70', flavor: 'Shadows move on their own...' },
-    { key: 'bg_ancient-chambers', name: 'Ancient Chambers', floors: '71 - 90', flavor: 'Ancient power radiates from the walls...' },
-    { key: 'bg_dungeon-heart', name: 'Dungeon Heart', floors: '91 - 100', flavor: "The dungeon's heart beats..." }
-];
+const ZONES = Object.values(ZONE_THEMES)
+    .sort((a, b) => a.floorRange[0] - b.floorRange[0])
+    .map(z => ({
+        key: z.bgKey,
+        name: z.name,
+        floors: z.floorRange[0] + ' - ' + z.floorRange[1],
+        flavor: z.flavor
+    }));
 
 export default class ZonePreviewScene extends Phaser.Scene {
     constructor() {
