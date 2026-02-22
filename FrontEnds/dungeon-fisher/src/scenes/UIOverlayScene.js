@@ -15,6 +15,14 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setOrigin(1, 1)
             .setDepth(1000)
             .setScrollFactor(0);
+
+        // Semi-transparent scrim — blends into dark backgrounds, provides contrast on bright ones
+        const bounds = verTxt.getBounds();
+        const pad = 4;
+        this.add.rectangle(bounds.centerX, bounds.centerY, bounds.width + pad * 2, bounds.height + pad * 2, 0x000000, 0.35)
+            .setDepth(999)
+            .setScrollFactor(0);
+
         const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
             fontSize: '11px',
             stroke: '#000000',
