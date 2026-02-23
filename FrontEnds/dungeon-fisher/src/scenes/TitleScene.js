@@ -235,15 +235,18 @@ export default class TitleScene extends Phaser.Scene {
 
     _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null) {
         const btnColor = textColor || '#aaaacc';
+        const btnTheme = { ...theme };
+        delete btnTheme.compositeKey;
+        delete btnTheme.pieceSize;
         const btn = UIButton.create(this, {
             x, y,
             label,
             style: makeStyle(TEXT_STYLES.BUTTON, { fontSize, color: btnColor }),
             color: btnColor,
-            theme,
+            theme: btnTheme,
             depth: 9,
-            padX: 14,
-            padY: 5,
+            padX: 10,
+            padY: 4,
             hoverColor: '#ffffff',
             hoverScale: 1.08,
             onClick: () => this._transitionTo(callback)
@@ -259,7 +262,7 @@ export default class TitleScene extends Phaser.Scene {
             delay,
             ease: 'Sine.InOut',
             onComplete: () => {
-                if (btn.panel) btn.panel.setAlpha(0.7);
+                if (btn.panel) btn.panel.setAlpha(0.85);
             }
         });
 
