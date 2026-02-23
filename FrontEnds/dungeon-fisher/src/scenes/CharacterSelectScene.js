@@ -12,7 +12,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
         const { width, height } = this.scale;
         const isPortrait = this.registry.get('isPortrait');
 
-        UILayout.sceneBackground(this, 'bg_title', { mode: 'contain' });
+        UILayout.sceneBackground(this, 'bg_title');
         UILayout.overlay(this, { alpha: 0.6, depth: 0 });
 
         this.add.text(width / 2, height * 0.08, 'Choose your Fisher',
