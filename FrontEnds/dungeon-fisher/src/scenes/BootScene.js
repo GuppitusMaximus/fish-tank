@@ -37,6 +37,7 @@ export default class BootScene extends Phaser.Scene {
         // Background images — load only title + save zone at boot (others load on demand)
         this.load.image('bg_title', 'backgrounds/title.png');
         this.load.image('atlas_title', 'atlases/title.png');
+        this.load.atlas('ui_gold', 'atlases/ui_gold.png', 'atlases/ui_gold.json');
         if (SaveSystem.hasSave()) {
             const saveData = SaveSystem.load();
             if (saveData) {

@@ -195,6 +195,8 @@ export const TITLE_THEME = {
         accent: 0xccaa66,
     },
     atlasKey: 'atlas_title',
+    compositeKey: 'ui_gold',
+    pieceSize: 32,
 };
 
 export const CHARACTER_THEMES = {

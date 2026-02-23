@@ -1,6 +1,8 @@
 import FISHERS from '../data/fishers.js';
 import { coverBackground } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import { themedPanel } from '../ui/ThemedPanel.js';
+import { TITLE_THEME } from '../data/themes.js';
 
 export default class CharacterSelectScene extends Phaser.Scene {
     constructor() {
@@ -30,26 +32,29 @@ export default class CharacterSelectScene extends Phaser.Scene {
     }
 
     _layoutPortrait(fisher, width, height) {
+        // Content panel behind UI elements
+        themedPanel(this, width * 0.075, height * 0.15, width * 0.85, height * 0.75, TITLE_THEME, { depth: 1, alpha: 0.7 });
+
         // Portrait image — centered
         const portrait = this.add.image(width / 2, height * 0.32, fisher.portrait);
-        portrait.setDisplaySize(100, 100);
+        portrait.setDisplaySize(100, 100).setDepth(2);
 
         // Name
         this.add.text(width / 2, height * 0.52,
             fisher.name,
             makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '16px', color: '#ffffff' })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(2);
 
         // Description
         this.add.text(width / 2, height * 0.62,
             fisher.description,
             makeStyle(TEXT_STYLES.BODY, { wordWrap: { width: width * 0.8 }, align: 'center' })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(2);
 
         // Select button
         const btn = this.add.text(width / 2, height * 0.82, '[ SELECT ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        ).setOrigin(0.5).setDepth(2).setInteractive({ useHandCursor: true });
 
         btn.on('pointerover', () => btn.setColor('#ffffff'));
         btn.on('pointerout', () => btn.setColor('#aaaacc'));
@@ -59,26 +64,29 @@ export default class CharacterSelectScene extends Phaser.Scene {
     }
 
     _layoutLandscape(fisher, width, height) {
+        // Content panel behind UI elements
+        themedPanel(this, width * 0.075, height * 0.1, width * 0.85, height * 0.8, TITLE_THEME, { depth: 1, alpha: 0.7 });
+
         // Portrait image — left-center
         const portrait = this.add.image(width * 0.3, height * 0.5, fisher.portrait);
-        portrait.setDisplaySize(80, 80);
+        portrait.setDisplaySize(80, 80).setDepth(2);
 
         // Name — right side
         this.add.text(width * 0.65, height * 0.3,
             fisher.name,
             makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '16px', color: '#ffffff' })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(2);
 
         // Description — right side
         this.add.text(width * 0.65, height * 0.5,
             fisher.description,
             makeStyle(TEXT_STYLES.BODY, { wordWrap: { width: width * 0.4 }, align: 'center' })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(2);
 
         // Select button — right side bottom
         const btn = this.add.text(width * 0.65, height * 0.78, '[ SELECT ]',
             makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        ).setOrigin(0.5).setDepth(2).setInteractive({ useHandCursor: true });
 
         btn.on('pointerover', () => btn.setColor('#ffffff'));
         btn.on('pointerout', () => btn.setColor('#aaaacc'));

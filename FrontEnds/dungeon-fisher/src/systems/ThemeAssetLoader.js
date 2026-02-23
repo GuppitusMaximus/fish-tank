@@ -17,8 +17,9 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
     const needsBg = !scene.textures.exists(zoneTheme.bgKey);
     const needsAtlas = zoneTheme.atlasKey && !scene.textures.exists(zoneTheme.atlasKey);
     const needsWide = zoneTheme.wideAtlasKey && !scene.textures.exists(zoneTheme.wideAtlasKey);
+    const needsComposite = zoneTheme.compositeKey && !scene.textures.exists(zoneTheme.compositeKey);
 
-    if (!needsBg && !needsAtlas && !needsWide) {
+    if (!needsBg && !needsAtlas && !needsWide && !needsComposite) {
         loadedZones.add(zoneTheme.id);
         if (onComplete) onComplete();
         return;
@@ -37,6 +38,10 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
     if (needsWide) {
         scene.load.image(zoneTheme.wideAtlasKey, `atlases/${zoneTheme.id}_wide.png`);
     }
+    if (needsComposite) {
+        const compositeId = zoneTheme.compositeKey;
+        scene.load.atlas(compositeId, `atlases/${compositeId}.png`, `atlases/${compositeId}.json`);
+    }
 
     scene.load.once('complete', () => {
         if (scene.textures.exists(zoneTheme.bgKey)) {
@@ -47,6 +52,9 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
         }
         if (zoneTheme.wideAtlasKey && scene.textures.exists(zoneTheme.wideAtlasKey)) {
             scene.textures.get(zoneTheme.wideAtlasKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+        }
+        if (zoneTheme.compositeKey && scene.textures.exists(zoneTheme.compositeKey)) {
+            scene.textures.get(zoneTheme.compositeKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
         }
         loadedZones.add(zoneTheme.id);
         if (onComplete) onComplete();
