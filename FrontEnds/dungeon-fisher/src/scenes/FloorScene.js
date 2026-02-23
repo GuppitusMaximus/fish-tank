@@ -76,7 +76,7 @@ export default class FloorScene extends Phaser.Scene {
         themedPanel(this, panelMargin, 0, W - panelMargin * 2, panelH, infoPanelTheme, { cornerSize: 5 });
 
         // Scrim behind panel text for readability (background shows through transparent atlas center)
-        this.add.rectangle(W / 2, panelH / 2, W - panelMargin * 2 - 20, panelH - 20, 0x000000, 0.4)
+        this.add.rectangle(W / 2, panelH / 2, W - panelMargin * 2 - 8, panelH - 8, 0x000000, 0.6)
             .setDepth(1);
 
         // Floor title
