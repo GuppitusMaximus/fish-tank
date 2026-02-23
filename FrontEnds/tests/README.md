@@ -139,6 +139,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `qa-fix-text-resolution-results.md` | Static QA report for fix-text-resolution: resolution:2 loop applied to all 13 TEXT_STYLES via `for (const key in TEXT_STYLES)` ✓, VERSION strokeThickness reduced 2→1 ✓, makeStyle function unchanged ✓, VERSION bumped 1.10.11→1.10.12 (PATCH) ✓ — **PASS**: all 4 criteria met |
 | `qa-fix-version-text-size-results.md` | Static QA report for fix-version-text-size: VERSION fontSize increased 10px→15px in textStyles.js ✓, VERSION bumped 1.10.12→1.10.13 (PATCH) ✓ — **PASS**: all 2 criteria met |
 | `qa-fix-text-smoothing-results.md` | Static QA report for fix-text-smoothing: pixelArt:true removed from main.js config ✓, BootScene.create() sets NEAREST on all game art textures (excluding __DEFAULT/__MISSING/__WHITE) ✓, ThemeAssetLoader sets NEAREST on bgKey+atlasKey after dynamic load ✓, no pixelArt:true remaining in src/ ✓, VERSION bumped 1.10.13→1.10.14 (PATCH) ✓ — **PASS**: all 5 criteria met |
+| `qa-fix-info-panel-layout-results.md` | Static QA report for fix-info-panel-layout: panelH=36+party*18 ✓, flavor text at H*0.42 (not inside panel) ✓, wordWrap:{width:100}+align:center ✓, scrim 0x000000/0.5 at depth 4 + flavor at depth 5 ✓, warm shimmer tween ✓, party bars py=36 ✓, version bump MISSING (still 0.11.0, expected 0.11.1) ✗ — **FAIL**: 6/7 criteria met. Bug filed: missing version bump |
 
 ### Test Reports
 
