@@ -482,6 +482,7 @@ The following v2 features were verified:
 | `qa-fix-zone-preview-backgrounds` | Completed | `test-zone-preview-backgrounds.sh` (20 static checks, all pass — loadZoneTheme ordering + callback verification, adjacent zone preloading index±1, BootScene no eager loading/no BACKGROUND_KEYS loop/only bg_title + save zone, all 8 zone bgKeys resolve to existing PNGs in public/backgrounds/, VERSION 1.10.1→1.10.2 PATCH bump, SAVE_FORMAT_VERSION still 3) | None (all 20 checks pass) |
 | `qa-browser-fix-zone-preview-backgrounds` | Completed | `browser/qa-fix-zone-preview-backgrounds.spec.js` (6 Playwright tests, all pass — ZONES button navigation to ZonePreviewScene, all 7 zones screenshot with no JS errors, no failed network requests navigating all zones, left boundary ArrowLeft at zone 0 is a no-op, ESC returns to TitleScene, zero texture/atlas/404 browser console errors; 13 baseline screenshots) | None (all 6 tests pass) |
 | `qa-fix-version-scrim` | Completed | `qa-fix-version-scrim-results.md` (static QA — 5 checks, all pass: scrim rectangle 0x000000/alpha 0.35, depth ordering scrim-999/text-1000, both setScrollFactor(0), 4px pad each side, VERSION 1.10.9→1.10.10 PATCH bump) | None (all 5 checks pass) |
+| `qa-fix-version-scrim-size` | Completed | `qa-fix-version-scrim-size-results.md` (static QA — 4 checks, all pass: displayWidth/displayHeight used (no getBounds()), pad=2 (was 4), alpha=0.5 (was 0.35), VERSION 1.10.13→1.10.14 PATCH bump) | None (all 4 checks pass) |
 
 The \`test_dash_qa_frontend.sh\` script was created during earlier weather dashboard QA.
 
