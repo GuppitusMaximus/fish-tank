@@ -270,7 +270,6 @@ export default class TitleScene extends Phaser.Scene {
         this.tweens.killAll();
         if (this.mistEmitter) { this.mistEmitter.destroy(); this.mistEmitter = null; }
         if (this.crystalEmitter) { this.crystalEmitter.destroy(); this.crystalEmitter = null; }
-        if (this.dripEmitter) { this.dripEmitter.destroy(); this.dripEmitter = null; }
         callback();
     }
 
