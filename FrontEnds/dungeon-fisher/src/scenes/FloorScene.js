@@ -67,35 +67,18 @@ export default class FloorScene extends Phaser.Scene {
         this.registry.set('currentZone', zone);
         this.registry.set('currentCharacter', getCharacterTheme(gs.fisherId));
 
-        // Top info panel
-        themedPanel(this, 0, 0, W, 56 + gs.party.length * 18, zone);
-
-        // Flavor text with warm shimmer sweep
-        const flavorTxt = this.add.text(W / 2, 10, getZoneByFloor(gs.floor).flavor,
-            makeStyle(TEXT_STYLES.FLAVOR, { color: '#ffffff' })
-        ).setOrigin(0.5);
-        this.tweens.addCounter({
-            from: 0, to: Math.PI * 2,
-            duration: 3000,
-            repeat: -1,
-            onUpdate: (tween) => {
-                const p = tween.getValue();
-                const l1 = 0.5 + 0.5 * Math.sin(p);
-                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
-                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 80 + l1 * 80, 30 + l1 * 30);
-                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 80 + l2 * 80, 30 + l2 * 30);
-                flavorTxt.setTint(c1, c2, c1, c2);
-            }
-        });
+        // Top info panel (no flavor text — it's in the background now)
+        const panelH = 36 + gs.party.length * 18;
+        themedPanel(this, 0, 0, W, panelH, zone);
 
         // Floor title
-        this.add.text(W / 2, 26, 'Floor ' + gs.floor + ' / 100',
+        this.add.text(W / 2, 8, 'Floor ' + gs.floor + ' / 100',
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         ).setOrigin(0.5);
 
         // Gold + Inventory
         const character = getCharacterTheme(gs.fisherId);
-        this.add.text(W / 2, 42, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
+        this.add.text(W / 2, 24, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
             makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: accentHex(character) })
         ).setOrigin(0.5);
 
@@ -103,7 +86,7 @@ export default class FloorScene extends Phaser.Scene {
         const isPortrait = this.registry.get('isPortrait');
         const barX = isPortrait ? Math.floor(W * 0.4) : 120;
         const barW = isPortrait ? Math.floor(W * 0.22) : 60;
-        let py = 56;
+        let py = 36;
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
             this.add.text(10, py, fish.name + ' Lv.' + fish.level,
@@ -125,6 +108,37 @@ export default class FloorScene extends Phaser.Scene {
                 makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#aaaaaa' : '#cc4444' })
             );
             py += 18;
+        });
+
+        // Flavor text — centered in background (archway area)
+        const flavorY = Math.floor(H * 0.42);
+        const flavorTxt = this.add.text(W / 2, flavorY, getZoneByFloor(gs.floor).flavor,
+            makeStyle(TEXT_STYLES.FLAVOR, {
+                color: '#ffffff',
+                fontSize: '14px',
+                align: 'center',
+                wordWrap: { width: 100 }
+            })
+        ).setOrigin(0.5).setDepth(5);
+
+        // Scrim behind flavor text
+        const sw = flavorTxt.displayWidth + 12;
+        const sh = flavorTxt.displayHeight + 12;
+        this.add.rectangle(W / 2, flavorY, sw, sh, 0x000000, 0.5).setDepth(4);
+
+        // Warm shimmer sweep
+        this.tweens.addCounter({
+            from: 0, to: Math.PI * 2,
+            duration: 3000,
+            repeat: -1,
+            onUpdate: (tween) => {
+                const p = tween.getValue();
+                const l1 = 0.5 + 0.5 * Math.sin(p);
+                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 80 + l1 * 80, 30 + l1 * 30);
+                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 80 + l2 * 80, 30 + l2 * 30);
+                flavorTxt.setTint(c1, c2, c1, c2);
+            }
         });
 
         // Action cards
