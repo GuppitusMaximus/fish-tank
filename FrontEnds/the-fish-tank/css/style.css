@@ -143,7 +143,7 @@ nav a.active {
     -webkit-overflow-scrolling: touch;
 }
 
-#tank, #arena, #sky, #dungeon {
+#tank, #arena, #sky {
     position: relative;
     width: 94vw;
     max-width: 1200px;
@@ -151,6 +151,15 @@ nav a.active {
     border-radius: 12px;
     overflow: hidden;
     cursor: crosshair;
+}
+
+#dungeon {
+    position: relative;
+    width: 94vw;
+    max-width: 1200px;
+    height: 100vh;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 #tank.active, #arena.active, #sky.active, #dungeon.active {
@@ -1439,7 +1448,8 @@ nav a.active {
 @media (max-width: 600px) {
     /* --- Existing rules (keep as-is) --- */
     h1 { font-size: 1rem; }
-    #tank, #arena, #sky, #dungeon { width: 98vw; height: calc(100vh - 5rem); border-radius: 8px; }
+    #tank, #arena, #sky { width: 98vw; height: calc(100vh - 5rem); border-radius: 8px; }
+    #dungeon { width: 98vw; height: 100vh; border-radius: 8px; }
     .sandy-bottom { height: 30px; border-radius: 0 0 7px 7px; }
     .muddy-ground { height: 35px; border-radius: 0 0 7px 7px; }
     .plant-1 { height: 60px; }
