@@ -238,6 +238,7 @@ export default class TitleScene extends Phaser.Scene {
         const btnTheme = { ...theme };
         delete btnTheme.compositeKey;
         delete btnTheme.pieceSize;
+        delete btnTheme.atlasKey;
         const btn = UIButton.create(this, {
             x, y,
             label,
