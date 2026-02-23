@@ -120,12 +120,71 @@ export default class FloorScene extends Phaser.Scene {
                 align: 'center',
                 wordWrap: { width: 100 }
             })
-        ).setOrigin(0.5).setDepth(5);
+        ).setOrigin(0.5).setDepth(6);
 
-        // Scrim behind flavor text
-        const sw = flavorTxt.displayWidth + 12;
-        const sh = flavorTxt.displayHeight + 12;
-        this.add.rectangle(W / 2, flavorY, sw, sh, 0x000000, 0.5).setDepth(4);
+        // Animated scrim layers behind flavor text
+        const fw = flavorTxt.displayWidth;
+        const fh = flavorTxt.displayHeight;
+        const fpad = 6;
+
+        // Outer soft glow (largest, most transparent)
+        const vign3 = this.add.rectangle(W / 2, flavorY, fw + fpad * 6, fh + fpad * 6, 0x000000, 0.15)
+            .setDepth(3);
+        // Middle layer
+        const vign2 = this.add.rectangle(W / 2, flavorY, fw + fpad * 4, fh + fpad * 4, 0x000000, 0.25)
+            .setDepth(3);
+        // Inner layer (darkest)
+        const scrim = this.add.rectangle(W / 2, flavorY, fw + fpad * 2, fh + fpad * 2, 0x000000, 0.45)
+            .setDepth(5);
+
+        // Zone-colored glow border
+        const accentColor = zone.panel.accent;
+        const glowBorder = this.add.rectangle(W / 2, flavorY, fw + fpad * 3, fh + fpad * 3, accentColor, 0.2)
+            .setDepth(4);
+
+        // Expanding reveal — scrim layers start collapsed, expand out
+        [vign3, vign2, scrim, glowBorder].forEach(r => r.setScale(0, 1));
+        flavorTxt.setAlpha(0);
+
+        this.tweens.add({
+            targets: [scrim, vign2, vign3, glowBorder],
+            scaleX: 1,
+            duration: 600,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                this.tweens.add({ targets: flavorTxt, alpha: 1, duration: 400 });
+            }
+        });
+
+        // Breathing pulse — scrim alpha oscillates slowly
+        this.tweens.add({
+            targets: scrim,
+            alpha: { from: 0.35, to: 0.55 },
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        this.tweens.add({
+            targets: glowBorder,
+            alpha: { from: 0.1, to: 0.3 },
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Floating drift — scrim + text bob gently
+        const floatTargets = [vign3, vign2, scrim, glowBorder, flavorTxt];
+        this.tweens.add({
+            targets: floatTargets,
+            y: '-=2',
+            duration: 2500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
 
         // Warm shimmer sweep
         this.tweens.addCounter({
