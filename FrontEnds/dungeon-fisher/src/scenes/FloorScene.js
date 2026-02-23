@@ -70,7 +70,10 @@ export default class FloorScene extends Phaser.Scene {
         // Top info panel (no flavor text — it's in the background now)
         const panelH = 36 + gs.party.length * 18;
         const panelMargin = 8;
-        themedPanel(this, panelMargin, 0, W - panelMargin * 2, panelH, zone, { cornerSize: 5 });
+        const infoPanelTheme = zone.wideAtlasKey && this.textures.exists(zone.wideAtlasKey)
+            ? { ...zone, atlasKey: zone.wideAtlasKey }
+            : zone;
+        themedPanel(this, panelMargin, 0, W - panelMargin * 2, panelH, infoPanelTheme, { cornerSize: 5 });
 
         // Floor title
         this.add.text(W / 2, 8, 'Floor ' + gs.floor + ' / 100',

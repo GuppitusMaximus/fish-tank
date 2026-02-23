@@ -16,8 +16,9 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
 
     const needsBg = !scene.textures.exists(zoneTheme.bgKey);
     const needsAtlas = zoneTheme.atlasKey && !scene.textures.exists(zoneTheme.atlasKey);
+    const needsWide = zoneTheme.wideAtlasKey && !scene.textures.exists(zoneTheme.wideAtlasKey);
 
-    if (!needsBg && !needsAtlas) {
+    if (!needsBg && !needsAtlas && !needsWide) {
         loadedZones.add(zoneTheme.id);
         if (onComplete) onComplete();
         return;
@@ -33,6 +34,9 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
             `atlases/${zoneTheme.id}.png`
         );
     }
+    if (needsWide) {
+        scene.load.image(zoneTheme.wideAtlasKey, `atlases/${zoneTheme.id}_wide.png`);
+    }
 
     scene.load.once('complete', () => {
         if (scene.textures.exists(zoneTheme.bgKey)) {
@@ -40,6 +44,9 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
         }
         if (scene.textures.exists(zoneTheme.atlasKey)) {
             scene.textures.get(zoneTheme.atlasKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+        }
+        if (zoneTheme.wideAtlasKey && scene.textures.exists(zoneTheme.wideAtlasKey)) {
+            scene.textures.get(zoneTheme.wideAtlasKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
         }
         loadedZones.add(zoneTheme.id);
         if (onComplete) onComplete();
@@ -68,6 +75,9 @@ export function unloadZoneTheme(scene, zoneTheme) {
     if (!loadedZones.has(zoneTheme.id)) return;
     if (zoneTheme.atlasKey && scene.textures.exists(zoneTheme.atlasKey)) {
         scene.textures.remove(zoneTheme.atlasKey);
+    }
+    if (zoneTheme.wideAtlasKey && scene.textures.exists(zoneTheme.wideAtlasKey)) {
+        scene.textures.remove(zoneTheme.wideAtlasKey);
     }
     loadedZones.delete(zoneTheme.id);
 }

@@ -18,6 +18,7 @@ export const ZONE_THEMES = {
         },
         shimmer: { base: [40, 180, 40], range: [30, 75, 30] },
         atlasKey: 'atlas_sewers',
+        wideAtlasKey: 'atlas_sewers_wide',
         shop: {
             cardKey: 'card_shop_sewers',
             bgKey: 'bg_shop_sewers',
