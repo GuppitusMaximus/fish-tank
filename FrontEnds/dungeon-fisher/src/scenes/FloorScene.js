@@ -204,11 +204,16 @@ export default class FloorScene extends Phaser.Scene {
 
         // Action cards
         const shopAvailable = gs.floor >= (gs.nextShopFloor || 1);
-        const cards = [{ type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#cc9966' }];
+        const cards = [
+            { type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#cc9966',
+              shimmer: { base: [200, 140, 80], range: [55, 60, 40] } },
+        ];
         if (shopAvailable) {
-            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ccaa44' });
+            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ccaa44',
+                shimmer: { base: [200, 180, 50], range: [55, 55, 40] } });
         }
-        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66' });
+        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66',
+            shimmer: { base: [80, 180, 80], range: [40, 75, 40] } });
 
         const cardH = Math.min(84, H - py - 50);
         const cardW = Math.floor(cardH * 0.85);
@@ -223,7 +228,6 @@ export default class FloorScene extends Phaser.Scene {
             'camp':  { x: W - cardW - margin, y: topY }
         };
 
-        const cardLabels = [];
         cards.forEach((card) => {
             const pos = positions[card.type];
             const cx = pos.x;
@@ -248,7 +252,21 @@ export default class FloorScene extends Phaser.Scene {
             const label = this.add.text(midX, cy + cardH - inset - 2, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5);
-            cardLabels.push(label);
+            // Per-card shimmer tween
+            const sh = card.shimmer;
+            this.tweens.addCounter({
+                from: 0, to: Math.PI * 2,
+                duration: 3000,
+                repeat: -1,
+                onUpdate: (tween) => {
+                    const p = tween.getValue();
+                    const l1 = 0.5 + 0.5 * Math.sin(p);
+                    const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                    const c1 = Phaser.Display.Color.GetColor(sh.base[0] + l1 * sh.range[0], sh.base[1] + l1 * sh.range[1], sh.base[2] + l1 * sh.range[2]);
+                    const c2 = Phaser.Display.Color.GetColor(sh.base[0] + l2 * sh.range[0], sh.base[1] + l2 * sh.range[1], sh.base[2] + l2 * sh.range[2]);
+                    label.setTint(c1, c2, c1, c2);
+                }
+            });
 
             // Hit zone
             const hit = this.add.rectangle(midX, midY, cardW, cardH, 0xffffff, 0)
@@ -280,20 +298,6 @@ export default class FloorScene extends Phaser.Scene {
             }
         });
 
-        // Card label shimmer — warm gold, same across all zones
-        this.tweens.addCounter({
-            from: 0, to: Math.PI * 2,
-            duration: 3000,
-            repeat: -1,
-            onUpdate: (tween) => {
-                const p = tween.getValue();
-                const l1 = 0.5 + 0.5 * Math.sin(p);
-                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
-                const c1 = Phaser.Display.Color.GetColor(180 + l1 * 75, 160 + l1 * 70, 100 + l1 * 50);
-                const c2 = Phaser.Display.Color.GetColor(180 + l2 * 75, 160 + l2 * 70, 100 + l2 * 50);
-                cardLabels.forEach(lbl => lbl.setTint(c1, c2, c1, c2));
-            }
-        });
     }
 
     showFloorReward() {
