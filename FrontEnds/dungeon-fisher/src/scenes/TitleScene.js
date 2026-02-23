@@ -187,7 +187,7 @@ export default class TitleScene extends Phaser.Scene {
         const masterY = firstBtnY - 18 - masterPad;
         const masterPanel = new UIPanel(this, {
             x: masterX, y: masterY, width: masterW, height: masterH,
-            theme: TITLE_THEME, depth: 5, fx: false
+            theme: TITLE_THEME, depth: 5, fx: false, fillAlpha: 0.3
         });
         masterPanel.bg.setAlpha(0);
         this.tweens.add({
