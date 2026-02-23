@@ -1,11 +1,10 @@
 import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
-import { coverBackground } from '../utils/zones.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import { themedPanel } from '../ui/ThemedPanel.js';
 import { TITLE_THEME, getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
+import { UIPanel, UIButton, UILayout } from '../ui/index.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -24,7 +23,8 @@ export default class TitleScene extends Phaser.Scene {
         this._createParticleTextures();
 
         // Title background with slow Ken Burns zoom
-        this.bg = coverBackground(this, 'bg_title', 'contain');
+        const { bg } = UILayout.sceneBackground(this, 'bg_title', { mode: 'contain' });
+        this.bg = bg;
         this.bg.setDepth(0);
         this.tweens.add({
             targets: this.bg,
@@ -37,8 +37,7 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Dark overlay
-        const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
-        overlay.setDepth(1);
+        UILayout.overlay(this, { alpha: 0.4 });
 
         // Rising mist particles from the abyss (bottom third)
         this.mistEmitter = this.add.particles(0, 0, 'particle_soft', {
@@ -186,10 +185,13 @@ export default class TitleScene extends Phaser.Scene {
         const masterH = (lastBtnY - firstBtnY) + 36 + masterPad * 2;
         const masterX = width / 2 - masterW / 2;
         const masterY = firstBtnY - 18 - masterPad;
-        const masterPanel = themedPanel(this, masterX, masterY, masterW, masterH, TITLE_THEME, { depth: 5 });
-        masterPanel.setAlpha(0);
+        const masterPanel = new UIPanel(this, {
+            x: masterX, y: masterY, width: masterW, height: masterH,
+            theme: TITLE_THEME, depth: 5
+        });
+        masterPanel.bg.setAlpha(0);
         this.tweens.add({
-            targets: masterPanel,
+            targets: masterPanel.bg,
             alpha: 0.6,
             duration: 800,
             delay: 3200,
@@ -233,74 +235,50 @@ export default class TitleScene extends Phaser.Scene {
 
     _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null) {
         const btnColor = textColor || '#aaaacc';
-        const text = this.add.text(x, y + 15, label,
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize, color: btnColor })
-        ).setOrigin(0.5).setAlpha(0).setDepth(10);
-
-        // Themed panel behind text
-        const padX = 22, padY = 8;
-        const pw = text.width + padX * 2;
-        const ph = text.height + padY * 2;
-        const panel = themedPanel(this, x - pw / 2, y + 15 - ph / 2, pw, ph, theme, { depth: 9 });
-        panel.setAlpha(0);
-
-        // Extend hit area to cover full panel
-        text.setInteractive(
-            new Phaser.Geom.Rectangle(text.width / 2 - pw / 2, text.height / 2 - ph / 2, pw, ph),
-            Phaser.Geom.Rectangle.Contains
-        );
-        text.input.cursor = 'pointer';
-
-        // Hover effects
-        let hoverTween = null;
-        text.on('pointerover', () => {
-            text.setColor('#ffffff');
-            if (hoverTween) hoverTween.stop();
-            hoverTween = this.tweens.add({
-                targets: text,
-                scaleX: 1.08,
-                scaleY: 1.08,
-                duration: 150,
-                ease: 'Back.Out'
-            });
-            panel.setAlpha(1);
+        const btn = UIButton.create(this, {
+            x, y,
+            label,
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize, color: btnColor }),
+            color: btnColor,
+            theme,
+            depth: 9,
+            padX: 22,
+            padY: 8,
+            hoverColor: '#ffffff',
+            hoverScale: 1.08,
+            onClick: () => this._transitionTo(callback)
         });
-        text.on('pointerout', () => {
-            text.setColor(btnColor);
-            if (hoverTween) hoverTween.stop();
-            hoverTween = this.tweens.add({
-                targets: text,
-                scaleX: 1,
-                scaleY: 1,
-                duration: 150
-            });
-            panel.setAlpha(0.7);
-        });
-        text.on('pointerdown', () => this._transitionTo(callback));
+
+        // Start 15px below final position, invisible
+        btn.text.y += 15;
+        if (btn.panel) btn.panel.y += 15;
+        btn.text.setAlpha(0);
+        if (btn.panel) btn.panel.setAlpha(0);
 
         // Entrance: slide up + fade in
         this.tweens.add({
-            targets: [text, panel],
+            targets: [btn.text, btn.panel].filter(Boolean),
             y: '-=15',
             alpha: { from: 0, to: 0.7 },
             duration: 600,
-            delay: delay,
+            delay,
             ease: 'Back.Out',
             onComplete: () => {
-                text.setAlpha(1);
-                // Idle: subtle panel breathing
-                this.tweens.add({
-                    targets: panel,
-                    alpha: { from: 0.6, to: 0.8 },
-                    duration: 2500,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.InOut'
-                });
+                btn.text.setAlpha(1);
+                if (btn.panel) {
+                    this.tweens.add({
+                        targets: btn.panel,
+                        alpha: { from: 0.6, to: 0.8 },
+                        duration: 2500,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.InOut'
+                    });
+                }
             }
         });
 
-        return { text, panel };
+        return btn;
     }
 
     _transitionTo(callback) {
@@ -312,14 +290,12 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     showStarterSelection() {
-        // Clear scene
         this.children.removeAll();
 
         const { width, height } = this.scale;
 
-        // Title background with dark overlay for readability
-        coverBackground(this, 'bg_title', 'contain');
-        this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+        UILayout.sceneBackground(this, 'bg_title', { mode: 'contain' });
+        UILayout.overlay(this, { alpha: 0.6, depth: 0 });
 
         this.add.text(width / 2, 20, 'Choose your starter fish:',
             makeStyle(TEXT_STYLES.TITLE_SMALL, { color: '#ccccee' })
@@ -345,12 +321,13 @@ export default class TitleScene extends Phaser.Scene {
                     makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
                 );
 
-                const btn = this.add.text(width - 40, y, '[ SELECT ]',
-                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
-                ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-                btn.on('pointerover', () => btn.setColor('#ffffff'));
-                btn.on('pointerout', () => btn.setColor('#aaaacc'));
-                btn.on('pointerdown', () => this.startNewGame(species.id));
+                UIButton.create(this, {
+                    x: width - 40, y,
+                    label: '[ SELECT ]',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+                    hoverColor: '#ffffff',
+                    onClick: () => this.startNewGame(species.id)
+                });
             });
         } else {
             const startX = width / 2 - (starters.length - 1) * 60;
@@ -374,12 +351,13 @@ export default class TitleScene extends Phaser.Scene {
                     makeStyle(TEXT_STYLES.FLAVOR, { fontSize: '10px', wordWrap: { width: 110 }, align: 'center' })
                 ).setOrigin(0.5);
 
-                const btn = this.add.text(x, y + 45, '[ SELECT ]',
-                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
-                ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-                btn.on('pointerover', () => btn.setColor('#ffffff'));
-                btn.on('pointerout', () => btn.setColor('#aaaacc'));
-                btn.on('pointerdown', () => this.startNewGame(species.id));
+                UIButton.create(this, {
+                    x, y: y + 45,
+                    label: '[ SELECT ]',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+                    hoverColor: '#ffffff',
+                    onClick: () => this.startNewGame(species.id)
+                });
             });
         }
     }
