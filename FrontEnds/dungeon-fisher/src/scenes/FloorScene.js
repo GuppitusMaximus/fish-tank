@@ -256,7 +256,8 @@ export default class FloorScene extends Phaser.Scene {
             img.setScale(imgScale).setDepth(1);
 
             // Label — inside the bottom content area, with stroke for readability
-            const label = this.add.text(midX, cy + cardH - inset - 2, card.label,
+            const imgBottom = img.y + (img.height * imgScale) / 2;
+            const label = this.add.text(midX, imgBottom + 6, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5).setDepth(3);
             // Per-card shimmer tween
