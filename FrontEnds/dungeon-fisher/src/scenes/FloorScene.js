@@ -135,8 +135,9 @@ export default class FloorScene extends Phaser.Scene {
                 const p = tween.getValue();
                 const l1 = 0.5 + 0.5 * Math.sin(p);
                 const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
-                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 80 + l1 * 80, 30 + l1 * 30);
-                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 80 + l2 * 80, 30 + l2 * 30);
+                const s = zone.shimmer;
+                const c1 = Phaser.Display.Color.GetColor(s.base[0] + l1 * s.range[0], s.base[1] + l1 * s.range[1], s.base[2] + l1 * s.range[2]);
+                const c2 = Phaser.Display.Color.GetColor(s.base[0] + l2 * s.range[0], s.base[1] + l2 * s.range[1], s.base[2] + l2 * s.range[2]);
                 flavorTxt.setTint(c1, c2, c1, c2);
             }
         });

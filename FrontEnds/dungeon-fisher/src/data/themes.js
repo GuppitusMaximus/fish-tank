@@ -16,6 +16,7 @@ export const ZONE_THEMES = {
             ambientColor: 0x44aa44, ambientAlpha: 0.10,
             mist: { tints: [0x88aa66, 0xaabb88, 0x669944], y: [0.65, 1.0], frequency: 150, quantity: 2 }
         },
+        shimmer: { base: [40, 180, 40], range: [30, 75, 30] },
         atlasKey: 'atlas_sewers',
         shop: {
             cardKey: 'card_shop_sewers',
@@ -41,6 +42,7 @@ export const ZONE_THEMES = {
             ambientColor: 0xff6600, ambientAlpha: 0.10,
             mist: { tints: [0x553322, 0x664433], y: [0.7, 1.0], frequency: 250, quantity: 1 }
         },
+        shimmer: { base: [200, 100, 30], range: [55, 60, 30] },
         atlasKey: 'atlas_goblin_caves',
         shop: {
             cardKey: 'card_shop_goblin',
@@ -66,6 +68,7 @@ export const ZONE_THEMES = {
             ambientColor: 0x6633aa, ambientAlpha: 0.12,
             mist: { tints: [0x9977bb, 0x886699, 0x7755aa], y: [0.5, 1.0], frequency: 150, quantity: 2 }
         },
+        shimmer: { base: [160, 100, 180], range: [40, 55, 40] },
         atlasKey: 'atlas_bone_crypts',
         shop: {
             cardKey: 'card_shop_crypts',
@@ -91,6 +94,7 @@ export const ZONE_THEMES = {
             ambientColor: 0x33cccc, ambientAlpha: 0.10,
             mist: { tints: [0x66ccdd, 0x88ddee, 0x44bbcc], y: [0.6, 1.0], frequency: 140, quantity: 2 }
         },
+        shimmer: { base: [50, 180, 200], range: [30, 55, 40] },
         atlasKey: 'atlas_deep_dungeon',
         shop: {
             cardKey: 'card_shop_deep',
@@ -116,6 +120,7 @@ export const ZONE_THEMES = {
             ambientColor: 0x6644cc, ambientAlpha: 0.14,
             mist: { tints: [0x6633aa, 0x442288], y: [0.6, 1.0], frequency: 180, quantity: 2 }
         },
+        shimmer: { base: [170, 50, 200], range: [55, 40, 55] },
         atlasKey: 'atlas_shadow_realm',
         shop: {
             cardKey: 'card_shop_shadow',
@@ -141,6 +146,7 @@ export const ZONE_THEMES = {
             ambientColor: 0x4488ff, ambientAlpha: 0.12,
             mist: { tints: [0x4466aa, 0x5577bb], y: [0.65, 1.0], frequency: 200, quantity: 1 }
         },
+        shimmer: { base: [200, 160, 60], range: [55, 60, 30] },
         atlasKey: 'atlas_ancient_chambers',
         shop: {
             cardKey: 'card_shop_ancient',
@@ -166,6 +172,7 @@ export const ZONE_THEMES = {
             ambientColor: 0xcc0022, ambientAlpha: 0.15,
             mist: { tints: [0x332244, 0x221133, 0x441155], y: [0.5, 1.0], frequency: 120, quantity: 2 }
         },
+        shimmer: { base: [200, 40, 50], range: [55, 40, 30] },
         atlasKey: 'atlas_dungeon_heart',
         shop: {
             cardKey: 'card_shop_heart',
