@@ -27,5 +27,36 @@ function createNineSlicePanel(scene, x, y, w, h, theme, opts) {
   ns.setDepth(opts.depth || 0);
   ns.setAlpha(opts.alpha !== undefined ? opts.alpha : 1);
   ns.setScrollFactor(0);
+
+  // FX — shine sweep across the surface
+  if (ns.preFX && opts.fx !== false) {
+    ns.preFX.addShine(0.8, 0.3, 3);
+  }
+
+  // Glow — zone-colored, starts subtle
+  if (ns.preFX && opts.fx !== false && theme.panel) {
+    const glow = ns.preFX.addGlow(theme.panel.accent, 0, 0, false, 0.1, 16);
+    scene.tweens.add({
+      targets: glow,
+      outerStrength: 2,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+  }
+
+  // Scale entrance — pop in from 0.95
+  if (opts.fx !== false) {
+    ns.setScale(0.95);
+    scene.tweens.add({
+      targets: ns,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 400,
+      ease: 'Back.easeOut'
+    });
+  }
+
   return ns;
 }
