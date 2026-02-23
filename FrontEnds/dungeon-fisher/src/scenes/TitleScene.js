@@ -180,8 +180,8 @@ export default class TitleScene extends Phaser.Scene {
         // Master container wrapping all title buttons
         const firstBtnY = height * 0.36;
         const lastBtnY = height * 0.50;
-        const masterPad = 20;
-        const masterW = 180;
+        const masterPad = 24;
+        const masterW = 200;
         const masterH = (lastBtnY - firstBtnY) + 36 + masterPad * 2;
         const masterX = width / 2 - masterW / 2;
         const masterY = firstBtnY - 18 - masterPad;
@@ -209,8 +209,8 @@ export default class TitleScene extends Phaser.Scene {
                 () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme));
         }
 
-        this._createTitleButton(width / 2, height * 0.50, 'ZONES',
-            () => this.scene.start('ZonePreviewScene'), 3900, '14px', TITLE_THEME);
+        this._createTitleButton(width / 2, height * 0.50, 'OPTIONS',
+            () => {}, 3900, '14px', TITLE_THEME);
 
     }
 
@@ -242,39 +242,24 @@ export default class TitleScene extends Phaser.Scene {
             color: btnColor,
             theme,
             depth: 9,
-            padX: 22,
-            padY: 8,
+            padX: 14,
+            padY: 5,
             hoverColor: '#ffffff',
             hoverScale: 1.08,
             onClick: () => this._transitionTo(callback)
         });
 
-        // Start 15px below final position, invisible
-        btn.text.y += 15;
-        if (btn.panel) btn.panel.y += 15;
         btn.text.setAlpha(0);
         if (btn.panel) btn.panel.setAlpha(0);
 
-        // Entrance: slide up + fade in
         this.tweens.add({
             targets: [btn.text, btn.panel].filter(Boolean),
-            y: '-=15',
-            alpha: { from: 0, to: 0.7 },
-            duration: 600,
+            alpha: { from: 0, to: 1 },
+            duration: 500,
             delay,
-            ease: 'Back.Out',
+            ease: 'Sine.InOut',
             onComplete: () => {
-                btn.text.setAlpha(1);
-                if (btn.panel) {
-                    this.tweens.add({
-                        targets: btn.panel,
-                        alpha: { from: 0.6, to: 0.8 },
-                        duration: 2500,
-                        yoyo: true,
-                        repeat: -1,
-                        ease: 'Sine.InOut'
-                    });
-                }
+                if (btn.panel) btn.panel.setAlpha(0.7);
             }
         });
 
