@@ -16,7 +16,7 @@ echo ""
 # --continue-on-collection-errors   — note import failures, don't abort the run
 # --ignore-glob='tests/__pycache__' — skip cache dirs
 cd "$TESTS_DIR/.."
-python -m pytest tests/ -v --tb=short --continue-on-collection-errors --ignore-glob='tests/__pycache__' || EXIT_CODE=$?
+python3 -m pytest tests/ -v --tb=short --continue-on-collection-errors --ignore-glob='tests/__pycache__' || EXIT_CODE=$?
 EXIT_CODE=${EXIT_CODE:-0}
 
 echo ""
