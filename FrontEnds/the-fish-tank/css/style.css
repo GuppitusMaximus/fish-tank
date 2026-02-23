@@ -159,7 +159,6 @@ nav a.active {
     max-width: 1200px;
     height: 100vh;
     border-radius: 12px;
-    overflow: hidden;
 }
 
 #tank.active, #arena.active, #sky.active, #dungeon.active {
@@ -1705,6 +1704,7 @@ nav a.active {
 body.theme-dungeon {
     background: #0a0808;
     color: #c8b8a0;
+    overflow-y: auto;
 }
 
 #dungeon {
