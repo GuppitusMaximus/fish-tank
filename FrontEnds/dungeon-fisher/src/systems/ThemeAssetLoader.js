@@ -35,6 +35,12 @@ export function loadZoneTheme(scene, zoneTheme, onComplete) {
     }
 
     scene.load.once('complete', () => {
+        if (scene.textures.exists(zoneTheme.bgKey)) {
+            scene.textures.get(zoneTheme.bgKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+        }
+        if (scene.textures.exists(zoneTheme.atlasKey)) {
+            scene.textures.get(zoneTheme.atlasKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+        }
         loadedZones.add(zoneTheme.id);
         if (onComplete) onComplete();
     });

@@ -70,6 +70,13 @@ export default class BootScene extends Phaser.Scene {
     }
 
     create() {
+        this.textures.each((key) => {
+            if (key !== '__DEFAULT' && key !== '__MISSING' && key !== '__WHITE') {
+                const tex = this.textures.get(key);
+                tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
+            }
+        });
+
         this.scene.launch('UIOverlay');
         this.scene.start('TitleScene');
     }
