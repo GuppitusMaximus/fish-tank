@@ -248,16 +248,19 @@ export default class FloorScene extends Phaser.Scene {
             // Inset matching the NineSlice corner size for this card
             const inset = Math.min(16, Math.floor(Math.min(cardW, cardH) / 12));
 
-            // Card image — fit within the border's content area
+            // Card image — fill the full content area
             const contentH = cardH - inset * 2;
-            const labelSpace = 14;
-            const img = this.add.image(midX, cy + inset + (contentH - labelSpace) / 2, card.key);
-            const imgScale = Math.min((cardW - inset * 2) / img.width, (contentH - labelSpace) / img.height);
+            const img = this.add.image(midX, cy + inset + contentH / 2, card.key);
+            const imgScale = Math.min((cardW - inset * 2) / img.width, contentH / img.height);
             img.setScale(imgScale).setDepth(1);
 
-            // Label — inside the bottom content area, with stroke for readability
-            const imgBottom = img.y + (img.height * imgScale) / 2;
-            const label = this.add.text(midX, imgBottom + 6, card.label,
+            // Dark scrim behind label — overlays the atlas bottom border
+            const scrimH = 14;
+            const scrimY = cy + cardH - inset - scrimH / 2;
+            this.add.rectangle(midX, scrimY, cardW - inset * 2, scrimH, 0x000000, 0.75)
+                .setDepth(2.5).setScrollFactor(0);
+
+            const label = this.add.text(midX, scrimY, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5).setDepth(3);
             // Per-card shimmer tween
