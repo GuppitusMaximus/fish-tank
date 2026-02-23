@@ -164,6 +164,7 @@ export default class FloorScene extends Phaser.Scene {
             'camp':  { x: W - cardW - margin, y: topY }
         };
 
+        const cardLabels = [];
         cards.forEach((card) => {
             const pos = positions[card.type];
             const cx = pos.x;
@@ -188,17 +189,18 @@ export default class FloorScene extends Phaser.Scene {
             const label = this.add.text(midX, cy + cardH - inset - 2, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5);
+            cardLabels.push(label);
 
             // Hit zone
             const hit = this.add.rectangle(midX, midY, cardW, cardH, 0xffffff, 0)
                 .setInteractive({ useHandCursor: true });
 
             hit.on('pointerover', () => {
-                label.setColor('#ffffff');
+                label.setTint(0xffffff);
                 img.setTint(0xdddddd);
             });
             hit.on('pointerout', () => {
-                label.setColor(card.color);
+                label.clearTint();
                 img.clearTint();
             });
 
@@ -216,6 +218,21 @@ export default class FloorScene extends Phaser.Scene {
                 hit.on('pointerdown', () => {
                     this.scene.start('CampScene', { gameState: gs });
                 });
+            }
+        });
+
+        // Card label shimmer — warm gold, same across all zones
+        this.tweens.addCounter({
+            from: 0, to: Math.PI * 2,
+            duration: 3000,
+            repeat: -1,
+            onUpdate: (tween) => {
+                const p = tween.getValue();
+                const l1 = 0.5 + 0.5 * Math.sin(p);
+                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                const c1 = Phaser.Display.Color.GetColor(180 + l1 * 75, 160 + l1 * 70, 100 + l1 * 50);
+                const c2 = Phaser.Display.Color.GetColor(180 + l2 * 75, 160 + l2 * 70, 100 + l2 * 50);
+                cardLabels.forEach(lbl => lbl.setTint(c1, c2, c1, c2));
             }
         });
     }
