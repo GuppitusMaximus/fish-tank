@@ -243,7 +243,7 @@ export default class FloorScene extends Phaser.Scene {
             const midY = cy + cardH / 2;
 
             // Panel frame
-            themedPanel(this, cx, cy, cardW, cardH, zone);
+            themedPanel(this, cx, cy, cardW, cardH, zone, { depth: 2 });
 
             // Inset matching the NineSlice corner size for this card
             const inset = Math.min(16, Math.floor(Math.min(cardW, cardH) / 12));
@@ -253,12 +253,12 @@ export default class FloorScene extends Phaser.Scene {
             const labelSpace = 14;
             const img = this.add.image(midX, cy + inset + (contentH - labelSpace) / 2, card.key);
             const imgScale = Math.min((cardW - inset * 2) / img.width, (contentH - labelSpace) / img.height);
-            img.setScale(imgScale);
+            img.setScale(imgScale).setDepth(1);
 
             // Label — inside the bottom content area, with stroke for readability
             const label = this.add.text(midX, cy + cardH - inset - 2, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
-            ).setOrigin(0.5);
+            ).setOrigin(0.5).setDepth(3);
             // Per-card shimmer tween
             const sh = card.shimmer;
             this.tweens.addCounter({
@@ -277,7 +277,7 @@ export default class FloorScene extends Phaser.Scene {
 
             // Hit zone
             const hit = this.add.rectangle(midX, midY, cardW, cardH, 0xffffff, 0)
-                .setInteractive({ useHandCursor: true });
+                .setDepth(4).setInteractive({ useHandCursor: true });
 
             hit.on('pointerover', () => {
                 label.setTint(0xffffff);
