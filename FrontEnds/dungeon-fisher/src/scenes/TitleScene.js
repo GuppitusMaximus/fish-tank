@@ -192,7 +192,7 @@ export default class TitleScene extends Phaser.Scene {
         masterPanel.bg.setAlpha(0);
         this.tweens.add({
             targets: masterPanel.bg,
-            alpha: 0.6,
+            alpha: 0.9,
             duration: 800,
             delay: 3200,
             ease: 'Sine.InOut'
