@@ -184,6 +184,7 @@ export default class BattleScene extends Phaser.Scene {
             case 'poison_tick': this._onPoisonTick(e); break;
             case 'heal': this._onHeal(e); break;
             case 'buff_applied': this._onBuffApplied(e); break;
+            case 'buff_expired': this._onBuffExpired(e); break;
         }
     }
 
@@ -314,6 +315,19 @@ export default class BattleScene extends Phaser.Scene {
             const spr = this.fishSprites[e.fishIndex];
             if (spr) {
                 spr.setTint(0xffd700);
+                this.time.delayedCall(300, () => spr.clearTint());
+            }
+        }
+    }
+
+    _onBuffExpired(e) {
+        if (e.target === 'monster') {
+            this.monsterSpr.setTint(0x999999);
+            this.time.delayedCall(300, () => this.monsterSpr.clearTint());
+        } else {
+            const spr = this.fishSprites[e.fishIndex];
+            if (spr) {
+                spr.setTint(0x999999);
                 this.time.delayedCall(300, () => spr.clearTint());
             }
         }
