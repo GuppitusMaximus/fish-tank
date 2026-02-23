@@ -1,10 +1,829 @@
 {
-  "generated_at": "2026-02-23T10:02:08Z",
+  "generated_at": "2026-02-23T10:22:09Z",
   "schedule": {
     "cron": "0,20,40 * * * *",
-    "next_run": "2026-02-23T10:20:00Z"
+    "next_run": "2026-02-23T10:40:00Z"
   },
-  "latest": null,
-  "runs": [],
-  "stats": null
+  "latest": {
+    "id": 22301938268,
+    "status": "completed",
+    "conclusion": "success",
+    "event": "workflow_dispatch",
+    "created_at": "2026-02-23T10:20:39Z",
+    "updated_at": "2026-02-23T10:21:59Z",
+    "duration_seconds": 80,
+    "duration_display": "1m 20s",
+    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22301938268"
+  },
+  "runs": [
+    {
+      "id": 22301938268,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T10:20:39Z",
+      "duration_seconds": 80,
+      "duration_display": "1m 20s"
+    },
+    {
+      "id": 22301263603,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T10:00:42Z",
+      "duration_seconds": 77,
+      "duration_display": "1m 17s"
+    },
+    {
+      "id": 22300559851,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T09:40:39Z",
+      "duration_seconds": 83,
+      "duration_display": "1m 23s"
+    },
+    {
+      "id": 22299882090,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T09:20:39Z",
+      "duration_seconds": 94,
+      "duration_display": "1m 34s"
+    },
+    {
+      "id": 22299247350,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T09:00:39Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22298645707,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T08:40:39Z",
+      "duration_seconds": 83,
+      "duration_display": "1m 23s"
+    },
+    {
+      "id": 22298072769,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T08:20:39Z",
+      "duration_seconds": 78,
+      "duration_display": "1m 18s"
+    },
+    {
+      "id": 22297527486,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T08:00:39Z",
+      "duration_seconds": 77,
+      "duration_display": "1m 17s"
+    },
+    {
+      "id": 22297031466,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T07:40:39Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22296530309,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T07:20:28Z",
+      "duration_seconds": 85,
+      "duration_display": "1m 25s"
+    },
+    {
+      "id": 22296066594,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T07:00:28Z",
+      "duration_seconds": 90,
+      "duration_display": "1m 30s"
+    },
+    {
+      "id": 22295610532,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T06:40:28Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22295153185,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T06:20:28Z",
+      "duration_seconds": 86,
+      "duration_display": "1m 26s"
+    },
+    {
+      "id": 22294731847,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T06:00:28Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22294327782,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T05:40:28Z",
+      "duration_seconds": 77,
+      "duration_display": "1m 17s"
+    },
+    {
+      "id": 22293931011,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T05:20:28Z",
+      "duration_seconds": 75,
+      "duration_display": "1m 15s"
+    },
+    {
+      "id": 22293548718,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T05:00:28Z",
+      "duration_seconds": 87,
+      "duration_display": "1m 27s"
+    },
+    {
+      "id": 22293153785,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T04:40:28Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22292782287,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T04:20:28Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22292424688,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T04:00:28Z",
+      "duration_seconds": 87,
+      "duration_display": "1m 27s"
+    },
+    {
+      "id": 22292070759,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T03:40:28Z",
+      "duration_seconds": 75,
+      "duration_display": "1m 15s"
+    },
+    {
+      "id": 22291735302,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T03:20:28Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22291365733,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T03:00:28Z",
+      "duration_seconds": 79,
+      "duration_display": "1m 19s"
+    },
+    {
+      "id": 22291033719,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T02:40:28Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22290700694,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T02:20:28Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22290356989,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T02:00:28Z",
+      "duration_seconds": 93,
+      "duration_display": "1m 33s"
+    },
+    {
+      "id": 22290013174,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T01:40:28Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22289665716,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T01:20:28Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22289314478,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T01:00:28Z",
+      "duration_seconds": 69,
+      "duration_display": "1m 9s"
+    },
+    {
+      "id": 22288954185,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T00:40:28Z",
+      "duration_seconds": 77,
+      "duration_display": "1m 17s"
+    },
+    {
+      "id": 22288591130,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T00:20:39Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22288233963,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-23T00:00:47Z",
+      "duration_seconds": 68,
+      "duration_display": "1m 8s"
+    },
+    {
+      "id": 22287916025,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T23:40:39Z",
+      "duration_seconds": 73,
+      "duration_display": "1m 13s"
+    },
+    {
+      "id": 22287593164,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T23:20:39Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22287255891,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T23:00:45Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22286922608,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T22:40:40Z",
+      "duration_seconds": 79,
+      "duration_display": "1m 19s"
+    },
+    {
+      "id": 22286593194,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T22:20:40Z",
+      "duration_seconds": 73,
+      "duration_display": "1m 13s"
+    },
+    {
+      "id": 22286246141,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T22:00:46Z",
+      "duration_seconds": 73,
+      "duration_display": "1m 13s"
+    },
+    {
+      "id": 22285916397,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T21:40:41Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22285582219,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T21:20:42Z",
+      "duration_seconds": 84,
+      "duration_display": "1m 24s"
+    },
+    {
+      "id": 22285242963,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T21:00:50Z",
+      "duration_seconds": 75,
+      "duration_display": "1m 15s"
+    },
+    {
+      "id": 22284918222,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T20:40:41Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22284599502,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T20:20:45Z",
+      "duration_seconds": 105,
+      "duration_display": "1m 45s"
+    },
+    {
+      "id": 22284265191,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T20:00:49Z",
+      "duration_seconds": 69,
+      "duration_display": "1m 9s"
+    },
+    {
+      "id": 22283942702,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T19:40:44Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22283629417,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T19:20:49Z",
+      "duration_seconds": 69,
+      "duration_display": "1m 9s"
+    },
+    {
+      "id": 22283312319,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T19:00:53Z",
+      "duration_seconds": 68,
+      "duration_display": "1m 8s"
+    },
+    {
+      "id": 22283002756,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T18:40:44Z",
+      "duration_seconds": 72,
+      "duration_display": "1m 12s"
+    },
+    {
+      "id": 22282688587,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T18:20:44Z",
+      "duration_seconds": 73,
+      "duration_display": "1m 13s"
+    },
+    {
+      "id": 22282364773,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T18:00:58Z",
+      "duration_seconds": 68,
+      "duration_display": "1m 8s"
+    },
+    {
+      "id": 22282050021,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T17:40:43Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22281727484,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T17:20:48Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22281398442,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T17:00:30Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22281089449,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T16:40:30Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22280776703,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T16:20:29Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22280448950,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T16:00:30Z",
+      "duration_seconds": 89,
+      "duration_display": "1m 29s"
+    },
+    {
+      "id": 22280137031,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T15:40:30Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22279816140,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T15:20:30Z",
+      "duration_seconds": 77,
+      "duration_display": "1m 17s"
+    },
+    {
+      "id": 22279494559,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T15:00:30Z",
+      "duration_seconds": 87,
+      "duration_display": "1m 27s"
+    },
+    {
+      "id": 22279190552,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T14:40:30Z",
+      "duration_seconds": 83,
+      "duration_display": "1m 23s"
+    },
+    {
+      "id": 22278882777,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T14:20:29Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22278567018,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T14:00:30Z",
+      "duration_seconds": 73,
+      "duration_display": "1m 13s"
+    },
+    {
+      "id": 22278261457,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T13:40:30Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22277948727,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T13:20:30Z",
+      "duration_seconds": 80,
+      "duration_display": "1m 20s"
+    },
+    {
+      "id": 22277638580,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T13:00:31Z",
+      "duration_seconds": 69,
+      "duration_display": "1m 9s"
+    },
+    {
+      "id": 22277335548,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T12:40:30Z",
+      "duration_seconds": 79,
+      "duration_display": "1m 19s"
+    },
+    {
+      "id": 22277028247,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T12:20:30Z",
+      "duration_seconds": 77,
+      "duration_display": "1m 17s"
+    },
+    {
+      "id": 22276721179,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T12:00:31Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22276427256,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T11:40:30Z",
+      "duration_seconds": 68,
+      "duration_display": "1m 8s"
+    },
+    {
+      "id": 22276132909,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T11:20:30Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22275833588,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T11:00:31Z",
+      "duration_seconds": 93,
+      "duration_display": "1m 33s"
+    },
+    {
+      "id": 22275548611,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T10:40:30Z",
+      "duration_seconds": 91,
+      "duration_display": "1m 31s"
+    },
+    {
+      "id": 22275261627,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T10:20:30Z",
+      "duration_seconds": 75,
+      "duration_display": "1m 15s"
+    },
+    {
+      "id": 22274962307,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T10:00:31Z",
+      "duration_seconds": 78,
+      "duration_display": "1m 18s"
+    },
+    {
+      "id": 22274678179,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T09:40:39Z",
+      "duration_seconds": 78,
+      "duration_display": "1m 18s"
+    },
+    {
+      "id": 22274400173,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T09:20:39Z",
+      "duration_seconds": 88,
+      "duration_display": "1m 28s"
+    },
+    {
+      "id": 22274101291,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T09:00:45Z",
+      "duration_seconds": 76,
+      "duration_display": "1m 16s"
+    },
+    {
+      "id": 22273815819,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T08:40:41Z",
+      "duration_seconds": 70,
+      "duration_display": "1m 10s"
+    },
+    {
+      "id": 22273530311,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T08:20:41Z",
+      "duration_seconds": 74,
+      "duration_display": "1m 14s"
+    },
+    {
+      "id": 22273253459,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T08:00:56Z",
+      "duration_seconds": 72,
+      "duration_display": "1m 12s"
+    },
+    {
+      "id": 22272973277,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T07:40:44Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22272697989,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T07:20:43Z",
+      "duration_seconds": 78,
+      "duration_display": "1m 18s"
+    },
+    {
+      "id": 22272437153,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T07:00:58Z",
+      "duration_seconds": 81,
+      "duration_display": "1m 21s"
+    },
+    {
+      "id": 22272171063,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T06:40:45Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22271896612,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T06:20:46Z",
+      "duration_seconds": 78,
+      "duration_display": "1m 18s"
+    },
+    {
+      "id": 22271628890,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T06:01:03Z",
+      "duration_seconds": 69,
+      "duration_display": "1m 9s"
+    },
+    {
+      "id": 22271343740,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T05:40:47Z",
+      "duration_seconds": 75,
+      "duration_display": "1m 15s"
+    },
+    {
+      "id": 22271082289,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T05:20:44Z",
+      "duration_seconds": 10,
+      "duration_display": "0m 10s"
+    },
+    {
+      "id": 22270830631,
+      "conclusion": "failure",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T05:00:48Z",
+      "duration_seconds": 66,
+      "duration_display": "1m 6s"
+    },
+    {
+      "id": 22270573329,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T04:40:46Z",
+      "duration_seconds": 68,
+      "duration_display": "1m 8s"
+    },
+    {
+      "id": 22270305520,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T04:20:47Z",
+      "duration_seconds": 65,
+      "duration_display": "1m 5s"
+    },
+    {
+      "id": 22270041028,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T04:00:54Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22269789955,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T03:40:43Z",
+      "duration_seconds": 71,
+      "duration_display": "1m 11s"
+    },
+    {
+      "id": 22269539978,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T03:20:43Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22269275124,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T03:00:58Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22269017255,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T02:40:33Z",
+      "duration_seconds": 69,
+      "duration_display": "1m 9s"
+    },
+    {
+      "id": 22268761072,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T02:20:33Z",
+      "duration_seconds": 63,
+      "duration_display": "1m 3s"
+    },
+    {
+      "id": 22268476326,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T02:00:34Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    },
+    {
+      "id": 22268220070,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T01:40:33Z",
+      "duration_seconds": 65,
+      "duration_display": "1m 5s"
+    },
+    {
+      "id": 22267955772,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-22T01:20:33Z",
+      "duration_seconds": 67,
+      "duration_display": "1m 7s"
+    }
+  ],
+  "stats": {
+    "total_runs": 100,
+    "success_count": 93,
+    "failure_count": 7,
+    "success_rate": 93.0,
+    "avg_duration_seconds": 74,
+    "avg_duration_display": "1m 14s",
+    "period_hours": 48
+  }
 }
