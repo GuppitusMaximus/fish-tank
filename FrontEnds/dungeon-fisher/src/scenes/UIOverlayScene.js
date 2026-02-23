@@ -16,10 +16,11 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setDepth(1000)
             .setScrollFactor(0);
 
-        // Semi-transparent scrim — blends into dark backgrounds, provides contrast on bright ones
-        const bounds = verTxt.getBounds();
-        const pad = 4;
-        this.add.rectangle(bounds.centerX, bounds.centerY, bounds.width + pad * 2, bounds.height + pad * 2, 0x000000, 0.35)
+        const pad = 2;
+        const sw = verTxt.displayWidth + pad * 2;
+        const sh = verTxt.displayHeight + pad * 2;
+        this.add.rectangle(verTxt.x - verTxt.displayWidth / 2, verTxt.y - verTxt.displayHeight / 2, sw, sh, 0x000000, 0.5)
+            .setOrigin(0.5)
             .setDepth(999)
             .setScrollFactor(0);
 
