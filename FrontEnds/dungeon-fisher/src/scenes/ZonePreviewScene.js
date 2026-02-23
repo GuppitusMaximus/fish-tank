@@ -2,7 +2,7 @@ import { coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ZONE_THEMES } from '../data/themes.js';
-import { themedPanel } from '../ui/ThemedPanel.js';
+import { UIPanel, UIButton } from '../ui/index.js';
 import { loadZoneTheme } from '../systems/ThemeAssetLoader.js';
 
 const ZONES = Object.values(ZONE_THEMES)
@@ -47,35 +47,42 @@ export default class ZonePreviewScene extends Phaser.Scene {
             coverBackground(this, zone.key);
             this.effectsHandle = addEffects(this, zone.key);
 
-            // Themed panels for text readability
-            themedPanel(this, 0, 0, width, 40, zone.theme, { alpha: 0.85 });
-            themedPanel(this, 0, height - 44, width, 44, zone.theme, { alpha: 0.85 });
+            // Top panel — zone name + floor range
+            const topPanel = new UIPanel(this, {
+                x: 0, y: 0, width, height: 40, theme: zone.theme, alpha: 0.85, padding: 0
+            });
+            topPanel.addText(zone.name,
+                makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' }),
+                { align: 'center', offsetY: 10 }
+            );
+            topPanel.addText('Floors ' + zone.floors,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' }),
+                { align: 'center', offsetY: 26 }
+            );
 
-            // Zone name
-            this.add.text(width / 2, 10, zone.name,
-                makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' })
-            ).setOrigin(0.5);
-
-            // Floor range
-            this.add.text(width / 2, 26, 'Floors ' + zone.floors,
-                makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
-            ).setOrigin(0.5);
-
-            // Flavor text
-            this.add.text(width / 2, height - 32, zone.flavor,
-                makeStyle(TEXT_STYLES.FLAVOR, { color: '#aaaacc' })
-            ).setOrigin(0.5);
+            // Bottom panel — flavor text
+            const bottomPanel = new UIPanel(this, {
+                x: 0, y: height - 44, width, height: 44, theme: zone.theme, alpha: 0.85, padding: 0
+            });
+            bottomPanel.addText(zone.flavor,
+                makeStyle(TEXT_STYLES.FLAVOR, { color: '#aaaacc' }),
+                { align: 'center', offsetY: 12 }
+            );
 
             // Theme sample panel
             const sampleW = width * 0.6;
             const sampleH = 70;
             const sampleX = (width - sampleW) / 2;
             const sampleY = height * 0.4;
-            themedPanel(this, sampleX, sampleY, sampleW, sampleH, zone.theme, { alpha: 0.9 });
             const accentHex = '#' + zone.theme.panel.accent.toString(16).padStart(6, '0');
-            this.add.text(width / 2, sampleY + sampleH / 2, 'Theme Preview',
-                makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex })
-            ).setOrigin(0.5);
+            const samplePanel = new UIPanel(this, {
+                x: sampleX, y: sampleY, width: sampleW, height: sampleH,
+                theme: zone.theme, alpha: 0.9, padding: 0
+            });
+            samplePanel.addText('Theme Preview',
+                makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex }),
+                { align: 'center', offsetY: sampleH / 2 - 5 }
+            );
 
             // Dot indicators
             const dotY = height - 18;
@@ -89,32 +96,43 @@ export default class ZonePreviewScene extends Phaser.Scene {
             }
 
             // Back button
-            const backBtn = this.add.text(width / 2, height - 7, '[ BACK ]',
-                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' })
-            ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-            backBtn.on('pointerover', () => backBtn.setColor('#ffffff'));
-            backBtn.on('pointerout', () => backBtn.setColor('#aaaacc'));
-            backBtn.on('pointerdown', () => this.scene.start('TitleScene'));
+            UIButton.create(this, {
+                x: width / 2, y: height - 7,
+                label: '[ BACK ]',
+                style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' }),
+                hoverColor: '#ffffff',
+                onClick: () => this.scene.start('TitleScene')
+            });
 
             // Navigation arrows
-            const leftArrow = this.add.text(8, height / 2, '<',
-                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '18px', color: index > 0 ? '#aaaacc' : '#333344' })
-            ).setOrigin(0, 0.5);
             if (index > 0) {
-                leftArrow.setInteractive({ useHandCursor: true });
-                leftArrow.on('pointerover', () => leftArrow.setColor('#ffffff'));
-                leftArrow.on('pointerout', () => leftArrow.setColor('#aaaacc'));
-                leftArrow.on('pointerdown', () => this.navigate(-1));
+                UIButton.create(this, {
+                    x: 8, y: height / 2,
+                    label: '<',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '18px' }),
+                    origin: { x: 0, y: 0.5 },
+                    hoverColor: '#ffffff',
+                    onClick: () => this.navigate(-1)
+                });
+            } else {
+                this.add.text(8, height / 2, '<',
+                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '18px', color: '#333344' })
+                ).setOrigin(0, 0.5);
             }
 
-            const rightArrow = this.add.text(width - 8, height / 2, '>',
-                makeStyle(TEXT_STYLES.BUTTON, { fontSize: '18px', color: index < ZONES.length - 1 ? '#aaaacc' : '#333344' })
-            ).setOrigin(1, 0.5);
             if (index < ZONES.length - 1) {
-                rightArrow.setInteractive({ useHandCursor: true });
-                rightArrow.on('pointerover', () => rightArrow.setColor('#ffffff'));
-                rightArrow.on('pointerout', () => rightArrow.setColor('#aaaacc'));
-                rightArrow.on('pointerdown', () => this.navigate(1));
+                UIButton.create(this, {
+                    x: width - 8, y: height / 2,
+                    label: '>',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '18px' }),
+                    origin: { x: 1, y: 0.5 },
+                    hoverColor: '#ffffff',
+                    onClick: () => this.navigate(1)
+                });
+            } else {
+                this.add.text(width - 8, height / 2, '>',
+                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '18px', color: '#333344' })
+                ).setOrigin(1, 0.5);
             }
 
             this.currentIndex = index;

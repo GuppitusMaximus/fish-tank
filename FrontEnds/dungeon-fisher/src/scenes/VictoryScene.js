@@ -1,7 +1,8 @@
 import SaveSystem from '../systems/SaveSystem.js';
-import { getBackgroundKey, coverBackground } from '../utils/zones.js';
+import { coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
+import { UIButton, UILayout } from '../ui/index.js';
 
 export default class VictoryScene extends Phaser.Scene {
     constructor() {
@@ -20,7 +21,7 @@ export default class VictoryScene extends Phaser.Scene {
         // Dungeon heart background (floor 100 boss arena)
         coverBackground(this, 'bg_dungeon-heart');
         addEffects(this, 'bg_dungeon-heart');
-        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.35);
+        UILayout.overlay(this, { alpha: 0.35, depth: 0 });
 
         // Title
         this.add.text(W / 2, H * 0.15, '\u2605  DUNGEON CLEARED  \u2605',
@@ -56,14 +57,15 @@ export default class VictoryScene extends Phaser.Scene {
         ).setOrigin(0.5);
 
         // Play again
-        const btn = this.add.text(W / 2, H * 0.78, '[ PLAY AGAIN ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffffff'));
-        btn.on('pointerout', () => btn.setColor('#aaaacc'));
-        btn.on('pointerdown', () => {
-            SaveSystem.deleteSave();
-            this.scene.start('TitleScene');
+        UIButton.create(this, {
+            x: W / 2, y: H * 0.78,
+            label: '[ PLAY AGAIN ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '16px' }),
+            hoverColor: '#ffffff',
+            onClick: () => {
+                SaveSystem.deleteSave();
+                this.scene.start('TitleScene');
+            }
         });
     }
 }

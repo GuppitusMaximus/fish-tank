@@ -1,7 +1,7 @@
 import { VERSION } from '../version.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { themedPanel } from '../ui/ThemedPanel.js';
+import { UIPanel, UIButton, UIList, UILayout } from '../ui/index.js';
 import { TITLE_THEME, accentHex } from '../data/themes.js';
 
 export default class UIOverlayScene extends Phaser.Scene {
@@ -24,60 +24,61 @@ export default class UIOverlayScene extends Phaser.Scene {
             .setDepth(999)
             .setScrollFactor(0);
 
-        const menuBtn = this.add.text(4, height - 18, '[ MENU ]', makeStyle(TEXT_STYLES.BUTTON, {
-            fontSize: '11px',
-            stroke: '#000000',
-            strokeThickness: 2
-        }))
-            .setDepth(1000)
-            .setScrollFactor(0)
-            .setInteractive({ useHandCursor: true });
-
-        menuBtn.on('pointerover', () => menuBtn.setColor('#ffffff'));
-        menuBtn.on('pointerout', () => menuBtn.setColor('#aaaacc'));
-
-        menuBtn.on('pointerdown', () => {
-            this.closeInventory();
-            const scenesToStop = [
-                'TitleScene', 'CharacterSelectScene', 'FloorScene', 'BattleScene',
-                'ShopScene', 'CampScene', 'VictoryScene', 'ZonePreviewScene'
-            ];
-            for (const key of scenesToStop) {
-                if (this.scene.isActive(key)) {
-                    this.scene.stop(key);
+        this.menuBtn = UIButton.create(this, {
+            x: 4, y: height - 18,
+            label: '[ MENU ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, {
+                fontSize: '11px',
+                stroke: '#000000',
+                strokeThickness: 2
+            }),
+            depth: 999,
+            origin: { x: 0, y: 0 },
+            hoverColor: '#ffffff',
+            onClick: () => {
+                this.closeInventory();
+                const scenesToStop = [
+                    'TitleScene', 'CharacterSelectScene', 'FloorScene', 'BattleScene',
+                    'ShopScene', 'CampScene', 'VictoryScene', 'ZonePreviewScene'
+                ];
+                for (const key of scenesToStop) {
+                    if (this.scene.isActive(key)) {
+                        this.scene.stop(key);
+                    }
                 }
+                this.scene.run('TitleScene', {});
             }
-            this.scene.run('TitleScene', {});
         });
+        this.menuBtn.setVisible(false);
 
-        this.menuBtn = menuBtn;
-        menuBtn.setVisible(false);
-
-        const bagBtn = this.add.text(menuBtn.x + menuBtn.width + 6, height - 18, '[ BAG ]', makeStyle(TEXT_STYLES.BUTTON, {
-            fontSize: '11px',
-            stroke: '#000000',
-            strokeThickness: 2
-        }))
-            .setDepth(1000)
-            .setScrollFactor(0)
-            .setInteractive({ useHandCursor: true });
-
-        bagBtn.on('pointerover', () => bagBtn.setColor('#ffffff'));
-        bagBtn.on('pointerout', () => bagBtn.setColor('#aaaacc'));
-        bagBtn.on('pointerdown', () => this.toggleInventory());
-
-        this.bagBtn = bagBtn;
-        bagBtn.setVisible(false);
+        this.bagBtn = UIButton.create(this, {
+            x: this.menuBtn.text.x + this.menuBtn.text.width + 6, y: height - 18,
+            label: '[ BAG ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, {
+                fontSize: '11px',
+                stroke: '#000000',
+                strokeThickness: 2
+            }),
+            depth: 999,
+            origin: { x: 0, y: 0 },
+            hoverColor: '#ffffff',
+            onClick: () => this.toggleInventory()
+        });
+        this.bagBtn.setVisible(false);
 
         // Scrim sized to actual button bounds
-        const mb = menuBtn.getBounds();
-        const bb = bagBtn.getBounds();
+        const mb = this.menuBtn.text.getBounds();
+        const bb = this.bagBtn.text.getBounds();
         this._scrimX = mb.x - 4;
         this._scrimW = (bb.x + bb.width) - mb.x + 8;
         this._scrimH = Math.max(mb.height, bb.height) + 6;
         this._scrimY = mb.y + mb.height / 2;
         const scrimTheme = this.registry.get('currentZone') || TITLE_THEME;
-        this.btnScrim = themedPanel(this, this._scrimX, this._scrimY - this._scrimH / 2, this._scrimW, this._scrimH, scrimTheme, { depth: 999 });
+        this.btnScrim = new UIPanel(this, {
+            x: this._scrimX, y: this._scrimY - this._scrimH / 2,
+            width: this._scrimW, height: this._scrimH,
+            theme: scrimTheme, depth: 999, padding: 0
+        });
         this.btnScrim.setVisible(false);
 
         this.inventoryElements = [];
@@ -97,8 +98,11 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         this.registry.events.on('changedata-currentZone', (parent, value) => {
             if (this.btnScrim) { this.btnScrim.destroy(); }
-            this.btnScrim = themedPanel(this, this._scrimX, this._scrimY - this._scrimH / 2,
-                this._scrimW, this._scrimH, value, { depth: 999 });
+            this.btnScrim = new UIPanel(this, {
+                x: this._scrimX, y: this._scrimY - this._scrimH / 2,
+                width: this._scrimW, height: this._scrimH,
+                theme: value, depth: 999, padding: 0
+            });
         });
     }
 
@@ -117,10 +121,8 @@ export default class UIOverlayScene extends Phaser.Scene {
         const { width: W, height: H } = this.scale;
         const isPortrait = this.registry.get('isPortrait');
 
-        const blocker = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.6)
-            .setDepth(1001)
-            .setScrollFactor(0)
-            .setInteractive();
+        const blocker = UILayout.overlay(this, { depth: 1001, alpha: 0.6 });
+        blocker.setInteractive();
         blocker.on('pointerdown', () => {});
         this.inventoryElements.push(blocker);
 
@@ -130,9 +132,11 @@ export default class UIOverlayScene extends Phaser.Scene {
         const panelH = H - panelY * 2;
 
         const character = this.registry.get('currentCharacter') || TITLE_THEME;
-        const bg = themedPanel(this, panelX, panelY, panelW, panelH, character, { alpha: 0.95, depth: 1002 });
-        bg.setScrollFactor(0);
-        this.inventoryElements.push(bg);
+        const panel = new UIPanel(this, {
+            x: panelX, y: panelY, width: panelW, height: panelH,
+            theme: character, alpha: 0.95, depth: 1002, childDepth: 1002, padding: 0
+        });
+        this.inventoryElements.push(panel);
 
         const centerX = W / 2;
         const contentLeft = panelX + 12;
@@ -160,52 +164,56 @@ export default class UIOverlayScene extends Phaser.Scene {
         const slotStartY = panelY + 32;
         const slotSpacing = isPortrait ? 22 : 18;
 
+        const list = new UIList(this, {
+            x: contentLeft, y: slotStartY, spacing: slotSpacing, depth: 1002
+        });
         for (let i = 0; i < MAX_INVENTORY; i++) {
-            const y = slotStartY + i * slotSpacing;
             const itemId = gameState.inventory[i];
-
-            if (itemId) {
-                const item = ITEMS[itemId];
-                const nameText = this.add.text(contentLeft, y, `${i + 1}. ${item.name}`,
-                    makeStyle(TEXT_STYLES.BODY, { color: accentHex(character) }))
-                    .setDepth(1002).setScrollFactor(0);
-                this.inventoryElements.push(nameText);
-
-                const descX = contentLeft + (isPortrait ? 100 : 140);
-                const descText = this.add.text(descX, y, item.description,
-                    makeStyle(TEXT_STYLES.BODY_SMALL))
-                    .setDepth(1002).setScrollFactor(0);
-                this.inventoryElements.push(descText);
-            } else {
-                const emptyText = this.add.text(contentLeft, y, `${i + 1}. - empty -`,
-                    makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#555566' }))
-                    .setDepth(1002).setScrollFactor(0);
-                this.inventoryElements.push(emptyText);
-            }
+            list.addRow((x, y) => {
+                if (itemId) {
+                    const item = ITEMS[itemId];
+                    const nameText = this.add.text(x, y, `${i + 1}. ${item.name}`,
+                        makeStyle(TEXT_STYLES.BODY, { color: accentHex(character) }))
+                        .setDepth(1002);
+                    const descX = x + (isPortrait ? 100 : 140);
+                    const descText = this.add.text(descX, y, item.description,
+                        makeStyle(TEXT_STYLES.BODY_SMALL))
+                        .setDepth(1002);
+                    return [nameText, descText];
+                } else {
+                    const emptyText = this.add.text(x, y, `${i + 1}. - empty -`,
+                        makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#555566' }))
+                        .setDepth(1002);
+                    return [emptyText];
+                }
+            });
         }
+        this.inventoryElements.push(list);
 
         const btnY = panelY + panelH - 16;
 
-        const sortBtn = this.add.text(centerX - 50, btnY, '[ SORT ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px', stroke: '#000000', strokeThickness: 2 }))
-            .setOrigin(0.5).setDepth(1002).setScrollFactor(0)
-            .setInteractive({ useHandCursor: true });
-        sortBtn.on('pointerover', () => sortBtn.setColor('#ffffff'));
-        sortBtn.on('pointerout', () => sortBtn.setColor('#aaaacc'));
-        sortBtn.on('pointerdown', () => {
-            this.sortInventory(gameState);
-            this.closeInventory();
-            this.openInventory();
+        const sortBtn = UIButton.create(this, {
+            x: centerX - 50, y: btnY,
+            label: '[ SORT ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px', stroke: '#000000', strokeThickness: 2 }),
+            depth: 1001,
+            hoverColor: '#ffffff',
+            onClick: () => {
+                this.sortInventory(gameState);
+                this.closeInventory();
+                this.openInventory();
+            }
         });
         this.inventoryElements.push(sortBtn);
 
-        const closeBtn = this.add.text(centerX + 50, btnY, '[ CLOSE ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px', stroke: '#000000', strokeThickness: 2 }))
-            .setOrigin(0.5).setDepth(1002).setScrollFactor(0)
-            .setInteractive({ useHandCursor: true });
-        closeBtn.on('pointerover', () => closeBtn.setColor('#ffffff'));
-        closeBtn.on('pointerout', () => closeBtn.setColor('#aaaacc'));
-        closeBtn.on('pointerdown', () => this.closeInventory());
+        const closeBtn = UIButton.create(this, {
+            x: centerX + 50, y: btnY,
+            label: '[ CLOSE ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px', stroke: '#000000', strokeThickness: 2 }),
+            depth: 1001,
+            hoverColor: '#ffffff',
+            onClick: () => this.closeInventory()
+        });
         this.inventoryElements.push(closeBtn);
     }
 

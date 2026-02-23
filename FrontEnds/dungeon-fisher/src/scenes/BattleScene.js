@@ -6,7 +6,7 @@ import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import { themedPanel } from '../ui/ThemedPanel.js';
+import { UIPanel } from '../ui/index.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 
 export default class BattleScene extends Phaser.Scene {
@@ -55,15 +55,22 @@ export default class BattleScene extends Phaser.Scene {
         addEffects(this, bgKey);
 
         // Floor indicator (top-right)
-        themedPanel(this, W - 74, 4, 70, 20, zone);
-        this.add.text(W - 10, 8, 'Floor ' + this.gameState.floor,
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) })
-        ).setOrigin(1, 0);
+        const floorPanel = new UIPanel(this, {
+            x: W - 74, y: 4, width: 70, height: 20, theme: zone, padding: 6
+        });
+        floorPanel.addText('Floor ' + this.gameState.floor,
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) }),
+            { align: 'right', offsetY: -2 }
+        );
 
         // --- Monster ---
         // Name
-        themedPanel(this, 2, 2, W * 0.5, 22, zone);
-        this.add.text(10, 6, this.monster.name, TEXT_STYLES.MONSTER_NAME);
+        const namePanel = new UIPanel(this, {
+            x: 2, y: 2, width: W * 0.5, height: 22, theme: zone, padding: 6
+        });
+        namePanel.addText(this.monster.name, TEXT_STYLES.MONSTER_NAME,
+            { offsetX: 2, offsetY: -2 }
+        );
 
         // Monster HP bar
         this.add.graphics().fillStyle(0x333333, 1).fillRect(L.monsterHpX, L.monsterHpY, L.monsterHpW, 8);
@@ -112,16 +119,23 @@ export default class BattleScene extends Phaser.Scene {
         this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH / 2 + 0.5,
             L.hpBarW + 2, L.hpBarH + 2, 0x222222);
         this.partyHpBar = this.add.graphics();
-        themedPanel(this, L.hpBarX + L.hpBarW * 0.3, L.hpBarY + L.hpBarH + 2, L.hpBarW * 0.4, 16, character);
-        this.partyHpTxt = this.add.text(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH + 4, '',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex(character), fontSize: '10px' })
-        ).setOrigin(0.5, 0);
+        const hpLabelPanel = new UIPanel(this, {
+            x: L.hpBarX + L.hpBarW * 0.3, y: L.hpBarY + L.hpBarH + 2,
+            width: L.hpBarW * 0.4, height: 16, theme: character, padding: 2
+        });
+        this.partyHpTxt = hpLabelPanel.addText('',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex(character), fontSize: '10px' }),
+            { align: 'center' }
+        );
 
         // --- Message text ---
-        themedPanel(this, 0, H - 30, W, 30, zone);
-        this.msgTxt = this.add.text(W / 2, H - 16, '',
-            makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc', align: 'center' })
-        ).setOrigin(0.5);
+        const msgPanel = new UIPanel(this, {
+            x: 0, y: H - 30, width: W, height: 30, theme: zone, padding: 0
+        });
+        this.msgTxt = msgPanel.addText('',
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc', align: 'center' }),
+            { align: 'center', offsetY: 8 }
+        );
 
         // Initial bar draws
         this._drawMonsterHp();
