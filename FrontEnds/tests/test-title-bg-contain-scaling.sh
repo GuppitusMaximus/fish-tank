@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Test: Title Background Contain Scaling
-# Plan: qa-title-bg-contain-scaling
+# Plan: qa-title-bg-contain-scaling (updated by qa-browser-title-bg-cover-mode)
 # Verifies that coverBackground() supports an optional 'contain' mode using
-# Math.min scaling, and that TitleScene uses it for bg_title while all other
-# scenes continue using the default 'cover' mode.
+# Math.min scaling, and that all scenes use the default 'cover' mode (no 'contain').
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$SCRIPT_DIR/../dungeon-fisher/src"
@@ -40,16 +39,23 @@ check "coverBackground uses Math.min for contain scaling" $?
 grep -q "Math.max(W / img.width, H / img.height)" "$ZONES"
 check "coverBackground still uses Math.max for cover scaling" $?
 
-# 4. TitleScene create() calls coverBackground with 'contain'
-grep -q "coverBackground(this, 'bg_title', 'contain')" "$SCENES/TitleScene.js"
-check "TitleScene.create() calls coverBackground with 'contain' mode" $?
+# 4. TitleScene does NOT pass 'contain' to UILayout.sceneBackground (uses cover mode)
+grep -q "'contain'" "$SCENES/TitleScene.js"
+not_found=$?
+[ "$not_found" -ne 0 ]
+check "TitleScene does not pass 'contain' (uses default cover mode)" $?
 
-# 5. TitleScene showStarterSelection() also calls coverBackground with 'contain'
-count=$(grep -c "coverBackground(this, 'bg_title', 'contain')" "$SCENES/TitleScene.js" 2>/dev/null || echo 0)
-[ "$count" -eq 2 ]
-check "TitleScene has 2 calls to coverBackground with 'contain' (create + showStarterSelection)" $?
+# 5. CharacterSelectScene does NOT pass 'contain' to UILayout.sceneBackground
+grep -q "'contain'" "$SCENES/CharacterSelectScene.js"
+not_found=$?
+[ "$not_found" -ne 0 ]
+check "CharacterSelectScene does not pass 'contain' (uses default cover mode)" $?
 
-# 6. No other scene files pass 'contain' to coverBackground
+# 6. TitleScene uses UILayout.sceneBackground for bg_title (cover behavior)
+grep -q "UILayout.sceneBackground(this, 'bg_title')" "$SCENES/TitleScene.js"
+check "TitleScene uses UILayout.sceneBackground for bg_title" $?
+
+# 7. No other scene files pass 'contain' to coverBackground
 for scene in FloorScene BattleScene CampScene ShopScene VictoryScene ZonePreviewScene; do
     file="$SCENES/${scene}.js"
     grep -q "'contain'" "$file" 2>/dev/null
@@ -58,14 +64,20 @@ for scene in FloorScene BattleScene CampScene ShopScene VictoryScene ZonePreview
     check "${scene} does not pass 'contain' to coverBackground" $?
 done
 
-# 7. All non-title scene call sites use no mode argument (default cover)
-for scene in FloorScene BattleScene CampScene ShopScene VictoryScene; do
+# 8. All non-title scene call sites use no mode argument (default cover)
+# Only check scenes that actually call coverBackground directly
+for scene in BattleScene ShopScene VictoryScene; do
     file="$SCENES/${scene}.js"
-    # Verify coverBackground calls don't have a third argument
-    count=$(grep -c "coverBackground(this, [^,)]*)" "$file" 2>/dev/null || echo 0)
-    calls=$(grep -c "coverBackground(this," "$file" 2>/dev/null || echo 0)
-    [ "$count" -eq "$calls" ]
-    check "${scene} all coverBackground calls use default mode (no third argument)" $?
+    if grep -q "coverBackground(this," "$file" 2>/dev/null; then
+        # Scene calls coverBackground directly — verify no third argument
+        count=$(grep -c "coverBackground(this, [^,)]*)" "$file" 2>/dev/null)
+        calls=$(grep -c "coverBackground(this," "$file" 2>/dev/null)
+        [ "$count" -eq "$calls" ]
+        check "${scene} all coverBackground calls use default mode (no third argument)" $?
+    else
+        echo "PASS: ${scene} does not call coverBackground directly (uses UILayout)"
+        pass=$((pass + 1))
+    fi
 done
 
 # Summary
