@@ -83,7 +83,7 @@ async function navigateNewGameToBattle(page) {
     await page.waitForFunction((key) => !!localStorage.getItem(key), SAVE_KEY, { timeout: 5000 });
     await page.waitForTimeout(500);    // FloorScene transition
 
-    await clickGame(page, 240, 135);   // [ ENTER BATTLE ] at (W/2, max(py+12, H*0.5))
+    await clickGame(page, 240, 199);   // [ ENTER BATTLE ] at (W/2, H*0.74) — Delve Deeper card center
     await page.waitForTimeout(1000);
 }
 
@@ -100,7 +100,7 @@ async function navigateContinueToBattle(page) {
     }, SAVE_KEY, { timeout: 5000 });
     await page.waitForTimeout(500);
 
-    await clickGame(page, 240, 135);   // [ ENTER BATTLE ]
+    await clickGame(page, 240, 199);   // [ ENTER BATTLE ] — Delve Deeper card center (H*0.74=199)
     await page.waitForTimeout(1000);
 }
 
@@ -355,8 +355,8 @@ test('layout-portrait: battle loads in portrait 270x480', async ({ page }) => {
     await page.waitForFunction((key) => !!localStorage.getItem(key), SAVE_KEY, { timeout: 5000 });
     await page.waitForTimeout(500);
 
-    // ENTER BATTLE at (W/2=135, max(py+12, H*0.5=240)) → click at (270, 480)
-    await page.mouse.click(270, 480);
+    // ENTER BATTLE at (W/2=135, H*0.74=355) in portrait 270x480 game, scale 2x → click at (270, 710)
+    await page.mouse.click(270, 710);
     await page.waitForTimeout(1000);
 
     await page.screenshot({ path: 'tests/browser/screenshots/ab-11-portrait-battle.png' });
