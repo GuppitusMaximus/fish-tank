@@ -3,14 +3,13 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import { getBackgroundKey, coverBackground, getShopCardKey, getShopName } from '../utils/zones.js';
+import { getBackgroundKey, getShopCardKey, getShopName } from '../utils/zones.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
-import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import { themedPanel } from '../ui/ThemedPanel.js';
 import { loadZoneTheme, unloadZoneTheme } from '../systems/ThemeAssetLoader.js';
+import { UIPanel, UIButton, UIList, UILayout } from '../ui/index.js';
 
 export default class FloorScene extends Phaser.Scene {
     constructor() {
@@ -60,22 +59,24 @@ export default class FloorScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
-        coverBackground(this, bgKey);
-        addEffects(this, bgKey);
+        UILayout.sceneBackground(this, bgKey, { effects: true });
 
         const zone = getZoneByFloor(gs.floor);
         this.registry.set('currentZone', zone);
         this.registry.set('currentCharacter', getCharacterTheme(gs.fisherId));
 
-        // Top info panel (no flavor text — it's in the background now)
+        // Top info panel
         const panelH = 36 + gs.party.length * 18;
         const panelMargin = 8;
         const infoPanelTheme = zone.wideAtlasKey && this.textures.exists(zone.wideAtlasKey)
             ? { ...zone, atlasKey: zone.wideAtlasKey }
             : zone;
-        themedPanel(this, panelMargin, 0, W - panelMargin * 2, panelH, infoPanelTheme, { cornerSize: 5 });
+        new UIPanel(this, {
+            x: panelMargin, y: 0, width: W - panelMargin * 2, height: panelH,
+            theme: infoPanelTheme, cornerSize: 5, padding: 0
+        });
 
-        // Scrim behind panel text for readability (background shows through transparent atlas center)
+        // Scrim behind panel text for readability
         this.add.rectangle(W / 2, panelH / 2, W - panelMargin * 2 - 8, panelH - 8, 0x000000, 0.6)
             .setDepth(1);
 
@@ -94,28 +95,32 @@ export default class FloorScene extends Phaser.Scene {
         const isPortrait = this.registry.get('isPortrait');
         const barX = isPortrait ? Math.floor(W * 0.4) : 120;
         const barW = isPortrait ? Math.floor(W * 0.22) : 60;
-        let py = 36;
+
+        const partyList = new UIList(this, { x: 10, y: 36, spacing: 18 });
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
-            this.add.text(10, py, fish.name + ' Lv.' + fish.level,
-                makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#88ccff' : '#cc4444' })
-            ).setDepth(2);
+            partyList.addRow((x, y) => {
+                const row = [];
+                row.push(this.add.text(x, y, fish.name + ' Lv.' + fish.level,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#88ccff' : '#cc4444' })
+                ).setDepth(2));
 
-            // HP bar background
-            this.add.graphics().fillStyle(0x333333, 1).fillRect(barX, py + 1, barW, 6).setDepth(2);
+                // HP bar background
+                row.push(this.add.graphics().fillStyle(0x333333, 1).fillRect(barX, y + 1, barW, 6).setDepth(2));
 
-            // HP bar fill
-            if (alive) {
-                const ratio = Math.max(0, fish.hp / fish.maxHp);
-                const color = ratio > 0.5 ? 0x33cc33 : ratio > 0.25 ? 0xcccc33 : 0xcc3333;
-                this.add.graphics().fillStyle(color, 1).fillRect(barX, py + 1, ratio * barW, 6).setDepth(2);
-            }
+                // HP bar fill
+                if (alive) {
+                    const ratio = Math.max(0, fish.hp / fish.maxHp);
+                    const color = ratio > 0.5 ? 0x33cc33 : ratio > 0.25 ? 0xcccc33 : 0xcc3333;
+                    row.push(this.add.graphics().fillStyle(color, 1).fillRect(barX, y + 1, ratio * barW, 6).setDepth(2));
+                }
 
-            // HP text
-            this.add.text(barX + barW + 5, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED',
-                makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#aaaaaa' : '#cc4444' })
-            ).setDepth(2);
-            py += 18;
+                // HP text
+                row.push(this.add.text(barX + barW + 5, y, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED',
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#aaaaaa' : '#cc4444' })
+                ).setDepth(2));
+                return row;
+            });
         });
 
         // Flavor text — centered in background (archway area)
@@ -222,7 +227,7 @@ export default class FloorScene extends Phaser.Scene {
         cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#bbee88',
             shimmer: { base: [140, 230, 120], range: [30, 25, 30] } });
 
-        const cardH = Math.min(84, H - py - 50);
+        const cardH = Math.min(84, H - partyList.bottomY - 50);
         const cardW = Math.floor(cardH * 0.85);
 
         const margin = 8;
@@ -243,7 +248,10 @@ export default class FloorScene extends Phaser.Scene {
             const midY = cy + cardH / 2;
 
             // Panel frame
-            themedPanel(this, cx, cy, cardW, cardH, zone, { depth: 2 });
+            new UIPanel(this, {
+                x: cx, y: cy, width: cardW, height: cardH,
+                theme: zone, depth: 2, padding: 0
+            });
 
             // Inset matching the NineSlice corner size for this card
             const inset = Math.min(16, Math.floor(Math.min(cardW, cardH) / 12));
@@ -321,9 +329,8 @@ export default class FloorScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
-        coverBackground(this, bgKey);
-        addEffects(this, bgKey);
-        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
+        UILayout.sceneBackground(this, bgKey, { effects: true });
+        UILayout.overlay(this, { alpha: 0.4, depth: 0 });
 
         this.add.text(W / 2, H * 0.12, 'Floor ' + gs.floor + ' Reward!',
             TEXT_STYLES.TITLE_MEDIUM
@@ -364,25 +371,29 @@ export default class FloorScene extends Phaser.Scene {
         const recruitImg = this.add.image(W / 2, H * 0.52, 'fish_' + species.id).setScale(0.75);
         new SpriteAnimator(this, recruitImg).idle();
 
-        const acceptBtn = this.add.text(W / 2 - 60, H * 0.7, '[ ACCEPT ]',
-            makeStyle(TEXT_STYLES.BUTTON, { color: '#88cc88' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        acceptBtn.on('pointerover', () => acceptBtn.setColor('#ffffff'));
-        acceptBtn.on('pointerout', () => acceptBtn.setColor('#88cc88'));
-        acceptBtn.on('pointerdown', () => {
-            gs.party.push(PartySystem.createFish(species.id));
-            this.children.removeAll();
-            this.buildFloorUI();
+        UIButton.create(this, {
+            x: W / 2 - 60, y: H * 0.7,
+            label: '[ ACCEPT ]',
+            style: makeStyle(TEXT_STYLES.BUTTON),
+            color: '#88cc88',
+            hoverColor: '#ffffff',
+            onClick: () => {
+                gs.party.push(PartySystem.createFish(species.id));
+                this.children.removeAll();
+                this.buildFloorUI();
+            }
         });
 
-        const declineBtn = this.add.text(W / 2 + 60, H * 0.7, '[ DECLINE ]',
-            makeStyle(TEXT_STYLES.BUTTON, { color: '#888888' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        declineBtn.on('pointerover', () => declineBtn.setColor('#ffffff'));
-        declineBtn.on('pointerout', () => declineBtn.setColor('#888888'));
-        declineBtn.on('pointerdown', () => {
-            this.children.removeAll();
-            this.buildFloorUI();
+        UIButton.create(this, {
+            x: W / 2 + 60, y: H * 0.7,
+            label: '[ DECLINE ]',
+            style: makeStyle(TEXT_STYLES.BUTTON),
+            color: '#888888',
+            hoverColor: '#ffffff',
+            onClick: () => {
+                this.children.removeAll();
+                this.buildFloorUI();
+            }
         });
     }
 
@@ -396,17 +407,19 @@ export default class FloorScene extends Phaser.Scene {
             makeStyle(TEXT_STYLES.BODY, { fontSize: '14px' })
         ).setOrigin(0.5);
 
-        const takeBtn = this.add.text(W / 2, H * 0.6, '[ TAKE ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px', color: '#88cc88' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        takeBtn.on('pointerover', () => takeBtn.setColor('#ffffff'));
-        takeBtn.on('pointerout', () => takeBtn.setColor('#88cc88'));
-        takeBtn.on('pointerdown', () => {
-            if (gs.inventory.length < MAX_INVENTORY) {
-                gs.inventory.push(itemId);
+        UIButton.create(this, {
+            x: W / 2, y: H * 0.6,
+            label: '[ TAKE ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' }),
+            color: '#88cc88',
+            hoverColor: '#ffffff',
+            onClick: () => {
+                if (gs.inventory.length < MAX_INVENTORY) {
+                    gs.inventory.push(itemId);
+                }
+                this.children.removeAll();
+                this.buildFloorUI();
             }
-            this.children.removeAll();
-            this.buildFloorUI();
         });
     }
 }

@@ -1,10 +1,9 @@
 import PartySystem from '../systems/PartySystem.js';
 import SaveSystem from '../systems/SaveSystem.js';
-import { getBackgroundKey, coverBackground } from '../utils/zones.js';
-import { addEffects } from '../effects/BackgroundEffects.js';
+import { getBackgroundKey } from '../utils/zones.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
-import { themedPanel } from '../ui/ThemedPanel.js';
+import { UIPanel, UIButton, UIList, UILayout } from '../ui/index.js';
 
 export default class CampScene extends Phaser.Scene {
     constructor() {
@@ -22,21 +21,20 @@ export default class CampScene extends Phaser.Scene {
 
         // Zone background
         const bgKey = getBackgroundKey(gs.floor);
-        coverBackground(this, bgKey);
-        addEffects(this, bgKey);
-        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.4);
+        UILayout.sceneBackground(this, bgKey, { effects: true });
+        UILayout.overlay(this, { alpha: 0.4, depth: 0 });
 
         const zone = getZoneByFloor(gs.floor);
         const character = getCharacterTheme(gs.fisherId);
         this.zone = zone;
-        themedPanel(this, 4, 4, W - 8, 42, zone);
-        themedPanel(this, 4, 52, W - 8, gs.party.length * 22 + 32, zone);
 
-        // Title
+        // Title panel
+        new UIPanel(this, {
+            x: 4, y: 4, width: W - 8, height: 42, theme: zone, padding: 0
+        });
         this.add.text(W / 2, 15, 'CAMP \u2014 Floor ' + gs.floor,
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         ).setOrigin(0.5);
-
         this.add.text(W / 2, 35, 'Your party rests by the fire...',
             makeStyle(TEXT_STYLES.BODY, { color: '#888888' })
         ).setOrigin(0.5);
@@ -51,56 +49,69 @@ export default class CampScene extends Phaser.Scene {
         gs.campFloor = gs.floor;
         SaveSystem.save(gs);
 
+        // Party HP panel
+        new UIPanel(this, {
+            x: 4, y: 52, width: W - 8, height: gs.party.length * 22 + 32, theme: zone, padding: 0
+        });
+
         // Show party with before → after HP
         const isPortrait = this.registry.get('isPortrait');
         const hpColX = isPortrait ? Math.floor(W * 0.45) : 140;
-        let y = 60;
+
+        const hpList = new UIList(this, { x: 20, y: 60, spacing: 22 });
         gs.party.forEach((f, i) => {
             const old = oldHp[i];
             const before = old.fainted ? 'FAINTED' : old.hp + '/' + old.maxHp;
-            this.add.text(20, y, f.name + '  Lv.' + f.level,
-                makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
-            );
-            this.add.text(hpColX, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp,
-                makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#88cc88' })
-            );
-            this.add.text(W - 30, y, '\u2713',
-                makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#44ff44' })
-            );
-            y += 22;
+            hpList.addRow((x, y) => [
+                this.add.text(x, y, f.name + '  Lv.' + f.level,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
+                ),
+                this.add.text(hpColX, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp,
+                    makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#88cc88' })
+                ),
+                this.add.text(W - 30, y, '\u2713',
+                    makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#44ff44' })
+                )
+            ]);
         });
 
         // Checkpoint message
-        this.add.text(W / 2, y + 15, 'Checkpoint saved!',
+        this.add.text(W / 2, hpList.bottomY + 15, 'Checkpoint saved!',
             makeStyle(TEXT_STYLES.GOLD, { color: accentHex(character) })
         ).setOrigin(0.5);
 
         // Party order section
-        this.orderStartY = y + 35;
+        this.orderStartY = hpList.bottomY + 35;
         this.orderObjects = [];
         this.renderPartyOrder();
 
         // Continue button
         const contY = Math.max(this.orderEndY + 22, H - 30);
-        const contBtn = this.add.text(W / 2, contY, '[ CONTINUE ]',
-            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' })
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        contBtn.on('pointerover', () => contBtn.setColor('#ffffff'));
-        contBtn.on('pointerout', () => contBtn.setColor('#aaaacc'));
-        contBtn.on('pointerdown', () => this.scene.start('FloorScene', { gameState: gs }));
+        UIButton.create(this, {
+            x: W / 2, y: contY,
+            label: '[ CONTINUE ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' }),
+            hoverColor: '#ffffff',
+            onClick: () => this.scene.start('FloorScene', { gameState: gs })
+        });
     }
 
     renderPartyOrder() {
         const W = this.scale.width;
         const gs = this.gameState;
 
-        this.orderObjects.forEach(obj => obj.destroy());
+        for (const obj of this.orderObjects) {
+            if (obj && obj.destroy) obj.destroy();
+        }
         this.orderObjects = [];
 
         let y = this.orderStartY;
 
         const orderH = 31 + gs.party.length * 18 + 4;
-        const orderPanel = themedPanel(this, 4, this.orderStartY - 4, W - 8, orderH, this.zone);
+        const orderPanel = new UIPanel(this, {
+            x: 4, y: this.orderStartY - 4, width: W - 8, height: orderH,
+            theme: this.zone, padding: 0
+        });
         this.orderObjects.push(orderPanel);
 
         const header = this.add.text(W / 2, y, 'PARTY ORDER',
@@ -115,50 +126,59 @@ export default class CampScene extends Phaser.Scene {
         this.orderObjects.push(sub);
         y += 16;
 
+        const orderList = new UIList(this, { x: 20, y, spacing: 18 });
+        this.orderObjects.push(orderList);
+
         gs.party.forEach((f, i) => {
-            const nameTxt = this.add.text(20, y, f.name + ' Lv.' + f.level,
-                makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
-            );
-            this.orderObjects.push(nameTxt);
-
-            if (i === 0) {
-                const frontTxt = this.add.text(20 + nameTxt.width + 6, y, '(FRONT)',
-                    makeStyle(TEXT_STYLES.BODY, { fontSize: '10px', color: '#f0c040' })
+            orderList.addRow((x, rowY) => {
+                const row = [];
+                const nameTxt = this.add.text(x, rowY, f.name + ' Lv.' + f.level,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
                 );
-                this.orderObjects.push(frontTxt);
-            }
+                row.push(nameTxt);
 
-            if (i > 0) {
-                const upBtn = this.add.text(W - 50, y, '\u25b2',
-                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
-                ).setInteractive({ useHandCursor: true });
-                upBtn.on('pointerover', () => upBtn.setColor('#ffffff'));
-                upBtn.on('pointerout', () => upBtn.setColor('#aaaacc'));
-                upBtn.on('pointerdown', () => {
-                    [gs.party[i - 1], gs.party[i]] = [gs.party[i], gs.party[i - 1]];
-                    SaveSystem.save(gs);
-                    this.renderPartyOrder();
-                });
-                this.orderObjects.push(upBtn);
-            }
+                if (i === 0) {
+                    row.push(this.add.text(x + nameTxt.width + 6, rowY, '(FRONT)',
+                        makeStyle(TEXT_STYLES.BODY, { fontSize: '10px', color: '#f0c040' })
+                    ));
+                }
 
-            if (i < gs.party.length - 1) {
-                const dnBtn = this.add.text(W - 30, y, '\u25bc',
-                    makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' })
-                ).setInteractive({ useHandCursor: true });
-                dnBtn.on('pointerover', () => dnBtn.setColor('#ffffff'));
-                dnBtn.on('pointerout', () => dnBtn.setColor('#aaaacc'));
-                dnBtn.on('pointerdown', () => {
-                    [gs.party[i], gs.party[i + 1]] = [gs.party[i + 1], gs.party[i]];
-                    SaveSystem.save(gs);
-                    this.renderPartyOrder();
-                });
-                this.orderObjects.push(dnBtn);
-            }
+                if (i > 0) {
+                    const upBtn = UIButton.create(this, {
+                        x: W - 50, y: rowY,
+                        label: '\u25b2',
+                        style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+                        hoverColor: '#ffffff',
+                        origin: { x: 0, y: 0 },
+                        onClick: () => {
+                            [gs.party[i - 1], gs.party[i]] = [gs.party[i], gs.party[i - 1]];
+                            SaveSystem.save(gs);
+                            this.renderPartyOrder();
+                        }
+                    });
+                    this.orderObjects.push(upBtn);
+                }
 
-            y += 18;
+                if (i < gs.party.length - 1) {
+                    const dnBtn = UIButton.create(this, {
+                        x: W - 30, y: rowY,
+                        label: '\u25bc',
+                        style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+                        hoverColor: '#ffffff',
+                        origin: { x: 0, y: 0 },
+                        onClick: () => {
+                            [gs.party[i], gs.party[i + 1]] = [gs.party[i + 1], gs.party[i]];
+                            SaveSystem.save(gs);
+                            this.renderPartyOrder();
+                        }
+                    });
+                    this.orderObjects.push(dnBtn);
+                }
+
+                return row;
+            });
         });
 
-        this.orderEndY = y;
+        this.orderEndY = orderList.bottomY;
     }
 }
