@@ -21,7 +21,6 @@ export class UIPanel {
         if (config.alpha !== undefined) opts.alpha = config.alpha;
         if (config.cornerSize !== undefined) opts.cornerSize = config.cornerSize;
         if (config.fx === false) opts.fx = false;
-        if (config.fillAlpha !== undefined) opts.fillAlpha = config.fillAlpha;
 
         this.bg = themedPanel(scene, config.x, config.y, config.width, config.height, config.theme, opts);
 

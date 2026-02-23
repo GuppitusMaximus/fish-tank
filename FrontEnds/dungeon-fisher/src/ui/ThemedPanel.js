@@ -45,11 +45,10 @@ function createCompositePanel(scene, x, y, w, h, theme, opts) {
     rt.drawFrame(key, 'edge_right', w - ps, yi);
   }
 
-  // Center fill — tiled (supports reduced alpha via opts.fillAlpha)
-  const fillAlpha = opts.fillAlpha !== undefined ? opts.fillAlpha : 1;
+  // Center fill — tiled
   for (let yi = ps; yi < h - ps; yi += ps) {
     for (let xi = ps; xi < w - ps; xi += ps) {
-      rt.drawFrame(key, 'center', xi, yi, fillAlpha);
+      rt.drawFrame(key, 'center', xi, yi);
     }
   }
 
