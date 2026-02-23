@@ -205,15 +205,15 @@ export default class FloorScene extends Phaser.Scene {
         // Action cards
         const shopAvailable = gs.floor >= (gs.nextShopFloor || 1);
         const cards = [
-            { type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#cc9966',
-              shimmer: { base: [200, 140, 80], range: [55, 60, 40] } },
+            { type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#ffcc88',
+              shimmer: { base: [230, 180, 110], range: [25, 50, 40] } },
         ];
         if (shopAvailable) {
-            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ccaa44',
-                shimmer: { base: [200, 180, 50], range: [55, 55, 40] } });
+            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ffdd66',
+                shimmer: { base: [230, 210, 80], range: [25, 45, 40] } });
         }
-        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#88aa66',
-            shimmer: { base: [80, 180, 80], range: [40, 75, 40] } });
+        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#bbee88',
+            shimmer: { base: [140, 230, 120], range: [30, 25, 30] } });
 
         const cardH = Math.min(84, H - py - 50);
         const cardW = Math.floor(cardH * 0.85);
