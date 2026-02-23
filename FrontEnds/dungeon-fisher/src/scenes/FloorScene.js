@@ -75,16 +75,20 @@ export default class FloorScene extends Phaser.Scene {
             : zone;
         themedPanel(this, panelMargin, 0, W - panelMargin * 2, panelH, infoPanelTheme, { cornerSize: 5 });
 
+        // Scrim behind panel text for readability (background shows through transparent atlas center)
+        this.add.rectangle(W / 2, panelH / 2, W - panelMargin * 2 - 20, panelH - 20, 0x000000, 0.4)
+            .setDepth(1);
+
         // Floor title
         this.add.text(W / 2, 8, 'Floor ' + gs.floor + ' / 100',
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(2);
 
         // Gold + Inventory
         const character = getCharacterTheme(gs.fisherId);
         this.add.text(W / 2, 24, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
             makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: accentHex(character) })
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(2);
 
         // Party display with HP bars
         const isPortrait = this.registry.get('isPortrait');
@@ -95,22 +99,22 @@ export default class FloorScene extends Phaser.Scene {
             const alive = fish.hp > 0;
             this.add.text(10, py, fish.name + ' Lv.' + fish.level,
                 makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#88ccff' : '#cc4444' })
-            );
+            ).setDepth(2);
 
             // HP bar background
-            this.add.graphics().fillStyle(0x333333, 1).fillRect(barX, py + 1, barW, 6);
+            this.add.graphics().fillStyle(0x333333, 1).fillRect(barX, py + 1, barW, 6).setDepth(2);
 
             // HP bar fill
             if (alive) {
                 const ratio = Math.max(0, fish.hp / fish.maxHp);
                 const color = ratio > 0.5 ? 0x33cc33 : ratio > 0.25 ? 0xcccc33 : 0xcc3333;
-                this.add.graphics().fillStyle(color, 1).fillRect(barX, py + 1, ratio * barW, 6);
+                this.add.graphics().fillStyle(color, 1).fillRect(barX, py + 1, ratio * barW, 6).setDepth(2);
             }
 
             // HP text
             this.add.text(barX + barW + 5, py, alive ? fish.hp + '/' + fish.maxHp : 'FAINTED',
                 makeStyle(TEXT_STYLES.BODY_SMALL, { color: alive ? '#aaaaaa' : '#cc4444' })
-            );
+            ).setDepth(2);
             py += 18;
         });
 
