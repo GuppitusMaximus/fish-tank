@@ -76,6 +76,7 @@ QA tests for the FishTank frontend. These are created by QA agents during plan v
 | `test-fix-wide-atlas-crop.sh` | Shell script | Wide atlas olive border removal (fix-wide-atlas-crop): valid PNG format ✓, dimensions 256×128 ✓, corner pixels (0,0)/(255,0)/(0,127)/(255,127) not olive ✓, all four edges not predominantly olive ✓, VERSION bumped past 1.10.22 ✓ — 5/5 pass (all pass; bug fix-wide-atlas-crop-olive-border-remains resolved) |
 | `test-fix-wide-atlas-transparent-center.sh` | Shell script | Transparent atlas center (qa-fix-wide-atlas-transparent-center): sewers_wide.png is RGBA ✓, center pixel (128,64) alpha=0 ✓, all 4 corners alpha=255 ✓, edge pixels (10,64)/(246,64) alpha=255 ✓, FloorScene scrim rectangle 0x000000/0.4 ✓, VERSION PATCH > 23 ✓ — 10/10 pass (all pass) |
 | `test-fix-info-panel-scrim-and-atlas.sh` | Shell script | Darker atlas + scrim (qa-fix-info-panel-scrim-and-atlas): scrim width uses panelMargin*2-8 ✓, height uses panelH-8 ✓, alpha=0.6 ✓, sewers_wide.png corner pixel R<100 (darkened from 195→48) ✓, VERSION PATCH >= 26 ✓ — 5/5 pass (all pass) |
+| `test-fix-atlas-brightness-and-card-depth.sh` | Shell script | Atlas brightness + card depth (qa-fix-atlas-brightness-and-card-depth): sewers_wide.png corner pixel R>100 (brightened) ✓, sewers.png has alpha ✓, center pixel (64,64) alpha=0 ✓, corner pixel (0,0) alpha=255 ✓, card image setDepth(1) ✓, themedPanel depth:2 ✓, label setDepth(3) ✓, hit zone setDepth(4) ✓, VERSION PATCH >= 27 ✓ — 9/9 pass (all pass) |
 
 ### Static Code Analysis Reports
 
