@@ -3,7 +3,7 @@
 # Usage: bash tests/run-all.sh
 # Exit code mirrors pytest: 0 = all passed, non-zero = failures or errors.
 
-set -euo pipefail
+set -uo pipefail
 
 TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -12,13 +12,12 @@ echo "Running pytest on: $TESTS_DIR"
 echo ""
 
 # Run pytest from the BackEnds/ root so imports resolve correctly.
-# --tb=short   — concise tracebacks
-# --ignore-glob='*/__pycache__/*' — skip cache dirs
-# Tests with missing imports are reported as collection errors but do not
-# crash the runner; pytest continues with the remaining tests.
+# --tb=short                        — concise tracebacks
+# --continue-on-collection-errors   — note import failures, don't abort the run
+# --ignore-glob='tests/__pycache__' — skip cache dirs
 cd "$TESTS_DIR/.."
-python -m pytest tests/ -v --tb=short --ignore-glob='tests/__pycache__'
-EXIT_CODE=$?
+python -m pytest tests/ -v --tb=short --continue-on-collection-errors --ignore-glob='tests/__pycache__' || EXIT_CODE=$?
+EXIT_CODE=${EXIT_CODE:-0}
 
 echo ""
 if [ "$EXIT_CODE" -eq 0 ]; then
