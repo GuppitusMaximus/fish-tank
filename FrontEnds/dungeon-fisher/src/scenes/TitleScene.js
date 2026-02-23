@@ -181,7 +181,7 @@ export default class TitleScene extends Phaser.Scene {
         const firstBtnY = height * 0.36;
         const lastBtnY = height * 0.50;
         const masterPad = 24;
-        const masterW = 200;
+        const masterW = 224;
         const masterH = (lastBtnY - firstBtnY) + 36 + masterPad * 2;
         const masterX = width / 2 - masterW / 2;
         const masterY = firstBtnY - 18 - masterPad;
