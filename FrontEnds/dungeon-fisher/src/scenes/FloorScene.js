@@ -323,19 +323,19 @@ export default class FloorScene extends Phaser.Scene {
         const floorPadX = 16;
         const floorPadY = 6;
         const floorPanelW = floorLabel.displayWidth + floorPadX * 2;
-        const floorPanelH = floorLabel.displayHeight + floorPadY * 2;
+        const floorTextH = floorLabel.displayHeight + floorPadY * 2;
         const floorPanelX = W / 2 - floorPanelW / 2;
-        const floorPanelY = H - floorPanelH - 6;
-        floorLabel.setPosition(W / 2, floorPanelY + floorPanelH / 2);
+        const floorPanelY = H - floorTextH - 6;
+        floorLabel.setPosition(W / 2, floorPanelY + floorTextH / 2);
         const floorTheme = { ...zone };
         delete floorTheme.compositeKey;
         delete floorTheme.pieceSize;
         floorTheme.atlasKey = zone.atlasKey + '_sm';
         // Scrim behind floor counter for readability
-        this.add.rectangle(W / 2, floorPanelY + floorPanelH / 2, floorPanelW, floorPanelH, 0x000000, 0.6)
+        this.add.rectangle(W / 2, (floorPanelY + H + 20) / 2, floorPanelW, H - floorPanelY + 20, 0x000000, 0.6)
             .setDepth(6).setScrollFactor(0);
         new UIPanel(this, {
-            x: floorPanelX, y: floorPanelY, width: floorPanelW, height: floorPanelH,
+            x: floorPanelX, y: floorPanelY, width: floorPanelW, height: H - floorPanelY + 20,
             theme: floorTheme, depth: 7, padding: 0, cornerSize: 10, fx: false
         });
 
