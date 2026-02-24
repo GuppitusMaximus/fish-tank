@@ -97,78 +97,63 @@ export default class TitleScene extends Phaser.Scene {
         // Title text — emerges from the stars
         const titleText = this.add.text(width / 2, height * 0.13, 'DUNGEON\nDELVERS',
             makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center', fontFamily: "'MedievalSharp', 'Georgia', serif", fontSize: '32px' })
-        ).setOrigin(0.5).setAlpha(0).setScale(0.3).setDepth(0).setBlendMode('ADD');
+        ).setOrigin(0.5).setAlpha(0).setScale(0.3).setDepth(10);
 
-        // Phase 1: Glow into existence behind the overlay (0-2s)
+        // Title text emerges — smooth fade and scale up
         this.tweens.add({
             targets: titleText,
-            alpha: 0.6,
-            scaleX: 0.7,
-            scaleY: 0.7,
-            duration: 2000,
+            alpha: 1,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 3500,
             ease: 'Sine.InOut',
             onComplete: () => {
-                // Phase 2: Break through to the foreground (2-3.5s)
-                titleText.setDepth(10);
-                titleText.setBlendMode(Phaser.BlendModes.NORMAL);
-
-                this.tweens.add({
-                    targets: titleText,
-                    alpha: 1,
-                    scaleX: 1,
-                    scaleY: 1,
-                    duration: 1500,
-                    ease: 'Sine.Out',
-                    onComplete: () => {
-                        // Silver shimmer sweep — dark steel to bright white
-                        this.tweens.addCounter({
-                            from: 0,
-                            to: Math.PI * 2,
-                            duration: 2500,
-                            repeat: -1,
-                            onUpdate: (tween) => {
-                                const p = tween.getValue();
-                                const l1 = 0.5 + 0.5 * Math.sin(p);
-                                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
-                                const c1 = Phaser.Display.Color.GetColor(100 + l1 * 155, 110 + l1 * 145, 140 + l1 * 115);
-                                const c2 = Phaser.Display.Color.GetColor(100 + l2 * 155, 110 + l2 * 145, 140 + l2 * 115);
-                                titleText.setTint(c1, c2, c1, c2);
-                            }
-                        });
-
-                        // Rising dungeon energy particles
-                        const bounds = titleText.getBounds();
-                        this.add.particles(0, 0, 'particle_dot', {
-                            x: { min: bounds.left, max: bounds.right },
-                            y: bounds.bottom + 5,
-                            lifespan: 2500,
-                            speedY: { min: -30, max: -12 },
-                            speedX: { min: -3, max: 3 },
-                            scale: { start: 0.6, end: 0.1 },
-                            alpha: { start: 0.7, end: 0 },
-                            tint: [0x88cc44, 0xff8833, 0xaa88cc, 0x44dddd, 0xcc44ff, 0x66aaff, 0xff3344],
-                            frequency: 120,
-                            quantity: 1,
-                            blendMode: 'ADD'
-                        }).setDepth(11);
-
-                        // Subtle breathing pulse
-                        this.tweens.add({
-                            targets: titleText,
-                            scaleX: { from: 1.0, to: 1.02 },
-                            scaleY: { from: 1.0, to: 1.02 },
-                            duration: 2000,
-                            yoyo: true,
-                            repeat: -1,
-                            ease: 'Sine.InOut'
-                        });
-
-                        // Add title text to container for unified shine
-                        titleContainer.add(titleText);
-                        titleText.setDepth(20);
-
+                // Silver shimmer sweep — dark steel to bright white
+                this.tweens.addCounter({
+                    from: 0,
+                    to: Math.PI * 2,
+                    duration: 2500,
+                    repeat: -1,
+                    onUpdate: (tween) => {
+                        const p = tween.getValue();
+                        const l1 = 0.5 + 0.5 * Math.sin(p);
+                        const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                        const c1 = Phaser.Display.Color.GetColor(100 + l1 * 155, 110 + l1 * 145, 140 + l1 * 115);
+                        const c2 = Phaser.Display.Color.GetColor(100 + l2 * 155, 110 + l2 * 145, 140 + l2 * 115);
+                        titleText.setTint(c1, c2, c1, c2);
                     }
                 });
+
+                // Rising dungeon energy particles
+                const bounds = titleText.getBounds();
+                this.add.particles(0, 0, 'particle_dot', {
+                    x: { min: bounds.left, max: bounds.right },
+                    y: bounds.bottom + 5,
+                    lifespan: 2500,
+                    speedY: { min: -30, max: -12 },
+                    speedX: { min: -3, max: 3 },
+                    scale: { start: 0.6, end: 0.1 },
+                    alpha: { start: 0.7, end: 0 },
+                    tint: [0x88cc44, 0xff8833, 0xaa88cc, 0x44dddd, 0xcc44ff, 0x66aaff, 0xff3344],
+                    frequency: 120,
+                    quantity: 1,
+                    blendMode: 'ADD'
+                }).setDepth(11);
+
+                // Subtle breathing pulse
+                this.tweens.add({
+                    targets: titleText,
+                    scaleX: { from: 1.0, to: 1.02 },
+                    scaleY: { from: 1.0, to: 1.02 },
+                    duration: 2000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.InOut'
+                });
+
+                // Add title text to container for unified shine
+                titleContainer.add(titleText);
+                titleText.setDepth(20);
             }
         });
 
