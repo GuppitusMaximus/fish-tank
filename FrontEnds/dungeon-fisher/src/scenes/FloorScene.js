@@ -321,7 +321,7 @@ export default class FloorScene extends Phaser.Scene {
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '14px', color: accentHex(zone) })
         ).setOrigin(0.5).setDepth(8);
         const floorPadX = 16;
-        const floorPadY = 6;
+        const floorPadY = 14;
         const floorPanelW = floorLabel.displayWidth + floorPadX * 2;
         const floorTextH = floorLabel.displayHeight + floorPadY * 2;
         const floorPanelX = W / 2 - floorPanelW / 2;
