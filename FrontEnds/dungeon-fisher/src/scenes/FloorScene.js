@@ -326,7 +326,7 @@ export default class FloorScene extends Phaser.Scene {
         const floorTextH = floorLabel.displayHeight + floorPadY * 2;
         const floorPanelX = W / 2 - floorPanelW / 2;
         const floorPanelY = H - floorTextH - 6;
-        floorLabel.setPosition(W / 2, floorPanelY + floorTextH / 2);
+        floorLabel.setPosition(W / 2, H - 5 - floorLabel.displayHeight / 2);
         const floorTheme = { ...zone };
         delete floorTheme.compositeKey;
         delete floorTheme.pieceSize;
