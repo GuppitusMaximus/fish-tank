@@ -65,8 +65,6 @@ export class UIButton {
                         targets: panel,
                         scaleX: hoverScale,
                         scaleY: hoverScale,
-                        x: px - (pw * (hoverScale - 1)) / 2,
-                        y: py - (ph * (hoverScale - 1)) / 2,
                         duration: 100,
                         ease: 'Sine.easeOut',
                     });
@@ -93,8 +91,6 @@ export class UIButton {
                         targets: panel,
                         scaleX: 1,
                         scaleY: 1,
-                        x: px,
-                        y: py,
                         duration: 100,
                         ease: 'Sine.easeOut',
                     });
