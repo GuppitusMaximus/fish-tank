@@ -195,7 +195,33 @@ export default class TitleScene extends Phaser.Scene {
             alpha: 0.9,
             duration: 800,
             delay: 3200,
-            ease: 'Sine.InOut'
+            ease: 'Sine.InOut',
+            onComplete: () => {
+                // Diagonal shine sweep across the container
+                if (masterPanel.bg.preFX) {
+                    masterPanel.bg.preFX.addShine(0.7, 0.5, 5);
+                }
+
+                // Gem twinkle particles at the four corners
+                const corners = [
+                    { x: masterX + 16, y: masterY + 16 },
+                    { x: masterX + masterW - 16, y: masterY + 16 },
+                    { x: masterX + 16, y: masterY + masterH - 16 },
+                    { x: masterX + masterW - 16, y: masterY + masterH - 16 }
+                ];
+                corners.forEach(corner => {
+                    this.add.particles(corner.x, corner.y, 'particle_dot', {
+                        lifespan: 800,
+                        speed: { min: 2, max: 8 },
+                        scale: { start: 0.5, end: 0 },
+                        alpha: { start: 1, end: 0 },
+                        tint: [0xffd700, 0xffee88, 0xffffff],
+                        frequency: 1500,
+                        quantity: 1,
+                        blendMode: 'ADD'
+                    }).setDepth(6);
+                });
+            }
         });
 
         // Animated title buttons
