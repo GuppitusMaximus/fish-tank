@@ -15,14 +15,15 @@ export class UIButton {
 
         let panel = null;
 
+        let px = 0, py = 0, pw = 0, ph = 0;
         if (config.theme) {
             const padX = config.padX ?? 12;
             const padY = config.padY ?? 6;
             const bounds = text.getBounds();
-            const pw = bounds.width + padX * 2;
-            const ph = bounds.height + padY * 2;
-            const px = config.x - pw * originX;
-            const py = config.y - ph * originY;
+            pw = bounds.width + padX * 2;
+            ph = bounds.height + padY * 2;
+            px = config.x - pw * originX;
+            py = config.y - ph * originY;
 
             const panelOpts = { depth: depth, alpha: 0.7, fx: false };
             if (config.cornerSize !== undefined) panelOpts.cornerSize = config.cornerSize;
