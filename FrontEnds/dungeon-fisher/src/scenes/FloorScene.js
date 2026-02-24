@@ -72,6 +72,9 @@ export default class FloorScene extends Phaser.Scene {
         delete infoPanelTheme.compositeKey;
         delete infoPanelTheme.pieceSize;
         infoPanelTheme.atlasKey = zone.atlasKey + '_sm';
+        // Translucent fill behind hollow atlas border
+        this.add.rectangle(W / 2, panelH / 2, W - panelMargin * 2, panelH, 0x000000, 0.5)
+            .setDepth(0).setScrollFactor(0);
         new UIPanel(this, {
             x: panelMargin, y: 0, width: W - panelMargin * 2, height: panelH,
             theme: infoPanelTheme, cornerSize: 10, padding: 0, alpha: 1, fx: false
