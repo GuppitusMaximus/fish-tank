@@ -264,6 +264,13 @@ export default class FloorScene extends Phaser.Scene {
             const label = this.add.text(midX, labelY, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5).setDepth(4);
+
+            // Scrim behind label for readability
+            const lw = label.displayWidth + 8;
+            const lh = label.displayHeight + 4;
+            this.add.rectangle(midX, labelY, lw, lh, 0x000000, 0.5)
+                .setOrigin(0.5).setDepth(3.5).setScrollFactor(0);
+
             // Per-card shimmer tween
             const sh = card.shimmer;
             this.tweens.addCounter({
