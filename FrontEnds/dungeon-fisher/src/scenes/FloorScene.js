@@ -78,13 +78,13 @@ export default class FloorScene extends Phaser.Scene {
         });
 
         // Floor title
-        this.add.text(W / 2, 14, 'Floor ' + gs.floor + ' / 100',
+        this.add.text(W / 2, 34, 'Floor ' + gs.floor + ' / 100',
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         ).setOrigin(0.5).setDepth(2);
 
         // Gold + Inventory
         const character = getCharacterTheme(gs.fisherId);
-        this.add.text(W / 2, 30, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
+        this.add.text(W / 2, 50, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
             makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: accentHex(character) })
         ).setOrigin(0.5).setDepth(2);
 
@@ -93,7 +93,7 @@ export default class FloorScene extends Phaser.Scene {
         const barX = isPortrait ? Math.floor(W * 0.4) : 120;
         const barW = isPortrait ? Math.floor(W * 0.22) : 60;
 
-        const partyList = new UIList(this, { x: 10, y: 42, spacing: 18 });
+        const partyList = new UIList(this, { x: 10, y: 62, spacing: 18 });
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
             partyList.addRow((x, y) => {
