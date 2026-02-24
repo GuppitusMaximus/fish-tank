@@ -56,7 +56,21 @@ export class UIButton {
                     ease: 'Sine.easeOut',
                 });
             }
-            if (panel && panel.setAlpha) panel.setAlpha(1);
+            if (panel) {
+                if (panel.setAlpha) panel.setAlpha(1);
+                if (panel.setTint) panel.setTint(0xffffdd);
+                if (hoverScale !== 1) {
+                    scene.tweens.add({
+                        targets: panel,
+                        scaleX: hoverScale,
+                        scaleY: hoverScale,
+                        x: px - (pw * (hoverScale - 1)) / 2,
+                        y: py - (ph * (hoverScale - 1)) / 2,
+                        duration: 100,
+                        ease: 'Sine.easeOut',
+                    });
+                }
+            }
         });
 
         text.on('pointerout', () => {
@@ -70,7 +84,21 @@ export class UIButton {
                     ease: 'Sine.easeOut',
                 });
             }
-            if (panel && panel.setAlpha) panel.setAlpha(0.7);
+            if (panel) {
+                if (panel.setAlpha) panel.setAlpha(0.7);
+                if (panel.clearTint) panel.clearTint();
+                if (hoverScale !== 1) {
+                    scene.tweens.add({
+                        targets: panel,
+                        scaleX: 1,
+                        scaleY: 1,
+                        x: px,
+                        y: py,
+                        duration: 100,
+                        ease: 'Sine.easeOut',
+                    });
+                }
+            }
         });
 
         if (config.onClick) {
