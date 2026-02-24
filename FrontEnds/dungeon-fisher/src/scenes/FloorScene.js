@@ -251,7 +251,7 @@ export default class FloorScene extends Phaser.Scene {
             cardTheme.atlasKey = 'atlas_sewers_sm';
             new UIPanel(this, {
                 x: cx, y: cy, width: cardW, height: cardH,
-                theme: cardTheme, depth: 2, padding: 0, cornerSize: 10
+                theme: cardTheme, depth: 2, padding: 0, cornerSize: 10, fx: false
             });
 
             // Card image — on top of panel, inset to show border
