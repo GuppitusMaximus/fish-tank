@@ -252,14 +252,16 @@ export default class FloorScene extends Phaser.Scene {
                 theme: cardTheme, depth: 2, padding: 0, cornerSize: 10, fx: false
             });
 
-            // Card image — on top of panel, inset to show border
-            const inset = 10;
-            const contentH = cardH - inset * 2;
-            const img = this.add.image(midX, cy + inset + contentH / 2, card.key);
-            const imgScale = Math.min((cardW - inset * 2) / img.width, contentH / img.height);
+            // Card image — flush against top border, inset at bottom for label
+            const topInset = 2;
+            const bottomInset = 10;
+            const sideInset = 10;
+            const contentH = cardH - topInset - bottomInset;
+            const img = this.add.image(midX, cy + topInset + contentH / 2, card.key);
+            const imgScale = Math.min((cardW - sideInset * 2) / img.width, contentH / img.height);
             img.setScale(imgScale).setDepth(3).setScrollFactor(0);
 
-            const labelY = cy + cardH - inset - 7;
+            const labelY = cy + cardH - bottomInset - 7;
             const label = this.add.text(midX, labelY, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5).setDepth(4);
