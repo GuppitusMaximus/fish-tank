@@ -66,7 +66,7 @@ export default class FloorScene extends Phaser.Scene {
         this.registry.set('currentCharacter', getCharacterTheme(gs.fisherId));
 
         // Top info panel
-        const panelH = 48 + gs.party.length * 18;
+        const panelH = 96 + gs.party.length * 18;
         const panelMargin = 8;
         const infoPanelTheme = { ...zone };
         delete infoPanelTheme.compositeKey;
@@ -74,7 +74,7 @@ export default class FloorScene extends Phaser.Scene {
         infoPanelTheme.atlasKey = zone.atlasKey + '_sm';
         new UIPanel(this, {
             x: panelMargin, y: 0, width: W - panelMargin * 2, height: panelH,
-            theme: infoPanelTheme, cornerSize: 10, padding: 0, alpha: 0.7, fx: false
+            theme: infoPanelTheme, cornerSize: 10, padding: 0, alpha: 1, fx: false
         });
 
         // Floor title
