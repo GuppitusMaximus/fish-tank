@@ -22,6 +22,9 @@ export default class TitleScene extends Phaser.Scene {
 
         this._createParticleTextures();
 
+        // Solid backdrop to prevent transparency bleed-through
+        this.add.rectangle(width / 2, height / 2, width * 2, height * 2, 0x000000).setDepth(-1);
+
         // Title background with slow Ken Burns zoom
         const { bg } = UILayout.sceneBackground(this, 'bg_title');
         this.bg = bg;
