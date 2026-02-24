@@ -66,17 +66,21 @@ export default class UIOverlayScene extends Phaser.Scene {
         });
         this.bagBtn.setVisible(false);
 
-        // Scrim sized to MENU button only
+        // Scrim sized to MENU button with atlas padding
         const mb = this.menuBtn.text.getBounds();
-        this._scrimX = mb.x - 4;
-        this._scrimW = mb.width + 8;
-        this._scrimH = mb.height + 6;
+        this._scrimX = mb.x - 14;
+        this._scrimW = mb.width + 28;
+        this._scrimH = mb.height + 20;
         this._scrimY = mb.y + mb.height / 2;
-        const scrimTheme = this.registry.get('currentZone') || TITLE_THEME;
+        const scrimZone = this.registry.get('currentZone') || TITLE_THEME;
+        const scrimTheme = { ...scrimZone };
+        delete scrimTheme.compositeKey;
+        delete scrimTheme.pieceSize;
+        scrimTheme.atlasKey = scrimZone.atlasKey ? scrimZone.atlasKey + '_sm' : 'atlas_sewers_sm';
         this.btnScrim = new UIPanel(this, {
             x: this._scrimX, y: this._scrimY - this._scrimH / 2,
             width: this._scrimW, height: this._scrimH,
-            theme: scrimTheme, depth: 999, padding: 0
+            theme: scrimTheme, depth: 998, padding: 0, cornerSize: 10, fx: false
         });
         this.btnScrim.setVisible(false);
 
@@ -97,10 +101,14 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         this.registry.events.on('changedata-currentZone', (parent, value) => {
             if (this.btnScrim) { this.btnScrim.destroy(); }
+            const newTheme = { ...value };
+            delete newTheme.compositeKey;
+            delete newTheme.pieceSize;
+            newTheme.atlasKey = value.atlasKey ? value.atlasKey + '_sm' : 'atlas_sewers_sm';
             this.btnScrim = new UIPanel(this, {
                 x: this._scrimX, y: this._scrimY - this._scrimH / 2,
                 width: this._scrimW, height: this._scrimH,
-                theme: value, depth: 999, padding: 0
+                theme: newTheme, depth: 998, padding: 0, cornerSize: 10, fx: false
             });
         });
     }
