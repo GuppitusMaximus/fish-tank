@@ -22,6 +22,7 @@ export class UIPanel {
         if (config.cornerSize !== undefined) opts.cornerSize = config.cornerSize;
         if (config.fx === false) opts.fx = false;
         if (config.fillAlpha !== undefined) opts.fillAlpha = config.fillAlpha;
+        if (config.borderRadius !== undefined) opts.borderRadius = config.borderRadius;
 
         this.bg = themedPanel(scene, config.x, config.y, config.width, config.height, config.theme, opts);
 

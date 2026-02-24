@@ -93,6 +93,15 @@ function createNineSlicePanel(scene, x, y, w, h, theme, opts) {
   ns.setAlpha(opts.alpha !== undefined ? opts.alpha : 1);
   ns.setScrollFactor(0);
 
+  // Rounded corner mask
+  const radius = opts.borderRadius !== undefined ? opts.borderRadius : 6;
+  if (radius > 0) {
+    const maskGfx = scene.make.graphics({ add: false });
+    maskGfx.fillStyle(0xffffff);
+    maskGfx.fillRoundedRect(x, y, w, h, radius);
+    ns.setMask(maskGfx.createGeometryMask());
+  }
+
   // FX — shine sweep across the surface
   if (ns.preFX && opts.fx !== false) {
     ns.preFX.addShine(0.8, 0.3, 3);
