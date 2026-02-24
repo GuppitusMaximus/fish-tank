@@ -49,6 +49,9 @@ export default class BootScene extends Phaser.Scene {
                 if (zone.atlasKey) {
                     this.load.image(zone.atlasKey, `atlases/${zone.id}.png`);
                 }
+                if (zone.compositeKey) {
+                    this.load.atlas(zone.compositeKey, `atlases/${zone.compositeKey}.png`, `atlases/${zone.compositeKey}.json`);
+                }
                 if (zone.wideAtlasKey) {
                     this.load.image(zone.wideAtlasKey, `atlases/${zone.id}_wide.png`);
                 }

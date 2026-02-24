@@ -236,7 +236,7 @@ export default class TitleScene extends Phaser.Scene {
     _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null) {
         const btnColor = textColor || '#aaaacc';
         const btnTheme = { ...theme };
-        if (btnTheme.compositeKey) {
+        if (btnTheme.id === 'title') {
             delete btnTheme.compositeKey;
             delete btnTheme.pieceSize;
             delete btnTheme.atlasKey;
