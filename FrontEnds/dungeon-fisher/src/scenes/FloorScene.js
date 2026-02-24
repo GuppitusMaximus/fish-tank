@@ -66,7 +66,7 @@ export default class FloorScene extends Phaser.Scene {
         this.registry.set('currentCharacter', getCharacterTheme(gs.fisherId));
 
         // Top info panel
-        const panelH = 96 + gs.party.length * 18;
+        const panelH = 72 + gs.party.length * 18;
         const panelMargin = 8;
         const infoPanelTheme = { ...zone };
         delete infoPanelTheme.compositeKey;
@@ -80,14 +80,9 @@ export default class FloorScene extends Phaser.Scene {
             theme: infoPanelTheme, cornerSize: 10, padding: 0, alpha: 1, fx: false
         });
 
-        // Floor title
-        this.add.text(W / 2, 34, 'Floor ' + gs.floor + ' / 100',
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
-        ).setOrigin(0.5).setDepth(2);
-
         // Gold + Inventory
         const character = getCharacterTheme(gs.fisherId);
-        this.add.text(W / 2, 50, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
+        this.add.text(W / 2, 34, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
             makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: accentHex(character) })
         ).setOrigin(0.5).setDepth(2);
 
@@ -96,7 +91,7 @@ export default class FloorScene extends Phaser.Scene {
         const barX = isPortrait ? Math.floor(W * 0.4) : 120;
         const barW = isPortrait ? Math.floor(W * 0.22) : 60;
 
-        const partyList = new UIList(this, { x: 10, y: 62, spacing: 18 });
+        const partyList = new UIList(this, { x: 10, y: 48, spacing: 18 });
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
             partyList.addRow((x, y) => {
@@ -319,6 +314,26 @@ export default class FloorScene extends Phaser.Scene {
                     this.scene.start('CampScene', { gameState: gs });
                 });
             }
+        });
+
+        // Floor counter — bottom center with atlas border
+        const floorLabel = this.add.text(W / 2, 0, 'Floor ' + gs.floor,
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '14px', color: accentHex(zone) })
+        ).setOrigin(0.5).setDepth(8);
+        const floorPadX = 16;
+        const floorPadY = 6;
+        const floorPanelW = floorLabel.displayWidth + floorPadX * 2;
+        const floorPanelH = floorLabel.displayHeight + floorPadY * 2;
+        const floorPanelX = W / 2 - floorPanelW / 2;
+        const floorPanelY = H - floorPanelH - 6;
+        floorLabel.setPosition(W / 2, floorPanelY + floorPanelH / 2);
+        const floorTheme = { ...zone };
+        delete floorTheme.compositeKey;
+        delete floorTheme.pieceSize;
+        floorTheme.atlasKey = zone.atlasKey + '_sm';
+        new UIPanel(this, {
+            x: floorPanelX, y: floorPanelY, width: floorPanelW, height: floorPanelH,
+            theme: floorTheme, depth: 7, padding: 0, cornerSize: 10, fx: false
         });
 
     }
