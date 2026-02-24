@@ -68,9 +68,10 @@ export default class FloorScene extends Phaser.Scene {
         // Top info panel
         const panelH = 48 + gs.party.length * 18;
         const panelMargin = 8;
-        const infoPanelTheme = zone.wideAtlasKey && this.textures.exists(zone.wideAtlasKey)
-            ? { ...zone, atlasKey: zone.wideAtlasKey }
-            : zone;
+        const infoPanelTheme = { ...zone };
+        delete infoPanelTheme.compositeKey;
+        delete infoPanelTheme.pieceSize;
+        infoPanelTheme.atlasKey = zone.atlasKey + '_sm';
         new UIPanel(this, {
             x: panelMargin, y: 0, width: W - panelMargin * 2, height: panelH,
             theme: infoPanelTheme, cornerSize: 10, padding: 0
