@@ -74,7 +74,7 @@ export default class FloorScene extends Phaser.Scene {
         infoPanelTheme.atlasKey = zone.atlasKey + '_sm';
         new UIPanel(this, {
             x: panelMargin, y: 0, width: W - panelMargin * 2, height: panelH,
-            theme: infoPanelTheme, cornerSize: 10, padding: 0
+            theme: infoPanelTheme, cornerSize: 10, padding: 0, alpha: 0.7, fx: false
         });
 
         // Floor title
