@@ -256,6 +256,15 @@ export default class FloorScene extends Phaser.Scene {
             const topInset = 2;
             const bottomInset = 10;
             const sideInset = 10;
+
+            // Dark scrim inside card border for image contrast
+            const scrimX = cx + sideInset;
+            const scrimY = cy + topInset;
+            const scrimW = cardW - sideInset * 2;
+            const scrimH = cardH - topInset - bottomInset;
+            this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x000000, 0.5)
+                .setDepth(2.5).setScrollFactor(0);
+
             const contentH = cardH - topInset - bottomInset;
             const img = this.add.image(midX, cy + topInset + contentH / 2, card.key);
             const imgScale = Math.min((cardW - sideInset * 2) / img.width, contentH / img.height);
