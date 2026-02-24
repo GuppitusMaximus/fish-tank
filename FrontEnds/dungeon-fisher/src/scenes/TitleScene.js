@@ -200,7 +200,7 @@ export default class TitleScene extends Phaser.Scene {
 
         // Animated title buttons
         this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
-            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME);
+            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8);
 
         if (SaveSystem.hasSave()) {
             const saveData = SaveSystem.load();
@@ -210,7 +210,7 @@ export default class TitleScene extends Phaser.Scene {
         }
 
         this._createTitleButton(width / 2, height * 0.50, 'OPTIONS',
-            () => {}, 3900, '14px', TITLE_THEME);
+            () => {}, 3900, '14px', TITLE_THEME, null, 20, 10, 8);
 
     }
 
@@ -239,7 +239,7 @@ export default class TitleScene extends Phaser.Scene {
         delete btnTheme.compositeKey;
         delete btnTheme.pieceSize;
         if (btnTheme.id === 'title') {
-            delete btnTheme.atlasKey;
+            btnTheme.atlasKey = 'atlas_title_sm';
         }
         const btn = UIButton.create(this, {
             x, y,
