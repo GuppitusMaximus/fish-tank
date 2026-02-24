@@ -118,8 +118,34 @@ export default class FloorScene extends Phaser.Scene {
             });
         });
 
-        // Flavor text — centered in background (archway area)
-        const flavorY = Math.floor(H * 0.42);
+        // Action cards
+        const shopAvailable = gs.floor >= (gs.nextShopFloor || 1);
+        const cards = [
+            { type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#ffcc88',
+              shimmer: { base: [230, 180, 110], range: [25, 50, 40] } },
+        ];
+        if (shopAvailable) {
+            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ffdd66',
+                shimmer: { base: [230, 210, 80], range: [25, 45, 40] } });
+        }
+        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#bbee88',
+            shimmer: { base: [140, 230, 120], range: [30, 25, 30] } });
+
+        const cardH = Math.min(84, H - partyList.bottomY - 50);
+        const cardW = Math.floor(cardH * 0.85);
+
+        const margin = 8;
+        const delveY = Math.floor(H * 0.74) - cardH / 2;
+        const topY = delveY - cardH - 8;
+
+        const positions = {
+            'shop':  { x: margin, y: topY },
+            'delve': { x: Math.floor((W - cardW) / 2), y: delveY },
+            'camp':  { x: W - cardW - margin, y: topY }
+        };
+
+        // Flavor text — centered between shop and camp cards
+        const flavorY = topY + cardH / 2;
         const flavorTxt = this.add.text(W / 2, flavorY, getZoneByFloor(gs.floor).flavor,
             makeStyle(TEXT_STYLES.FLAVOR, {
                 color: '#ffffff',
@@ -208,32 +234,6 @@ export default class FloorScene extends Phaser.Scene {
                 flavorTxt.setTint(c1, c2, c1, c2);
             }
         });
-
-        // Action cards
-        const shopAvailable = gs.floor >= (gs.nextShopFloor || 1);
-        const cards = [
-            { type: 'delve', key: 'card_delve', label: 'Delve Deeper', color: '#ffcc88',
-              shimmer: { base: [230, 180, 110], range: [25, 50, 40] } },
-        ];
-        if (shopAvailable) {
-            cards.push({ type: 'shop', key: getShopCardKey(gs.floor), label: getShopName(gs.floor), color: '#ffdd66',
-                shimmer: { base: [230, 210, 80], range: [25, 45, 40] } });
-        }
-        cards.push({ type: 'camp', key: 'card_camp', label: 'Make Camp', color: '#bbee88',
-            shimmer: { base: [140, 230, 120], range: [30, 25, 30] } });
-
-        const cardH = Math.min(84, H - partyList.bottomY - 50);
-        const cardW = Math.floor(cardH * 0.85);
-
-        const margin = 8;
-        const delveY = Math.floor(H * 0.74) - cardH / 2;
-        const topY = delveY - cardH - 8;
-
-        const positions = {
-            'shop':  { x: margin, y: topY },
-            'delve': { x: Math.floor((W - cardW) / 2), y: delveY },
-            'camp':  { x: W - cardW - margin, y: topY }
-        };
 
         cards.forEach((card) => {
             const pos = positions[card.type];
