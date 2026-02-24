@@ -41,6 +41,9 @@ export default class TitleScene extends Phaser.Scene {
             repeat: -1
         });
 
+        // Capture bg base values before Ken Burns modifies them
+        const bgBase = { sx: this.bg.scaleX, sy: this.bg.scaleY, x: this.bg.x, y: this.bg.y };
+
         // Dark overlay
         this.darkOverlay = UILayout.overlay(this, { alpha: 0.4 });
 
@@ -103,6 +106,7 @@ export default class TitleScene extends Phaser.Scene {
         const titleText = this.add.text(width / 2, height * 0.13, 'DUNGEON\nDELVERS',
             makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center', fontFamily: "'MedievalSharp', 'Georgia', serif", fontSize: '32px' })
         ).setOrigin(0.5).setAlpha(0).setScale(0.3).setDepth(10);
+        this._titleText = titleText;
 
         // Title text emerges — smooth fade and scale up
         this.tweens.add({
@@ -112,65 +116,7 @@ export default class TitleScene extends Phaser.Scene {
             scaleY: 1,
             duration: 3500,
             ease: 'Sine.InOut',
-            onComplete: () => {
-                // Silver shimmer sweep — dark steel to bright white
-                this.tweens.addCounter({
-                    from: 0,
-                    to: Math.PI * 2,
-                    duration: 2500,
-                    repeat: -1,
-                    onUpdate: (tween) => {
-                        const p = tween.getValue();
-                        const l1 = 0.5 + 0.5 * Math.sin(p);
-                        const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
-                        const c1 = Phaser.Display.Color.GetColor(100 + l1 * 155, 110 + l1 * 145, 140 + l1 * 115);
-                        const c2 = Phaser.Display.Color.GetColor(100 + l2 * 155, 110 + l2 * 145, 140 + l2 * 115);
-                        titleText.setTint(c1, c2, c1, c2);
-                    }
-                });
-
-                // Rising dungeon energy particles
-                const bounds = titleText.getBounds();
-                this.add.particles(0, 0, 'particle_dot', {
-                    x: { min: bounds.left, max: bounds.right },
-                    y: bounds.bottom + 5,
-                    lifespan: 2500,
-                    speedY: { min: -30, max: -12 },
-                    speedX: { min: -3, max: 3 },
-                    scale: { start: 0.6, end: 0.1 },
-                    alpha: { start: 0.7, end: 0 },
-                    tint: [0x88cc44, 0xff8833, 0xaa88cc, 0x44dddd, 0xcc44ff, 0x66aaff, 0xff3344],
-                    frequency: 120,
-                    quantity: 1,
-                    blendMode: 'ADD'
-                }).setDepth(11);
-
-                // Breathing glow behind title text
-                const titleGlow = titleText.preFX.addGlow(0xaabbff, 0, 0, false, 0.05, 6);
-
-                // Subtle breathing pulse — scale and glow in sync
-                this.tweens.add({
-                    targets: titleText,
-                    scaleX: 1.02,
-                    scaleY: 1.02,
-                    duration: 2000,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.InOut'
-                });
-                this.tweens.add({
-                    targets: titleGlow,
-                    outerStrength: 1,
-                    duration: 2000,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.InOut'
-                });
-
-                // Add title text to container for unified shine
-                titleContainer.add(titleText);
-                titleText.setDepth(20);
-            }
+            onComplete: () => this._initTitleEffects()
         });
 
         // Determine Continue button theme from save data
@@ -200,6 +146,9 @@ export default class TitleScene extends Phaser.Scene {
         titleContainer.setDepth(10);
         titleContainer.add(masterPanel.bg);
 
+        this._masterPanelBg = masterPanel.bg;
+        this._masterBounds = { x: masterX, y: masterY, w: masterW, h: masterH };
+
         masterPanel.bg.setAlpha(0);
         this.tweens.add({
             targets: masterPanel.bg,
@@ -207,48 +156,32 @@ export default class TitleScene extends Phaser.Scene {
             duration: 800,
             delay: 3200,
             ease: 'Sine.InOut',
-            onComplete: () => {
-                // Diagonal shine sweep across container + buttons
-                if (titleContainer.postFX) {
-                    titleContainer.postFX.addShine(0.7, 0.5, 5);
-                }
-
-                // Gem twinkle particles at the four corners
-                const corners = [
-                    { x: masterX + 16, y: masterY + 16 },
-                    { x: masterX + masterW - 16, y: masterY + 16 },
-                    { x: masterX + 16, y: masterY + masterH - 16 },
-                    { x: masterX + masterW - 16, y: masterY + masterH - 16 }
-                ];
-                corners.forEach(corner => {
-                    this.add.particles(corner.x, corner.y, 'particle_dot', {
-                        lifespan: 800,
-                        speed: { min: 2, max: 8 },
-                        scale: { start: 0.5, end: 0 },
-                        alpha: { start: 1, end: 0 },
-                        tint: [0xffd700, 0xffee88, 0xffffff],
-                        frequency: 1500,
-                        quantity: 1,
-                        blendMode: 'ADD'
-                    }).setDepth(11);
-                });
-            }
+            onComplete: () => this._initPanelEffects()
         });
 
         // Animated title buttons
-        this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
-            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8, titleContainer);
+        this._buttons = [];
+        this._buttons.push(this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
+            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8, titleContainer));
 
         if (SaveSystem.hasSave()) {
             const saveData = SaveSystem.load();
             const charTheme = getCharacterTheme(saveData?.fisherId || 'andy');
-            this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
-                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme), 20, 10, 8, titleContainer);
+            this._buttons.push(this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
+                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme), 20, 10, 8, titleContainer));
         }
 
-        this._createTitleButton(width / 2, height * 0.50, 'OPTIONS',
-            () => {}, 3900, '14px', TITLE_THEME, null, 20, 10, 8, titleContainer);
+        this._buttons.push(this._createTitleButton(width / 2, height * 0.50, 'OPTIONS',
+            () => {}, 3900, '14px', TITLE_THEME, null, 20, 10, 8, titleContainer));
 
+        // Click/tap to skip intro animations
+        this._introSkipped = false;
+        this.input.on('pointerdown', () => {
+            if (this._introSkipped) return;
+            this._introSkipped = true;
+            this._skipIntro(bgBase);
+        });
+        this.time.delayedCall(4500, () => { this._introSkipped = true; });
     }
 
     _createParticleTextures() {
@@ -313,6 +246,130 @@ export default class TitleScene extends Phaser.Scene {
         }
 
         return btn;
+    }
+
+    _initTitleEffects() {
+        if (this._titleEffectsReady) return;
+        this._titleEffectsReady = true;
+
+        const titleText = this._titleText;
+        const titleContainer = this.titleContainer;
+
+        this.tweens.addCounter({
+            from: 0,
+            to: Math.PI * 2,
+            duration: 2500,
+            repeat: -1,
+            onUpdate: (tween) => {
+                const p = tween.getValue();
+                const l1 = 0.5 + 0.5 * Math.sin(p);
+                const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
+                const c1 = Phaser.Display.Color.GetColor(100 + l1 * 155, 110 + l1 * 145, 140 + l1 * 115);
+                const c2 = Phaser.Display.Color.GetColor(100 + l2 * 155, 110 + l2 * 145, 140 + l2 * 115);
+                titleText.setTint(c1, c2, c1, c2);
+            }
+        });
+
+        const bounds = titleText.getBounds();
+        this.add.particles(0, 0, 'particle_dot', {
+            x: { min: bounds.left, max: bounds.right },
+            y: bounds.bottom + 5,
+            lifespan: 2500,
+            speedY: { min: -30, max: -12 },
+            speedX: { min: -3, max: 3 },
+            scale: { start: 0.6, end: 0.1 },
+            alpha: { start: 0.7, end: 0 },
+            tint: [0x88cc44, 0xff8833, 0xaa88cc, 0x44dddd, 0xcc44ff, 0x66aaff, 0xff3344],
+            frequency: 120,
+            quantity: 1,
+            blendMode: 'ADD'
+        }).setDepth(11);
+
+        const titleGlow = titleText.preFX.addGlow(0xaabbff, 0, 0, false, 0.05, 6);
+        this.tweens.add({
+            targets: titleText,
+            scaleX: 1.02,
+            scaleY: 1.02,
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.InOut'
+        });
+        this.tweens.add({
+            targets: titleGlow,
+            outerStrength: 1,
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.InOut'
+        });
+
+        titleContainer.add(titleText);
+        titleText.setDepth(20);
+    }
+
+    _initPanelEffects() {
+        if (this._panelEffectsReady) return;
+        this._panelEffectsReady = true;
+
+        const titleContainer = this.titleContainer;
+        const { x: mx, y: my, w: mw, h: mh } = this._masterBounds;
+
+        if (titleContainer.postFX) {
+            titleContainer.postFX.addShine(0.7, 0.5, 5);
+        }
+
+        const corners = [
+            { x: mx + 16, y: my + 16 },
+            { x: mx + mw - 16, y: my + 16 },
+            { x: mx + 16, y: my + mh - 16 },
+            { x: mx + mw - 16, y: my + mh - 16 }
+        ];
+        corners.forEach(corner => {
+            this.add.particles(corner.x, corner.y, 'particle_dot', {
+                lifespan: 800,
+                speed: { min: 2, max: 8 },
+                scale: { start: 0.5, end: 0 },
+                alpha: { start: 1, end: 0 },
+                tint: [0xffd700, 0xffee88, 0xffffff],
+                frequency: 1500,
+                quantity: 1,
+                blendMode: 'ADD'
+            }).setDepth(11);
+        });
+    }
+
+    _skipIntro(bgBase) {
+        this.tweens.killAll();
+
+        // Title text — final state
+        this._titleText.setAlpha(1).setScale(1);
+        this._initTitleEffects();
+
+        // Panel — final state
+        this._masterPanelBg.setAlpha(0.9);
+        this._initPanelEffects();
+
+        // Buttons — final state
+        this._buttons.forEach(btn => {
+            btn.text.setAlpha(1);
+            if (btn.panel) btn.panel.setAlpha(0.85);
+        });
+
+        // Restart Ken Burns
+        this.bg.setScale(bgBase.sx, bgBase.sy);
+        this.bg.setPosition(bgBase.x, bgBase.y);
+        this.tweens.add({
+            targets: this.bg,
+            scaleX: bgBase.sx * 1.12,
+            scaleY: bgBase.sy * 1.12,
+            x: bgBase.x + 5,
+            y: bgBase.y - 3,
+            duration: 22000,
+            ease: 'Sine.InOut',
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     _transitionTo(callback) {
