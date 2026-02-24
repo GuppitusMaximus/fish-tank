@@ -150,7 +150,7 @@ export default class TitleScene extends Phaser.Scene {
                             frequency: 120,
                             quantity: 1,
                             blendMode: 'ADD'
-                        }).setDepth(9);
+                        }).setDepth(11);
 
                         // Subtle breathing pulse
                         this.tweens.add({
@@ -162,6 +162,10 @@ export default class TitleScene extends Phaser.Scene {
                             repeat: -1,
                             ease: 'Sine.InOut'
                         });
+
+                        // Add title text to container for unified shine
+                        titleContainer.add(titleText);
+                        titleText.setDepth(20);
 
                     }
                 });
@@ -191,7 +195,7 @@ export default class TitleScene extends Phaser.Scene {
         });
         // Container for unified shine across panel + buttons
         const titleContainer = this.add.container(0, 0);
-        titleContainer.setDepth(5);
+        titleContainer.setDepth(10);
         titleContainer.add(masterPanel.bg);
 
         masterPanel.bg.setAlpha(0);
@@ -224,7 +228,7 @@ export default class TitleScene extends Phaser.Scene {
                         frequency: 1500,
                         quantity: 1,
                         blendMode: 'ADD'
-                    }).setDepth(6);
+                    }).setDepth(11);
                 });
             }
         });
