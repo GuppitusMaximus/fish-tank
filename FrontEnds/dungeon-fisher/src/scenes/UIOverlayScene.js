@@ -52,7 +52,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         this.menuBtn.setVisible(false);
 
         this.bagBtn = UIButton.create(this, {
-            x: this.menuBtn.text.x + this.menuBtn.text.width + 6, y: height - 18,
+            x: width - 8, y: 8,
             label: '[ BAG ]',
             style: makeStyle(TEXT_STYLES.BUTTON, {
                 fontSize: '11px',
@@ -60,18 +60,17 @@ export default class UIOverlayScene extends Phaser.Scene {
                 strokeThickness: 2
             }),
             depth: 999,
-            origin: { x: 0, y: 0 },
+            origin: { x: 1, y: 0 },
             hoverColor: '#ffffff',
             onClick: () => this.toggleInventory()
         });
         this.bagBtn.setVisible(false);
 
-        // Scrim sized to actual button bounds
+        // Scrim sized to MENU button only
         const mb = this.menuBtn.text.getBounds();
-        const bb = this.bagBtn.text.getBounds();
         this._scrimX = mb.x - 4;
-        this._scrimW = (bb.x + bb.width) - mb.x + 8;
-        this._scrimH = Math.max(mb.height, bb.height) + 6;
+        this._scrimW = mb.width + 8;
+        this._scrimH = mb.height + 6;
         this._scrimY = mb.y + mb.height / 2;
         const scrimTheme = this.registry.get('currentZone') || TITLE_THEME;
         this.btnScrim = new UIPanel(this, {
