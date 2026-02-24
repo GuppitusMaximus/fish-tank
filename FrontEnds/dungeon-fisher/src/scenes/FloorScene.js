@@ -247,23 +247,22 @@ export default class FloorScene extends Phaser.Scene {
             const midX = cx + cardW / 2;
             const midY = cy + cardH / 2;
 
-            // Panel frame — nineslice scales borders properly for small cards
+            // Nineslice panel with thin-border atlas — sized for small cards
             const cardTheme = { ...zone };
             delete cardTheme.compositeKey;
             delete cardTheme.pieceSize;
+            cardTheme.atlasKey = 'atlas_sewers_sm';
             new UIPanel(this, {
                 x: cx, y: cy, width: cardW, height: cardH,
-                theme: cardTheme, depth: 2, padding: 0
+                theme: cardTheme, depth: 2, padding: 0, cornerSize: 10
             });
 
-            // Inset matching the NineSlice corner size for this card
-            const inset = Math.min(16, Math.floor(Math.min(cardW, cardH) / 12));
-
-            // Card image — fill the full content area
+            // Card image — on top of panel, inset to show border
+            const inset = 10;
             const contentH = cardH - inset * 2;
             const img = this.add.image(midX, cy + inset + contentH / 2, card.key);
             const imgScale = Math.min((cardW - inset * 2) / img.width, contentH / img.height);
-            img.setScale(imgScale).setDepth(3);
+            img.setScale(imgScale).setDepth(3).setScrollFactor(0);
 
             const labelY = cy + cardH - inset - 7;
             const label = this.add.text(midX, labelY, card.label,

@@ -69,6 +69,9 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('card_shop_ancient', 'images/card_shop_ancient.png');
         this.load.image('card_shop_heart', 'images/card_shop_heart.png');
 
+        // Small panel atlas for card-sized UI (thin borders)
+        this.load.image('atlas_sewers_sm', 'atlases/sewers_sm.png');
+
         // Shop backgrounds
         this.load.image('bg_shop_sewers', 'backgrounds/shop_sewers.png');
 
