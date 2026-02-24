@@ -31,9 +31,11 @@ export default class TitleScene extends Phaser.Scene {
         this.bg.setDepth(0);
         this.tweens.add({
             targets: this.bg,
-            scaleX: this.bg.scaleX * 1.08,
-            scaleY: this.bg.scaleY * 1.08,
-            duration: 18000,
+            scaleX: this.bg.scaleX * 1.12,
+            scaleY: this.bg.scaleY * 1.12,
+            x: this.bg.x + 5,
+            y: this.bg.y - 3,
+            duration: 22000,
             ease: 'Sine.InOut',
             yoyo: true,
             repeat: -1
