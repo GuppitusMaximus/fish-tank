@@ -176,7 +176,7 @@ export default class TitleScene extends Phaser.Scene {
         const masterY = firstBtnY - 18 - masterPad;
         const masterPanel = new UIPanel(this, {
             x: masterX, y: masterY, width: masterW, height: masterH,
-            theme: TITLE_THEME, depth: 5, fx: false
+            theme: TITLE_THEME, depth: 5, fx: false, borderRadius: 10
         });
         // Container for unified shine across panel + buttons
         const titleContainer = this.add.container(0, 0);

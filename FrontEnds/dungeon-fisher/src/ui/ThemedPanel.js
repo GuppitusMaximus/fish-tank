@@ -59,6 +59,15 @@ function createCompositePanel(scene, x, y, w, h, theme, opts) {
   rt.setAlpha(opts.alpha !== undefined ? opts.alpha : 1);
   rt.setScrollFactor(0);
 
+  // Rounded corner mask
+  const radius = opts.borderRadius !== undefined ? opts.borderRadius : 6;
+  if (radius > 0) {
+    const maskGfx = scene.make.graphics({ add: false });
+    maskGfx.fillStyle(0xffffff);
+    maskGfx.fillRoundedRect(x, y, w, h, radius);
+    rt.setMask(maskGfx.createGeometryMask());
+  }
+
   if (rt.preFX && opts.fx !== false) {
     rt.preFX.addShine(0.8, 0.3, 3);
   }
