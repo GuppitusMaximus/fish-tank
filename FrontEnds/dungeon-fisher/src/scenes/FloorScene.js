@@ -260,10 +260,10 @@ export default class FloorScene extends Phaser.Scene {
             const contentH = cardH - inset * 2;
             // Opaque fill behind card image — plugs transparency gaps
             this.add.rectangle(midX, cy + inset + contentH / 2, cardW - inset * 2, contentH, 0x111111, 1)
-                .setDepth(0.5).setScrollFactor(0);
+                .setDepth(2.1).setScrollFactor(0);
             const img = this.add.image(midX, cy + inset + contentH / 2, card.key);
             const imgScale = Math.min((cardW - inset * 2) / img.width, contentH / img.height);
-            img.setScale(imgScale).setDepth(1);
+            img.setScale(imgScale).setDepth(2.2);
 
             // Dark scrim behind label — overlays the atlas bottom border
             const scrimH = 14;
