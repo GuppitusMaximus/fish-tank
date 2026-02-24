@@ -333,31 +333,41 @@ export default class TitleScene extends Phaser.Scene {
             ease: 'Sine.InOut'
         });
 
-        // Rise — gentle lift
+        // Continuous zoom — single tween, no stutter
         this.tweens.add({
             targets: bg,
-            scaleX: baseScaleX * 1.1,
-            scaleY: baseScaleY * 1.1,
-            y: baseY - 15,
-            duration: 1000,
+            scaleX: baseScaleX * 3.5,
+            scaleY: baseScaleY * 3.5,
+            duration: 2500,
+            ease: 'Cubic.In'
+        });
+
+        // POV arc — lifted up, then thrown down into the pit
+        this.tweens.add({
+            targets: bg,
+            y: baseY + 35,
+            duration: 900,
             ease: 'Sine.InOut',
             onComplete: () => {
-                // Plunge — accelerating dive
+                // Plunge into the pit
                 this.tweens.add({
                     targets: bg,
-                    scaleX: baseScaleX * 3,
-                    scaleY: baseScaleY * 3,
-                    y: baseY + 60,
-                    duration: 1100,
+                    y: baseY - 100,
+                    duration: 1600,
                     ease: 'Cubic.In'
                 });
-                // Fade to black
+                // Fade to black as we fall
+                const { width, height } = this.scale;
+                const blackout = this.add.rectangle(width / 2, height / 2, width, height, 0x000000)
+                    .setAlpha(0).setDepth(100).setScrollFactor(0);
                 this.tweens.add({
-                    targets: this.darkOverlay,
+                    targets: blackout,
                     alpha: 1,
-                    duration: 1100,
+                    duration: 1200,
                     ease: 'Cubic.In',
-                    onComplete: () => callback()
+                    onComplete: () => {
+                        this.time.delayedCall(400, () => callback());
+                    }
                 });
             }
         });
