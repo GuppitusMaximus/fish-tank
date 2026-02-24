@@ -24,11 +24,9 @@ export class UIButton {
             const px = config.x - pw * originX;
             const py = config.y - ph * originY;
 
-            panel = themedPanel(scene, px, py, pw, ph, config.theme, {
-                depth: depth,
-                alpha: 0.7,
-                fx: false,
-            });
+            const panelOpts = { depth: depth, alpha: 0.7, fx: false };
+            if (config.cornerSize !== undefined) panelOpts.cornerSize = config.cornerSize;
+            panel = themedPanel(scene, px, py, pw, ph, config.theme, panelOpts);
 
             text.setInteractive({
                 hitArea: new Phaser.Geom.Rectangle(

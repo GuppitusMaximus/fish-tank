@@ -206,7 +206,7 @@ export default class TitleScene extends Phaser.Scene {
             const saveData = SaveSystem.load();
             const charTheme = getCharacterTheme(saveData?.fisherId || 'andy');
             this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
-                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme));
+                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme), 20, 10, 8);
         }
 
         this._createTitleButton(width / 2, height * 0.50, 'OPTIONS',
@@ -233,7 +233,7 @@ export default class TitleScene extends Phaser.Scene {
         }
     }
 
-    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null) {
+    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null, padX = 10, padY = 4, cornerSize = undefined) {
         const btnColor = textColor || '#aaaacc';
         const btnTheme = { ...theme };
         delete btnTheme.compositeKey;
@@ -248,8 +248,9 @@ export default class TitleScene extends Phaser.Scene {
             color: btnColor,
             theme: btnTheme,
             depth: 9,
-            padX: 10,
-            padY: 4,
+            padX,
+            padY,
+            cornerSize,
             hoverColor: '#ffffff',
             hoverScale: 1.08,
             onClick: () => this._transitionTo(callback)
