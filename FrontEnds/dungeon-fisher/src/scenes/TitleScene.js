@@ -141,7 +141,7 @@ export default class TitleScene extends Phaser.Scene {
                 }).setDepth(11);
 
                 // Breathing glow behind title text
-                const titleGlow = titleText.preFX.addGlow(0xaabbff, 0, 0, false, 0.1, 12);
+                const titleGlow = titleText.preFX.addGlow(0xaabbff, 0, 0, false, 0.05, 6);
 
                 // Subtle breathing pulse — scale and glow in sync
                 this.tweens.add({
@@ -155,7 +155,7 @@ export default class TitleScene extends Phaser.Scene {
                 });
                 this.tweens.add({
                     targets: titleGlow,
-                    outerStrength: 3,
+                    outerStrength: 1,
                     duration: 2000,
                     yoyo: true,
                     repeat: -1,
