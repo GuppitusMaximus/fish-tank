@@ -66,28 +66,24 @@ export default class FloorScene extends Phaser.Scene {
         this.registry.set('currentCharacter', getCharacterTheme(gs.fisherId));
 
         // Top info panel
-        const panelH = 36 + gs.party.length * 18;
+        const panelH = 48 + gs.party.length * 18;
         const panelMargin = 8;
         const infoPanelTheme = zone.wideAtlasKey && this.textures.exists(zone.wideAtlasKey)
             ? { ...zone, atlasKey: zone.wideAtlasKey }
             : zone;
         new UIPanel(this, {
             x: panelMargin, y: 0, width: W - panelMargin * 2, height: panelH,
-            theme: infoPanelTheme, cornerSize: 5, padding: 0
+            theme: infoPanelTheme, cornerSize: 10, padding: 0
         });
 
-        // Scrim behind panel text for readability
-        this.add.rectangle(W / 2, panelH / 2, W - panelMargin * 2 - 8, panelH - 8, 0x000000, 0.6)
-            .setDepth(1);
-
         // Floor title
-        this.add.text(W / 2, 8, 'Floor ' + gs.floor + ' / 100',
+        this.add.text(W / 2, 14, 'Floor ' + gs.floor + ' / 100',
             makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) })
         ).setOrigin(0.5).setDepth(2);
 
         // Gold + Inventory
         const character = getCharacterTheme(gs.fisherId);
-        this.add.text(W / 2, 24, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
+        this.add.text(W / 2, 30, 'Gold: ' + gs.gold + '   Items: ' + gs.inventory.length + '/' + MAX_INVENTORY,
             makeStyle(TEXT_STYLES.GOLD, { fontSize: '12px', color: accentHex(character) })
         ).setOrigin(0.5).setDepth(2);
 
@@ -96,7 +92,7 @@ export default class FloorScene extends Phaser.Scene {
         const barX = isPortrait ? Math.floor(W * 0.4) : 120;
         const barW = isPortrait ? Math.floor(W * 0.22) : 60;
 
-        const partyList = new UIList(this, { x: 10, y: 36, spacing: 18 });
+        const partyList = new UIList(this, { x: 10, y: 42, spacing: 18 });
         gs.party.forEach(fish => {
             const alive = fish.hp > 0;
             partyList.addRow((x, y) => {
