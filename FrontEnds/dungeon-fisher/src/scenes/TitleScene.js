@@ -189,6 +189,11 @@ export default class TitleScene extends Phaser.Scene {
             x: masterX, y: masterY, width: masterW, height: masterH,
             theme: TITLE_THEME, depth: 5, fx: false
         });
+        // Container for unified shine across panel + buttons
+        const titleContainer = this.add.container(0, 0);
+        titleContainer.setDepth(5);
+        titleContainer.add(masterPanel.bg);
+
         masterPanel.bg.setAlpha(0);
         this.tweens.add({
             targets: masterPanel.bg,
@@ -197,9 +202,9 @@ export default class TitleScene extends Phaser.Scene {
             delay: 3200,
             ease: 'Sine.InOut',
             onComplete: () => {
-                // Diagonal shine sweep across the container
-                if (masterPanel.bg.preFX) {
-                    masterPanel.bg.preFX.addShine(0.7, 0.5, 5);
+                // Diagonal shine sweep across container + buttons
+                if (titleContainer.postFX) {
+                    titleContainer.postFX.addShine(0.7, 0.5, 5);
                 }
 
                 // Gem twinkle particles at the four corners
@@ -226,17 +231,17 @@ export default class TitleScene extends Phaser.Scene {
 
         // Animated title buttons
         this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
-            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8);
+            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8, titleContainer);
 
         if (SaveSystem.hasSave()) {
             const saveData = SaveSystem.load();
             const charTheme = getCharacterTheme(saveData?.fisherId || 'andy');
             this._createTitleButton(width / 2, height * 0.43, 'CONTINUE',
-                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme), 20, 10, 8);
+                () => this.continueGame(), 3700, '16px', continueTheme, accentHex(charTheme), 20, 10, 8, titleContainer);
         }
 
         this._createTitleButton(width / 2, height * 0.50, 'OPTIONS',
-            () => {}, 3900, '14px', TITLE_THEME, null, 20, 10, 8);
+            () => {}, 3900, '14px', TITLE_THEME, null, 20, 10, 8, titleContainer);
 
     }
 
@@ -259,7 +264,7 @@ export default class TitleScene extends Phaser.Scene {
         }
     }
 
-    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null, padX = 10, padY = 4, cornerSize = undefined) {
+    _createTitleButton(x, y, label, callback, delay, fontSize = '16px', theme = TITLE_THEME, textColor = null, padX = 10, padY = 4, cornerSize = undefined, container = null) {
         const btnColor = textColor || '#aaaacc';
         const btnTheme = { ...theme };
         delete btnTheme.compositeKey;
@@ -295,6 +300,11 @@ export default class TitleScene extends Phaser.Scene {
                 if (btn.panel) btn.panel.setAlpha(0.85);
             }
         });
+
+        if (container) {
+            if (btn.panel) container.add(btn.panel);
+            container.add(btn.text);
+        }
 
         return btn;
     }
