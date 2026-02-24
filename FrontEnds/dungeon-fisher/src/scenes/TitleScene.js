@@ -120,7 +120,7 @@ export default class TitleScene extends Phaser.Scene {
                     duration: 1500,
                     ease: 'Sine.Out',
                     onComplete: () => {
-                        // Gold shimmer sweep
+                        // Silver shimmer sweep
                         this.tweens.addCounter({
                             from: 0,
                             to: Math.PI * 2,
@@ -130,8 +130,8 @@ export default class TitleScene extends Phaser.Scene {
                                 const p = tween.getValue();
                                 const l1 = 0.5 + 0.5 * Math.sin(p);
                                 const l2 = 0.5 + 0.5 * Math.sin(p - 1.5);
-                                const c1 = Phaser.Display.Color.GetColor(200 + l1 * 55, 170 + l1 * 50, 30 + l1 * 40);
-                                const c2 = Phaser.Display.Color.GetColor(200 + l2 * 55, 170 + l2 * 50, 30 + l2 * 40);
+                                const c1 = Phaser.Display.Color.GetColor(180 + l1 * 70, 185 + l1 * 65, 200 + l1 * 55);
+                                const c2 = Phaser.Display.Color.GetColor(180 + l2 * 70, 185 + l2 * 65, 200 + l2 * 55);
                                 titleText.setTint(c1, c2, c1, c2);
                             }
                         });
