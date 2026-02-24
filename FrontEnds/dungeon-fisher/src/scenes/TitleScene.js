@@ -42,7 +42,7 @@ export default class TitleScene extends Phaser.Scene {
         });
 
         // Dark overlay
-        UILayout.overlay(this, { alpha: 0.4 });
+        this.darkOverlay = UILayout.overlay(this, { alpha: 0.4 });
 
         // Rising mist particles from the abyss (bottom third)
         this.mistEmitter = this.add.particles(0, 0, 'particle_soft', {
@@ -196,6 +196,7 @@ export default class TitleScene extends Phaser.Scene {
         });
         // Container for unified shine across panel + buttons
         const titleContainer = this.add.container(0, 0);
+        this.titleContainer = titleContainer;
         titleContainer.setDepth(10);
         titleContainer.add(masterPanel.bg);
 
@@ -318,7 +319,48 @@ export default class TitleScene extends Phaser.Scene {
         this.tweens.killAll();
         if (this.mistEmitter) { this.mistEmitter.destroy(); this.mistEmitter = null; }
         if (this.crystalEmitter) { this.crystalEmitter.destroy(); this.crystalEmitter = null; }
-        callback();
+
+        const bg = this.bg;
+        const baseScaleX = bg.scaleX;
+        const baseScaleY = bg.scaleY;
+        const baseY = bg.y;
+
+        // Fade out UI
+        this.tweens.add({
+            targets: this.titleContainer,
+            alpha: 0,
+            duration: 400,
+            ease: 'Sine.InOut'
+        });
+
+        // Rise — gentle lift
+        this.tweens.add({
+            targets: bg,
+            scaleX: baseScaleX * 1.1,
+            scaleY: baseScaleY * 1.1,
+            y: baseY - 15,
+            duration: 1000,
+            ease: 'Sine.InOut',
+            onComplete: () => {
+                // Plunge — accelerating dive
+                this.tweens.add({
+                    targets: bg,
+                    scaleX: baseScaleX * 3,
+                    scaleY: baseScaleY * 3,
+                    y: baseY + 60,
+                    duration: 1100,
+                    ease: 'Cubic.In'
+                });
+                // Fade to black
+                this.tweens.add({
+                    targets: this.darkOverlay,
+                    alpha: 1,
+                    duration: 1100,
+                    ease: 'Cubic.In',
+                    onComplete: () => callback()
+                });
+            }
+        });
     }
 
     showStarterSelection() {
