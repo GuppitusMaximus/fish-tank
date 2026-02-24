@@ -68,7 +68,7 @@ export const TEXT_STYLES = {
         fontStyle: 'bold'
     },
     VERSION: {
-        fontSize: '8px',
+        fontSize: '12px',
         fontFamily: BODY_FONT,
         color: '#ddddef',
         stroke: '#000000',

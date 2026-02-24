@@ -1,7 +1,7 @@
 import { VERSION, SAVE_FORMAT_VERSION } from '../version.js';
 import FISH_SPECIES from '../data/fish.js';
 
-const SAVE_KEY = 'dungeon-fisher-save';
+const SAVE_KEY = 'fathom-fall-save';
 
 export default class SaveSystem {
 

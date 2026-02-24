@@ -103,7 +103,7 @@ export default class TitleScene extends Phaser.Scene {
         this.crystalEmitter.setDepth(2);
 
         // Title text — emerges from the stars
-        const titleText = this.add.text(width / 2, height * 0.13, 'DUNGEON\nDELVERS',
+        const titleText = this.add.text(width / 2, height * 0.13, 'FATHOM\nFALL',
             makeStyle(TEXT_STYLES.TITLE_LARGE, { align: 'center', fontFamily: "'MedievalSharp', 'Georgia', serif", fontSize: '32px' })
         ).setOrigin(0.5).setAlpha(0).setScale(0.3).setDepth(10);
         this._titleText = titleText;
