@@ -19,7 +19,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         const pad = 2;
         const sw = verTxt.displayWidth + pad * 2;
         const sh = verTxt.displayHeight + pad * 2;
-        this.add.rectangle(verTxt.x - verTxt.displayWidth / 2, verTxt.y - verTxt.displayHeight / 2, sw, sh, 0x000000, 0.5)
+        this.add.rectangle(verTxt.x - verTxt.displayWidth / 2, verTxt.y - verTxt.displayHeight / 2, sw, sh, 0x000000, 0.75)
             .setOrigin(0.5)
             .setDepth(999)
             .setScrollFactor(0);
