@@ -265,13 +265,8 @@ export default class FloorScene extends Phaser.Scene {
             const imgScale = Math.min((cardW - inset * 2) / img.width, contentH / img.height);
             img.setScale(imgScale).setDepth(2.5);
 
-            // Dark scrim behind label — overlays the atlas bottom border
-            const scrimH = 14;
-            const scrimY = cy + cardH - inset - scrimH / 2;
-            this.add.rectangle(midX, scrimY, cardW - inset * 2, scrimH, 0x000000, 0.75)
-                .setDepth(3.5).setScrollFactor(0);
-
-            const label = this.add.text(midX, scrimY, card.label,
+            const labelY = cy + cardH - inset - 7;
+            const label = this.add.text(midX, labelY, card.label,
                 makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', color: card.color, stroke: '#000000', strokeThickness: 2 })
             ).setOrigin(0.5).setDepth(4);
             // Per-card shimmer tween
