@@ -24,15 +24,15 @@ export default function dungeonPanel(scene, x, y, w, h, opts = {}) {
     g.fillRect(x, y, w, h);
 
     // Outer border
-    g.lineStyle(1, outer, 0.9);
-    g.strokeRect(x, y, w, h);
+    g.lineStyle(2, outer, 0.9);
+    g.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
-    // Inner border (2px inset)
+    // Inner border (inset)
     g.lineStyle(1, inner, 0.7);
-    g.strokeRect(x + 2, y + 2, w - 4, h - 4);
+    g.strokeRect(x + 4, y + 4, w - 8, h - 8);
 
     // Corner ornaments - small diamonds at each corner
-    const cs = 3;
+    const cs = 4;
     const corners = [
         [x, y],
         [x + w, y],
