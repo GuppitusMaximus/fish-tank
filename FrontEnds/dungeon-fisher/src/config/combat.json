@@ -10,5 +10,11 @@
     "regenTickInterval": 2,
     "hotTickInterval": 1,
     "xpCurve": { "base": 25, "perLevel": 25 },
-    "maxLevel": 20
+    "maxLevel": 20,
+    "threatWeights": { "dps": 0.4, "burst": 0.3, "ehp": 0.3 },
+    "powerLevelScaling": 10,
+    "expectedBattleDuration": 15,
+    "burstWindow": 3,
+    "defMitigationEstimate": 15,
+    "maxBattleDuration": 120
 }
