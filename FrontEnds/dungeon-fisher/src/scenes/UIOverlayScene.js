@@ -66,24 +66,6 @@ export default class UIOverlayScene extends Phaser.Scene {
         });
         this.bagBtn.setVisible(false);
 
-        // Zone atlas panel behind menu button
-        const mb = this.menuBtn.text.getBounds();
-        this._scrimX = mb.x - 14;
-        this._scrimW = mb.width + 28;
-        this._scrimH = mb.height + 20;
-        this._scrimY = mb.y + mb.height / 2;
-        const scrimZone = this.registry.get('currentZone') || TITLE_THEME;
-        const scrimTheme = { ...scrimZone };
-        delete scrimTheme.compositeKey;
-        delete scrimTheme.pieceSize;
-        scrimTheme.atlasKey = scrimZone.atlasKey ? scrimZone.atlasKey + '_sm' : 'atlas_sewers_sm';
-        this.btnScrim = new UIPanel(this, {
-            x: this._scrimX, y: this._scrimY - this._scrimH / 2,
-            width: this._scrimW, height: this._scrimH,
-            theme: scrimTheme, depth: 997, padding: 0, cornerSize: 10, fx: false
-        });
-        this.btnScrim.setVisible(false);
-
         this.inventoryElements = [];
 
         const menuHiddenScenes = new Set(['BootScene', 'TitleScene']);
@@ -93,24 +75,11 @@ export default class UIOverlayScene extends Phaser.Scene {
             if (s.scene.key === 'UIOverlay') continue;
             s.sys.events.on('start', () => {
                 this.menuBtn.setVisible(!menuHiddenScenes.has(s.scene.key));
-                this.btnScrim.setVisible(!bagHiddenScenes.has(s.scene.key));
                 this.bagBtn.setVisible(!bagHiddenScenes.has(s.scene.key));
                 this.closeInventory();
             });
         }
 
-        this.registry.events.on('changedata-currentZone', (parent, value) => {
-            const newTheme = { ...value };
-            delete newTheme.compositeKey;
-            delete newTheme.pieceSize;
-            newTheme.atlasKey = value.atlasKey ? value.atlasKey + '_sm' : 'atlas_sewers_sm';
-            if (this.btnScrim) { this.btnScrim.destroy(); }
-            this.btnScrim = new UIPanel(this, {
-                x: this._scrimX, y: this._scrimY - this._scrimH / 2,
-                width: this._scrimW, height: this._scrimH,
-                theme: newTheme, depth: 997, padding: 0, cornerSize: 10, fx: false
-            });
-        });
     }
 
     toggleInventory() {
