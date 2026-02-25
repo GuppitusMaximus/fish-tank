@@ -413,16 +413,45 @@ export default class TitleScene extends Phaser.Scene {
                     duration: 1600,
                     ease: 'Cubic.In'
                 });
-                // Fade to black as we fall
+                // Tunnel vision — darkness closes in from edges
                 const { width, height } = this.scale;
-                const blackout = this.add.rectangle(width / 2, height / 2, width, height, 0x000000)
-                    .setAlpha(0).setDepth(100).setScrollFactor(0);
+                const texKey = '__tunnel_vignette';
+                if (this.textures.exists(texKey)) this.textures.remove(texKey);
+                const canvasTex = this.textures.createCanvas(texKey, width, height);
+                const ctx = canvasTex.getContext();
+                this.add.image(width / 2, height / 2, texKey)
+                    .setDepth(100).setScrollFactor(0);
+                const maxR = Math.max(width, height) * 0.8;
+                const tunnel = { r: maxR };
                 this.tweens.add({
-                    targets: blackout,
-                    alpha: 1,
+                    targets: tunnel,
+                    r: 0,
                     duration: 1200,
                     ease: 'Cubic.In',
+                    onUpdate: () => {
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.fillStyle = '#000000';
+                        ctx.fillRect(0, 0, width, height);
+                        if (tunnel.r > 0) {
+                            ctx.globalCompositeOperation = 'destination-out';
+                            const grad = ctx.createRadialGradient(
+                                width / 2, height / 2, 0,
+                                width / 2, height / 2, tunnel.r
+                            );
+                            grad.addColorStop(0, 'rgba(0,0,0,1)');
+                            grad.addColorStop(0.5, 'rgba(0,0,0,1)');
+                            grad.addColorStop(1, 'rgba(0,0,0,0)');
+                            ctx.fillStyle = grad;
+                            ctx.fillRect(0, 0, width, height);
+                        }
+                        canvasTex.refresh();
+                    },
                     onComplete: () => {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.fillStyle = '#000000';
+                        ctx.fillRect(0, 0, width, height);
+                        canvasTex.refresh();
                         this.time.delayedCall(400, () => callback());
                     }
                 });
