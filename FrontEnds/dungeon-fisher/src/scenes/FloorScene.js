@@ -235,21 +235,6 @@ export default class FloorScene extends Phaser.Scene {
             }
         });
 
-        // Create vignette texture once for card image depth
-        if (!this.textures.exists('card_vignette')) {
-            const vw = 128, vh = 128;
-            const canvas = document.createElement('canvas');
-            canvas.width = vw;
-            canvas.height = vh;
-            const ctx = canvas.getContext('2d');
-            const grad = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.min(vw, vh) * 0.55);
-            grad.addColorStop(0, 'rgba(0,0,0,0)');
-            grad.addColorStop(1, 'rgba(0,0,0,1)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, vw, vh);
-            this.textures.addCanvas('card_vignette', canvas);
-        }
-
         cards.forEach((card, cardIndex) => {
             const pos = positions[card.type];
             const cx = pos.x;
@@ -296,15 +281,6 @@ export default class FloorScene extends Phaser.Scene {
             const labelScrim = this.add.rectangle(midX, labelY, lw, lh, 0x000000, 0.5)
                 .setOrigin(0.5).setDepth(3.5).setScrollFactor(0);
 
-            // Vignette overlay on card image — dark graduated edges for depth
-            const vignette = this.add.image(scrimX + scrimW / 2, scrimY + scrimH / 2, 'card_vignette')
-                .setDisplaySize(scrimW, scrimH)
-                .setDepth(3.2)
-                .setScrollFactor(0)
-                .setAlpha(0.45);
-            const baseVigScaleX = vignette.scaleX;
-            const baseVigScaleY = vignette.scaleY;
-
             // Personality overlay — stays invisible until entrance completes
             let personalityOverlay = null;
             if (card.type === 'delve') {
@@ -318,7 +294,7 @@ export default class FloorScene extends Phaser.Scene {
             // Collect visual elements for animation
             const uiElements = [panel.bg, cardScrim, label, labelScrim];
             if (personalityOverlay) uiElements.push(personalityOverlay);
-            const allElements = [...uiElements, img, vignette];
+            const allElements = [...uiElements, img];
 
             // --- Slide-in entrance animation ---
             const entranceDelay = cardIndex * 150;
@@ -350,13 +326,6 @@ export default class FloorScene extends Phaser.Scene {
                 duration: 200,
                 delay: entranceDelay
             });
-            this.tweens.add({
-                targets: vignette,
-                alpha: 0.45,
-                duration: 200,
-                delay: entranceDelay
-            });
-
             // Per-card shimmer tween
             const sh = card.shimmer;
             this.tweens.addCounter({
@@ -391,11 +360,6 @@ export default class FloorScene extends Phaser.Scene {
                     scaleX: baseImgScale * 1.05, scaleY: baseImgScale * 1.05,
                     duration: 150, ease: 'Sine.easeOut'
                 });
-                this.tweens.add({
-                    targets: vignette,
-                    scaleX: baseVigScaleX * 1.05, scaleY: baseVigScaleY * 1.05,
-                    duration: 150, ease: 'Sine.easeOut'
-                });
             });
             hit.on('pointerout', () => {
                 label.clearTint();
@@ -408,11 +372,6 @@ export default class FloorScene extends Phaser.Scene {
                 this.tweens.add({
                     targets: img,
                     scaleX: baseImgScale, scaleY: baseImgScale,
-                    duration: 150, ease: 'Sine.easeOut'
-                });
-                this.tweens.add({
-                    targets: vignette,
-                    scaleX: baseVigScaleX, scaleY: baseVigScaleY,
                     duration: 150, ease: 'Sine.easeOut'
                 });
             });
