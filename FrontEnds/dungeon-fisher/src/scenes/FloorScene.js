@@ -284,11 +284,11 @@ export default class FloorScene extends Phaser.Scene {
             // Personality overlay — stays invisible until entrance completes
             let personalityOverlay = null;
             if (card.type === 'delve') {
-                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x660000, 0)
-                    .setDepth(3.3).setScrollFactor(0);
+                personalityOverlay = this.add.rectangle(midX, midY, cardW, cardH, 0x880000, 0)
+                    .setDepth(4.5).setScrollFactor(0);
             } else if (card.type === 'camp') {
-                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x664400, 0)
-                    .setDepth(3.3).setScrollFactor(0);
+                personalityOverlay = this.add.rectangle(midX, midY, cardW, cardH, 0x886622, 0)
+                    .setDepth(4.5).setScrollFactor(0);
             }
 
             // Collect visual elements for animation
@@ -317,7 +317,9 @@ export default class FloorScene extends Phaser.Scene {
                 ease: 'Back.easeOut',
                 delay: entranceDelay,
                 onComplete: () => {
-                    this._startPersonality(card.type, personalityOverlay, scrimX, scrimY, scrimW, scrimH);
+                    this.time.delayedCall(500, () => {
+                        this._startPersonality(card.type, personalityOverlay, scrimX, scrimY, scrimW, scrimH);
+                    });
                 }
             });
             this.tweens.add({
@@ -423,7 +425,7 @@ export default class FloorScene extends Phaser.Scene {
         if (type === 'delve' && overlay) {
             this.tweens.add({
                 targets: overlay,
-                alpha: { from: 0, to: 0.35 },
+                alpha: { from: 0, to: 0.4 },
                 duration: 1500,
                 yoyo: true,
                 repeat: -1,
@@ -437,19 +439,21 @@ export default class FloorScene extends Phaser.Scene {
                     lifespan: 1200,
                     frequency: 800,
                     quantity: 2,
-                    scale: { start: 0.6, end: 0 },
+                    scale: { start: 0.8, end: 0 },
                     alpha: { start: 1.0, end: 0 },
                     speedY: { min: -15, max: -5 },
                     speedX: { min: -3, max: 3 },
                     tint: [0xffd700, 0xffee88, 0xffffff],
                     blendMode: 'ADD',
-                    depth: 3.3
+                    depth: 4.5
                 }).setScrollFactor(0);
+            } else {
+                console.warn('particle_dot texture missing — shop sparkles disabled');
             }
         } else if (type === 'camp' && overlay) {
             const flicker = () => {
                 if (!overlay.scene) return;
-                const targetAlpha = 0.1 + Math.random() * 0.25;
+                const targetAlpha = 0.15 + Math.random() * 0.3;
                 const duration = 200 + Math.random() * 200;
                 this.tweens.add({
                     targets: overlay,
