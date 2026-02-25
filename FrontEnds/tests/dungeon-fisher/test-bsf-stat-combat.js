@@ -126,11 +126,11 @@ if (twoCurses === 0.5) {
 // ─── Step 2: Combat state initialization ─────────────────────────────────────
 section('2. Combat state initialization');
 
-// 2a. createCombatState exists
-if (combatSrc.includes('static createCombatState(party, monster)')) {
-    ok('createCombatState exists with (party, monster) signature');
+// 2a. createCombatState exists (pack-based: party, monsters array, floor)
+if (combatSrc.includes('static createCombatState(party, monsters, floor')) {
+    ok('createCombatState exists with (party, monsters, floor) signature');
 } else {
-    fail('createCombatState missing');
+    fail('createCombatState missing or wrong signature');
 }
 
 // 2b. Fish combatant fields
@@ -152,8 +152,8 @@ if (fishBlock && fishBlock[0].includes('poisoned: null')) {
     fail('Fish combatant missing poisoned: null');
 }
 
-// 2d. Monster combatant has same fields
-const monsterBlock = combatSrc.match(/monster: \{[\s\S]*?poisons: \[\]/);
+// 2d. Monster combatant has same fields (now in monsterCombatants array via monsters.map)
+const monsterBlock = combatSrc.match(/const monsterCombatants = monsters\.map[\s\S]*?\}\)\)/);
 if (monsterBlock) {
     const mb = monsterBlock[0];
     const monsterFields = ['shield:', 'maxShield:', 'curses: []', 'hots: []', 'burn: null', 'poisons: []', 'poisoned: null'];
@@ -165,7 +165,7 @@ if (monsterBlock) {
         }
     }
 } else {
-    fail('Could not extract monster state block');
+    fail('Could not extract monster combatants block');
 }
 
 // 2e. HP bar chunks include shield and maxShield
@@ -191,17 +191,17 @@ if (combatSrc.includes('static _applyDamage(state, targetType, rawDamage, bypass
     fail('_applyDamage missing or wrong signature');
 }
 
-// 3b. Monster shield absorption
-if (combatSrc.includes('!bypassShield && state.monster.shield > 0')) {
+// 3b. Monster shield absorption (now via monsterHpBar chunks)
+if (combatSrc.includes('!bypassShield && frontChunk && frontChunk.shield > 0')) {
     ok('Monster damage checks bypassShield before shield absorption');
 } else {
     fail('Monster shield check missing bypassShield guard');
 }
 
-if (combatSrc.includes('state.monster.shield -= shieldAbsorbed')) {
-    ok('Monster shield depleted by absorbed amount');
+if (combatSrc.includes('frontChunk.shield -= shieldAbsorbed')) {
+    ok('Monster chunk shield depleted by absorbed amount');
 } else {
-    fail('Monster shield not depleted');
+    fail('Monster chunk shield not depleted');
 }
 
 // 3c. shield_hit event emitted for monster
@@ -211,17 +211,11 @@ if (combatSrc.includes("type: 'shield_hit', target: 'monster'")) {
     fail('shield_hit event missing for monster');
 }
 
-// 3d. Monster HP only reduced by remaining damage after shield
-const monsterDmgBlock = combatSrc.match(/if \(targetType === 'monster'\)[\s\S]*?return \{/);
-if (monsterDmgBlock) {
-    const md = monsterDmgBlock[0];
-    if (md.includes('state.monster.ref.hp -= remaining')) {
-        ok('Monster HP reduced by remaining damage (after shield)');
-    } else {
-        fail('Monster HP reduction not using remaining damage');
-    }
+// 3d. Monster HP reduced via applyDamageToMonsterHpBar
+if (combatSrc.includes('this.applyDamageToMonsterHpBar(state.monsterHpBar, remaining)')) {
+    ok('Monster damage routes through applyDamageToMonsterHpBar');
 } else {
-    fail('Could not extract monster damage block');
+    fail('Monster damage not using applyDamageToMonsterHpBar');
 }
 
 // 3e. Fish shield absorption (chunk-level)
@@ -305,11 +299,12 @@ if (tickPoisonsBlock) {
     fail('Could not extract _tickPoisons method');
 }
 
-// 4b. Poison incapacitation handling
-if (combatSrc.includes('poisonResult.incapacitated')) {
-    ok('Fish poison checks for incapacitation after damage');
+// 4b. Incapacitation checked in _checkIncapacitations (separate death check pass)
+if (combatSrc.includes('static _checkIncapacitations(state, events)') &&
+    combatSrc.includes('static _checkMonsterIncapacitations(state, events)')) {
+    ok('Incapacitation checks in dedicated methods (called after all damage)');
 } else {
-    fail('Fish poison does not check incapacitation');
+    fail('Incapacitation check methods missing');
 }
 
 // ─── Step 5: Minimum damage preserved ───────────────────────────────────────
