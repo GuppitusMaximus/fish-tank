@@ -66,16 +66,8 @@ export default class UIOverlayScene extends Phaser.Scene {
         });
         this.bagBtn.setVisible(false);
 
-        // Opaque scrim behind menu button text
-        const mb = this.menuBtn.text.getBounds();
-        this.menuScrim = this.add.rectangle(
-            mb.x + mb.width / 2, mb.y + mb.height / 2,
-            mb.width + 2, mb.height + 2,
-            0x000000, 0.6
-        ).setOrigin(0.5).setDepth(998).setScrollFactor(0);
-        this.menuScrim.setVisible(false);
-
         // Zone atlas panel behind menu button
+        const mb = this.menuBtn.text.getBounds();
         this._scrimX = mb.x - 14;
         this._scrimW = mb.width + 28;
         this._scrimH = mb.height + 20;
@@ -101,7 +93,6 @@ export default class UIOverlayScene extends Phaser.Scene {
             if (s.scene.key === 'UIOverlay') continue;
             s.sys.events.on('start', () => {
                 this.menuBtn.setVisible(!menuHiddenScenes.has(s.scene.key));
-                this.menuScrim.setVisible(!menuHiddenScenes.has(s.scene.key));
                 this.btnScrim.setVisible(!bagHiddenScenes.has(s.scene.key));
                 this.bagBtn.setVisible(!bagHiddenScenes.has(s.scene.key));
                 this.closeInventory();
