@@ -1,6 +1,7 @@
 import CombatSystem from '../systems/CombatSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
+import EncounterSystem from '../systems/EncounterSystem.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
@@ -16,14 +17,14 @@ export default class BattleScene extends Phaser.Scene {
 
     init(data) {
         this.gameState = data.gameState;
-        this.monster = data.monster;
-        this.combatState = CombatSystem.createCombatState(this.gameState.party, this.monster);
+        this.monsters = data.monsters;
+        this.combatState = CombatSystem.createCombatState(this.gameState.party, this.monsters, this.gameState.floor);
         this.eventQueue = [];
         this.eventTimer = 0;
         this.fishSprites = [];
         this.fishAnimators = [];
         this.cooldownGfx = [];
-        this.displayedMonsterHp = this.monster.hp;
+        this.displayedMonsterHp = this.combatState.monsterHpBar.total;
         this.displayedChunkHps = this.combatState.hpBar.chunks.map(c => c.hp);
     }
 
@@ -64,11 +65,13 @@ export default class BattleScene extends Phaser.Scene {
         );
 
         // --- Monster ---
-        // Name
+        const displayName = this.monsters.length > 1
+            ? this.monsters[0].name + ' x' + this.monsters.length
+            : this.monsters[0].name;
         const namePanel = new UIPanel(this, {
             x: 2, y: 2, width: W * 0.5, height: 22, theme: zone, padding: 6
         });
-        namePanel.addText(this.monster.name, TEXT_STYLES.MONSTER_NAME,
+        namePanel.addText(displayName, TEXT_STYLES.MONSTER_NAME,
             { offsetX: 2, offsetY: -2 }
         );
 
@@ -79,8 +82,8 @@ export default class BattleScene extends Phaser.Scene {
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
         );
 
-        // Monster sprite
-        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monster.id).setScale(0.5).setDepth(2);
+        // Monster sprite (render first monster; pack visuals handled by bsf-battle-visuals)
+        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monsters[0].id).setScale(0.5).setDepth(2);
         this.monsterAnim = new SpriteAnimator(this, this.monsterSpr).idle();
 
         // --- Fish (triangle formation) ---
@@ -94,17 +97,14 @@ export default class BattleScene extends Phaser.Scene {
             this.fishSprites.push(spr);
             this.fishAnimators.push(anim);
 
-            // Cooldown indicators (two small bars near each fish)
             const cdGroup = { base: null, special: null, baseTrack: null, specialTrack: null };
             const cdX = pos.x - 18;
             const cdY = pos.y + 22;
 
-            // Base attack cooldown track + fill
             cdGroup.baseTrack = this.add.graphics();
             cdGroup.baseTrack.fillStyle(0x333333, 0.6).fillRect(cdX, cdY, 36, 3);
             cdGroup.base = this.add.graphics();
 
-            // Special cooldown track + fill
             cdGroup.specialTrack = this.add.graphics();
             cdGroup.specialTrack.fillStyle(0x333333, 0.6).fillRect(cdX, cdY + 5, 36, 3);
             cdGroup.special = this.add.graphics();
@@ -144,13 +144,11 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        // Tick combat engine (only while running)
         if (this.combatState.running) {
             const events = CombatSystem.update(this.combatState, delta);
             for (const e of events) this.eventQueue.push(e);
         }
 
-        // Process event queue with staggering
         this.eventTimer -= delta;
         if (this.eventTimer <= 0 && this.eventQueue.length > 0) {
             const e = this.eventQueue.shift();
@@ -160,7 +158,7 @@ export default class BattleScene extends Phaser.Scene {
 
         // Smooth HP bar interpolation
         const lerpRate = 1 - Math.pow(0.05, delta / 1000);
-        this.displayedMonsterHp += (this.monster.hp - this.displayedMonsterHp) * lerpRate;
+        this.displayedMonsterHp += (this.combatState.monsterHpBar.total - this.displayedMonsterHp) * lerpRate;
         for (let i = 0; i < this.combatState.hpBar.chunks.length; i++) {
             this.displayedChunkHps[i] += (this.combatState.hpBar.chunks[i].hp - this.displayedChunkHps[i]) * lerpRate;
         }
@@ -179,7 +177,8 @@ export default class BattleScene extends Phaser.Scene {
             case 'monster_base_attack': this._onMonsterAttack(e, 'lunge'); break;
             case 'monster_special': this._onMonsterSpecial(e); break;
             case 'fish_incapacitated': this._onFishIncapacitated(e); break;
-            case 'monster_dead': this._onMonsterDead(); break;
+            case 'monster_incapacitated': this._onMonsterIncapacitated(e); break;
+            case 'monsters_dead': this._onMonstersDead(); break;
             case 'party_dead': this._onPartyDead(); break;
             case 'poison_tick': this._onPoisonTick(e); break;
             case 'heal': this._onHeal(e); break;
@@ -238,7 +237,6 @@ export default class BattleScene extends Phaser.Scene {
         const anim = this.fishAnimators[e.fishIndex];
         if (anim) anim.faint();
 
-        // Hide cooldown indicators
         const cd = this.cooldownGfx[e.fishIndex];
         if (cd) {
             cd.base.setVisible(false);
@@ -248,21 +246,33 @@ export default class BattleScene extends Phaser.Scene {
         }
     }
 
-    _onMonsterDead() {
+    _onMonsterIncapacitated(e) {
+        // Flash the monster sprite for incapacitation
+        this.monsterSpr.setTint(0xff0000);
+        this.time.delayedCall(300, () => this.monsterSpr.clearTint());
+    }
+
+    _onMonstersDead() {
         this.combatState.running = false;
         this.monsterAnim.faint();
 
-        // Award XP to each living fish
+        // Calculate rewards via encounter system
+        const encounterType = EncounterSystem.getEncounterType(this.gameState.floor);
+        const rewards = EncounterSystem.calculateRewards(this.gameState.floor, encounterType, this.monsters.length);
+
         const allMsgs = [];
         for (const f of this.combatState.fish) {
             if (f.alive) {
-                const msgs = PartySystem.awardXP(f.ref, this.monster.xpReward);
+                const msgs = PartySystem.awardXP(f.ref, rewards.xp);
                 allMsgs.push(...msgs);
             }
         }
-        this.gameState.gold += this.monster.goldReward;
+        this.gameState.gold += rewards.gold;
 
-        const lines = [this.monster.name + ' defeated! +' + this.monster.goldReward + 'g +' + this.monster.xpReward + 'xp'];
+        const name = this.monsters.length > 1
+            ? this.monsters[0].name + ' pack'
+            : this.monsters[0].name;
+        const lines = [name + ' defeated! +' + rewards.gold + 'g +' + rewards.xp + 'xp'];
         lines.push(...allMsgs);
         this.msgTxt.setText(lines.join(' | '));
 
@@ -273,14 +283,9 @@ export default class BattleScene extends Phaser.Scene {
         this.combatState.running = false;
         this.msgTxt.setText('All fish fainted!');
 
-        this.time.delayedCall(1000, () => {
-            for (const f of this.gameState.party) PartySystem.fullHeal(f);
-            this.gameState.floor = this.gameState.campFloor;
-            this.msgTxt.setText('Returning to camp...');
-
-            this.time.delayedCall(1000, () => {
-                this.scene.start('FloorScene', { gameState: this.gameState });
-            });
+        this.time.delayedCall(1500, () => {
+            for (const f of this.gameState.party) PartySystem.clearCombatState(f);
+            this.scene.start('FloorScene', { gameState: this.gameState, result: 'party_dead' });
         });
     }
 
@@ -337,24 +342,20 @@ export default class BattleScene extends Phaser.Scene {
 
     advanceFloor() {
         for (const f of this.gameState.party) PartySystem.clearCombatState(f);
-        this.gameState.floor++;
-        if (this.gameState.floor > 100) {
-            this.scene.start('VictoryScene', { gameState: this.gameState });
-        } else {
-            this.scene.start('FloorScene', { gameState: this.gameState, fromBattle: true });
-        }
+        this.scene.start('FloorScene', { gameState: this.gameState, result: 'victory' });
     }
 
     // --- Drawing Helpers ---
 
     _drawMonsterHp() {
         const L = this.layout;
+        const mhb = this.combatState.monsterHpBar;
         this.monsterHpBar.clear();
-        const ratio = Math.max(0, this.displayedMonsterHp / this.monster.maxHp);
+        const ratio = Math.max(0, this.displayedMonsterHp / mhb.totalMax);
         const color = ratio > 0.25 ? 0xcc3333 : 0xcc6633;
         this.monsterHpBar.fillStyle(color, 1)
             .fillRect(L.monsterHpX, L.monsterHpY, ratio * L.monsterHpW, 8);
-        this.monsterHpTxt.setText(Math.max(0, Math.round(this.displayedMonsterHp)) + '/' + this.monster.maxHp);
+        this.monsterHpTxt.setText(Math.max(0, Math.round(this.displayedMonsterHp)) + '/' + mhb.totalMax);
     }
 
     _drawPartyHpBar() {
@@ -368,11 +369,9 @@ export default class BattleScene extends Phaser.Scene {
             const chunk = chunks[i];
             const segW = (chunk.maxHp / totalMax) * L.hpBarW;
 
-            // Gray background for segment
             this.partyHpBar.fillStyle(0x444444, 1);
             this.partyHpBar.fillRect(x, L.hpBarY, segW, L.hpBarH);
 
-            // Color fill for current HP
             const displayHp = Math.max(0, this.displayedChunkHps[i]);
             if (displayHp > 0) {
                 const fillW = (displayHp / chunk.maxHp) * segW;
@@ -380,7 +379,6 @@ export default class BattleScene extends Phaser.Scene {
                 this.partyHpBar.fillRect(x, L.hpBarY, fillW, L.hpBarH);
             }
 
-            // Divider line between segments
             if (i < chunks.length - 1) {
                 this.partyHpBar.fillStyle(0x111111, 1);
                 this.partyHpBar.fillRect(x + segW - 1, L.hpBarY, 1, L.hpBarH);
@@ -399,7 +397,6 @@ export default class BattleScene extends Phaser.Scene {
             const cd = this.cooldownGfx[i];
             if (!cd || !f.alive) continue;
 
-            // Base attack cooldown
             const effSpd = CombatSystem.getEffectiveStat(f, 'spd');
             const baseCd = CombatSystem.getBaseAttackCooldown(effSpd);
             const baseFill = Math.min(1, f.baseTimer / baseCd);
@@ -407,7 +404,6 @@ export default class BattleScene extends Phaser.Scene {
             cd.base.fillStyle(0xcccccc, 0.8);
             cd.base.fillRect(cd.x, cd.y, baseFill * 36, 3);
 
-            // Special cooldown
             const move = ConfigLoader.getMove(f.ref.moves[0]);
             if (move) {
                 const specFill = Math.min(1, f.specialTimer / move.cooldown);

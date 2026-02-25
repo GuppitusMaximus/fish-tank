@@ -2,9 +2,10 @@ import ConfigLoader from './ConfigLoader.js';
 
 export default class CombatSystem {
 
-    // Create the initial combat state from a party array and a monster object.
+    // Create the initial combat state from a party array and a monsters array.
+    // monsters: array of 1-3 monster objects (pack or single boss).
     // floor: current dungeon floor number for scaling calculations.
-    static createCombatState(party, monster, floor = 1) {
+    static createCombatState(party, monsters, floor = 1) {
         const aliveFish = party.filter(f => f.hp > 0);
 
         const chunks = aliveFish.map((f, i) => ({
@@ -18,6 +19,35 @@ export default class CombatSystem {
 
         const total = chunks.reduce((sum, c) => sum + c.hp, 0);
         const totalMax = chunks.reduce((sum, c) => sum + c.maxHp, 0);
+
+        const monsterCombatants = monsters.map(m => ({
+            ref: m,
+            alive: true,
+            baseTimer: 0,
+            specialTimer: 0,
+            healPulseTimer: 0,
+            poisoned: null,
+            buffs: [],
+            shield: m.shield || m.maxShield || 0,
+            maxShield: m.maxShield || 0,
+            curses: [],
+            hots: [],
+            burn: null,
+            poisons: [],
+            regenTimer: 0
+        }));
+
+        const monsterChunks = monsters.map((m, i) => ({
+            monsterIndex: i,
+            hp: m.hp,
+            maxHp: m.maxHp,
+            color: m.color,
+            shield: m.shield || m.maxShield || 0,
+            maxShield: m.maxShield || 0
+        }));
+
+        const monsterTotal = monsterChunks.reduce((s, c) => s + c.hp, 0);
+        const monsterTotalMax = monsterChunks.reduce((s, c) => s + c.maxHp, 0);
 
         return {
             fish: aliveFish.map(f => ({
@@ -34,28 +64,19 @@ export default class CombatSystem {
                 burn: null,
                 poisons: []
             })),
-            monster: {
-                ref: monster,
-                baseTimer: 0,
-                specialTimer: 0,
-                healPulseTimer: 0,
-                poisoned: null,
-                buffs: [],
-                shield: monster.shield || monster.maxShield || 0,
-                maxShield: monster.maxShield || 0,
-                curses: [],
-                hots: [],
-                burn: null,
-                poisons: []
-            },
+            monsters: monsterCombatants,
             hpBar: { chunks, total, totalMax },
+            monsterHpBar: {
+                chunks: monsterChunks,
+                total: monsterTotal,
+                totalMax: monsterTotalMax
+            },
             floor: floor,
             running: true
         };
     }
 
     // Tick all timers and return an array of combat events.
-    // deltaMs comes from Phaser's update(time, delta) in milliseconds.
     // FR-24 tick order: attacks → DoTs → heals → buffs/curses → death checks last
     static update(state, deltaMs) {
         if (!state.running) return [];
@@ -68,6 +89,9 @@ export default class CombatSystem {
             const f = state.fish[i];
             if (!f.alive) continue;
 
+            const frontM = this.getFrontMonsterIndex(state);
+            if (frontM === -1) continue;
+
             const effSpd = this.getEffectiveStat(f, 'spd');
             const effAtk = this.getEffectiveStat(f, 'atk');
 
@@ -75,7 +99,7 @@ export default class CombatSystem {
             f.baseTimer += dt;
             if (f.baseTimer >= baseCd) {
                 f.baseTimer -= baseCd;
-                const monsterDef = this.getEffectiveStat(state.monster, 'def');
+                const monsterDef = this.getEffectiveStat(state.monsters[frontM], 'def');
                 const damage = this.calculateBaseDamage(effAtk, monsterDef);
                 const dmgResult = this._applyDamage(state, 'monster', damage, false, events);
                 events.push({ type: 'fish_base_attack', fishIndex: i, damage: dmgResult.actualDamage, shieldAbsorbed: dmgResult.shieldAbsorbed });
@@ -92,7 +116,9 @@ export default class CombatSystem {
                 f.specialTimer += dt;
                 if (f.specialTimer >= move.cooldown) {
                     f.specialTimer -= move.cooldown;
-                    const monsterDef = this.getEffectiveStat(state.monster, 'def');
+                    const frontM = this.getFrontMonsterIndex(state);
+                    if (frontM === -1) continue;
+                    const monsterDef = this.getEffectiveStat(state.monsters[frontM], 'def');
                     const damage = this.calculateSpecialDamage(move.damage, monsterDef);
                     let specialDmgResult = { actualDamage: 0, shieldAbsorbed: 0 };
                     if (damage > 0) {
@@ -107,61 +133,71 @@ export default class CombatSystem {
             }
         }
 
-        // 3. Monster base attack timer
-        const mEffSpd = this.getEffectiveStat(state.monster, 'spd');
-        const mEffAtk = this.getEffectiveStat(state.monster, 'atk');
-        const frontIdx = this.getFrontFishIndex(state);
+        // 3. Monster base attack timers (each monster attacks independently)
+        const frontFishIdx = this.getFrontFishIndex(state);
+        if (frontFishIdx !== -1) {
+            for (let m = 0; m < state.monsters.length; m++) {
+                const mon = state.monsters[m];
+                if (!mon.alive) continue;
 
-        if (frontIdx !== -1) {
-            const mBaseCd = this.getBaseAttackCooldown(mEffSpd);
-            state.monster.baseTimer += dt;
-            if (state.monster.baseTimer >= mBaseCd) {
-                state.monster.baseTimer -= mBaseCd;
-                const fishDef = this.getEffectiveStat(state.fish[frontIdx], 'def');
-                const damage = this.calculateBaseDamage(mEffAtk, fishDef);
-                const result = this._applyDamage(state, 'fish', damage, false, events);
-                events.push({ type: 'monster_base_attack', damage: result.actualDamage, shieldAbsorbed: result.shieldAbsorbed, targetFishIndex: frontIdx });
-            }
-        }
+                const mEffSpd = this.getEffectiveStat(mon, 'spd');
+                const mEffAtk = this.getEffectiveStat(mon, 'atk');
 
-        // 4. Monster special move timer (with floor-scaled damage)
-        if (frontIdx !== -1) {
-            const mMove = ConfigLoader.getMove(state.monster.ref.specialMove);
-            if (mMove) {
-                state.monster.specialTimer += dt;
-                if (state.monster.specialTimer >= mMove.cooldown) {
-                    state.monster.specialTimer -= mMove.cooldown;
+                const mBaseCd = this.getBaseAttackCooldown(mEffSpd);
+                mon.baseTimer += dt;
+                if (mon.baseTimer >= mBaseCd) {
+                    mon.baseTimer -= mBaseCd;
                     const targetIdx = this.getFrontFishIndex(state);
                     if (targetIdx !== -1) {
                         const fishDef = this.getEffectiveStat(state.fish[targetIdx], 'def');
-                        const scaledDamage = this._resolveScaledValue(mMove, 'damage', mMove.damage, state.floor);
-                        const damage = this.calculateSpecialDamage(scaledDamage, fishDef);
-                        let mSpecialResult = { actualDamage: 0, shieldAbsorbed: 0 };
-                        if (damage > 0) {
-                            mSpecialResult = this._applyDamage(state, 'fish', damage, false, events);
-                        }
-                        events.push({ type: 'monster_special', moveId: mMove.id, damage: mSpecialResult.actualDamage, shieldAbsorbed: mSpecialResult.shieldAbsorbed, effect: mMove.effect, targetFishIndex: targetIdx });
-
-                        // Life drain: heal monster by portion of special damage dealt
-                        this._applyLifeDrain(state, mSpecialResult.actualDamage, events);
-
-                        if (mMove.effect) {
-                            this._applyScaledEffect(state, mMove, 'fish', targetIdx, events);
-                        }
+                        const damage = this.calculateBaseDamage(mEffAtk, fishDef);
+                        const result = this._applyDamage(state, 'fish', damage, false, events);
+                        events.push({ type: 'monster_base_attack', monsterIndex: m, damage: result.actualDamage, shieldAbsorbed: result.shieldAbsorbed, targetFishIndex: targetIdx });
                     }
                 }
             }
 
-            // 4b. Dungeon Lord heal pulse timer (third ability)
-            const healPulseId = state.monster.ref.healingBehavior?.healPulseMove;
-            if (healPulseId) {
-                const hpMove = ConfigLoader.getMove(healPulseId);
-                if (hpMove) {
-                    state.monster.healPulseTimer += dt;
-                    if (state.monster.healPulseTimer >= hpMove.cooldown) {
-                        state.monster.healPulseTimer -= hpMove.cooldown;
-                        if (hpMove.effect) {
-                            this._applyScaledEffect(state, hpMove, 'monster_allies', -1, events);
+            // 4. Monster special move timers (each monster independently)
+            for (let m = 0; m < state.monsters.length; m++) {
+                const mon = state.monsters[m];
+                if (!mon.alive) continue;
+
+                const mMove = ConfigLoader.getMove(mon.ref.specialMove);
+                if (mMove) {
+                    mon.specialTimer += dt;
+                    if (mon.specialTimer >= mMove.cooldown) {
+                        mon.specialTimer -= mMove.cooldown;
+                        const targetIdx = this.getFrontFishIndex(state);
+                        if (targetIdx !== -1) {
+                            const fishDef = this.getEffectiveStat(state.fish[targetIdx], 'def');
+                            const scaledDamage = this._resolveScaledValue(mMove, 'damage', mMove.damage, state.floor);
+                            const damage = this.calculateSpecialDamage(scaledDamage, fishDef);
+                            let mSpecialResult = { actualDamage: 0, shieldAbsorbed: 0 };
+                            if (damage > 0) {
+                                mSpecialResult = this._applyDamage(state, 'fish', damage, false, events);
+                            }
+                            events.push({ type: 'monster_special', monsterIndex: m, moveId: mMove.id, damage: mSpecialResult.actualDamage, shieldAbsorbed: mSpecialResult.shieldAbsorbed, effect: mMove.effect, targetFishIndex: targetIdx });
+
+                            this._applyLifeDrain(state, m, mSpecialResult.actualDamage, events);
+
+                            if (mMove.effect) {
+                                this._applyScaledEffect(state, mMove, 'fish', targetIdx, events);
+                            }
+                        }
+                    }
+                }
+
+                // 4b. Heal pulse timer (e.g. Dungeon Lord's third ability)
+                const healPulseId = mon.ref.healingBehavior?.healPulseMove;
+                if (healPulseId) {
+                    const hpMove = ConfigLoader.getMove(healPulseId);
+                    if (hpMove) {
+                        mon.healPulseTimer += dt;
+                        if (mon.healPulseTimer >= hpMove.cooldown) {
+                            mon.healPulseTimer -= hpMove.cooldown;
+                            if (hpMove.effect) {
+                                this._applyScaledEffect(state, hpMove, 'monster_allies', -1, events);
+                            }
                         }
                     }
                 }
@@ -186,16 +222,17 @@ export default class CombatSystem {
 
         // 10. Death checks — mark incapacitated, check battle end
         this._checkIncapacitations(state, events);
+        this._checkMonsterIncapacitations(state, events);
 
         // Simultaneous death: if both sides dead, player wins (fish attacks processed first)
-        const monsterDead = state.monster.ref.hp <= 0;
+        const allMonstersDead = state.monsterHpBar.chunks.every(c => c.hp <= 0);
         const partyDead = state.hpBar.chunks.every(c => c.hp <= 0);
 
-        if (monsterDead) {
-            state.monster.ref.hp = 0;
+        if (allMonstersDead) {
             state.running = false;
-            events.push({ type: 'monster_dead' });
+            events.push({ type: 'monsters_dead' });
             this._syncHpBack(state);
+            this._syncMonsterHpBack(state);
             return events;
         }
 
@@ -228,8 +265,7 @@ export default class CombatSystem {
         return Math.max(1, moveDamage - Math.floor(def * cc.specialDefFactor));
     }
 
-    // Apply damage to the combined HP bar, hitting the frontmost living chunk first.
-    // Returns { fishIndex, actualDamage, incapacitated }
+    // Apply damage to the fish combined HP bar, hitting the frontmost living chunk first.
     static applyDamageToHpBar(hpBar, damage) {
         let remaining = damage;
         let lastFishIndex = -1;
@@ -253,6 +289,30 @@ export default class CombatSystem {
         };
     }
 
+    // Apply damage to the monster combined HP bar, hitting the frontmost living chunk first.
+    static applyDamageToMonsterHpBar(hpBar, damage) {
+        let remaining = damage;
+        let lastMonsterIndex = -1;
+        let anyIncapacitated = false;
+
+        for (const chunk of hpBar.chunks) {
+            if (chunk.hp <= 0) continue;
+            lastMonsterIndex = chunk.monsterIndex;
+            const absorbed = Math.min(remaining, chunk.hp);
+            chunk.hp -= absorbed;
+            remaining -= absorbed;
+            hpBar.total -= absorbed;
+            if (chunk.hp <= 0) anyIncapacitated = true;
+            if (remaining <= 0) break;
+        }
+
+        return {
+            monsterIndex: lastMonsterIndex,
+            actualDamage: damage - remaining,
+            incapacitated: anyIncapacitated
+        };
+    }
+
     // Get index of frontmost living fish in the combat state's fish array
     static getFrontFishIndex(state) {
         for (let i = 0; i < state.fish.length; i++) {
@@ -265,18 +325,27 @@ export default class CombatSystem {
         return -1;
     }
 
+    // Get index of frontmost living monster in the combat state's monsters array
+    static getFrontMonsterIndex(state) {
+        for (let i = 0; i < state.monsters.length; i++) {
+            if (state.monsters[i].alive) {
+                const chunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === i);
+                if (chunk && chunk.hp > 0) return i;
+            }
+        }
+        return -1;
+    }
+
     // Modifier pipeline: base → flat buffs → curse reduction → floor at 0
     static getEffectiveStat(combatant, stat) {
         let value = combatant.ref[stat];
 
-        // Flat buff bonuses
         if (combatant.buffs) {
             for (const buff of combatant.buffs) {
                 if (buff.stat === stat) value += buff.amount;
             }
         }
 
-        // Curse reduction: sum active curse percentages, cap, then reduce
         if (combatant.curses && combatant.curses.length > 0) {
             const cc = ConfigLoader.getCombatConfig();
             let totalCursePercent = 0;
@@ -293,24 +362,30 @@ export default class CombatSystem {
     // --- Private helpers ---
 
     // Route damage through shield → HP. Returns { actualDamage, shieldAbsorbed, incapacitated }.
-    // targetType: 'monster' or 'fish'. Fish damage hits frontmost living chunk's shield then HP bar.
     static _applyDamage(state, targetType, rawDamage, bypassShield, events) {
         let shieldAbsorbed = 0;
         let remaining = rawDamage;
 
         if (targetType === 'monster') {
-            if (!bypassShield && state.monster.shield > 0) {
-                shieldAbsorbed = Math.min(state.monster.shield, remaining);
-                state.monster.shield -= shieldAbsorbed;
+            const frontChunk = state.monsterHpBar.chunks.find(c => c.hp > 0);
+
+            if (!bypassShield && frontChunk && frontChunk.shield > 0) {
+                shieldAbsorbed = Math.min(frontChunk.shield, remaining);
+                frontChunk.shield -= shieldAbsorbed;
                 remaining -= shieldAbsorbed;
                 if (shieldAbsorbed > 0) {
                     events.push({ type: 'shield_hit', target: 'monster', absorbed: shieldAbsorbed });
                 }
             }
+
+            let incapacitated = false;
             if (remaining > 0) {
-                state.monster.ref.hp -= remaining;
+                const result = this.applyDamageToMonsterHpBar(state.monsterHpBar, remaining);
+                remaining = result.actualDamage;
+                incapacitated = result.incapacitated;
             }
-            return { actualDamage: remaining, shieldAbsorbed, incapacitated: false };
+
+            return { actualDamage: remaining, shieldAbsorbed, incapacitated };
         }
 
         // Fish target — absorb from frontmost living chunk's shield, then HP bar
@@ -353,6 +428,16 @@ export default class CombatSystem {
         }
     }
 
+    // Sync monster HP bar chunks back to monster refs after battle ends
+    static _syncMonsterHpBack(state) {
+        for (let i = 0; i < state.monsters.length; i++) {
+            const chunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === i);
+            if (chunk) {
+                state.monsters[i].ref.hp = Math.max(0, chunk.hp);
+            }
+        }
+    }
+
     // Check for newly incapacitated fish and emit events
     static _checkIncapacitations(state, events) {
         for (let i = 0; i < state.fish.length; i++) {
@@ -366,7 +451,24 @@ export default class CombatSystem {
         }
     }
 
-    // Apply a move effect (poison, burn, curse, heal, buff, hot, shield_grant, burn_aoe, heal_hot, burn_curse, heal_pulse)
+    // Check for newly incapacitated monsters and emit events
+    static _checkMonsterIncapacitations(state, events) {
+        for (let m = 0; m < state.monsters.length; m++) {
+            if (!state.monsters[m].alive) continue;
+            const chunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === m);
+            if (chunk && chunk.hp <= 0) {
+                state.monsters[m].alive = false;
+                state.monsters[m].poisons = [];
+                state.monsters[m].burn = null;
+                state.monsters[m].curses = [];
+                state.monsters[m].buffs = [];
+                state.monsters[m].hots = [];
+                events.push({ type: 'monster_incapacitated', monsterIndex: m });
+            }
+        }
+    }
+
+    // Apply a move effect
     static _applyEffect(state, effect, target, sourceIndex, events) {
         if (effect.type === 'poison') {
             const stack = {
@@ -376,8 +478,11 @@ export default class CombatSystem {
                 timer: 0
             };
             if (target === 'monster') {
-                state.monster.poisons.push(stack);
-                events.push({ type: 'poison_applied', target: 'monster', damagePerTick: effect.damagePerTick, ticks: effect.ticks });
+                const frontM = this.getFrontMonsterIndex(state);
+                if (frontM !== -1) {
+                    state.monsters[frontM].poisons.push(stack);
+                    events.push({ type: 'poison_applied', target: 'monster', monsterIndex: frontM, damagePerTick: effect.damagePerTick, ticks: effect.ticks });
+                }
             } else {
                 const frontIdx = this.getFrontFishIndex(state);
                 if (frontIdx !== -1) {
@@ -406,8 +511,11 @@ export default class CombatSystem {
             }
         } else if (effect.type === 'buff') {
             if (target === 'monster') {
-                state.monster.buffs.push({ stat: effect.stat, amount: effect.amount, remaining: effect.duration });
-                events.push({ type: 'buff_applied', target: 'monster', stat: effect.stat, amount: effect.amount, duration: effect.duration });
+                const frontM = this.getFrontMonsterIndex(state);
+                if (frontM !== -1) {
+                    state.monsters[frontM].buffs.push({ stat: effect.stat, amount: effect.amount, remaining: effect.duration });
+                    events.push({ type: 'buff_applied', target: 'monster', monsterIndex: frontM, stat: effect.stat, amount: effect.amount, duration: effect.duration });
+                }
             } else {
                 state.fish[sourceIndex].buffs.push({ stat: effect.stat, amount: effect.amount, remaining: effect.duration });
                 events.push({ type: 'buff_applied', target: 'fish', fishIndex: sourceIndex, stat: effect.stat, amount: effect.amount, duration: effect.duration });
@@ -425,26 +533,29 @@ export default class CombatSystem {
         }
     }
 
-    // Tick all poison stacks and apply damage (bypasses shield)
+    // Tick all poison stacks (bypasses shield)
     static _tickPoisons(state, dt, events) {
-        // Monster poison stacks
-        for (let s = state.monster.poisons.length - 1; s >= 0; s--) {
-            const p = state.monster.poisons[s];
-            p.timer += dt;
-            while (p.timer >= p.interval && p.ticksLeft > 0) {
-                p.timer -= p.interval;
-                p.ticksLeft--;
-                this._applyDamage(state, 'monster', p.damagePerTick, true, events);
-                events.push({ type: 'poison_tick', target: 'monster', damage: p.damagePerTick });
+        // Monster poison stacks (per-monster)
+        for (let m = 0; m < state.monsters.length; m++) {
+            const mon = state.monsters[m];
+            if (!mon.alive) continue;
+            for (let s = mon.poisons.length - 1; s >= 0; s--) {
+                const p = mon.poisons[s];
+                p.timer += dt;
+                while (p.timer >= p.interval && p.ticksLeft > 0) {
+                    p.timer -= p.interval;
+                    p.ticksLeft--;
+                    this._applyDamage(state, 'monster', p.damagePerTick, true, events);
+                    events.push({ type: 'poison_tick', target: 'monster', monsterIndex: m, damage: p.damagePerTick });
+                }
+                if (p.ticksLeft <= 0) {
+                    mon.poisons.splice(s, 1);
+                }
             }
-            if (p.ticksLeft <= 0) {
-                state.monster.poisons.splice(s, 1);
-            }
+            mon.poisoned = mon.poisons.length > 0 ? mon.poisons[0] : null;
         }
-        // Keep legacy poisoned getter in sync
-        state.monster.poisoned = state.monster.poisons.length > 0 ? state.monster.poisons[0] : null;
 
-        // Fish poison stacks (damage hits frontmost chunk via _applyDamage)
+        // Fish poison stacks
         for (let i = 0; i < state.fish.length; i++) {
             const f = state.fish[i];
             if (!f.alive) continue;
@@ -461,23 +572,28 @@ export default class CombatSystem {
                     f.poisons.splice(s, 1);
                 }
             }
-            // Keep legacy poisoned getter in sync
             f.poisoned = f.poisons.length > 0 ? f.poisons[0] : null;
         }
     }
 
-    // Apply burn effect — non-stacking, higher damage wins, AoE spread
+    // Apply burn — AoE spread to all living monsters, front gets full value
     static _applyBurn(state, effect, target, sourceIndex, events) {
         const cc = ConfigLoader.getCombatConfig();
         const initialDamage = effect.damage;
 
         if (target === 'monster') {
-            if (!state.monster.burn || initialDamage > state.monster.burn.damage) {
-                state.monster.burn = { damage: initialDamage, timer: 0 };
-                events.push({ type: 'burn_applied', target: 'monster', initialDamage });
+            const frontM = this.getFrontMonsterIndex(state);
+            if (frontM !== -1) {
+                for (let m = 0; m < state.monsters.length; m++) {
+                    if (!state.monsters[m].alive) continue;
+                    const dmg = (m === frontM) ? initialDamage : Math.floor(initialDamage * cc.burnAoePercent);
+                    if (!state.monsters[m].burn || dmg > state.monsters[m].burn.damage) {
+                        state.monsters[m].burn = { damage: dmg, timer: 0 };
+                        events.push({ type: 'burn_applied', target: 'monster', monsterIndex: m, initialDamage: dmg });
+                    }
+                }
             }
         } else {
-            // Burn the frontmost fish, AoE spread to others
             const frontIdx = this.getFrontFishIndex(state);
             if (frontIdx !== -1) {
                 for (let i = 0; i < state.fish.length; i++) {
@@ -496,17 +612,19 @@ export default class CombatSystem {
     static _tickBurns(state, dt, events) {
         const cc = ConfigLoader.getCombatConfig();
 
-        // Monster burn
-        if (state.monster.burn) {
-            state.monster.burn.timer += dt;
-            if (state.monster.burn.timer >= 1) {
-                state.monster.burn.timer -= 1;
-                const dmgResult = this._applyDamage(state, 'monster', Math.floor(state.monster.burn.damage), false, events);
-                events.push({ type: 'burn_tick', target: 'monster', damage: dmgResult.actualDamage, shieldAbsorbed: dmgResult.shieldAbsorbed });
-                state.monster.burn.damage -= cc.burnDecayPerSecond;
-                if (state.monster.burn.damage <= 0) {
-                    state.monster.burn = null;
-                    events.push({ type: 'burn_expired', target: 'monster' });
+        // Monster burns (per-monster)
+        for (let m = 0; m < state.monsters.length; m++) {
+            const mon = state.monsters[m];
+            if (!mon.alive || !mon.burn) continue;
+            mon.burn.timer += dt;
+            if (mon.burn.timer >= 1) {
+                mon.burn.timer -= 1;
+                const dmgResult = this._applyDamage(state, 'monster', Math.floor(mon.burn.damage), false, events);
+                events.push({ type: 'burn_tick', target: 'monster', monsterIndex: m, damage: dmgResult.actualDamage, shieldAbsorbed: dmgResult.shieldAbsorbed });
+                mon.burn.damage -= cc.burnDecayPerSecond;
+                if (mon.burn.damage <= 0) {
+                    mon.burn = null;
+                    events.push({ type: 'burn_expired', target: 'monster', monsterIndex: m });
                 }
             }
         }
@@ -529,12 +647,15 @@ export default class CombatSystem {
         }
     }
 
-    // Apply curse effect — stacking with cap handled by getEffectiveStat
+    // Apply curse — stacking with cap handled by getEffectiveStat
     static _applyCurse(state, effect, target, sourceIndex, events) {
         const curse = { percent: effect.percent, remaining: effect.duration };
         if (target === 'monster') {
-            state.monster.curses.push(curse);
-            events.push({ type: 'curse_applied', target: 'monster', percent: effect.percent, duration: effect.duration });
+            const frontM = this.getFrontMonsterIndex(state);
+            if (frontM !== -1) {
+                state.monsters[frontM].curses.push(curse);
+                events.push({ type: 'curse_applied', target: 'monster', monsterIndex: frontM, percent: effect.percent, duration: effect.duration });
+            }
         } else {
             const frontIdx = this.getFrontFishIndex(state);
             if (frontIdx !== -1) {
@@ -544,14 +665,18 @@ export default class CombatSystem {
         }
     }
 
-    // Tick curse durations and expire finished curses
+    // Tick curse durations
     static _tickCurses(state, dt, events) {
-        // Monster curses
-        for (let s = state.monster.curses.length - 1; s >= 0; s--) {
-            state.monster.curses[s].remaining -= dt;
-            if (state.monster.curses[s].remaining <= 0) {
-                state.monster.curses.splice(s, 1);
-                events.push({ type: 'curse_expired', target: 'monster' });
+        // Monster curses (per-monster)
+        for (let m = 0; m < state.monsters.length; m++) {
+            const mon = state.monsters[m];
+            if (!mon.alive) continue;
+            for (let s = mon.curses.length - 1; s >= 0; s--) {
+                mon.curses[s].remaining -= dt;
+                if (mon.curses[s].remaining <= 0) {
+                    mon.curses.splice(s, 1);
+                    events.push({ type: 'curse_expired', target: 'monster', monsterIndex: m });
+                }
             }
         }
 
@@ -568,7 +693,7 @@ export default class CombatSystem {
         }
     }
 
-    // Apply HoT effect — adds a new HoT stack to a fish
+    // Apply HoT — adds a new HoT stack to frontmost fish
     static _applyHoT(state, effect, sourceIndex, events) {
         const caster = state.fish[sourceIndex];
         const healPower = caster ? (caster.ref.healPower || 0) : 0;
@@ -599,7 +724,6 @@ export default class CombatSystem {
                 if (h.timer >= cc.hotTickInterval) {
                     h.timer -= cc.hotTickInterval;
                     h.ticksLeft--;
-                    // Heal frontmost living chunk
                     const partyIdx = this._partyIndex(state, i);
                     const chunk = state.hpBar.chunks.find(c => c.fishIndex === partyIdx && c.hp > 0);
                     if (chunk) {
@@ -617,44 +741,62 @@ export default class CombatSystem {
         }
     }
 
-    // Tick passive monster regen — supports all healing behavior types
+    // Tick passive regen for each monster independently
     static _tickPassiveRegen(state, dt, events) {
         const cc = ConfigLoader.getCombatConfig();
-        if (!state.monster.regenTimer) state.monster.regenTimer = 0;
-        const monRef = state.monster.ref;
-        const behavior = monRef.healingBehavior;
-        if (!behavior) return;
 
-        const hasRegen = behavior.type === 'passive_regen' ||
-                         behavior.type === 'passive_regen_and_life_drain' ||
-                         behavior.type === 'all';
+        for (let m = 0; m < state.monsters.length; m++) {
+            const mon = state.monsters[m];
+            if (!mon.alive) continue;
 
-        if (!hasRegen) return;
+            if (!mon.regenTimer) mon.regenTimer = 0;
+            const monRef = mon.ref;
+            const behavior = monRef.healingBehavior;
+            if (!behavior) continue;
 
-        state.monster.regenTimer += dt;
-        if (state.monster.regenTimer >= cc.regenTickInterval) {
-            state.monster.regenTimer -= cc.regenTickInterval;
-            const healPower = monRef.healPower || 0;
-            const scalingFactor = behavior.scalingFactor || behavior.regenScaling || 1;
-            const amount = Math.floor(healPower * scalingFactor);
-            if (amount > 0) {
-                monRef.hp = Math.min(monRef.maxHp || monRef.hp, monRef.hp + amount);
-                events.push({ type: 'regen_tick', target: 'monster', amount });
+            const hasRegen = behavior.type === 'passive_regen' ||
+                             behavior.type === 'passive_regen_and_life_drain' ||
+                             behavior.type === 'all';
+
+            if (!hasRegen) continue;
+
+            mon.regenTimer += dt;
+            if (mon.regenTimer >= cc.regenTickInterval) {
+                mon.regenTimer -= cc.regenTickInterval;
+                const healPower = monRef.healPower || 0;
+                const scalingFactor = behavior.scalingFactor || behavior.regenScaling || 1;
+                const amount = Math.floor(healPower * scalingFactor);
+                if (amount > 0) {
+                    const chunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === m);
+                    if (chunk && chunk.hp > 0) {
+                        const before = chunk.hp;
+                        chunk.hp = Math.min(chunk.maxHp, chunk.hp + amount);
+                        const healed = chunk.hp - before;
+                        state.monsterHpBar.total += healed;
+                        if (healed > 0) {
+                            events.push({ type: 'regen_tick', target: 'monster', monsterIndex: m, amount: healed });
+                        }
+                    }
+                }
             }
         }
     }
 
-    // Tick buff durations and expire them
+    // Tick buff durations
     static _tickBuffs(state, dt, events) {
-        // Monster buffs
-        state.monster.buffs = state.monster.buffs.filter(b => {
-            b.remaining -= dt;
-            if (b.remaining <= 0) {
-                events.push({ type: 'buff_expired', target: 'monster', stat: b.stat });
-                return false;
-            }
-            return true;
-        });
+        // Monster buffs (per-monster)
+        for (let m = 0; m < state.monsters.length; m++) {
+            const mon = state.monsters[m];
+            if (!mon.alive) continue;
+            mon.buffs = mon.buffs.filter(b => {
+                b.remaining -= dt;
+                if (b.remaining <= 0) {
+                    events.push({ type: 'buff_expired', target: 'monster', monsterIndex: m, stat: b.stat });
+                    return false;
+                }
+                return true;
+            });
+        }
 
         // Fish buffs
         for (let i = 0; i < state.fish.length; i++) {
@@ -669,9 +811,9 @@ export default class CombatSystem {
         }
     }
 
-    // --- New effect handlers (bsf-special-moves) ---
+    // --- Effect handlers ---
 
-    // shield_grant: grants shield to the source fish (self-buff). Caps at 2x maxShield.
+    // shield_grant: grants shield to the source fish (self-buff)
     static _applyShieldGrant(state, effect, sourceIndex, events) {
         const fish = state.fish[sourceIndex];
         if (!fish || !fish.alive) return;
@@ -685,27 +827,22 @@ export default class CombatSystem {
         events.push({ type: 'shield_grant', fishIndex: sourceIndex, amount: granted });
     }
 
-    // burn_aoe: applies burn to frontmost monster at full value, spread to all others at burnAoePercent
-    // When used by fish, target is 'monster' — but monster is single entity, so full burn applied.
-    // When used by monster, target is 'fish' — AoE spread uses existing _applyBurn logic.
+    // burn_aoe: applies burn with AoE spread
     static _applyBurnAoe(state, effect, target, sourceIndex, events) {
         const burnEffect = { type: 'burn', damage: effect.initialDamage };
         if (target === 'monster') {
-            // Fish using burn_aoe against monster — full burn on monster
             this._applyBurn(state, burnEffect, 'monster', sourceIndex, events);
         } else {
-            // Monster using burn_aoe against fish party — AoE spread handled by _applyBurn
             this._applyBurn(state, burnEffect, 'fish', sourceIndex, events);
         }
     }
 
-    // heal_hot: burst heal on frontmost living fish chunk, then apply HoT. Scales with caster healPower.
+    // heal_hot: burst heal + HoT on frontmost fish
     static _applyHealHot(state, effect, sourceIndex, events) {
         const caster = state.fish[sourceIndex];
         const healPower = caster ? (caster.ref.healPower || 0) : 0;
         const scaleFactor = 1 + healPower * 0.1;
 
-        // Burst heal on frontmost living chunk
         const frontIdx = this.getFrontFishIndex(state);
         if (frontIdx !== -1) {
             const partyIdx = this._partyIndex(state, frontIdx);
@@ -719,7 +856,6 @@ export default class CombatSystem {
                 events.push({ type: 'heal', fishIndex: frontIdx, amount: healed });
             }
 
-            // Apply HoT to frontmost fish
             const hotAmount = Math.floor(effect.hotAmount * scaleFactor);
             state.fish[frontIdx].hots.push({
                 amount: hotAmount,
@@ -730,39 +866,42 @@ export default class CombatSystem {
         }
     }
 
-    // burn_curse: dual effect — apply burn + curse simultaneously (Dungeon Lord's cataclysm)
+    // burn_curse: dual burn + curse effect
     static _applyBurnCurse(state, effect, target, sourceIndex, events) {
-        // Resolve floor-scaled burn initial value
         const burnInitial = (typeof effect.burnInitial === 'object')
             ? Math.floor(effect.burnInitial.base + (state.floor || 1) * effect.burnInitial.perFloor)
             : effect.burnInitial;
 
-        // Apply burn
         const burnEffect = { type: 'burn', damage: burnInitial };
         this._applyBurn(state, burnEffect, target, sourceIndex, events);
 
-        // Apply curse
         const curseEffect = { type: 'curse', percent: effect.cursePercent, duration: effect.curseDuration };
         this._applyCurse(state, curseEffect, target, sourceIndex, events);
     }
 
-    // heal_pulse: heal ALL friendly combatants by a flat amount scaled by caster's healPower
+    // heal_pulse: heal ALL friendly combatants
     static _applyHealPulse(state, effect, target, events) {
-        // Resolve floor-scaled heal amount
         const baseAmount = (typeof effect.amount === 'object')
             ? Math.floor(effect.amount.base + (state.floor || 1) * effect.amount.perFloor)
             : effect.amount;
-        const healPower = state.monster.ref.healPower || 0;
-        const amount = Math.floor(baseAmount * (1 + healPower * 0.1));
 
         if (target === 'monster_allies') {
-            // Monster heal pulse — heal the monster itself
-            const monRef = state.monster.ref;
-            const before = monRef.hp;
-            monRef.hp = Math.min(monRef.maxHp || monRef.hp, monRef.hp + amount);
-            const healed = monRef.hp - before;
-            if (healed > 0) {
-                events.push({ type: 'heal_pulse', target: 'monster', amount: healed });
+            // Heal all living monsters' HP chunks
+            for (let m = 0; m < state.monsters.length; m++) {
+                const mon = state.monsters[m];
+                if (!mon.alive) continue;
+                const healPower = mon.ref.healPower || 0;
+                const amount = Math.floor(baseAmount * (1 + healPower * 0.1));
+                const chunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === m);
+                if (chunk && chunk.hp > 0) {
+                    const before = chunk.hp;
+                    chunk.hp = Math.min(chunk.maxHp, chunk.hp + amount);
+                    const healed = chunk.hp - before;
+                    state.monsterHpBar.total += healed;
+                    if (healed > 0) {
+                        events.push({ type: 'heal_pulse', target: 'monster', monsterIndex: m, amount: healed });
+                    }
+                }
             }
         } else {
             // Fish heal pulse — heal all living fish chunks
@@ -771,6 +910,7 @@ export default class CombatSystem {
                 const partyIdx = this._partyIndex(state, i);
                 const chunk = state.hpBar.chunks.find(c => c.fishIndex === partyIdx);
                 if (chunk && chunk.hp > 0) {
+                    const amount = baseAmount;
                     const before = chunk.hp;
                     chunk.hp = Math.min(chunk.maxHp, chunk.hp + amount);
                     const healed = chunk.hp - before;
@@ -785,14 +925,12 @@ export default class CombatSystem {
 
     // --- Floor-scaled special helpers ---
 
-    // Resolve a scaled value from a move's scaling object. Falls back to defaultValue if no scaling.
     static _resolveScaledValue(move, key, defaultValue, floor) {
         if (!move.scaling || !move.scaling[key]) return defaultValue;
         const s = move.scaling[key];
         return Math.floor(s.base + floor * s.perFloor);
     }
 
-    // Apply a move's effect with floor-scaling applied to relevant values
     static _applyScaledEffect(state, move, target, targetIdx, events) {
         const effect = move.effect;
         if (!effect) return;
@@ -824,14 +962,14 @@ export default class CombatSystem {
             };
             this._applyEffect(state, scaledEffect, target, targetIdx, events);
         } else {
-            // No scaling for this effect type — use as-is
             this._applyEffect(state, effect, target, targetIdx, events);
         }
     }
 
-    // Apply life drain: after monster special deals damage, heal monster by damage * drainPercent
-    static _applyLifeDrain(state, damage, events) {
-        const behavior = state.monster.ref.healingBehavior;
+    // Life drain: after a specific monster's special deals damage, heal that monster
+    static _applyLifeDrain(state, monsterIndex, damage, events) {
+        const mon = state.monsters[monsterIndex];
+        const behavior = mon.ref.healingBehavior;
         if (!behavior) return;
 
         const hasDrain = behavior.type === 'life_drain' ||
@@ -843,9 +981,16 @@ export default class CombatSystem {
         const drainPercent = behavior.drainPercent || behavior.percent || 0;
         const amount = Math.floor(damage * drainPercent);
         if (amount > 0) {
-            const monRef = state.monster.ref;
-            monRef.hp = Math.min(monRef.maxHp || monRef.hp, monRef.hp + amount);
-            events.push({ type: 'life_drain', target: 'monster', amount });
+            const chunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === monsterIndex);
+            if (chunk && chunk.hp > 0) {
+                const before = chunk.hp;
+                chunk.hp = Math.min(chunk.maxHp, chunk.hp + amount);
+                const healed = chunk.hp - before;
+                state.monsterHpBar.total += healed;
+                if (healed > 0) {
+                    events.push({ type: 'life_drain', target: 'monster', monsterIndex, amount: healed });
+                }
+            }
         }
     }
 }
