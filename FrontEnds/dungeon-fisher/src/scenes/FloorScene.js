@@ -235,6 +235,21 @@ export default class FloorScene extends Phaser.Scene {
             }
         });
 
+        // Create vignette texture once for card image depth
+        if (!this.textures.exists('card_vignette')) {
+            const vw = 128, vh = 128;
+            const canvas = document.createElement('canvas');
+            canvas.width = vw;
+            canvas.height = vh;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.3, vw / 2, vh / 2, Math.min(vw, vh) * 0.55);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,1)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, vw, vh);
+            this.textures.addCanvas('card_vignette', canvas);
+        }
+
         cards.forEach((card, cardIndex) => {
             const pos = positions[card.type];
             const cx = pos.x;
@@ -281,24 +296,65 @@ export default class FloorScene extends Phaser.Scene {
             const labelScrim = this.add.rectangle(midX, labelY, lw, lh, 0x000000, 0.5)
                 .setOrigin(0.5).setDepth(3.5).setScrollFactor(0);
 
+            // Vignette overlay on card image — dark graduated edges for depth
+            const vignette = this.add.image(scrimX + scrimW / 2, scrimY + scrimH / 2, 'card_vignette')
+                .setDisplaySize(scrimW, scrimH)
+                .setDepth(3.2)
+                .setScrollFactor(0)
+                .setAlpha(0.45);
+            const baseVigScaleX = vignette.scaleX;
+            const baseVigScaleY = vignette.scaleY;
+
+            // Personality overlay — stays invisible until entrance completes
+            let personalityOverlay = null;
+            if (card.type === 'delve') {
+                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x440000, 0)
+                    .setDepth(3.3).setScrollFactor(0);
+            } else if (card.type === 'camp') {
+                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x442200, 0)
+                    .setDepth(3.3).setScrollFactor(0);
+            }
+
             // Collect visual elements for animation
             const uiElements = [panel.bg, cardScrim, label, labelScrim];
-            const allElements = [...uiElements, img];
+            if (personalityOverlay) uiElements.push(personalityOverlay);
+            const allElements = [...uiElements, img, vignette];
 
-            // --- Staggered entrance animation ---
+            // --- Slide-in entrance animation ---
             const entranceDelay = cardIndex * 150;
-            uiElements.forEach(el => { el.setAlpha(0); el.setScale(0.5); });
-            img.setAlpha(0).setScale(baseImgScale * 0.5);
+            let slideX = 0, slideY = 0;
+            if (card.type === 'shop') { slideX = -W * 0.5; }
+            else if (card.type === 'delve') { slideY = H * 0.8; }
+            else if (card.type === 'camp') { slideX = W * 0.5; }
+
+            allElements.forEach(el => {
+                el.setAlpha(0);
+                el.x += slideX;
+                el.y += slideY;
+            });
 
             this.tweens.add({
-                targets: uiElements,
-                alpha: 1, scaleX: 1, scaleY: 1,
-                duration: 400, ease: 'Back.easeOut', delay: entranceDelay
+                targets: allElements,
+                x: `-=${slideX}`,
+                y: `-=${slideY}`,
+                duration: 400,
+                ease: 'Back.easeOut',
+                delay: entranceDelay,
+                onComplete: () => {
+                    this._startPersonality(card.type, personalityOverlay, scrimX, scrimY, scrimW, scrimH);
+                }
             });
             this.tweens.add({
-                targets: img,
-                alpha: 1, scaleX: baseImgScale, scaleY: baseImgScale,
-                duration: 400, ease: 'Back.easeOut', delay: entranceDelay
+                targets: [panel.bg, cardScrim, label, labelScrim, img],
+                alpha: 1,
+                duration: 200,
+                delay: entranceDelay
+            });
+            this.tweens.add({
+                targets: vignette,
+                alpha: 0.45,
+                duration: 200,
+                delay: entranceDelay
             });
 
             // Per-card shimmer tween
@@ -335,6 +391,11 @@ export default class FloorScene extends Phaser.Scene {
                     scaleX: baseImgScale * 1.05, scaleY: baseImgScale * 1.05,
                     duration: 150, ease: 'Sine.easeOut'
                 });
+                this.tweens.add({
+                    targets: vignette,
+                    scaleX: baseVigScaleX * 1.05, scaleY: baseVigScaleY * 1.05,
+                    duration: 150, ease: 'Sine.easeOut'
+                });
             });
             hit.on('pointerout', () => {
                 label.clearTint();
@@ -347,6 +408,11 @@ export default class FloorScene extends Phaser.Scene {
                 this.tweens.add({
                     targets: img,
                     scaleX: baseImgScale, scaleY: baseImgScale,
+                    duration: 150, ease: 'Sine.easeOut'
+                });
+                this.tweens.add({
+                    targets: vignette,
+                    scaleX: baseVigScaleX, scaleY: baseVigScaleY,
                     duration: 150, ease: 'Sine.easeOut'
                 });
             });
@@ -392,6 +458,50 @@ export default class FloorScene extends Phaser.Scene {
             theme: floorTheme, depth: 7, padding: 0, cornerSize: 10, fx: false
         });
 
+    }
+
+    _startPersonality(type, overlay, scrimX, scrimY, scrimW, scrimH) {
+        if (type === 'delve' && overlay) {
+            this.tweens.add({
+                targets: overlay,
+                alpha: { from: 0, to: 0.15 },
+                duration: 1500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        } else if (type === 'shop') {
+            if (this.textures.exists('particle_dot')) {
+                this.add.particles(0, 0, 'particle_dot', {
+                    x: { min: scrimX, max: scrimX + scrimW },
+                    y: { min: scrimY, max: scrimY + scrimH },
+                    lifespan: 800,
+                    frequency: 1800,
+                    quantity: 1,
+                    scale: { start: 0.4, end: 0 },
+                    alpha: { start: 0.8, end: 0 },
+                    speedY: { min: -15, max: -5 },
+                    speedX: { min: -3, max: 3 },
+                    tint: [0xffd700, 0xffee88, 0xffffff],
+                    blendMode: 'ADD',
+                    depth: 3.3
+                }).setScrollFactor(0);
+            }
+        } else if (type === 'camp' && overlay) {
+            const flicker = () => {
+                if (!overlay.scene) return;
+                const targetAlpha = 0.05 + Math.random() * 0.1;
+                const duration = 200 + Math.random() * 200;
+                this.tweens.add({
+                    targets: overlay,
+                    alpha: targetAlpha,
+                    duration: duration,
+                    ease: 'Sine.easeInOut',
+                    onComplete: flicker
+                });
+            };
+            flicker();
+        }
     }
 
     _transitionTo(type, callback) {
