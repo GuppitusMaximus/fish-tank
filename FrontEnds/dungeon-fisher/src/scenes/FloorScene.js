@@ -86,8 +86,8 @@ export default class FloorScene extends Phaser.Scene {
             return;
         }
 
-        // Fresh entry — start encounter for current floor
-        this._startEncounter();
+        // Fresh entry — show zone hub
+        this._showZoneView();
     }
 
     _advanceAndRoute() {
@@ -105,7 +105,7 @@ export default class FloorScene extends Phaser.Scene {
             return;
         }
 
-        this._startEncounter();
+        this._showZoneView();
     }
 
     _processTransitions() {
@@ -117,6 +117,93 @@ export default class FloorScene extends Phaser.Scene {
         } else if (next === 'shop') {
             this.scene.start('ShopScene', { gameState: gs });
         }
+    }
+
+    _showZoneView() {
+        const W = this.scale.width;
+        const H = this.scale.height;
+        const gs = this.gameState;
+        const zone = getZoneByFloor(gs.floor);
+
+        this.children.removeAll();
+
+        // Zone background with ambient effects
+        const bgKey = getBackgroundKey(gs.floor);
+        UILayout.sceneBackground(this, bgKey, { effects: true });
+        UILayout.overlay(this, { alpha: 0.3, depth: 0 });
+
+        // Zone name
+        this.add.text(W / 2, H * 0.08, zone.name,
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '18px' })
+        ).setOrigin(0.5);
+
+        // Floor counter
+        this.add.text(W / 2, H * 0.15, 'Floor ' + gs.floor,
+            makeStyle(TEXT_STYLES.BODY, { color: '#cccccc' })
+        ).setOrigin(0.5);
+
+        // Flavor text
+        if (zone.flavor) {
+            this.add.text(W / 2, H * 0.22, zone.flavor,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#888899', fontStyle: 'italic' })
+            ).setOrigin(0.5);
+        }
+
+        // Delve Deeper action card
+        const cardY = H * 0.52;
+        const cardImg = this.add.image(W / 2, cardY, 'card_delve')
+            .setOrigin(0.5);
+
+        // Scale card to fit screen — max 60% width, max 35% height
+        const maxW = W * 0.6;
+        const maxH = H * 0.35;
+        const cardScale = Math.min(maxW / cardImg.width, maxH / cardImg.height, 1);
+        cardImg.setScale(cardScale);
+        cardImg.setInteractive({ useHandCursor: true });
+
+        // Hover effect
+        cardImg.on('pointerover', () => {
+            this.tweens.add({
+                targets: cardImg,
+                scaleX: cardScale * 1.05, scaleY: cardScale * 1.05,
+                duration: 150, ease: 'Sine.Out'
+            });
+        });
+        cardImg.on('pointerout', () => {
+            this.tweens.add({
+                targets: cardImg,
+                scaleX: cardScale, scaleY: cardScale,
+                duration: 150, ease: 'Sine.Out'
+            });
+        });
+
+        // Click — start encounter
+        cardImg.on('pointerdown', () => {
+            this.children.removeAll();
+            this._startEncounter();
+        });
+
+        // Compact party HP at bottom
+        const partyY = H * 0.82;
+        gs.party.forEach((f, i) => {
+            const x = W / (gs.party.length + 1) * (i + 1);
+            const alive = f.hp > 0;
+            const color = alive ? '#ccccee' : '#ff6666';
+
+            this.add.text(x, partyY, f.name,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '9px', color })
+            ).setOrigin(0.5);
+
+            // HP bar
+            const barW = 40;
+            const barH = 3;
+            this.add.rectangle(x, partyY + 10, barW, barH, 0x333333);
+            if (alive) {
+                const fillW = (f.hp / f.maxHp) * barW;
+                const hpColor = f.hp / f.maxHp > 0.5 ? 0x44ff44 : (f.hp / f.maxHp > 0.25 ? 0xffaa00 : 0xff4444);
+                this.add.rectangle(x - (barW - fillW) / 2, partyY + 10, fillW, barH, hpColor);
+            }
+        });
     }
 
     _startEncounter() {
@@ -534,7 +621,7 @@ export default class FloorScene extends Phaser.Scene {
             onClick: () => {
                 gs.party.push(PartySystem.createFish(species.id));
                 this.children.removeAll();
-                this._startEncounter();
+                this._showZoneView();
             }
         });
 
@@ -546,7 +633,7 @@ export default class FloorScene extends Phaser.Scene {
             hoverColor: '#ffffff',
             onClick: () => {
                 this.children.removeAll();
-                this._startEncounter();
+                this._showZoneView();
             }
         });
     }
@@ -572,7 +659,7 @@ export default class FloorScene extends Phaser.Scene {
                     gs.inventory.push(itemId);
                 }
                 this.children.removeAll();
-                this._startEncounter();
+                this._showZoneView();
             }
         });
     }
