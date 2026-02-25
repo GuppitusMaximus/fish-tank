@@ -364,16 +364,18 @@ export default class FloorScene extends Phaser.Scene {
             if (card.type === 'delve') {
                 hit.on('pointerdown', () => {
                     const monster = generateMonster(gs.floor);
-                    this.scene.start('BattleScene', { gameState: gs, monster: monster });
+                    this._transitionTo('delve', () => this.scene.start('BattleScene', { gameState: gs, monster }));
                 });
             } else if (card.type === 'shop') {
                 hit.on('pointerdown', () => {
-                    gs.nextShopFloor = gs.floor + 1 + Math.floor(Math.random() * 3);
-                    this.scene.start('ShopScene', { gameState: gs });
+                    this._transitionTo('shop', () => {
+                        gs.nextShopFloor = gs.floor + 1 + Math.floor(Math.random() * 3);
+                        this.scene.start('ShopScene', { gameState: gs });
+                    });
                 });
             } else if (card.type === 'camp') {
                 hit.on('pointerdown', () => {
-                    this.scene.start('CampScene', { gameState: gs });
+                    this._transitionTo('camp', () => this.scene.start('CampScene', { gameState: gs }));
                 });
             }
         });
@@ -400,6 +402,71 @@ export default class FloorScene extends Phaser.Scene {
             theme: floorTheme, depth: 7, padding: 0, cornerSize: 10, fx: false
         });
 
+    }
+
+    _transitionTo(type, callback) {
+        // Disable all hit zones to prevent double-clicks
+        this.input.enabled = false;
+
+        const W = this.scale.width;
+        const H = this.scale.height;
+
+        if (type === 'delve') {
+            // Aggressive: camera shake → white flash → fade to black
+            this.cameras.main.shake(200, 0.01);
+            this.time.delayedCall(200, () => {
+                const flash = this.add.rectangle(W / 2, H / 2, W + 20, H + 20, 0xffffff, 0)
+                    .setDepth(100).setScrollFactor(0);
+                this.tweens.add({
+                    targets: flash,
+                    alpha: 1,
+                    duration: 100,
+                    onComplete: () => {
+                        flash.setFillStyle(0x000000, 0);
+                        const black = this.add.rectangle(W / 2, H / 2, W + 20, H + 20, 0x000000, 0)
+                            .setDepth(101).setScrollFactor(0);
+                        this.tweens.add({
+                            targets: black,
+                            alpha: 1,
+                            duration: 300,
+                            onComplete: () => callback()
+                        });
+                    }
+                });
+            });
+        } else if (type === 'shop') {
+            // Calm dissolve: smooth fade to black
+            const black = this.add.rectangle(W / 2, H / 2, W + 20, H + 20, 0x000000, 0)
+                .setDepth(100).setScrollFactor(0);
+            this.tweens.add({
+                targets: black,
+                alpha: 1,
+                duration: 500,
+                ease: 'Sine.InOut',
+                onComplete: () => callback()
+            });
+        } else if (type === 'camp') {
+            // Warm fade: amber → black
+            const warm = this.add.rectangle(W / 2, H / 2, W + 20, H + 20, 0x442200, 0)
+                .setDepth(100).setScrollFactor(0);
+            this.tweens.add({
+                targets: warm,
+                alpha: 1,
+                duration: 400,
+                ease: 'Sine.InOut',
+                onComplete: () => {
+                    const black = this.add.rectangle(W / 2, H / 2, W + 20, H + 20, 0x000000, 0)
+                        .setDepth(101).setScrollFactor(0);
+                    this.tweens.add({
+                        targets: black,
+                        alpha: 1,
+                        duration: 300,
+                        ease: 'Sine.InOut',
+                        onComplete: () => callback()
+                    });
+                }
+            });
+        }
     }
 
     showFloorReward() {
