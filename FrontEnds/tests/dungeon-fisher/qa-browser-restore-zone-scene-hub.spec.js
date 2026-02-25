@@ -58,7 +58,7 @@ const PUFFER = makeFish('pufferfish', 'Pufferfish', 0xffcc00, 60, 60, 12, 14, 8,
 function makeSave(party, floor = 1, extras = {}) {
     return {
         version: 4,
-        gameVersion: '0.9.0',
+        gameVersion: '0.10.0',
         savedAt: Date.now(),
         floor,
         gold: extras.gold ?? 200,
@@ -120,16 +120,16 @@ test.describe('1. zone hub display (source verification)', () => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("zone.name");
-        // Zone name positioned at H*0.08
-        expect(src).toContain("H * 0.08, zone.name");
+        // Zone name centered in top info panel at y=14
+        expect(src).toContain("W / 2, 14, zone.name");
     });
 
     test('_showZoneView renders floor counter', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("'Floor ' + gs.floor");
-        // Floor counter at H*0.15
-        expect(src).toContain("H * 0.15, 'Floor ' + gs.floor");
+        // Floor counter in bottom panel
+        expect(src).toContain("H - floorPanelH / 2 - 8, 'Floor ' + gs.floor");
     });
 
     test('_showZoneView renders italic flavor text', async ({ page }) => {
@@ -143,15 +143,14 @@ test.describe('1. zone hub display (source verification)', () => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("'card_delve'");
-        // Card positioned at H*0.52
-        expect(src).toContain("H * 0.52");
+        // Cards positioned at H*0.35
+        expect(src).toContain("H * 0.35");
     });
 
-    test('_showZoneView renders compact party HP bars', async ({ page }) => {
+    test('_showZoneView renders compact party HP bars in info panel', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Party HP at H*0.82
-        expect(src).toContain("H * 0.82");
+        // Party HP in top info panel
         expect(src).toContain("gs.party.forEach");
         expect(src).toContain("f.name");
         // HP bar rendering
@@ -180,8 +179,9 @@ test.describe('2. card interaction (source verification)', () => {
     test('Delve Deeper card has hover scale effect', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Hover scales to 1.05x
-        expect(src).toContain("cardScale * 1.05");
+        // Hover scales card image to 1.05x original
+        expect(src).toContain("origScaleX * 1.05");
+        expect(src).toContain("origScaleY * 1.05");
         expect(src).toContain("'pointerover'");
         expect(src).toContain("'pointerout'");
     });
@@ -192,11 +192,10 @@ test.describe('2. card interaction (source verification)', () => {
         expect(src).toContain("setInteractive({ useHandCursor: true })");
     });
 
-    test('clicking card calls _startEncounter', async ({ page }) => {
+    test('clicking card calls onClick callback', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("'pointerdown'");
-        expect(src).toContain("this._startEncounter()");
+        expect(src).toContain("hitArea.on('pointerdown', () => card.onClick())");
     });
 });
 
@@ -215,13 +214,13 @@ test.describe('3. post-battle zone return', () => {
         expect(advanceMethod[0]).toContain("this._showZoneView()");
     });
 
-    test('victory with transitions processes camp/shop before zone view', async ({ page }) => {
+    test('victory with transitions sets up queue and shows zone view', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Transitions are processed, then _pendingAdvance triggers _advanceAndRoute
+        // Transitions stored in queue, then zone hub shown with cards
         expect(src).toContain("gs._transitionQueue = transitions");
         expect(src).toContain("gs._pendingAdvance = true");
-        expect(src).toContain("this._processTransitions()");
+        expect(src).toContain("this._showZoneView()");
     });
 
     test('returning from transition with pendingAdvance calls _advanceAndRoute', async ({ page }) => {
@@ -395,10 +394,10 @@ test.describe('7. zone transition', () => {
 
 test.describe('8. version', () => {
 
-    test('game version is 0.9.0', async ({ page }) => {
+    test('game version is 0.10.0', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
-        expect(src).toContain("VERSION = '0.9.0'");
+        expect(src).toContain("VERSION = '0.10.0'");
     });
 });
 
@@ -437,8 +436,8 @@ test.describe('browser integration', () => {
         const save = makeSave([{ ...GUPPY }, { ...PUFFER }], 1);
         await enterZoneHub(page, save);
 
-        // Click the Delve Deeper card at center (W/2, H*0.52) = (240, 140)
-        await clickGame(page, 240, 140);
+        // Click the Delve Deeper card center (single card at W/2, H*0.35 + cardH/2 ≈ 172)
+        await clickGame(page, 240, 172);
         await page.waitForTimeout(3000);
 
         await page.screenshot({ path: `${SCREENSHOT_DIR}/zh-int-03-battle-start.png` });
@@ -452,8 +451,8 @@ test.describe('browser integration', () => {
         const save = makeSave([{ ...GUPPY }], 1);
         await enterZoneHub(page, save);
 
-        // Hover the card at (240, 140)
-        await hoverGame(page, 240, 140);
+        // Hover the card center (single card at 240, 172)
+        await hoverGame(page, 240, 172);
         await page.waitForTimeout(500);
         await page.screenshot({ path: `${SCREENSHOT_DIR}/zh-int-04-card-hover.png` });
 
