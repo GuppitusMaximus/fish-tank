@@ -235,7 +235,7 @@ export default class FloorScene extends Phaser.Scene {
             }
         });
 
-        cards.forEach((card) => {
+        cards.forEach((card, cardIndex) => {
             const pos = positions[card.type];
             const cx = pos.x;
             const cy = pos.y;
@@ -247,7 +247,7 @@ export default class FloorScene extends Phaser.Scene {
             delete cardTheme.compositeKey;
             delete cardTheme.pieceSize;
             cardTheme.atlasKey = 'atlas_sewers_sm';
-            new UIPanel(this, {
+            const panel = new UIPanel(this, {
                 x: cx, y: cy, width: cardW, height: cardH,
                 theme: cardTheme, depth: 2, padding: 0, cornerSize: 10, fx: false
             });
@@ -262,13 +262,13 @@ export default class FloorScene extends Phaser.Scene {
             const scrimY = cy + topInset;
             const scrimW = cardW - sideInset * 2;
             const scrimH = cardH - topInset - bottomInset;
-            this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x000000, 0.5)
+            const cardScrim = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x000000, 0.5)
                 .setDepth(2.5).setScrollFactor(0);
 
             const contentH = cardH - topInset - bottomInset;
             const img = this.add.image(midX, cy + topInset + contentH / 2, card.key);
-            const imgScale = Math.min((cardW - sideInset * 2) / img.width, contentH / img.height);
-            img.setScale(imgScale).setDepth(3).setScrollFactor(0);
+            const baseImgScale = Math.min((cardW - sideInset * 2) / img.width, contentH / img.height);
+            img.setScale(baseImgScale).setDepth(3).setScrollFactor(0);
 
             const labelY = cy + cardH - bottomInset - 7;
             const label = this.add.text(midX, labelY, card.label,
@@ -278,8 +278,38 @@ export default class FloorScene extends Phaser.Scene {
             // Scrim behind label for readability
             const lw = label.displayWidth + 8;
             const lh = label.displayHeight + 4;
-            this.add.rectangle(midX, labelY, lw, lh, 0x000000, 0.5)
+            const labelScrim = this.add.rectangle(midX, labelY, lw, lh, 0x000000, 0.5)
                 .setOrigin(0.5).setDepth(3.5).setScrollFactor(0);
+
+            // Collect visual elements for animation
+            const uiElements = [panel.bg, cardScrim, label, labelScrim];
+            const allElements = [...uiElements, img];
+
+            // --- Staggered entrance animation ---
+            const entranceDelay = cardIndex * 150;
+            uiElements.forEach(el => { el.setAlpha(0); el.setScale(0.5); });
+            img.setAlpha(0).setScale(baseImgScale * 0.5);
+
+            this.tweens.add({
+                targets: uiElements,
+                alpha: 1, scaleX: 1, scaleY: 1,
+                duration: 400, ease: 'Back.easeOut', delay: entranceDelay
+            });
+            this.tweens.add({
+                targets: img,
+                alpha: 1, scaleX: baseImgScale, scaleY: baseImgScale,
+                duration: 400, ease: 'Back.easeOut', delay: entranceDelay,
+                onComplete: () => {
+                    // --- Idle float: gentle bob after entrance completes ---
+                    this.tweens.add({
+                        targets: allElements,
+                        y: '-=3',
+                        duration: 2000, yoyo: true, repeat: -1,
+                        ease: 'Sine.easeInOut',
+                        delay: cardIndex * 200
+                    });
+                }
+            });
 
             // Per-card shimmer tween
             const sh = card.shimmer;
@@ -301,13 +331,34 @@ export default class FloorScene extends Phaser.Scene {
             const hit = this.add.rectangle(midX, midY, cardW, cardH, 0xffffff, 0)
                 .setDepth(5).setInteractive({ useHandCursor: true });
 
+            // --- Hover feedback: scale + tint ---
             hit.on('pointerover', () => {
                 label.setTint(0xffffff);
                 img.setTint(0xdddddd);
+                this.tweens.add({
+                    targets: uiElements,
+                    scaleX: 1.05, scaleY: 1.05,
+                    duration: 150, ease: 'Sine.easeOut'
+                });
+                this.tweens.add({
+                    targets: img,
+                    scaleX: baseImgScale * 1.05, scaleY: baseImgScale * 1.05,
+                    duration: 150, ease: 'Sine.easeOut'
+                });
             });
             hit.on('pointerout', () => {
                 label.clearTint();
                 img.clearTint();
+                this.tweens.add({
+                    targets: uiElements,
+                    scaleX: 1, scaleY: 1,
+                    duration: 150, ease: 'Sine.easeOut'
+                });
+                this.tweens.add({
+                    targets: img,
+                    scaleX: baseImgScale, scaleY: baseImgScale,
+                    duration: 150, ease: 'Sine.easeOut'
+                });
             });
 
             if (card.type === 'delve') {
