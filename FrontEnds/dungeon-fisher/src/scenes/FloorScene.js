@@ -262,7 +262,7 @@ export default class FloorScene extends Phaser.Scene {
             const scrimY = cy + topInset;
             const scrimW = cardW - sideInset * 2;
             const scrimH = cardH - topInset - bottomInset;
-            this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x000000, 0.5)
+            this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x000000, 1)
                 .setDepth(2.5).setScrollFactor(0);
 
             const contentH = cardH - topInset - bottomInset;
