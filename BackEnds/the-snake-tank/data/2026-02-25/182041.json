@@ -1,0 +1,88 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1772043513,
+        "firmware": 300,
+        "wifi_status": 42,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1772043512,
+          "Temperature": 20.7,
+          "CO2": 574,
+          "Humidity": 29,
+          "Noise": 54,
+          "Pressure": 997.3,
+          "AbsolutePressure": 971.5,
+          "min_temp": 19.2,
+          "max_temp": 21.4,
+          "date_max_temp": 1772009010,
+          "date_min_temp": 1771996006,
+          "temp_trend": "up",
+          "pressure_trend": "down"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1772043506,
+            "last_seen": 1772043474,
+            "rf_status": 62,
+            "battery_vp": 6012,
+            "dashboard_data": {
+              "time_utc": 1772043474,
+              "Temperature": -2.1,
+              "Humidity": 71,
+              "min_temp": -14.3,
+              "max_temp": -2.1,
+              "date_max_temp": 1772043167,
+              "date_min_temp": 1772001126,
+              "temp_trend": "up"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.04903912544250488,
+  "time_server": 1772043641
+}
