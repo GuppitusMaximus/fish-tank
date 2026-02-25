@@ -62,11 +62,12 @@ export default class CampScene extends Phaser.Scene {
         gs.party.forEach((f, i) => {
             const old = oldHp[i];
             const before = old.fainted ? 'FAINTED' : old.hp + '/' + old.maxHp;
+            const shieldStr = f.maxShield > 0 ? ' | Shield: ' + f.shield : '';
             hpList.addRow((x, y) => [
-                this.add.text(x, y, f.name + '  Lv.' + f.level,
+                this.add.text(x, y, f.name + (f.isCompanion ? ' \u2605' : '') + '  Lv.' + f.level,
                     makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
                 ),
-                this.add.text(hpColX, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp,
+                this.add.text(hpColX, y, before + ' \u2192 ' + f.hp + '/' + f.maxHp + shieldStr,
                     makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#88cc88' })
                 ),
                 this.add.text(W - 30, y, '\u2713',
@@ -85,8 +86,14 @@ export default class CampScene extends Phaser.Scene {
         this.orderObjects = [];
         this.renderPartyOrder();
 
+        // Roster section (bench reserves)
+        this.rosterStartY = this.orderEndY + 15;
+        this.rosterObjects = [];
+        this.renderRoster();
+
         // Continue button
-        const contY = Math.max(this.orderEndY + 22, H - 30);
+        const bottomY = (gs.roster && gs.roster.length > 0) ? this.rosterEndY : this.orderEndY;
+        const contY = Math.max(bottomY + 22, H - 30);
         UIButton.create(this, {
             x: W / 2, y: contY,
             label: '[ CONTINUE ]',
@@ -132,7 +139,8 @@ export default class CampScene extends Phaser.Scene {
         gs.party.forEach((f, i) => {
             orderList.addRow((x, rowY) => {
                 const row = [];
-                const nameTxt = this.add.text(x, rowY, f.name + ' Lv.' + f.level,
+                const label = f.name + (f.isCompanion ? ' \u2605' : '') + ' Lv.' + f.level;
+                const nameTxt = this.add.text(x, rowY, label,
                     makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px' })
                 );
                 row.push(nameTxt);
@@ -140,6 +148,11 @@ export default class CampScene extends Phaser.Scene {
                 if (i === 0) {
                     row.push(this.add.text(x + nameTxt.width + 6, rowY, '(FRONT)',
                         makeStyle(TEXT_STYLES.BODY, { fontSize: '10px', color: '#f0c040' })
+                    ));
+                }
+                if (f.isCompanion) {
+                    row.push(this.add.text(x + nameTxt.width + 6, rowY, '(LOCKED)',
+                        makeStyle(TEXT_STYLES.BODY, { fontSize: '10px', color: '#888888' })
                     ));
                 }
 
@@ -180,5 +193,126 @@ export default class CampScene extends Phaser.Scene {
         });
 
         this.orderEndY = orderList.bottomY;
+    }
+
+    renderRoster() {
+        const W = this.scale.width;
+        const gs = this.gameState;
+
+        for (const obj of this.rosterObjects) {
+            if (obj && obj.destroy) obj.destroy();
+        }
+        this.rosterObjects = [];
+
+        if (!gs.roster || gs.roster.length === 0) {
+            this.rosterEndY = this.rosterStartY;
+            return;
+        }
+
+        let y = this.rosterStartY;
+
+        const rosterH = 31 + gs.roster.length * 18 + 4;
+        const rosterPanel = new UIPanel(this, {
+            x: 4, y: this.rosterStartY - 4, width: W - 8, height: rosterH,
+            theme: this.zone, padding: 0
+        });
+        this.rosterObjects.push(rosterPanel);
+
+        const header = this.add.text(W / 2, y, 'ROSTER',
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '13px', color: accentHex(this.zone) })
+        ).setOrigin(0.5);
+        this.rosterObjects.push(header);
+        y += 15;
+
+        const sub = this.add.text(W / 2, y, 'Tap SWAP to exchange with a party fish',
+            makeStyle(TEXT_STYLES.BODY, { color: '#888888', fontSize: '10px' })
+        ).setOrigin(0.5);
+        this.rosterObjects.push(sub);
+        y += 16;
+
+        const rosterList = new UIList(this, { x: 20, y, spacing: 18 });
+        this.rosterObjects.push(rosterList);
+
+        gs.roster.forEach((f, ri) => {
+            rosterList.addRow((x, rowY) => {
+                const row = [];
+                const shieldStr = f.maxShield > 0 ? ' | Sh:' + f.shield : '';
+                row.push(this.add.text(x, rowY,
+                    f.name + ' Lv.' + f.level + '  HP:' + f.hp + '/' + f.maxHp + shieldStr,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '11px' })
+                ));
+
+                const swapBtn = UIButton.create(this, {
+                    x: W - 40, y: rowY,
+                    label: 'SWAP',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' }),
+                    hoverColor: '#ffffff',
+                    origin: { x: 0, y: 0 },
+                    onClick: () => this._showSwapTargets(ri)
+                });
+                this.rosterObjects.push(swapBtn);
+
+                return row;
+            });
+        });
+
+        this.rosterEndY = rosterList.bottomY;
+    }
+
+    _showSwapTargets(rosterIndex) {
+        const W = this.scale.width;
+        const gs = this.gameState;
+
+        // Destroy previous swap UI if any
+        if (this._swapObjects) {
+            for (const obj of this._swapObjects) {
+                if (obj && obj.destroy) obj.destroy();
+            }
+        }
+        this._swapObjects = [];
+
+        const benchFish = gs.roster[rosterIndex];
+        let y = this.rosterEndY + 10;
+
+        const eligible = gs.party.map((f, i) => ({ f, i })).filter(({ f }) => !f.isCompanion);
+        const panelH = 20 + eligible.length * 18 + 4;
+        const panel = new UIPanel(this, {
+            x: 4, y: y - 4, width: W - 8, height: panelH,
+            theme: this.zone, padding: 0
+        });
+        this._swapObjects.push(panel);
+
+        const hdr = this.add.text(W / 2, y, 'Swap ' + benchFish.name + ' with:',
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '11px', color: '#cccccc' })
+        ).setOrigin(0.5);
+        this._swapObjects.push(hdr);
+        y += 18;
+
+        eligible.forEach(({ f, i: partyIdx }) => {
+            const txt = this.add.text(20, y, f.name + ' Lv.' + f.level,
+                makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '11px' })
+            );
+            this._swapObjects.push(txt);
+
+            const btn = UIButton.create(this, {
+                x: W - 40, y,
+                label: '\u2194',
+                style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+                hoverColor: '#ffffff',
+                origin: { x: 0, y: 0 },
+                onClick: () => {
+                    PartySystem.swapPartyMember(gs, partyIdx, rosterIndex);
+                    SaveSystem.save(gs);
+                    // Clear swap UI and re-render
+                    for (const o of this._swapObjects) { if (o && o.destroy) o.destroy(); }
+                    this._swapObjects = [];
+                    this.renderPartyOrder();
+                    this.rosterStartY = this.orderEndY + 15;
+                    this.renderRoster();
+                }
+            });
+            this._swapObjects.push(btn);
+            y += 18;
+        });
     }
 }
