@@ -298,17 +298,7 @@ export default class FloorScene extends Phaser.Scene {
             this.tweens.add({
                 targets: img,
                 alpha: 1, scaleX: baseImgScale, scaleY: baseImgScale,
-                duration: 400, ease: 'Back.easeOut', delay: entranceDelay,
-                onComplete: () => {
-                    // --- Idle float: gentle bob after entrance completes ---
-                    this.tweens.add({
-                        targets: allElements,
-                        y: '-=3',
-                        duration: 2000, yoyo: true, repeat: -1,
-                        ease: 'Sine.easeInOut',
-                        delay: cardIndex * 200
-                    });
-                }
+                duration: 400, ease: 'Back.easeOut', delay: entranceDelay
             });
 
             // Per-card shimmer tween
