@@ -13,9 +13,9 @@
         "name": "Spike Shield",
         "damage": 0,
         "cooldown": 7,
-        "effect": { "type": "buff", "stat": "def", "amount": 5, "duration": 5 },
+        "effect": { "type": "shield_grant", "amount": 20 },
         "animation": "lunge",
-        "description": "Puffs up defensively, boosting DEF."
+        "description": "Puffs up defensively, granting a shield."
     },
     "deep_strike": {
         "id": "deep_strike",
@@ -40,9 +40,9 @@
         "name": "Abyssal Beam",
         "damage": 30,
         "cooldown": 4.5,
-        "effect": null,
+        "effect": { "type": "burn_aoe", "initialDamage": 8 },
         "animation": "projectile",
-        "description": "Fires a beam of deep-sea energy."
+        "description": "Fires a beam of deep-sea energy, burning all enemies."
     },
     "razor_rush": {
         "id": "razor_rush",
@@ -67,9 +67,9 @@
         "name": "Healing Tide",
         "damage": 0,
         "cooldown": 5,
-        "effect": { "type": "heal", "amount": 20 },
+        "effect": { "type": "heal_hot", "burstHeal": 10, "hotAmount": 5, "hotTicks": 5 },
         "animation": "lunge",
-        "description": "A soothing tide that heals the front fish."
+        "description": "A soothing tide that heals and rejuvenates."
     },
     "tidal_crush": {
         "id": "tidal_crush",
@@ -85,9 +85,9 @@
         "name": "Golden Aura",
         "damage": 0,
         "cooldown": 7,
-        "effect": { "type": "buff", "stat": "atk", "amount": 5, "duration": 5 },
+        "effect": { "type": "curse", "percent": 0.15, "duration": 5 },
         "animation": "lunge",
-        "description": "Radiates golden energy, boosting ATK."
+        "description": "Radiates golden energy, cursing the frontmost enemy."
     },
     "gnaw": {
         "id": "gnaw",
@@ -95,6 +95,7 @@
         "damage": 8,
         "cooldown": 2,
         "effect": null,
+        "scaling": { "damage": { "base": 5, "perFloor": 0.5 } },
         "animation": "lunge",
         "description": "A quick gnawing bite."
     },
@@ -104,6 +105,7 @@
         "damage": 12,
         "cooldown": 3,
         "effect": null,
+        "scaling": { "damage": { "base": 8, "perFloor": 0.6 } },
         "animation": "projectile",
         "description": "An ear-splitting screech."
     },
@@ -113,6 +115,7 @@
         "damage": 15,
         "cooldown": 3,
         "effect": null,
+        "scaling": { "damage": { "base": 10, "perFloor": 0.7 } },
         "animation": "projectile",
         "description": "Hurls a rusty dagger."
     },
@@ -122,6 +125,10 @@
         "damage": 12,
         "cooldown": 4,
         "effect": { "type": "poison", "damagePerTick": 4, "ticks": 3, "interval": 1.5 },
+        "scaling": {
+            "damage": { "base": 5, "perFloor": 0.3 },
+            "poison": { "damagePerTick": { "base": 2, "perFloor": 0.2 }, "ticks": 4, "interval": 1.5 }
+        },
         "animation": "projectile",
         "description": "Spits venomous webbing."
     },
@@ -130,9 +137,13 @@
         "name": "Bone Throw",
         "damage": 18,
         "cooldown": 3.5,
-        "effect": null,
+        "effect": { "type": "curse", "percent": 0.10, "duration": 4 },
+        "scaling": {
+            "damage": { "base": 12, "perFloor": 0.6 },
+            "curse": { "percent": { "base": 0.10, "perFloor": 0.003 }, "duration": { "base": 4, "perFloor": 0.1 } }
+        },
         "animation": "projectile",
-        "description": "Throws a sharp bone."
+        "description": "Throws a sharp bone, cursing the target."
     },
     "acid_splash": {
         "id": "acid_splash",
@@ -140,6 +151,10 @@
         "damage": 14,
         "cooldown": 4,
         "effect": { "type": "poison", "damagePerTick": 3, "ticks": 4, "interval": 1 },
+        "scaling": {
+            "damage": { "base": 7, "perFloor": 0.4 },
+            "poison": { "damagePerTick": { "base": 3, "perFloor": 0.2 }, "ticks": 4, "interval": 1.0 }
+        },
         "animation": "projectile",
         "description": "Splashes corrosive acid."
     },
@@ -149,6 +164,7 @@
         "damage": 25,
         "cooldown": 5,
         "effect": null,
+        "scaling": { "damage": { "base": 15, "perFloor": 1.0 } },
         "animation": "lunge",
         "description": "Slams the ground with massive force."
     },
@@ -157,9 +173,13 @@
         "name": "Shadow Bolt",
         "damage": 16,
         "cooldown": 2.5,
-        "effect": null,
+        "effect": { "type": "curse", "percent": 0.12, "duration": 4 },
+        "scaling": {
+            "damage": { "base": 10, "perFloor": 0.5 },
+            "curse": { "percent": { "base": 0.12, "perFloor": 0.003 }, "duration": { "base": 4, "perFloor": 0.1 } }
+        },
         "animation": "projectile",
-        "description": "Fires a bolt of shadow energy."
+        "description": "Fires a bolt of shadow energy, cursing the target."
     },
     "stone_crush": {
         "id": "stone_crush",
@@ -167,6 +187,7 @@
         "damage": 30,
         "cooldown": 6,
         "effect": null,
+        "scaling": { "damage": { "base": 18, "perFloor": 1.2 } },
         "animation": "lunge",
         "description": "Crushes with a massive stone fist."
     },
@@ -175,36 +196,58 @@
         "name": "Hellfire",
         "damage": 28,
         "cooldown": 4.5,
-        "effect": null,
+        "effect": { "type": "burn", "damage": 8 },
+        "scaling": {
+            "damage": { "base": 16, "perFloor": 1.0 },
+            "burn": { "damage": { "base": 8, "perFloor": 0.5 } }
+        },
         "animation": "projectile",
-        "description": "Unleashes hellish flames."
+        "description": "Unleashes hellish flames, burning the target."
     },
     "fire_breath": {
         "id": "fire_breath",
         "name": "Fire Breath",
         "damage": 35,
         "cooldown": 6,
-        "effect": null,
+        "effect": { "type": "burn", "damage": 10 },
+        "scaling": {
+            "damage": { "base": 20, "perFloor": 1.2 },
+            "burn": { "damage": { "base": 10, "perFloor": 0.6 } }
+        },
         "animation": "projectile",
-        "description": "Breathes a torrent of fire."
+        "description": "Breathes a torrent of fire, burning the target."
     },
     "dark_nova": {
         "id": "dark_nova",
         "name": "Dark Nova",
         "damage": 30,
         "cooldown": 5,
-        "effect": { "type": "poison", "damagePerTick": 6, "ticks": 3, "interval": 1.5 },
+        "effect": { "type": "curse", "percent": 0.15, "duration": 5 },
+        "scaling": {
+            "damage": { "base": 18, "perFloor": 1.0 },
+            "curse": { "percent": { "base": 0.15, "perFloor": 0.004 }, "duration": { "base": 5, "perFloor": 0.1 } }
+        },
         "animation": "projectile",
-        "description": "Erupts with dark energy, poisoning the target."
+        "description": "Erupts with dark energy, cursing the target."
     },
     "cataclysm": {
         "id": "cataclysm",
         "name": "Cataclysm",
         "damage": 40,
         "cooldown": 5,
-        "effect": null,
+        "effect": { "type": "burn_curse", "burnInitial": { "base": 10, "perFloor": 0.5 }, "cursePercent": 0.25, "curseDuration": 6 },
+        "scaling": { "damage": { "base": 25, "perFloor": 1.5 } },
         "animation": "projectile",
         "description": "Unleashes ultimate destructive power."
+    },
+    "heal_pulse": {
+        "id": "heal_pulse",
+        "name": "Heal Pulse",
+        "damage": 0,
+        "cooldown": 8,
+        "effect": { "type": "heal_pulse", "amount": { "base": 10, "perFloor": 0.3 } },
+        "animation": "projectile",
+        "description": "A pulse of energy that heals all allies."
     },
     "loyal_bite": {
         "id": "loyal_bite",
