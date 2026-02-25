@@ -4,6 +4,7 @@ import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ZONE_THEMES } from '../data/themes.js';
 import { UIPanel, UIButton } from '../ui/index.js';
 import { loadZoneTheme } from '../systems/ThemeAssetLoader.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
 
 const ZONES = Object.values(ZONE_THEMES)
     .sort((a, b) => a.floorRange[0] - b.floorRange[0])
@@ -11,6 +12,7 @@ const ZONES = Object.values(ZONE_THEMES)
         key: z.bgKey,
         name: z.name,
         floors: z.floorRange[0] + ' - ' + z.floorRange[1],
+        floorRange: z.floorRange,
         flavor: z.flavor,
         theme: z
     }));
@@ -47,11 +49,12 @@ export default class ZonePreviewScene extends Phaser.Scene {
             coverBackground(this, zone.key);
             this.effectsHandle = addEffects(this, zone.key);
 
-            // Top panel — zone name + floor range
+            // Top panel — zone number + name + floor range
+            const zoneNumber = index + 1;
             const topPanel = new UIPanel(this, {
                 x: 0, y: 0, width, height: 40, theme: zone.theme, alpha: 0.85, padding: 0
             });
-            topPanel.addText(zone.name,
+            topPanel.addText('Zone ' + zoneNumber + ': ' + zone.name,
                 makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px' }),
                 { align: 'center', offsetY: 10 }
             );
@@ -60,14 +63,17 @@ export default class ZonePreviewScene extends Phaser.Scene {
                 { align: 'center', offsetY: 26 }
             );
 
-            // Bottom panel — flavor text
-            const bottomPanel = new UIPanel(this, {
-                x: 0, y: height - 44, width, height: 44, theme: zone.theme, alpha: 0.85, padding: 0
-            });
-            bottomPanel.addText(zone.flavor,
-                makeStyle(TEXT_STYLES.FLAVOR, { color: '#aaaacc' }),
-                { align: 'center', offsetY: 12 }
+            // Monster types for this zone
+            const allMonsters = ConfigLoader.getAllMonsters();
+            const zoneMonsters = Object.values(allMonsters).filter(
+                m => m.floorRange[0] <= zone.floorRange[1] && m.floorRange[1] >= zone.floorRange[0]
             );
+            if (zoneMonsters.length > 0) {
+                const monsterNames = zoneMonsters.map(m => m.name).join(', ');
+                this.add.text(width / 2, 50, 'Monsters: ' + monsterNames,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color: '#cc8888' })
+                ).setOrigin(0.5);
+            }
 
             // Theme sample panel
             const sampleW = width * 0.6;
@@ -82,6 +88,21 @@ export default class ZonePreviewScene extends Phaser.Scene {
             samplePanel.addText('Theme Preview',
                 makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex }),
                 { align: 'center', offsetY: sampleH / 2 - 5 }
+            );
+
+            // Bottom panel — flavor text + deaths remaining
+            const encounterConfig = ConfigLoader.getEncounterConfig();
+            const maxDeaths = encounterConfig.maxPveDeaths || 4;
+            const bottomPanel = new UIPanel(this, {
+                x: 0, y: height - 50, width, height: 50, theme: zone.theme, alpha: 0.85, padding: 0
+            });
+            bottomPanel.addText(zone.flavor,
+                makeStyle(TEXT_STYLES.FLAVOR, { color: '#aaaacc' }),
+                { align: 'center', offsetY: 8 }
+            );
+            bottomPanel.addText('Lives: ' + maxDeaths,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color: '#ff8888' }),
+                { align: 'center', offsetY: 24 }
             );
 
             // Dot indicators

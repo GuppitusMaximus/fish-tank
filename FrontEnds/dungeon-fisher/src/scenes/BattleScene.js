@@ -340,17 +340,23 @@ export default class BattleScene extends Phaser.Scene {
         const encounterType = EncounterSystem.getEncounterType(this.gameState.floor);
         const rewards = EncounterSystem.calculateRewards(this.gameState.floor, encounterType, this.monsters.length);
 
+        // FR-8d: Only award XP to living fish (hp > 0)
         const allMsgs = [];
         for (const f of this.combatState.fish) {
-            if (f.alive) {
+            if (f.alive && f.ref.hp > 0) {
                 const msgs = PartySystem.awardXP(f.ref, rewards.xp);
                 allMsgs.push(...msgs);
             }
         }
+        // Award XP to companion if alive
+        if (this.gameState.companion && this.gameState.companion.hp > 0) {
+            const msgs = PartySystem.awardXP(this.gameState.companion, rewards.xp);
+            allMsgs.push(...msgs);
+        }
         this.gameState.gold += rewards.gold;
 
-        const name = this.monsters.length > 1
-            ? this.monsters[0].name + ' pack'
+        const name = this.isPvp ? 'Ghost Party'
+            : this.monsters.length > 1 ? this.monsters[0].name + ' pack'
             : this.monsters[0].name;
         const lines = [name + ' defeated! +' + rewards.gold + 'g +' + rewards.xp + 'xp'];
         lines.push(...allMsgs);
@@ -365,7 +371,7 @@ export default class BattleScene extends Phaser.Scene {
 
         this.time.delayedCall(1500, () => {
             for (const f of this.gameState.party) PartySystem.clearCombatState(f);
-            this.scene.start('FloorScene', { gameState: this.gameState, result: 'party_dead' });
+            this.scene.start('FloorScene', { gameState: this.gameState, result: 'party_dead', isPvp: this.isPvp });
         });
     }
 

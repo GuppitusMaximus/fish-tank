@@ -1,4 +1,5 @@
 import EconomySystem from '../systems/EconomySystem.js';
+import EncounterSystem from '../systems/EncounterSystem.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
@@ -25,6 +26,7 @@ export default class ShopScene extends Phaser.Scene {
         const H = this.scale.height;
         const gs = this.gameState;
         const isPortrait = this.registry.get('isPortrait');
+        const zone = EncounterSystem.getZoneNumber(gs.floor);
 
         // Zone background — conditional pattern kept inline
         const shopBgKey = getShopBackground(gs.floor);
@@ -33,15 +35,15 @@ export default class ShopScene extends Phaser.Scene {
         if (!shopBgKey) addEffects(this, bgKey);
         UILayout.overlay(this, { alpha: 0.55, depth: 0 });
 
-        const zone = getZoneByFloor(gs.floor);
+        const zoneTheme = getZoneByFloor(gs.floor);
         const character = getCharacterTheme(gs.fisherId);
 
         // Header panel
         const headerPanel = new UIPanel(this, {
-            x: 4, y: 2, width: W - 8, height: 34, theme: zone, padding: 0
+            x: 4, y: 2, width: W - 8, height: 34, theme: zoneTheme, padding: 0
         });
         headerPanel.addText('SHOP',
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zone) }),
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '16px', color: accentHex(zoneTheme) }),
             { offsetX: 6, offsetY: 6 }
         );
         headerPanel.addText('Gold: ' + gs.gold,
@@ -59,12 +61,12 @@ export default class ShopScene extends Phaser.Scene {
 
         // Content panel
         new UIPanel(this, {
-            x: 4, y: 38, width: W - 8, height: H - 62, theme: zone, padding: 0
+            x: 4, y: 38, width: W - 8, height: H - 62, theme: zoneTheme, padding: 0
         });
 
         // Items section
         this.add.text(10, 40, '-- ITEMS --',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zoneTheme) })
         );
 
         const itemList = new UIList(this, {
@@ -74,11 +76,12 @@ export default class ShopScene extends Phaser.Scene {
         const itemKeys = Object.keys(ITEMS);
         for (const key of itemKeys) {
             const item = ITEMS[key];
-            const canBuy = gs.gold >= item.price && gs.inventory.length < MAX_INVENTORY;
+            const price = EconomySystem.getZoneScaledPrice(key, zone);
+            const canBuy = gs.gold >= price && gs.inventory.length < MAX_INVENTORY;
 
             itemList.addRow((x, y) => {
                 const row = [];
-                row.push(this.add.text(x, y, item.name + ' (' + item.price + 'g)',
+                row.push(this.add.text(x, y, item.name + ' (' + price + 'g)',
                     makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: canBuy ? '#ccccee' : '#555555' })
                 ));
 
@@ -113,7 +116,7 @@ export default class ShopScene extends Phaser.Scene {
         // Fish section
         const fishHeaderY = itemList.bottomY + 6;
         this.add.text(10, fishHeaderY, '-- FISH --',
-            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zone) })
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zoneTheme) })
         );
 
         const fishList = new UIList(this, {
@@ -121,19 +124,21 @@ export default class ShopScene extends Phaser.Scene {
         });
 
         const shopFish = EconomySystem.getShopFish(gs);
+        const fishPrice = EconomySystem.getZoneScaledFishPrice(zone);
+
         if (shopFish.length === 0) {
             fishList.addRow((x, y) => [
-                this.add.text(x, y, gs.party.length >= 3 ? 'Party full!' : 'No fish available',
+                this.add.text(x, y, 'No fish available',
                     makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#555555' })
                 )
             ]);
         } else {
             for (const species of shopFish) {
-                const canBuy = gs.gold >= species.shopPrice && gs.party.length < 3;
+                const canBuy = gs.gold >= fishPrice;
 
                 fishList.addRow((x, y) => {
                     const row = [];
-                    row.push(this.add.text(x, y, species.name + ' (' + species.shopPrice + 'g)',
+                    row.push(this.add.text(x, y, species.name + ' (' + fishPrice + 'g) Lv.' + (zone * 2),
                         makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: canBuy ? '#ccccee' : '#555555' })
                     ));
 
@@ -159,7 +164,13 @@ export default class ShopScene extends Phaser.Scene {
                             color: '#88cc88',
                             hoverColor: '#ffffff',
                             origin: { x: 0.5, y: 0 },
-                            onClick: () => { if (EconomySystem.buyFish(gs, species.id)) this.buildShop(); }
+                            onClick: () => {
+                                const result = EconomySystem.buyFish(gs, species.id);
+                                if (result) {
+                                    this.buildShop();
+                                    this._showMessage('Added to Roster!');
+                                }
+                            }
                         });
                         row.push(btn.text);
                     }
@@ -175,6 +186,20 @@ export default class ShopScene extends Phaser.Scene {
             style: TEXT_STYLES.BUTTON,
             hoverColor: '#ffffff',
             onClick: () => this.scene.start('FloorScene', { gameState: gs })
+        });
+    }
+
+    _showMessage(text) {
+        const W = this.scale.width;
+        const msg = this.add.text(W / 2, 50, text,
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#88cc88' })
+        ).setOrigin(0.5).setDepth(10);
+        this.tweens.add({
+            targets: msg,
+            alpha: 0,
+            y: msg.y - 15,
+            duration: 1500,
+            onComplete: () => msg.destroy()
         });
     }
 }

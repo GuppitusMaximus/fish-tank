@@ -16,7 +16,6 @@ export default class SaveSystem {
             party: gameState.party,
             inventory: gameState.inventory,
             campFloor: gameState.campFloor,
-            nextShopFloor: gameState.nextShopFloor || gameState.floor,
             fisherId: gameState.fisherId || 'andy',
             pveDeathCount: gameState.pveDeathCount || 0,
             pvpLossCount: gameState.pvpLossCount || 0,
@@ -98,7 +97,6 @@ export default class SaveSystem {
             data.pvpLossCount = 0;
             data.roster = [];
             data.companion = null;
-            if (!data.nextShopFloor) data.nextShopFloor = data.floor;
             data.version = 4;
         }
 

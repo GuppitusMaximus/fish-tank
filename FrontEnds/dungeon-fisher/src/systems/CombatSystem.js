@@ -8,14 +8,18 @@ export default class CombatSystem {
     static createCombatState(party, monsters, floor = 1) {
         const aliveFish = party.filter(f => f.hp > 0);
 
-        const chunks = aliveFish.map((f, i) => ({
-            fishIndex: party.indexOf(f),
-            hp: f.hp,
-            maxHp: f.maxHp,
-            color: f.color,
-            shield: f.shield || 0,
-            maxShield: f.maxShield || 0
-        }));
+        const chunks = aliveFish.map((f, i) => {
+            const bonus = f.bonusShield || 0;
+            if (bonus > 0) delete f.bonusShield;
+            return {
+                fishIndex: party.indexOf(f),
+                hp: f.hp,
+                maxHp: f.maxHp,
+                color: f.color,
+                shield: (f.maxShield || 0) + bonus,
+                maxShield: (f.maxShield || 0) + bonus
+            };
+        });
 
         const total = chunks.reduce((sum, c) => sum + c.hp, 0);
         const totalMax = chunks.reduce((sum, c) => sum + c.maxHp, 0);
@@ -57,7 +61,7 @@ export default class CombatSystem {
                 specialTimer: 0,
                 poisoned: null,
                 buffs: [],
-                shield: f.shield || f.maxShield || 0,
+                shield: f.maxShield || 0,
                 maxShield: f.maxShield || 0,
                 curses: [],
                 hots: [],

@@ -1,6 +1,7 @@
 import { VERSION } from '../version.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
+import EconomySystem from '../systems/EconomySystem.js';
 import { UIPanel, UIButton, UIList, UILayout } from '../ui/index.js';
 import { TITLE_THEME, accentHex } from '../data/themes.js';
 
@@ -68,12 +69,16 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         this.inventoryElements = [];
 
+        this._useAllowedScenes = new Set(['FloorScene', 'CampScene', 'ShopScene']);
+        this._currentScene = null;
+
         const menuHiddenScenes = new Set(['BootScene', 'TitleScene']);
         const bagHiddenScenes = new Set(['BootScene', 'TitleScene', 'CharacterSelectScene', 'ZonePreviewScene']);
 
         for (const s of this.scene.manager.scenes) {
             if (s.scene.key === 'UIOverlay') continue;
             s.sys.events.on('start', () => {
+                this._currentScene = s.scene.key;
                 this.menuBtn.setVisible(!menuHiddenScenes.has(s.scene.key));
                 this.bagBtn.setVisible(!bagHiddenScenes.has(s.scene.key));
                 this.closeInventory();
@@ -96,6 +101,7 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         const { width: W, height: H } = this.scale;
         const isPortrait = this.registry.get('isPortrait');
+        const canUseItems = this._useAllowedScenes.has(this._currentScene);
 
         const blocker = UILayout.overlay(this, { depth: 1001, alpha: 0.6 });
         blocker.setInteractive();
@@ -151,11 +157,30 @@ export default class UIOverlayScene extends Phaser.Scene {
                     const nameText = this.add.text(x, y, `${i + 1}. ${item.name}`,
                         makeStyle(TEXT_STYLES.BODY, { color: accentHex(character) }))
                         .setDepth(1002);
-                    const descX = x + (isPortrait ? 100 : 140);
+                    const descX = x + (isPortrait ? 80 : 120);
                     const descText = this.add.text(descX, y, item.description,
                         makeStyle(TEXT_STYLES.BODY_SMALL))
                         .setDepth(1002);
-                    return [nameText, descText];
+
+                    const row = [nameText, descText];
+
+                    if (canUseItems) {
+                        const useBtn = UIButton.create(this, {
+                            x: panelX + panelW - 16, y: y + 2,
+                            label: 'USE',
+                            style: makeStyle(TEXT_STYLES.BUTTON, {
+                                fontSize: '10px', stroke: '#000000', strokeThickness: 1
+                            }),
+                            depth: 1003,
+                            origin: { x: 1, y: 0 },
+                            color: '#88cc88',
+                            hoverColor: '#ffffff',
+                            onClick: () => this._showTargetSelection(i)
+                        });
+                        row.push(useBtn);
+                    }
+
+                    return row;
                 } else {
                     const emptyText = this.add.text(x, y, `${i + 1}. - empty -`,
                         makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#555566' }))
@@ -193,13 +218,104 @@ export default class UIOverlayScene extends Phaser.Scene {
         this.inventoryElements.push(closeBtn);
     }
 
+    _showTargetSelection(inventoryIndex) {
+        const gameState = this.registry.get('gameState');
+        if (!gameState) return;
+        const itemId = gameState.inventory[inventoryIndex];
+        const item = ITEMS[itemId];
+        if (!item) return;
+
+        if (this._targetElements) {
+            for (const el of this._targetElements) el.destroy();
+        }
+        this._targetElements = [];
+
+        const { width: W, height: H } = this.scale;
+
+        const blocker = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.5)
+            .setDepth(1010).setScrollFactor(0).setInteractive();
+        blocker.on('pointerdown', () => {});
+        this._targetElements.push(blocker);
+
+        const panelX = 30;
+        const panelY = H * 0.2;
+        const panelW = W - 60;
+        const panelH = gameState.party.length * 28 + 50;
+        const character = this.registry.get('currentCharacter') || TITLE_THEME;
+        const panel = new UIPanel(this, {
+            x: panelX, y: panelY, width: panelW, height: panelH,
+            theme: character, alpha: 0.95, depth: 1011, childDepth: 1011, padding: 0
+        });
+        this._targetElements.push(panel);
+
+        const headerTxt = this.add.text(W / 2, panelY + 10, 'Use ' + item.name + ' on:',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex(character) })
+        ).setOrigin(0.5).setDepth(1012).setScrollFactor(0);
+        this._targetElements.push(headerTxt);
+
+        gameState.party.forEach((f, i) => {
+            const y = panelY + 30 + i * 28;
+            const canUse = this._canUseItemOn(item, f);
+            const color = canUse ? '#ccccee' : '#555555';
+
+            const txt = this.add.text(panelX + 10, y, `${f.name} (HP: ${f.hp}/${f.maxHp})`,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '11px', color })
+            ).setDepth(1012).setScrollFactor(0);
+            this._targetElements.push(txt);
+
+            if (canUse) {
+                const btn = UIButton.create(this, {
+                    x: panelX + panelW - 15, y: y + 2,
+                    label: 'USE',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px' }),
+                    depth: 1012,
+                    origin: { x: 1, y: 0 },
+                    color: '#88cc88',
+                    hoverColor: '#ffffff',
+                    onClick: () => {
+                        EconomySystem.useItem(gameState, inventoryIndex, f);
+                        this._closeTargetSelection();
+                        this.closeInventory();
+                        this.openInventory();
+                    }
+                });
+                this._targetElements.push(btn);
+            }
+        });
+
+        const cancelBtn = UIButton.create(this, {
+            x: W / 2, y: panelY + panelH - 12,
+            label: '[ CANCEL ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px', stroke: '#000000', strokeThickness: 2 }),
+            depth: 1012,
+            hoverColor: '#ffffff',
+            onClick: () => this._closeTargetSelection()
+        });
+        this._targetElements.push(cancelBtn);
+    }
+
+    _canUseItemOn(item, fish) {
+        if (item.type === 'heal') return fish.hp > 0 && fish.hp < fish.maxHp;
+        if (item.type === 'revive') return fish.hp <= 0;
+        if (item.type === 'shield_potion') return true;
+        return false;
+    }
+
+    _closeTargetSelection() {
+        if (this._targetElements) {
+            for (const el of this._targetElements) el.destroy();
+            this._targetElements = [];
+        }
+    }
+
     closeInventory() {
+        this._closeTargetSelection();
         for (const el of this.inventoryElements) el.destroy();
         this.inventoryElements = [];
     }
 
     sortInventory(gameState) {
-        const typeOrder = { heal: 0, revive: 1, stat: 2 };
+        const typeOrder = { heal: 0, revive: 1, shield_potion: 2 };
         gameState.inventory.sort((a, b) => {
             const ta = typeOrder[ITEMS[a]?.type] ?? 99;
             const tb = typeOrder[ITEMS[b]?.type] ?? 99;
