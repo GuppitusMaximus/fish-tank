@@ -121,7 +121,65 @@ export default class BootScene extends Phaser.Scene {
             }
         });
 
+        this._generateEffectIcons();
+
         this.scene.launch('UIOverlay');
         this.scene.start('TitleScene');
+    }
+
+    _generateEffectIcons() {
+        const size = 10;
+        const icons = [
+            { key: 'icon_poison', draw: (g) => {
+                g.fillStyle(0x00cc00, 1);
+                g.fillCircle(5, 4, 3);
+                g.fillTriangle(5, 4, 3, 9, 7, 9);
+            }},
+            { key: 'icon_burn', draw: (g) => {
+                g.fillStyle(0xff6600, 1);
+                g.fillTriangle(5, 1, 1, 9, 9, 9);
+                g.fillStyle(0xffcc00, 1);
+                g.fillTriangle(5, 4, 3, 9, 7, 9);
+            }},
+            { key: 'icon_curse', draw: (g) => {
+                g.fillStyle(0x9900cc, 1);
+                g.fillTriangle(5, 1, 1, 5, 5, 9);
+                g.fillTriangle(5, 1, 9, 5, 5, 9);
+            }},
+            { key: 'icon_shield', draw: (g) => {
+                g.fillStyle(0x4488ff, 1);
+                g.fillTriangle(5, 9, 1, 3, 9, 3);
+                g.fillRect(1, 1, 8, 3);
+                g.fillStyle(0x2266cc, 1);
+                g.fillRect(2, 2, 6, 2);
+            }},
+            { key: 'icon_hot', draw: (g) => {
+                g.fillStyle(0x00ff88, 1);
+                g.fillRect(4, 1, 2, 8);
+                g.fillRect(1, 4, 8, 2);
+            }},
+            { key: 'icon_buff_atk', draw: (g) => {
+                g.fillStyle(0xff4444, 1);
+                g.fillTriangle(5, 1, 1, 7, 9, 7);
+                g.fillRect(3, 6, 4, 3);
+            }},
+            { key: 'icon_buff_def', draw: (g) => {
+                g.fillStyle(0x4488ff, 1);
+                g.fillTriangle(5, 1, 1, 7, 9, 7);
+                g.fillRect(3, 6, 4, 3);
+            }},
+            { key: 'icon_buff_spd', draw: (g) => {
+                g.fillStyle(0xffcc00, 1);
+                g.fillTriangle(5, 1, 1, 7, 9, 7);
+                g.fillRect(3, 6, 4, 3);
+            }}
+        ];
+
+        for (const icon of icons) {
+            const g = this.make.graphics({ x: 0, y: 0, add: false });
+            icon.draw(g);
+            g.generateTexture(icon.key, size, size);
+            g.destroy();
+        }
     }
 }

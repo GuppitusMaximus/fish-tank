@@ -18,14 +18,29 @@ export default class BattleScene extends Phaser.Scene {
     init(data) {
         this.gameState = data.gameState;
         this.monsters = data.monsters;
+        this.isPvp = data.isPvp || false;
         this.combatState = CombatSystem.createCombatState(this.gameState.party, this.monsters, this.gameState.floor);
         this.eventQueue = [];
         this.eventTimer = 0;
+
+        // Fish rendering
         this.fishSprites = [];
         this.fishAnimators = [];
         this.cooldownGfx = [];
-        this.displayedMonsterHp = this.combatState.monsterHpBar.total;
+
+        // Monster pack rendering
+        this.monsterSprites = [];
+        this.monsterAnimators = [];
+        this.monsterWaterEffects = [];
+
+        // Effect icon images (rebuilt on effect changes)
+        this.fishEffectIcons = [];
+        this.monsterEffectIcons = [];
+        this._effectsDirty = true;
+
+        // Smooth HP interpolation
         this.displayedChunkHps = this.combatState.hpBar.chunks.map(c => c.hp);
+        this.displayedMonsterChunkHps = this.combatState.monsterHpBar.chunks.map(c => c.hp);
     }
 
     create() {
@@ -37,16 +52,15 @@ export default class BattleScene extends Phaser.Scene {
             monsterX: W * 0.72, monsterY: H * 0.28,
             fishBaseX: W * 0.22, fishBaseY: H * 0.30,
             hpBarX: W * 0.1, hpBarY: H * 0.55, hpBarW: W * 0.8, hpBarH: 14,
-            monsterHpX: W * 0.45, monsterHpY: 22, monsterHpW: W * 0.45
+            monsterHpX: W * 0.45, monsterHpY: 22, monsterHpW: W * 0.45, monsterHpH: 8
         } : {
             monsterX: W * 0.72, monsterY: H * 0.32,
             fishBaseX: W * 0.22, fishBaseY: H * 0.38,
             hpBarX: W * 0.1, hpBarY: H * 0.68, hpBarW: W * 0.8, hpBarH: 14,
-            monsterHpX: W * 0.45, monsterHpY: 22, monsterHpW: W * 0.45
+            monsterHpX: W * 0.45, monsterHpY: 22, monsterHpW: W * 0.45, monsterHpH: 8
         };
 
         const L = this.layout;
-
         const zone = getZoneByFloor(this.gameState.floor);
         const character = getCharacterTheme(this.gameState.fisherId);
 
@@ -64,10 +78,12 @@ export default class BattleScene extends Phaser.Scene {
             { align: 'right', offsetY: -2 }
         );
 
-        // --- Monster ---
-        const displayName = this.monsters.length > 1
-            ? this.monsters[0].name + ' x' + this.monsters.length
-            : this.monsters[0].name;
+        // --- Monster name panel ---
+        const displayName = this.isPvp
+            ? 'Ghost Party'
+            : this.monsters.length > 1
+                ? this.monsters[0].name + ' x' + this.monsters.length
+                : this.monsters[0].name;
         const namePanel = new UIPanel(this, {
             x: 2, y: 2, width: W * 0.5, height: 22, theme: zone, padding: 6
         });
@@ -75,22 +91,36 @@ export default class BattleScene extends Phaser.Scene {
             { offsetX: 2, offsetY: -2 }
         );
 
-        // Monster HP bar
-        this.add.graphics().fillStyle(0x333333, 1).fillRect(L.monsterHpX, L.monsterHpY, L.monsterHpW, 8);
-        this.monsterHpBar = this.add.graphics();
+        // --- Monster HP bar (chunked) ---
+        this.add.graphics().fillStyle(0x333333, 1).fillRect(L.monsterHpX, L.monsterHpY, L.monsterHpW, L.monsterHpH);
+        this.monsterHpGfx = this.add.graphics();
         this.monsterHpTxt = this.add.text(L.monsterHpX + L.monsterHpW + 5, L.monsterHpY - 1, '',
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#aaaaaa' })
         );
 
-        // Monster sprite (render first monster; pack visuals handled by bsf-battle-visuals)
-        this.monsterSpr = this.add.image(L.monsterX, L.monsterY, 'monster_' + this.monsters[0].id).setScale(0.5).setDepth(2);
-        this.monsterAnim = new SpriteAnimator(this, this.monsterSpr).idle();
+        // --- Monster sprites (pack formation) ---
+        const monsterPositions = this._getMonsterFormationPositions(this.monsters.length, L);
+        for (let i = 0; i < this.monsters.length; i++) {
+            const m = this.monsters[i];
+            const pos = monsterPositions[i];
+
+            const we = new WaterEffect(this, pos.x, pos.y);
+            this.monsterWaterEffects.push(we);
+
+            const texKey = this.isPvp ? 'fish_' + m.speciesId : 'monster_' + m.id;
+            const spr = this.add.image(pos.x, pos.y, texKey).setScale(0.5).setDepth(2);
+            if (this.isPvp) spr.setFlipX(true);
+
+            const anim = new SpriteAnimator(this, spr).idle();
+            this.monsterSprites.push(spr);
+            this.monsterAnimators.push(anim);
+        }
 
         // --- Fish (triangle formation) ---
-        const positions = this._getFormationPositions(this.combatState.fish.length, L);
+        const fishPositions = this._getFormationPositions(this.combatState.fish.length, L);
         for (let i = 0; i < this.combatState.fish.length; i++) {
             const f = this.combatState.fish[i];
-            const pos = positions[i];
+            const pos = fishPositions[i];
             new WaterEffect(this, pos.x, pos.y);
             const spr = this.add.image(pos.x, pos.y, 'fish_' + f.ref.speciesId).setScale(0.75).setDepth(2);
             const anim = new SpriteAnimator(this, spr).idle();
@@ -115,7 +145,7 @@ export default class BattleScene extends Phaser.Scene {
             this.cooldownGfx.push(cdGroup);
         }
 
-        // --- Combined HP bar ---
+        // --- Combined HP bar (fish party) ---
         this.add.rectangle(L.hpBarX + L.hpBarW / 2, L.hpBarY + L.hpBarH / 2 + 0.5,
             L.hpBarW + 2, L.hpBarH + 2, 0x222222);
         this.partyHpBar = this.add.graphics();
@@ -138,7 +168,7 @@ export default class BattleScene extends Phaser.Scene {
         );
 
         // Initial bar draws
-        this._drawMonsterHp();
+        this._drawMonsterPackHpBar();
         this._drawPartyHpBar();
         this._drawCooldowns();
     }
@@ -158,12 +188,21 @@ export default class BattleScene extends Phaser.Scene {
 
         // Smooth HP bar interpolation
         const lerpRate = 1 - Math.pow(0.05, delta / 1000);
-        this.displayedMonsterHp += (this.combatState.monsterHpBar.total - this.displayedMonsterHp) * lerpRate;
         for (let i = 0; i < this.combatState.hpBar.chunks.length; i++) {
             this.displayedChunkHps[i] += (this.combatState.hpBar.chunks[i].hp - this.displayedChunkHps[i]) * lerpRate;
         }
+        for (let i = 0; i < this.combatState.monsterHpBar.chunks.length; i++) {
+            this.displayedMonsterChunkHps[i] += (this.combatState.monsterHpBar.chunks[i].hp - this.displayedMonsterChunkHps[i]) * lerpRate;
+        }
 
-        this._drawMonsterHp();
+        // Refresh effect icons and tints when effects change
+        if (this._effectsDirty) {
+            this._refreshEffectIcons();
+            this._updateSpriteTints();
+            this._effectsDirty = false;
+        }
+
+        this._drawMonsterPackHpBar();
         this._drawPartyHpBar();
         this._drawCooldowns();
     }
@@ -184,22 +223,45 @@ export default class BattleScene extends Phaser.Scene {
             case 'heal': this._onHeal(e); break;
             case 'buff_applied': this._onBuffApplied(e); break;
             case 'buff_expired': this._onBuffExpired(e); break;
+            case 'burn_tick': this._onBurnTick(e); break;
+            case 'burn_applied': this._onBurnApplied(e); break;
+            case 'curse_applied': this._onCurseApplied(e); break;
+            case 'hot_tick': this._onHotTick(e); break;
+            case 'shield_hit': this._onShieldHit(e); break;
+            case 'regen_tick': this._onRegenTick(e); break;
+            case 'heal_pulse': this._onHealPulse(e); break;
         }
+
+        // Mark effects dirty for any effect-related event
+        const effectEvents = [
+            'poison_tick', 'poison_applied', 'burn_tick', 'burn_applied', 'burn_expired',
+            'curse_applied', 'curse_expired', 'hot_tick', 'hot_applied',
+            'buff_applied', 'buff_expired', 'shield_hit', 'shield_grant',
+            'heal', 'heal_pulse', 'regen_tick'
+        ];
+        if (effectEvents.includes(e.type)) this._effectsDirty = true;
     }
+
+    // --- Fish Attack Events ---
 
     _onFishAttack(e, animType) {
         const fishSpr = this.fishSprites[e.fishIndex];
         const fishAnim = this.fishAnimators[e.fishIndex];
         if (!fishSpr || !fishAnim) return;
 
+        const mi = this._getFrontMonsterSpriteIndex();
+        if (mi === -1) return;
+        const targetSpr = this.monsterSprites[mi];
+        const targetAnim = this.monsterAnimators[mi];
+
         if (animType === 'projectile') {
             SpriteAnimator.projectile(this, fishSpr.x, fishSpr.y,
-                this.monsterSpr.x, this.monsterSpr.y, 0xffffff);
+                targetSpr.x, targetSpr.y, 0xffffff);
         } else {
-            fishAnim.attack(this.monsterSpr.x, this.monsterSpr.y);
+            fishAnim.attack(targetSpr.x, targetSpr.y);
         }
-        this.monsterAnim.hit();
-        SpriteAnimator.damageNumber(this, this.monsterSpr.x, this.monsterSpr.y - 15, e.damage, '#ffcccc');
+        if (targetAnim) targetAnim.hit();
+        SpriteAnimator.damageNumber(this, targetSpr.x, targetSpr.y - 15, e.damage, '#ffcccc');
     }
 
     _onFishSpecial(e) {
@@ -208,16 +270,23 @@ export default class BattleScene extends Phaser.Scene {
         this._onFishAttack(e, animType);
     }
 
+    // --- Monster Attack Events ---
+
     _onMonsterAttack(e, animType) {
-        const targetIdx = this._getFrontFishSpriteIndex();
+        const mi = e.monsterIndex ?? 0;
+        const monsterSpr = this.monsterSprites[mi];
+        const monsterAnim = this.monsterAnimators[mi];
+        if (!monsterSpr || !monsterAnim) return;
+
+        const targetIdx = e.targetFishIndex ?? this._getFrontFishSpriteIndex();
         if (targetIdx === -1) return;
         const targetSpr = this.fishSprites[targetIdx];
 
         if (animType === 'projectile') {
-            SpriteAnimator.projectile(this, this.monsterSpr.x, this.monsterSpr.y,
+            SpriteAnimator.projectile(this, monsterSpr.x, monsterSpr.y,
                 targetSpr.x, targetSpr.y, 0xff4444);
         } else {
-            this.monsterAnim.attack(targetSpr.x, targetSpr.y);
+            monsterAnim.attack(targetSpr.x, targetSpr.y);
         }
 
         const targetAnim = this.fishAnimators[targetIdx];
@@ -233,6 +302,8 @@ export default class BattleScene extends Phaser.Scene {
         this._onMonsterAttack(e, animType);
     }
 
+    // --- Incapacitation Events ---
+
     _onFishIncapacitated(e) {
         const anim = this.fishAnimators[e.fishIndex];
         if (anim) anim.faint();
@@ -244,19 +315,28 @@ export default class BattleScene extends Phaser.Scene {
             cd.baseTrack.setVisible(false);
             cd.specialTrack.setVisible(false);
         }
+        this._effectsDirty = true;
     }
 
     _onMonsterIncapacitated(e) {
-        // Flash the monster sprite for incapacitation
-        this.monsterSpr.setTint(0xff0000);
-        this.time.delayedCall(300, () => this.monsterSpr.clearTint());
+        const mi = e.monsterIndex ?? 0;
+        const anim = this.monsterAnimators[mi];
+        if (anim) anim.faint();
+
+        const spr = this.monsterSprites[mi];
+        if (spr) {
+            spr.setTint(0xff0000);
+            this.time.delayedCall(300, () => spr.clearTint());
+        }
+        this._effectsDirty = true;
     }
+
+    // --- Battle End Events ---
 
     _onMonstersDead() {
         this.combatState.running = false;
-        this.monsterAnim.faint();
+        for (const anim of this.monsterAnimators) anim.faint();
 
-        // Calculate rewards via encounter system
         const encounterType = EncounterSystem.getEncounterType(this.gameState.floor);
         const rewards = EncounterSystem.calculateRewards(this.gameState.floor, encounterType, this.monsters.length);
 
@@ -289,18 +369,107 @@ export default class BattleScene extends Phaser.Scene {
         });
     }
 
+    // --- Effect Events ---
+
     _onPoisonTick(e) {
         if (e.target === 'monster') {
-            this.monsterSpr.setTint(0x88ff88);
-            this.time.delayedCall(200, () => this.monsterSpr.clearTint());
-            SpriteAnimator.damageNumber(this, this.monsterSpr.x, this.monsterSpr.y - 15, e.damage, '#88ff88');
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                spr.setTint(0x88ff88);
+                this.time.delayedCall(200, () => this._restoreMonsterTint(mi));
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.damage, '#88ff88');
+            }
         } else {
             const idx = e.fishIndex;
             const spr = this.fishSprites[idx];
             if (spr) {
                 spr.setTint(0x88ff88);
-                this.time.delayedCall(200, () => spr.clearTint());
+                this.time.delayedCall(200, () => this._restoreFishTint(idx));
                 SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.damage, '#88ff88');
+            }
+        }
+    }
+
+    _onBurnTick(e) {
+        if (e.target === 'monster') {
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                spr.setTint(0xff6600);
+                this.time.delayedCall(200, () => this._restoreMonsterTint(mi));
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.damage, '#ff6600');
+            }
+        } else {
+            const idx = e.index ?? e.fishIndex;
+            const spr = this.fishSprites[idx];
+            if (spr) {
+                spr.setTint(0xff6600);
+                this.time.delayedCall(200, () => this._restoreFishTint(idx));
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.damage, '#ff6600');
+            }
+        }
+    }
+
+    _onBurnApplied(e) {
+        if (e.target === 'monster') {
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                spr.setTint(0xff6600);
+                this.time.delayedCall(400, () => this._restoreMonsterTint(mi));
+            }
+        } else {
+            const idx = e.index ?? e.fishIndex;
+            const spr = this.fishSprites[idx];
+            if (spr) {
+                spr.setTint(0xff6600);
+                this.time.delayedCall(400, () => this._restoreFishTint(idx));
+            }
+        }
+    }
+
+    _onCurseApplied(e) {
+        if (e.target === 'monster') {
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                spr.setTint(0x9900cc);
+                this.time.delayedCall(400, () => this._restoreMonsterTint(mi));
+            }
+        } else {
+            const idx = e.index ?? e.fishIndex;
+            const spr = this.fishSprites[idx];
+            if (spr) {
+                spr.setTint(0x9900cc);
+                this.time.delayedCall(400, () => this._restoreFishTint(idx));
+            }
+        }
+    }
+
+    _onHotTick(e) {
+        const spr = this.fishSprites[e.fishIndex];
+        if (spr) {
+            SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, '+' + e.amount, '#00ff88');
+        }
+    }
+
+    _onShieldHit(e) {
+        if (e.target === 'monster') {
+            const mi = this._getFrontMonsterSpriteIndex();
+            const spr = mi >= 0 ? this.monsterSprites[mi] : null;
+            if (spr) {
+                spr.setTint(0x4488ff);
+                this.time.delayedCall(200, () => this._restoreMonsterTint(mi));
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.absorbed, '#4488ff');
+            }
+        } else {
+            const idx = this._getFrontFishSpriteIndex();
+            const spr = idx >= 0 ? this.fishSprites[idx] : null;
+            if (spr) {
+                spr.setTint(0x4488ff);
+                this.time.delayedCall(200, () => this._restoreFishTint(idx));
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, e.absorbed, '#4488ff');
             }
         }
     }
@@ -312,28 +481,59 @@ export default class BattleScene extends Phaser.Scene {
         }
     }
 
+    _onHealPulse(e) {
+        if (e.target === 'monster') {
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, '+' + e.amount, '#44ff44');
+            }
+        } else {
+            const spr = this.fishSprites[e.fishIndex];
+            if (spr) {
+                SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, '+' + e.amount, '#44ff44');
+            }
+        }
+    }
+
+    _onRegenTick(e) {
+        const mi = e.monsterIndex ?? 0;
+        const spr = this.monsterSprites[mi];
+        if (spr) {
+            SpriteAnimator.damageNumber(this, spr.x, spr.y - 15, '+' + e.amount, '#44ff44');
+        }
+    }
+
     _onBuffApplied(e) {
         if (e.target === 'monster') {
-            this.monsterSpr.setTint(0xffd700);
-            this.time.delayedCall(300, () => this.monsterSpr.clearTint());
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                spr.setTint(0xffd700);
+                this.time.delayedCall(300, () => this._restoreMonsterTint(mi));
+            }
         } else {
             const spr = this.fishSprites[e.fishIndex];
             if (spr) {
                 spr.setTint(0xffd700);
-                this.time.delayedCall(300, () => spr.clearTint());
+                this.time.delayedCall(300, () => this._restoreFishTint(e.fishIndex));
             }
         }
     }
 
     _onBuffExpired(e) {
         if (e.target === 'monster') {
-            this.monsterSpr.setTint(0x999999);
-            this.time.delayedCall(300, () => this.monsterSpr.clearTint());
+            const mi = e.monsterIndex ?? 0;
+            const spr = this.monsterSprites[mi];
+            if (spr) {
+                spr.setTint(0x999999);
+                this.time.delayedCall(300, () => this._restoreMonsterTint(mi));
+            }
         } else {
             const spr = this.fishSprites[e.fishIndex];
             if (spr) {
                 spr.setTint(0x999999);
-                this.time.delayedCall(300, () => spr.clearTint());
+                this.time.delayedCall(300, () => this._restoreFishTint(e.fishIndex));
             }
         }
     }
@@ -347,15 +547,48 @@ export default class BattleScene extends Phaser.Scene {
 
     // --- Drawing Helpers ---
 
-    _drawMonsterHp() {
+    _drawMonsterPackHpBar() {
         const L = this.layout;
-        const mhb = this.combatState.monsterHpBar;
-        this.monsterHpBar.clear();
-        const ratio = Math.max(0, this.displayedMonsterHp / mhb.totalMax);
-        const color = ratio > 0.25 ? 0xcc3333 : 0xcc6633;
-        this.monsterHpBar.fillStyle(color, 1)
-            .fillRect(L.monsterHpX, L.monsterHpY, ratio * L.monsterHpW, 8);
-        this.monsterHpTxt.setText(Math.max(0, Math.round(this.displayedMonsterHp)) + '/' + mhb.totalMax);
+        const chunks = this.combatState.monsterHpBar.chunks;
+        const totalMax = this.combatState.monsterHpBar.totalMax;
+        this.monsterHpGfx.clear();
+
+        let x = L.monsterHpX;
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const segW = (chunk.maxHp / totalMax) * L.monsterHpW;
+
+            // Background
+            this.monsterHpGfx.fillStyle(0x444444, 1);
+            this.monsterHpGfx.fillRect(x, L.monsterHpY, segW, L.monsterHpH);
+
+            // HP fill
+            const displayHp = Math.max(0, this.displayedMonsterChunkHps[i]);
+            if (displayHp > 0) {
+                const fillW = (displayHp / chunk.maxHp) * segW;
+                this.monsterHpGfx.fillStyle(chunk.color, 1);
+                this.monsterHpGfx.fillRect(x, L.monsterHpY, fillW, L.monsterHpH);
+            }
+
+            // Shield overlay
+            if (chunk.maxShield > 0 && chunk.shield > 0) {
+                const shieldRatio = Math.min(1, chunk.shield / chunk.maxShield);
+                const shieldW = shieldRatio * segW;
+                this.monsterHpGfx.fillStyle(0x4488ff, 0.4);
+                this.monsterHpGfx.fillRect(x, L.monsterHpY, shieldW, L.monsterHpH);
+            }
+
+            // Chunk separator
+            if (i < chunks.length - 1) {
+                this.monsterHpGfx.fillStyle(0x111111, 1);
+                this.monsterHpGfx.fillRect(x + segW - 1, L.monsterHpY, 1, L.monsterHpH);
+            }
+
+            x += segW;
+        }
+
+        const totalCurrent = Math.max(0, Math.round(this.displayedMonsterChunkHps.reduce((s, v) => s + v, 0)));
+        this.monsterHpTxt.setText(totalCurrent + '/' + totalMax);
     }
 
     _drawPartyHpBar() {
@@ -369,9 +602,11 @@ export default class BattleScene extends Phaser.Scene {
             const chunk = chunks[i];
             const segW = (chunk.maxHp / totalMax) * L.hpBarW;
 
+            // Background
             this.partyHpBar.fillStyle(0x444444, 1);
             this.partyHpBar.fillRect(x, L.hpBarY, segW, L.hpBarH);
 
+            // HP fill
             const displayHp = Math.max(0, this.displayedChunkHps[i]);
             if (displayHp > 0) {
                 const fillW = (displayHp / chunk.maxHp) * segW;
@@ -379,6 +614,15 @@ export default class BattleScene extends Phaser.Scene {
                 this.partyHpBar.fillRect(x, L.hpBarY, fillW, L.hpBarH);
             }
 
+            // Shield overlay
+            if (chunk.maxShield > 0 && chunk.shield > 0) {
+                const shieldRatio = Math.min(1, chunk.shield / chunk.maxShield);
+                const shieldW = shieldRatio * segW;
+                this.partyHpBar.fillStyle(0x4488ff, 0.4);
+                this.partyHpBar.fillRect(x, L.hpBarY, shieldW, L.hpBarH);
+            }
+
+            // Chunk separator
             if (i < chunks.length - 1) {
                 this.partyHpBar.fillStyle(0x111111, 1);
                 this.partyHpBar.fillRect(x + segW - 1, L.hpBarY, 1, L.hpBarH);
@@ -414,6 +658,101 @@ export default class BattleScene extends Phaser.Scene {
         }
     }
 
+    // --- Effect Visuals ---
+
+    _refreshEffectIcons() {
+        // Destroy old icons
+        for (const img of this.fishEffectIcons) img.destroy();
+        for (const img of this.monsterEffectIcons) img.destroy();
+        this.fishEffectIcons = [];
+        this.monsterEffectIcons = [];
+
+        // Fish effect icons (below sprites)
+        for (let i = 0; i < this.combatState.fish.length; i++) {
+            if (!this.combatState.fish[i].alive) continue;
+            const spr = this.fishSprites[i];
+            if (!spr) continue;
+            const keys = this._getActiveEffectKeys(this.combatState.fish[i]);
+            const startX = spr.x - (keys.length * 12) / 2;
+            for (let k = 0; k < keys.length; k++) {
+                const icon = this.add.image(startX + k * 12, spr.y + 18, keys[k]).setScale(1).setDepth(5);
+                this.fishEffectIcons.push(icon);
+            }
+        }
+
+        // Monster effect icons (above sprites)
+        for (let i = 0; i < this.combatState.monsters.length; i++) {
+            if (!this.combatState.monsters[i].alive) continue;
+            const spr = this.monsterSprites[i];
+            if (!spr) continue;
+            const keys = this._getActiveEffectKeys(this.combatState.monsters[i]);
+            const startX = spr.x - (keys.length * 12) / 2;
+            for (let k = 0; k < keys.length; k++) {
+                const icon = this.add.image(startX + k * 12, spr.y - 22, keys[k]).setScale(1).setDepth(5);
+                this.monsterEffectIcons.push(icon);
+            }
+        }
+    }
+
+    _getActiveEffectKeys(combatant) {
+        const keys = [];
+        if (combatant.poisons && combatant.poisons.length > 0) keys.push('icon_poison');
+        if (combatant.burn) keys.push('icon_burn');
+        if (combatant.curses && combatant.curses.length > 0) keys.push('icon_curse');
+        if (combatant.shield > 0) keys.push('icon_shield');
+        if (combatant.hots && combatant.hots.length > 0) keys.push('icon_hot');
+        if (combatant.buffs && combatant.buffs.length > 0) {
+            const stats = new Set(combatant.buffs.map(b => b.stat));
+            if (stats.has('atk')) keys.push('icon_buff_atk');
+            if (stats.has('def')) keys.push('icon_buff_def');
+            if (stats.has('spd')) keys.push('icon_buff_spd');
+        }
+        return keys;
+    }
+
+    _updateSpriteTints() {
+        for (let i = 0; i < this.combatState.fish.length; i++) {
+            if (!this.combatState.fish[i].alive) continue;
+            const spr = this.fishSprites[i];
+            if (!spr) continue;
+            const tint = this._getEffectTint(this.combatState.fish[i]);
+            if (tint) spr.setTint(tint); else spr.clearTint();
+        }
+        for (let i = 0; i < this.combatState.monsters.length; i++) {
+            if (!this.combatState.monsters[i].alive) continue;
+            const spr = this.monsterSprites[i];
+            if (!spr) continue;
+            const tint = this._getEffectTint(this.combatState.monsters[i]);
+            if (tint) spr.setTint(tint); else spr.clearTint();
+        }
+    }
+
+    _getEffectTint(combatant) {
+        // Priority: burn > curse > poison > shield > HoT
+        if (combatant.burn) return 0xff6600;
+        if (combatant.curses && combatant.curses.length > 0) return 0x9900cc;
+        if (combatant.poisons && combatant.poisons.length > 0) return 0x00cc00;
+        if (combatant.shield > 0) return 0x4488ff;
+        if (combatant.hots && combatant.hots.length > 0) return 0x00ff88;
+        return null;
+    }
+
+    _restoreFishTint(idx) {
+        const c = this.combatState.fish[idx];
+        const spr = this.fishSprites[idx];
+        if (!c || !spr) return;
+        const tint = this._getEffectTint(c);
+        if (tint) spr.setTint(tint); else spr.clearTint();
+    }
+
+    _restoreMonsterTint(mi) {
+        const c = this.combatState.monsters[mi];
+        const spr = this.monsterSprites[mi];
+        if (!c || !spr) return;
+        const tint = this._getEffectTint(c);
+        if (tint) spr.setTint(tint); else spr.clearTint();
+    }
+
     // --- Layout Helpers ---
 
     _getFormationPositions(count, L) {
@@ -431,9 +770,31 @@ export default class BattleScene extends Phaser.Scene {
         return positions;
     }
 
+    _getMonsterFormationPositions(count, L) {
+        const positions = [];
+        if (count === 1) {
+            positions.push({ x: L.monsterX, y: L.monsterY });
+        } else if (count === 2) {
+            positions.push({ x: L.monsterX - 20, y: L.monsterY });
+            positions.push({ x: L.monsterX + 20, y: L.monsterY - 20 });
+        } else if (count >= 3) {
+            positions.push({ x: L.monsterX - 20, y: L.monsterY });
+            positions.push({ x: L.monsterX + 20, y: L.monsterY - 25 });
+            positions.push({ x: L.monsterX + 20, y: L.monsterY + 25 });
+        }
+        return positions;
+    }
+
     _getFrontFishSpriteIndex() {
         for (let i = 0; i < this.combatState.fish.length; i++) {
             if (this.combatState.fish[i].alive) return i;
+        }
+        return -1;
+    }
+
+    _getFrontMonsterSpriteIndex() {
+        for (let i = 0; i < this.combatState.monsters.length; i++) {
+            if (this.combatState.monsters[i].alive) return i;
         }
         return -1;
     }
@@ -443,7 +804,9 @@ export default class BattleScene extends Phaser.Scene {
     shutdown() {
         this.tweens.killAll();
         for (const a of this.fishAnimators) a.destroy();
-        this.monsterAnim.destroy();
+        for (const a of this.monsterAnimators) a.destroy();
+        for (const img of this.fishEffectIcons) img.destroy();
+        for (const img of this.monsterEffectIcons) img.destroy();
         this.eventQueue = [];
         this.combatState.running = false;
     }
