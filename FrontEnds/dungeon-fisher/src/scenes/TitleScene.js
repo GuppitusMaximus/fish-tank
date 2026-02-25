@@ -1,6 +1,6 @@
 import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
-import FISH_SPECIES from '../data/fish.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { TITLE_THEME, getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
@@ -472,7 +472,7 @@ export default class TitleScene extends Phaser.Scene {
         ).setOrigin(0.5);
 
         const isPortrait = this.registry.get('isPortrait');
-        const starters = FISH_SPECIES.filter(s => s.isStarter);
+        const starters = Object.values(ConfigLoader.getAllFish()).filter(s => s.isStarter);
 
         if (isPortrait) {
             starters.forEach((species, i) => {

@@ -1,5 +1,13 @@
 import { getZoneByFloor } from '../data/themes.js';
 import SaveSystem from '../systems/SaveSystem.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
+
+const fishConfigs = import.meta.glob('../config/fish/*.json', { eager: true });
+const monsterConfigs = import.meta.glob('../config/monsters/*.json', { eager: true });
+const characterConfigs = import.meta.glob('../config/characters/*.json', { eager: true });
+import movesConfig from '../config/moves.json';
+import combatConfig from '../config/combat.json';
+import encountersConfig from '../config/encounters.json';
 
 export default class BootScene extends Phaser.Scene {
     constructor() {
@@ -7,6 +15,31 @@ export default class BootScene extends Phaser.Scene {
     }
 
     preload() {
+        // Initialize ConfigLoader FIRST — save migration depends on it
+        const fishData = {};
+        for (const [path, mod] of Object.entries(fishConfigs)) {
+            const data = mod.default;
+            fishData[data.id] = data;
+        }
+        const monsterData = {};
+        for (const [path, mod] of Object.entries(monsterConfigs)) {
+            const data = mod.default;
+            monsterData[data.id] = data;
+        }
+        const characterData = {};
+        for (const [path, mod] of Object.entries(characterConfigs)) {
+            const data = mod.default;
+            characterData[data.id] = data;
+        }
+        ConfigLoader.init({
+            fish: fishData,
+            monsters: monsterData,
+            characters: characterData,
+            moves: movesConfig,
+            combat: combatConfig,
+            encounters: encountersConfig
+        });
+
         // Fish sprites (128x64)
         const fish = [
             'guppy', 'pufferfish', 'swordfish', 'clownfish', 'anglerfish',

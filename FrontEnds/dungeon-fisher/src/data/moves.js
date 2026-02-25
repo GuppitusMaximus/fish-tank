@@ -1,3 +1,4 @@
+// DEPRECATED: Use ConfigLoader instead
 // Auto-battler move definitions
 // Each combatant has an implicit base attack (scales with ATK/SPD stats)
 // plus one unique special move defined here.

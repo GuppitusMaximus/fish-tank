@@ -1,3 +1,4 @@
+// DEPRECATED: Use ConfigLoader instead
 // Monster type templates. Actual stats are scaled by floor.
 const MONSTER_TYPES = [
     { id: 'sewer_rat',    name: 'Sewer Rat',    color: 0x8b7355, floorRange: [1, 15],    specialMove: 'gnaw' },

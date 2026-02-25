@@ -1,10 +1,10 @@
-import FISH_SPECIES from '../data/fish.js';
+import ConfigLoader from './ConfigLoader.js';
 
 export default class PartySystem {
 
     // Create a new fish instance from a species ID at level 1
     static createFish(speciesId) {
-        const species = FISH_SPECIES.find(s => s.id === speciesId);
+        const species = ConfigLoader.getFish(speciesId);
         if (!species) return null;
 
         return {

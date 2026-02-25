@@ -1,0 +1,19 @@
+{
+    "id": "andy",
+    "name": "Andy the Abyss Angler",
+    "description": "A weathered fisherman who plumbs the deepest dungeon pits with his loyal hound. Patient, resourceful, and never without his trusty rod.",
+    "portrait": "fisher_andy",
+    "emblem": "emblem_andy",
+    "companion": {
+        "id": "dog",
+        "name": "Dog",
+        "baseHp": 35, "baseAtk": 7, "baseDef": 6, "baseSpd": 5,
+        "baseShield": 5, "baseHealPower": 3,
+        "growth": { "hp": 4, "atk": 2, "def": 1, "spd": 1, "shield": 1, "healPower": 1 },
+        "specialMove": "loyal_bite",
+        "color": "0xa1887f"
+    },
+    "partySlots": { "fish": 2, "companion": 1 },
+    "startingGold": 50,
+    "starterFish": ["guppy", "guppy"]
+}

@@ -1,4 +1,4 @@
-import FISHERS from '../data/fishers.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { TITLE_THEME } from '../data/themes.js';
 import { UIPanel, UIButton, UILayout } from '../ui/index.js';
@@ -19,7 +19,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
             makeStyle(TEXT_STYLES.TITLE_SMALL)
         ).setOrigin(0.5);
 
-        const fisher = FISHERS[0];
+        const fisher = ConfigLoader.getCharacter('andy');
 
         if (isPortrait) {
             this._layoutPortrait(fisher, width, height);

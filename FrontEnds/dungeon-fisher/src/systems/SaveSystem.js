@@ -1,5 +1,5 @@
 import { VERSION, SAVE_FORMAT_VERSION } from '../version.js';
-import FISH_SPECIES from '../data/fish.js';
+import ConfigLoader from './ConfigLoader.js';
 
 const SAVE_KEY = 'fathom-fall-save';
 
@@ -59,7 +59,7 @@ export default class SaveSystem {
         // v2 → v3: replace multi-move system with single specialMove
         if (data.version === 2) {
             for (const fish of data.party) {
-                const species = FISH_SPECIES.find(s => s.id === fish.speciesId);
+                const species = ConfigLoader.getFish(fish.speciesId);
                 if (species) {
                     fish.moves = [species.specialMove];
                 } else {

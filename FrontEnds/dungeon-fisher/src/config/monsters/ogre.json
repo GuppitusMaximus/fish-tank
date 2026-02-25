@@ -1,0 +1,19 @@
+{
+    "id": "ogre",
+    "name": "Ogre",
+    "color": "0x6a5a30",
+    "floorRange": [30, 60],
+    "specialMove": "ground_slam",
+    "baseShield": 0, "baseHealPower": 0,
+    "statScaling": {
+        "hp": { "base": 25, "perFloor": 12 },
+        "atk": { "base": 6, "perFloor": 0.6 },
+        "def": { "base": 2, "perFloor": 0.25 },
+        "spd": { "base": 3, "perFloor": 0.12 },
+        "shield": { "base": 0, "perFloor": 0 },
+        "healPower": { "base": 0, "perFloor": 0 }
+    },
+    "goldReward": { "base": 5, "perFloor": 0.8 },
+    "xpReward": { "base": 10, "perFloor": 1.5 },
+    "healingBehavior": null
+}

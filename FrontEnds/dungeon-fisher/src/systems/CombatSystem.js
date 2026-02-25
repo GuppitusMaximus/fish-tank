@@ -1,15 +1,4 @@
-import MOVES from '../data/moves.js';
-
-// Real-time auto-battler combat engine.
-// All party fish (1-3) attack simultaneously on independent cooldown timers.
-// No player input during battle. SPD determines base attack speed.
-
-// Tuning constants
-const BASE_ATK_K1 = 0.6;
-const BASE_ATK_K2 = 0.4;
-const SPD_TO_COOLDOWN_K = 6;
-const MIN_BASE_COOLDOWN = 0.8;
-const SPECIAL_DEF_FACTOR = 0.5;
+import ConfigLoader from './ConfigLoader.js';
 
 export default class CombatSystem {
 
@@ -77,7 +66,7 @@ export default class CombatSystem {
             }
 
             // Special attack timer
-            const move = MOVES[f.ref.moves[0]];
+            const move = ConfigLoader.getMove(f.ref.moves[0]);
             if (move) {
                 f.specialTimer += dt;
                 if (f.specialTimer >= move.cooldown) {
@@ -133,7 +122,7 @@ export default class CombatSystem {
             }
 
             // Monster special attack
-            const mMove = MOVES[state.monster.ref.specialMove];
+            const mMove = ConfigLoader.getMove(state.monster.ref.specialMove);
             if (mMove) {
                 state.monster.specialTimer += dt;
                 if (state.monster.specialTimer >= mMove.cooldown) {
@@ -193,18 +182,21 @@ export default class CombatSystem {
 
     // SPD-to-cooldown conversion: higher SPD = faster attacks
     static getBaseAttackCooldown(spd) {
-        return Math.max(MIN_BASE_COOLDOWN, SPD_TO_COOLDOWN_K / spd);
+        const cc = ConfigLoader.getCombatConfig();
+        return Math.max(cc.minBaseCooldown, cc.spdToCooldownK / spd);
     }
 
     // Base attack damage: scales with ATK, reduced by DEF
     static calculateBaseDamage(atk, def) {
-        return Math.max(1, Math.floor(atk * BASE_ATK_K1 - def * BASE_ATK_K2));
+        const cc = ConfigLoader.getCombatConfig();
+        return Math.max(1, Math.floor(atk * cc.baseAtkK1 - def * cc.baseAtkK2));
     }
 
     // Special move damage: flat damage reduced by partial DEF
     static calculateSpecialDamage(moveDamage, def) {
         if (moveDamage === 0) return 0;
-        return Math.max(1, moveDamage - Math.floor(def * SPECIAL_DEF_FACTOR));
+        const cc = ConfigLoader.getCombatConfig();
+        return Math.max(1, moveDamage - Math.floor(def * cc.specialDefFactor));
     }
 
     // Apply damage to the combined HP bar, hitting the frontmost living chunk first.

@@ -1,3 +1,4 @@
+// DEPRECATED: Use ConfigLoader instead
 // Each fish species definition
 // Stats are base stats at level 1. On level up: HP +5, ATK +2, DEF +1, SPD +1
 // specialMove: the unique special move ID for this species

@@ -1,6 +1,6 @@
 import CombatSystem from '../systems/CombatSystem.js';
 import PartySystem from '../systems/PartySystem.js';
-import MOVES from '../data/moves.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
@@ -204,7 +204,7 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     _onFishSpecial(e) {
-        const move = MOVES[e.moveId];
+        const move = ConfigLoader.getMove(e.moveId);
         const animType = move ? move.animation : 'lunge';
         this._onFishAttack(e, animType);
     }
@@ -229,7 +229,7 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     _onMonsterSpecial(e) {
-        const move = MOVES[e.moveId];
+        const move = ConfigLoader.getMove(e.moveId);
         const animType = move ? move.animation : 'lunge';
         this._onMonsterAttack(e, animType);
     }
@@ -408,7 +408,7 @@ export default class BattleScene extends Phaser.Scene {
             cd.base.fillRect(cd.x, cd.y, baseFill * 36, 3);
 
             // Special cooldown
-            const move = MOVES[f.ref.moves[0]];
+            const move = ConfigLoader.getMove(f.ref.moves[0]);
             if (move) {
                 const specFill = Math.min(1, f.specialTimer / move.cooldown);
                 cd.special.clear();

@@ -1,7 +1,6 @@
-import { generateMonster } from '../data/monsters.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
 import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
-import FISH_SPECIES from '../data/fish.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, getShopCardKey, getShopName } from '../utils/zones.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
@@ -380,7 +379,7 @@ export default class FloorScene extends Phaser.Scene {
 
             if (card.type === 'delve') {
                 hit.on('pointerdown', () => {
-                    const monster = generateMonster(gs.floor);
+                    const monster = this._generateMonster(gs.floor);
                     this._transitionTo('delve', () => this.scene.start('BattleScene', { gameState: gs, monster }));
                 });
             } else if (card.type === 'shop') {
@@ -419,6 +418,26 @@ export default class FloorScene extends Phaser.Scene {
             theme: floorTheme, depth: 7, padding: 0, cornerSize: 10, fx: false
         });
 
+    }
+
+    _generateMonster(floor) {
+        const allMonsters = ConfigLoader.getAllMonsters();
+        const available = Object.values(allMonsters).filter(m => floor >= m.floorRange[0] && floor <= m.floorRange[1]);
+        const template = available[Math.floor(Math.random() * available.length)];
+        const s = template.statScaling;
+        return {
+            id: template.id,
+            name: template.name,
+            color: Number(template.color),
+            hp: Math.floor(s.hp.base + floor * s.hp.perFloor),
+            maxHp: Math.floor(s.hp.base + floor * s.hp.perFloor),
+            atk: Math.floor(s.atk.base + floor * s.atk.perFloor),
+            def: Math.floor(s.def.base + floor * s.def.perFloor),
+            spd: Math.floor(s.spd.base + floor * s.spd.perFloor),
+            specialMove: template.specialMove,
+            goldReward: Math.floor(template.goldReward.base + floor * template.goldReward.perFloor),
+            xpReward: Math.floor(template.xpReward.base + floor * template.xpReward.perFloor)
+        };
     }
 
     _startPersonality(type, overlay, scrimX, scrimY, scrimW, scrimH) {
@@ -549,7 +568,7 @@ export default class FloorScene extends Phaser.Scene {
         // Offer a free fish if party has room, otherwise a free item
         if (gs.party.length < 3) {
             const ownedIds = gs.party.map(f => f.speciesId);
-            const available = FISH_SPECIES.filter(s => !ownedIds.includes(s.id));
+            const available = Object.values(ConfigLoader.getAllFish()).filter(s => !ownedIds.includes(s.id));
             if (available.length > 0) {
                 const species = available[Math.floor(Math.random() * available.length)];
                 this.showFishReward(species);

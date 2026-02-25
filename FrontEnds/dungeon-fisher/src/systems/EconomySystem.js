@@ -1,5 +1,5 @@
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
-import FISH_SPECIES from '../data/fish.js';
+import ConfigLoader from './ConfigLoader.js';
 import PartySystem from './PartySystem.js';
 
 export default class EconomySystem {
@@ -18,7 +18,7 @@ export default class EconomySystem {
 
     // Buy a fish. Returns the new fish if successful, null otherwise.
     static buyFish(gameState, speciesId) {
-        const species = FISH_SPECIES.find(s => s.id === speciesId);
+        const species = ConfigLoader.getFish(speciesId);
         if (!species) return null;
         if (gameState.gold < species.shopPrice) return null;
         if (gameState.party.length >= 3) return null;
@@ -67,6 +67,7 @@ export default class EconomySystem {
     // Get list of fish available in shop (species not already in party)
     static getShopFish(gameState) {
         const ownedSpecies = gameState.party.map(f => f.speciesId);
-        return FISH_SPECIES.filter(s => !s.isStarter && !ownedSpecies.includes(s.id) && s.shopPrice > 0);
+        const allFish = Object.values(ConfigLoader.getAllFish());
+        return allFish.filter(s => !s.isStarter && !ownedSpecies.includes(s.id) && s.shopPrice > 0);
     }
 }

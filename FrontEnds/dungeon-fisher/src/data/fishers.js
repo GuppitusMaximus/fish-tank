@@ -1,3 +1,4 @@
+// DEPRECATED: Use ConfigLoader instead
 const FISHERS = [
     {
         id: 'andy',
