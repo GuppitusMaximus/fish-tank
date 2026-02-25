@@ -10,7 +10,9 @@ export default class CombatSystem {
             fishIndex: party.indexOf(f),
             hp: f.hp,
             maxHp: f.maxHp,
-            color: f.color
+            color: f.color,
+            shield: f.shield || 0,
+            maxShield: f.maxShield || 0
         }));
 
         const total = chunks.reduce((sum, c) => sum + c.hp, 0);
@@ -23,14 +25,26 @@ export default class CombatSystem {
                 baseTimer: 0,
                 specialTimer: 0,
                 poisoned: null,
-                buffs: []
+                buffs: [],
+                shield: f.shield || f.maxShield || 0,
+                maxShield: f.maxShield || 0,
+                curses: [],
+                hots: [],
+                burn: null,
+                poisons: []
             })),
             monster: {
                 ref: monster,
                 baseTimer: 0,
                 specialTimer: 0,
                 poisoned: null,
-                buffs: []
+                buffs: [],
+                shield: monster.shield || monster.maxShield || 0,
+                maxShield: monster.maxShield || 0,
+                curses: [],
+                hots: [],
+                burn: null,
+                poisons: []
             },
             hpBar: { chunks, total, totalMax },
             running: true
@@ -61,8 +75,8 @@ export default class CombatSystem {
                 f.baseTimer -= baseCd;
                 const monsterDef = this.getEffectiveStat(state.monster, 'def');
                 const damage = this.calculateBaseDamage(effAtk, monsterDef);
-                state.monster.ref.hp -= damage;
-                events.push({ type: 'fish_base_attack', fishIndex: i, damage });
+                const dmgResult = this._applyDamage(state, 'monster', damage, false, events);
+                events.push({ type: 'fish_base_attack', fishIndex: i, damage: dmgResult.actualDamage, shieldAbsorbed: dmgResult.shieldAbsorbed });
             }
 
             // Special attack timer
@@ -73,10 +87,11 @@ export default class CombatSystem {
                     f.specialTimer -= move.cooldown;
                     const monsterDef = this.getEffectiveStat(state.monster, 'def');
                     const damage = this.calculateSpecialDamage(move.damage, monsterDef);
+                    let specialDmgResult = { actualDamage: 0, shieldAbsorbed: 0 };
                     if (damage > 0) {
-                        state.monster.ref.hp -= damage;
+                        specialDmgResult = this._applyDamage(state, 'monster', damage, false, events);
                     }
-                    events.push({ type: 'fish_special', fishIndex: i, moveId: move.id, damage, effect: move.effect });
+                    events.push({ type: 'fish_special', fishIndex: i, moveId: move.id, damage: specialDmgResult.actualDamage, shieldAbsorbed: specialDmgResult.shieldAbsorbed, effect: move.effect });
 
                     // Apply effect
                     if (move.effect) {
@@ -109,14 +124,10 @@ export default class CombatSystem {
                 state.monster.baseTimer -= mBaseCd;
                 const fishDef = this.getEffectiveStat(state.fish[frontIdx], 'def');
                 const damage = this.calculateBaseDamage(mEffAtk, fishDef);
-                const result = this.applyDamageToHpBar(state.hpBar, damage);
-                events.push({ type: 'monster_base_attack', damage: result.actualDamage, targetFishIndex: frontIdx });
+                const result = this._applyDamage(state, 'fish', damage, false, events);
+                events.push({ type: 'monster_base_attack', damage: result.actualDamage, shieldAbsorbed: result.shieldAbsorbed, targetFishIndex: frontIdx });
 
-                // 4. Check for newly incapacitated fish
                 if (result.incapacitated) {
-                    const incapFish = state.fish.find((f, fi) =>
-                        state.hpBar.chunks.find(c => c.fishIndex === this._partyIndex(state, fi))?.hp <= 0 && f.alive
-                    );
                     this._checkIncapacitations(state, events);
                 }
             }
@@ -131,18 +142,19 @@ export default class CombatSystem {
                     if (targetIdx !== -1) {
                         const fishDef = this.getEffectiveStat(state.fish[targetIdx], 'def');
                         const damage = this.calculateSpecialDamage(mMove.damage, fishDef);
+                        let mSpecialResult = { actualDamage: 0, shieldAbsorbed: 0, incapacitated: false };
                         if (damage > 0) {
-                            const result = this.applyDamageToHpBar(state.hpBar, damage);
-                            events.push({ type: 'monster_special', moveId: mMove.id, damage: result.actualDamage, effect: mMove.effect, targetFishIndex: targetIdx });
-                        } else {
-                            events.push({ type: 'monster_special', moveId: mMove.id, damage: 0, effect: mMove.effect, targetFishIndex: targetIdx });
+                            mSpecialResult = this._applyDamage(state, 'fish', damage, false, events);
                         }
+                        events.push({ type: 'monster_special', moveId: mMove.id, damage: mSpecialResult.actualDamage, shieldAbsorbed: mSpecialResult.shieldAbsorbed, effect: mMove.effect, targetFishIndex: targetIdx });
 
                         if (mMove.effect) {
                             this._applyEffect(state, mMove.effect, 'fish', targetIdx, events);
                         }
 
-                        this._checkIncapacitations(state, events);
+                        if (mSpecialResult.incapacitated) {
+                            this._checkIncapacitations(state, events);
+                        }
                     }
                 }
             }
@@ -236,32 +248,90 @@ export default class CombatSystem {
         return -1;
     }
 
-    // Get effective stat value (base + buff bonuses)
-    // Reads from the combat state's buffs array on the combatant
+    // Modifier pipeline: base → flat buffs → curse reduction → floor at 0
     static getEffectiveStat(combatant, stat) {
         let value = combatant.ref[stat];
+
+        // Flat buff bonuses
         if (combatant.buffs) {
             for (const buff of combatant.buffs) {
                 if (buff.stat === stat) value += buff.amount;
             }
         }
-        return value;
+
+        // Curse reduction: sum active curse percentages, cap, then reduce
+        if (combatant.curses && combatant.curses.length > 0) {
+            const cc = ConfigLoader.getCombatConfig();
+            let totalCursePercent = 0;
+            for (const curse of combatant.curses) {
+                totalCursePercent += curse.percent;
+            }
+            totalCursePercent = Math.min(totalCursePercent, cc.curseCap);
+            value *= (1 - totalCursePercent);
+        }
+
+        return Math.max(0, value);
     }
 
     // --- Private helpers ---
+
+    // Route damage through shield → HP. Returns { actualDamage, shieldAbsorbed, incapacitated }.
+    // targetType: 'monster' or 'fish'. Fish damage hits frontmost living chunk's shield then HP bar.
+    static _applyDamage(state, targetType, rawDamage, bypassShield, events) {
+        let shieldAbsorbed = 0;
+        let remaining = rawDamage;
+
+        if (targetType === 'monster') {
+            if (!bypassShield && state.monster.shield > 0) {
+                shieldAbsorbed = Math.min(state.monster.shield, remaining);
+                state.monster.shield -= shieldAbsorbed;
+                remaining -= shieldAbsorbed;
+                if (shieldAbsorbed > 0) {
+                    events.push({ type: 'shield_hit', target: 'monster', absorbed: shieldAbsorbed });
+                }
+            }
+            if (remaining > 0) {
+                state.monster.ref.hp -= remaining;
+            }
+            return { actualDamage: remaining, shieldAbsorbed, incapacitated: false };
+        }
+
+        // Fish target — absorb from frontmost living chunk's shield, then HP bar
+        if (!bypassShield) {
+            const frontChunk = state.hpBar.chunks.find(c => c.hp > 0);
+            if (frontChunk && frontChunk.shield > 0) {
+                shieldAbsorbed = Math.min(frontChunk.shield, remaining);
+                frontChunk.shield -= shieldAbsorbed;
+                remaining -= shieldAbsorbed;
+                if (shieldAbsorbed > 0) {
+                    events.push({ type: 'shield_hit', target: 'fish', absorbed: shieldAbsorbed });
+                }
+            }
+        }
+
+        let incapacitated = false;
+        if (remaining > 0) {
+            const result = this.applyDamageToHpBar(state.hpBar, remaining);
+            remaining = result.actualDamage;
+            incapacitated = result.incapacitated;
+        }
+
+        return { actualDamage: remaining, shieldAbsorbed, incapacitated };
+    }
 
     // Get the party index for a fish at combat state index i
     static _partyIndex(state, i) {
         return state.hpBar.chunks[i]?.fishIndex ?? -1;
     }
 
-    // Sync chunk HP back to party refs after battle ends
+    // Sync chunk HP and shield back to party refs after battle ends
     static _syncHpBack(state) {
         for (let i = 0; i < state.fish.length; i++) {
             const partyIdx = this._partyIndex(state, i);
             const chunk = state.hpBar.chunks.find(c => c.fishIndex === partyIdx);
             if (chunk) {
                 state.fish[i].ref.hp = Math.max(0, chunk.hp);
+                state.fish[i].ref.shield = Math.max(0, chunk.shield);
             }
         }
     }
@@ -337,7 +407,7 @@ export default class CombatSystem {
             while (p.timer >= p.interval && p.ticksLeft > 0) {
                 p.timer -= p.interval;
                 p.ticksLeft--;
-                state.monster.ref.hp -= p.damagePerTick;
+                this._applyDamage(state, 'monster', p.damagePerTick, true, events);
                 events.push({ type: 'poison_tick', target: 'monster', damage: p.damagePerTick });
             }
             if (p.ticksLeft <= 0) {
@@ -354,9 +424,11 @@ export default class CombatSystem {
             while (p.timer >= p.interval && p.ticksLeft > 0) {
                 p.timer -= p.interval;
                 p.ticksLeft--;
-                this.applyDamageToHpBar(state.hpBar, p.damagePerTick);
-                events.push({ type: 'poison_tick', target: 'fish', fishIndex: i, damage: p.damagePerTick });
-                this._checkIncapacitations(state, events);
+                const poisonResult = this._applyDamage(state, 'fish', p.damagePerTick, true, events);
+                events.push({ type: 'poison_tick', target: 'fish', fishIndex: i, damage: poisonResult.actualDamage });
+                if (poisonResult.incapacitated) {
+                    this._checkIncapacitations(state, events);
+                }
             }
             if (p.ticksLeft <= 0) {
                 f.poisoned = null;
