@@ -17,7 +17,11 @@ export default class SaveSystem {
             inventory: gameState.inventory,
             campFloor: gameState.campFloor,
             nextShopFloor: gameState.nextShopFloor || gameState.floor,
-            fisherId: gameState.fisherId || 'andy'
+            fisherId: gameState.fisherId || 'andy',
+            pveDeathCount: gameState.pveDeathCount || 0,
+            pvpLossCount: gameState.pvpLossCount || 0,
+            roster: gameState.roster || [],
+            companion: gameState.companion || null
         };
         try {
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -69,6 +73,33 @@ export default class SaveSystem {
                 delete fish.pendingMove;
             }
             data.version = 3;
+        }
+
+        // v3 → v4: add shield/healPower stats, species-specific growth recompute, new effect types, new game fields
+        if (data.version === 3) {
+            for (const fish of data.party) {
+                const species = ConfigLoader.getFish(fish.speciesId);
+                if (species) {
+                    fish.maxHp = species.baseHp + (fish.level - 1) * species.growth.hp;
+                    fish.atk = species.baseAtk + (fish.level - 1) * species.growth.atk;
+                    fish.def = species.baseDef + (fish.level - 1) * species.growth.def;
+                    fish.spd = species.baseSpd + (fish.level - 1) * species.growth.spd;
+                    fish.shield = species.baseShield + (fish.level - 1) * species.growth.shield;
+                    fish.maxShield = fish.shield;
+                    fish.healPower = species.baseHealPower + (fish.level - 1) * species.growth.healPower;
+                    if (fish.hp > 0) fish.hp = Math.min(fish.hp, fish.maxHp);
+                } else {
+                    fish.shield = 0; fish.maxShield = 0; fish.healPower = 0;
+                }
+                fish.poisoned = null; fish.buffs = [];
+                fish.burn = null; fish.curses = []; fish.hots = []; fish.poisons = [];
+            }
+            data.pveDeathCount = 0;
+            data.pvpLossCount = 0;
+            data.roster = [];
+            data.companion = null;
+            if (!data.nextShopFloor) data.nextShopFloor = data.floor;
+            data.version = 4;
         }
 
         if (data.version === SAVE_FORMAT_VERSION) return data;

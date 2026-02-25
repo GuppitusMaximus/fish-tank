@@ -19,28 +19,42 @@ export default class PartySystem {
             atk: species.baseAtk,
             def: species.baseDef,
             spd: species.baseSpd,
+            shield: species.baseShield,
+            maxShield: species.baseShield,
+            healPower: species.baseHealPower,
             moves: [species.specialMove],
             poisoned: null,
-            buffs: []
+            buffs: [],
+            burn: null,
+            curses: [],
+            hots: [],
+            poisons: []
         };
     }
 
     // Award XP and handle level ups. Returns array of messages.
     static awardXP(fish, xp) {
         const messages = [];
+        const species = ConfigLoader.getFish(fish.speciesId);
+        const combatConfig = ConfigLoader.getCombatConfig();
+        const maxLevel = combatConfig.maxLevel || 20;
+        const xpCurve = combatConfig.xpCurve || { base: 25, perLevel: 25 };
         fish.xp += xp;
 
-        while (fish.xp >= fish.xpToNext && fish.level < 20) {
+        while (fish.xp >= fish.xpToNext && fish.level < maxLevel) {
             fish.xp -= fish.xpToNext;
             fish.level++;
-            fish.xpToNext = fish.level * 25;
+            fish.xpToNext = xpCurve.base + fish.level * xpCurve.perLevel;
 
-            // Stat increases on level up
-            fish.maxHp += 5;
-            fish.hp += 5;
-            fish.atk += 2;
-            fish.def += 1;
-            fish.spd += 1;
+            const growth = species ? species.growth : { hp: 5, atk: 2, def: 1, spd: 1, shield: 0, healPower: 0 };
+            fish.maxHp += growth.hp;
+            fish.hp += growth.hp;
+            fish.atk += growth.atk;
+            fish.def += growth.def;
+            fish.spd += growth.spd;
+            fish.maxShield += growth.shield;
+            fish.shield += growth.shield;
+            fish.healPower += growth.healPower;
 
             messages.push(`${fish.name} grew to level ${fish.level}!`);
         }
@@ -51,8 +65,13 @@ export default class PartySystem {
     // Heal a fish to full HP, clear status effects
     static fullHeal(fish) {
         fish.hp = fish.maxHp;
+        fish.shield = fish.maxShield;
         fish.poisoned = null;
         fish.buffs = [];
+        fish.burn = null;
+        fish.curses = [];
+        fish.hots = [];
+        fish.poisons = [];
     }
 
     // Revive a fainted fish to a percentage of max HP
@@ -61,6 +80,10 @@ export default class PartySystem {
         fish.hp = Math.floor(fish.maxHp * hpPercent);
         fish.poisoned = null;
         fish.buffs = [];
+        fish.burn = null;
+        fish.curses = [];
+        fish.hots = [];
+        fish.poisons = [];
         return true;
     }
 
@@ -78,5 +101,9 @@ export default class PartySystem {
     static clearCombatState(fish) {
         fish.poisoned = null;
         fish.buffs = [];
+        fish.burn = null;
+        fish.curses = [];
+        fish.hots = [];
+        fish.poisons = [];
     }
 }
