@@ -308,10 +308,10 @@ export default class FloorScene extends Phaser.Scene {
             // Personality overlay — stays invisible until entrance completes
             let personalityOverlay = null;
             if (card.type === 'delve') {
-                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x440000, 0)
+                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x660000, 0)
                     .setDepth(3.3).setScrollFactor(0);
             } else if (card.type === 'camp') {
-                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x442200, 0)
+                personalityOverlay = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x664400, 0)
                     .setDepth(3.3).setScrollFactor(0);
             }
 
@@ -464,7 +464,7 @@ export default class FloorScene extends Phaser.Scene {
         if (type === 'delve' && overlay) {
             this.tweens.add({
                 targets: overlay,
-                alpha: { from: 0, to: 0.15 },
+                alpha: { from: 0, to: 0.35 },
                 duration: 1500,
                 yoyo: true,
                 repeat: -1,
@@ -475,11 +475,11 @@ export default class FloorScene extends Phaser.Scene {
                 this.add.particles(0, 0, 'particle_dot', {
                     x: { min: scrimX, max: scrimX + scrimW },
                     y: { min: scrimY, max: scrimY + scrimH },
-                    lifespan: 800,
-                    frequency: 1800,
-                    quantity: 1,
-                    scale: { start: 0.4, end: 0 },
-                    alpha: { start: 0.8, end: 0 },
+                    lifespan: 1200,
+                    frequency: 800,
+                    quantity: 2,
+                    scale: { start: 0.6, end: 0 },
+                    alpha: { start: 1.0, end: 0 },
                     speedY: { min: -15, max: -5 },
                     speedX: { min: -3, max: 3 },
                     tint: [0xffd700, 0xffee88, 0xffffff],
@@ -490,7 +490,7 @@ export default class FloorScene extends Phaser.Scene {
         } else if (type === 'camp' && overlay) {
             const flicker = () => {
                 if (!overlay.scene) return;
-                const targetAlpha = 0.05 + Math.random() * 0.1;
+                const targetAlpha = 0.1 + Math.random() * 0.25;
                 const duration = 200 + Math.random() * 200;
                 this.tweens.add({
                     targets: overlay,
