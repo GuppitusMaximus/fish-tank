@@ -1,6 +1,6 @@
 {
   "date": "2026-02-22",
-  "entry_count": 96,
+  "entry_count": 92,
   "models": [
     "24hrRaw",
     "24hr_pubRA_RC3_GB",
@@ -1663,78 +1663,6 @@
         "temp_outdoor": 2.3
       },
       "model_version": 148
-    },
-    {
-      "predicted_at": "2026-02-22T13:41:32Z",
-      "for_hour": "2026-02-22T14:41:32Z",
-      "model_type": "24hrRaw",
-      "predicted": {
-        "temp_indoor": 19.9,
-        "temp_outdoor": -8.8
-      },
-      "actual": {
-        "temp_indoor": 19.6,
-        "temp_outdoor": -6.3
-      },
-      "error": {
-        "temp_indoor": 0.3,
-        "temp_outdoor": 2.5
-      },
-      "model_version": 166
-    },
-    {
-      "predicted_at": "2026-02-22T13:41:32Z",
-      "for_hour": "2026-02-22T14:41:32Z",
-      "model_type": "24hr_pubRA_RC3_GB",
-      "predicted": {
-        "temp_indoor": 19.8,
-        "temp_outdoor": -8.5
-      },
-      "actual": {
-        "temp_indoor": 19.6,
-        "temp_outdoor": -6.3
-      },
-      "error": {
-        "temp_indoor": 0.2,
-        "temp_outdoor": 2.2
-      },
-      "model_version": 31
-    },
-    {
-      "predicted_at": "2026-02-22T13:41:32Z",
-      "for_hour": "2026-02-22T14:41:32Z",
-      "model_type": "3hrRaw",
-      "predicted": {
-        "temp_indoor": 20.1,
-        "temp_outdoor": -8.4
-      },
-      "actual": {
-        "temp_indoor": 19.6,
-        "temp_outdoor": -6.3
-      },
-      "error": {
-        "temp_indoor": 0.5,
-        "temp_outdoor": 2.1
-      },
-      "model_version": 199
-    },
-    {
-      "predicted_at": "2026-02-22T13:41:32Z",
-      "for_hour": "2026-02-22T14:41:32Z",
-      "model_type": "6hrRC",
-      "predicted": {
-        "temp_indoor": 20.0,
-        "temp_outdoor": -8.5
-      },
-      "actual": {
-        "temp_indoor": 19.6,
-        "temp_outdoor": -6.3
-      },
-      "error": {
-        "temp_indoor": 0.4,
-        "temp_outdoor": 2.2
-      },
-      "model_version": 147
     }
   ]
 }
