@@ -57,25 +57,26 @@ export default class FloorScene extends Phaser.Scene {
             return;
         }
 
-        // Handle victory — check transitions before advancing
+        // Handle victory — set up transitions if any, then show zone hub
         if (this.result === 'victory') {
             const floorInZone = EncounterSystem.getFloorInZone(gs.floor);
             const transitions = EncounterSystem.getTransitions(floorInZone);
-
             if (transitions.length > 0) {
                 gs._transitionQueue = transitions;
                 gs._pendingAdvance = true;
-                this._processTransitions();
-                return;
             }
-
-            this._advanceAndRoute();
+            // Show zone hub — cards reflect available transitions
+            if (gs._pendingAdvance) {
+                this._showZoneView();
+            } else {
+                this._advanceAndRoute();
+            }
             return;
         }
 
-        // Returning from a transition scene (camp/shop)
+        // Returning from transition — show hub with remaining cards
         if (gs._transitionQueue && gs._transitionQueue.length > 0) {
-            this._processTransitions();
+            this._showZoneView();
             return;
         }
 
@@ -108,17 +109,6 @@ export default class FloorScene extends Phaser.Scene {
         this._showZoneView();
     }
 
-    _processTransitions() {
-        const gs = this.gameState;
-        const next = gs._transitionQueue.shift();
-
-        if (next === 'camp') {
-            this.scene.start('CampScene', { gameState: gs });
-        } else if (next === 'shop') {
-            this.scene.start('ShopScene', { gameState: gs });
-        }
-    }
-
     _showZoneView() {
         const W = this.scale.width;
         const H = this.scale.height;
@@ -132,78 +122,191 @@ export default class FloorScene extends Phaser.Scene {
         UILayout.sceneBackground(this, bgKey, { effects: true });
         UILayout.overlay(this, { alpha: 0.3, depth: 0 });
 
-        // Zone name
-        this.add.text(W / 2, H * 0.08, zone.name,
-            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '18px' })
-        ).setOrigin(0.5);
-
-        // Floor counter
-        this.add.text(W / 2, H * 0.15, 'Floor ' + gs.floor,
-            makeStyle(TEXT_STYLES.BODY, { color: '#cccccc' })
-        ).setOrigin(0.5);
-
-        // Flavor text
-        if (zone.flavor) {
-            this.add.text(W / 2, H * 0.22, zone.flavor,
-                makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#888899', fontStyle: 'italic' })
-            ).setOrigin(0.5);
-        }
-
-        // Delve Deeper action card
-        const cardY = H * 0.52;
-        const cardImg = this.add.image(W / 2, cardY, 'card_delve')
-            .setOrigin(0.5);
-
-        // Scale card to fit screen — max 60% width, max 35% height
-        const maxW = W * 0.6;
-        const maxH = H * 0.35;
-        const cardScale = Math.min(maxW / cardImg.width, maxH / cardImg.height, 1);
-        cardImg.setScale(cardScale);
-        cardImg.setInteractive({ useHandCursor: true });
-
-        // Hover effect
-        cardImg.on('pointerover', () => {
-            this.tweens.add({
-                targets: cardImg,
-                scaleX: cardScale * 1.05, scaleY: cardScale * 1.05,
-                duration: 150, ease: 'Sine.Out'
-            });
-        });
-        cardImg.on('pointerout', () => {
-            this.tweens.add({
-                targets: cardImg,
-                scaleX: cardScale, scaleY: cardScale,
-                duration: 150, ease: 'Sine.Out'
-            });
+        // --- Top Info Panel ---
+        const infoPanelH = 52;
+        const infoPanel = new UIPanel(this, {
+            x: 8, y: 6, width: W - 16, height: infoPanelH,
+            theme: zone, alpha: 0.9, depth: 1
         });
 
-        // Click — start encounter
-        cardImg.on('pointerdown', () => {
-            this.children.removeAll();
-            this._startEncounter();
-        });
+        // Zone name (centered in info panel)
+        this.add.text(W / 2, 14, zone.name,
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '14px' })
+        ).setOrigin(0.5).setDepth(2);
 
-        // Compact party HP at bottom
-        const partyY = H * 0.82;
+        // Party HP in info panel
+        const partyStartX = 14;
+        const partySlotW = (W - 80) / gs.party.length;
         gs.party.forEach((f, i) => {
-            const x = W / (gs.party.length + 1) * (i + 1);
+            const px = partyStartX + i * partySlotW;
             const alive = f.hp > 0;
             const color = alive ? '#ccccee' : '#ff6666';
-
-            this.add.text(x, partyY, f.name,
-                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '9px', color })
-            ).setOrigin(0.5);
+            this.add.text(px, 30, f.name,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '8px', color })
+            ).setDepth(2);
 
             // HP bar
-            const barW = 40;
+            const barW = Math.min(partySlotW - 8, 50);
             const barH = 3;
-            this.add.rectangle(x, partyY + 10, barW, barH, 0x333333);
+            this.add.rectangle(px + barW / 2, 42, barW, barH, 0x333333).setDepth(2);
             if (alive) {
-                const fillW = (f.hp / f.maxHp) * barW;
+                const fillW = Math.max(1, (f.hp / f.maxHp) * barW);
                 const hpColor = f.hp / f.maxHp > 0.5 ? 0x44ff44 : (f.hp / f.maxHp > 0.25 ? 0xffaa00 : 0xff4444);
-                this.add.rectangle(x - (barW - fillW) / 2, partyY + 10, fillW, barH, hpColor);
+                this.add.rectangle(px + fillW / 2, 42, fillW, barH, hpColor).setDepth(2);
             }
         });
+
+        // Gold display (right side of info panel)
+        this.add.text(W - 16, 34, gs.gold + 'g',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '9px', color: '#ffdd66' })
+        ).setOrigin(1, 0).setDepth(2);
+
+        // --- Action Cards ---
+        const cards = this._buildActionCards();
+        const gap = 8;
+        const maxCardW = 110;
+        const cardW = Math.min(maxCardW, (W - 16 - gap * (cards.length - 1)) / cards.length);
+        const cardH = cardW * 1.4;
+        const totalCardsW = cards.length * cardW + (cards.length - 1) * gap;
+        const cardsStartX = (W - totalCardsW) / 2;
+        const cardsY = H * 0.35;
+
+        cards.forEach((card, i) => {
+            const cx = cardsStartX + i * (cardW + gap);
+            this._renderActionCard(cx, cardsY, cardW, cardH, card, zone);
+        });
+
+        // --- Flavor Text ---
+        if (zone.flavor) {
+            this.add.text(W / 2, cardsY + cardH + 16, zone.flavor,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '9px', color: '#888899', fontStyle: 'italic' })
+            ).setOrigin(0.5).setDepth(2);
+        }
+
+        // --- Bottom Floor Counter ---
+        const floorPanelW = 100;
+        const floorPanelH = 26;
+        new UIPanel(this, {
+            x: (W - floorPanelW) / 2, y: H - floorPanelH - 8,
+            width: floorPanelW, height: floorPanelH,
+            theme: zone, alpha: 0.9, depth: 1
+        });
+        this.add.text(W / 2, H - floorPanelH / 2 - 8, 'Floor ' + gs.floor,
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '12px' })
+        ).setOrigin(0.5).setDepth(2);
+    }
+
+    _buildActionCards() {
+        const gs = this.gameState;
+        const zone = getZoneByFloor(gs.floor);
+        const cards = [];
+
+        // Delve Deeper — always available
+        cards.push({
+            type: 'delve',
+            key: 'card_delve',
+            label: 'Delve Deeper',
+            onClick: () => {
+                this.children.removeAll();
+                if (gs._pendingAdvance) {
+                    // Player chose to skip remaining transitions
+                    delete gs._transitionQueue;
+                    delete gs._pendingAdvance;
+                    gs.floor++;
+                    if (gs.floor > 100) {
+                        this.scene.start('VictoryScene', { gameState: gs });
+                        return;
+                    }
+                    if (gs.floor > 1 && gs.floor % 10 === 0) {
+                        this._showFloorReward();
+                        return;
+                    }
+                }
+                this._startEncounter();
+            }
+        });
+
+        // Shop — only if available in transition queue
+        if (gs._transitionQueue && gs._transitionQueue.includes('shop')) {
+            cards.push({
+                type: 'shop',
+                key: zone.shop.cardKey,
+                label: zone.shop.name,
+                onClick: () => {
+                    const idx = gs._transitionQueue.indexOf('shop');
+                    if (idx !== -1) gs._transitionQueue.splice(idx, 1);
+                    this.scene.start('ShopScene', { gameState: gs });
+                }
+            });
+        }
+
+        // Camp — only if available in transition queue
+        if (gs._transitionQueue && gs._transitionQueue.includes('camp')) {
+            cards.push({
+                type: 'camp',
+                key: 'card_camp',
+                label: 'Make Camp',
+                onClick: () => {
+                    const idx = gs._transitionQueue.indexOf('camp');
+                    if (idx !== -1) gs._transitionQueue.splice(idx, 1);
+                    this.scene.start('CampScene', { gameState: gs });
+                }
+            });
+        }
+
+        return cards;
+    }
+
+    _renderActionCard(x, y, w, h, card, zone) {
+        // Atlas-bordered panel
+        const panel = new UIPanel(this, {
+            x, y, width: w, height: h,
+            theme: zone, alpha: 1, depth: 1, padding: 0, fillAlpha: 0
+        });
+
+        // Dark scrim behind card image for contrast
+        this.add.rectangle(x + w / 2, y + (h - 16) / 2, w - 4, h - 20, 0x000000, 0.5)
+            .setDepth(2);
+
+        // Card image — fill panel interior, leave room for label at bottom
+        const img = this.add.image(x + w / 2, y + 2, card.key)
+            .setOrigin(0.5, 0)
+            .setDisplaySize(w - 4, h - 20)
+            .setDepth(3);
+
+        // Label scrim
+        this.add.rectangle(x + w / 2, y + h - 9, w - 4, 16, 0x000000, 0.6)
+            .setDepth(3);
+
+        // Label text
+        this.add.text(x + w / 2, y + h - 10, card.label,
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '8px' })
+        ).setOrigin(0.5).setDepth(4);
+
+        // Invisible hit area for interaction
+        const hitArea = this.add.rectangle(x + w / 2, y + h / 2, w, h, 0x000000, 0)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(5);
+
+        // Hover — scale card image
+        const origScaleX = img.scaleX;
+        const origScaleY = img.scaleY;
+
+        hitArea.on('pointerover', () => {
+            this.tweens.add({
+                targets: img,
+                scaleX: origScaleX * 1.05, scaleY: origScaleY * 1.05,
+                duration: 150, ease: 'Sine.Out'
+            });
+        });
+        hitArea.on('pointerout', () => {
+            this.tweens.add({
+                targets: img,
+                scaleX: origScaleX, scaleY: origScaleY,
+                duration: 150, ease: 'Sine.Out'
+            });
+        });
+        hitArea.on('pointerdown', () => card.onClick());
     }
 
     _startEncounter() {
@@ -463,7 +566,9 @@ export default class FloorScene extends Phaser.Scene {
                     if (transitions.length > 0) {
                         gs._transitionQueue = transitions;
                         gs._pendingAdvance = true;
-                        this._processTransitions();
+                    }
+                    if (gs._pendingAdvance) {
+                        this._showZoneView();
                     } else {
                         this._advanceAndRoute();
                     }
