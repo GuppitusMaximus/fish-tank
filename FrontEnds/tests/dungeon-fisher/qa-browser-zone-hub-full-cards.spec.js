@@ -58,7 +58,7 @@ const PUFFER = makeFish('pufferfish', 'Pufferfish', 0xffcc00, 60, 60, 12, 14, 8,
 function makeSave(party, floor = 1, extras = {}) {
     return {
         version: 4,
-        gameVersion: '0.10.0',
+        gameVersion: '0.11.0',
         savedAt: Date.now(),
         floor,
         gold: extras.gold ?? 200,
@@ -129,28 +129,28 @@ const CARD_CENTER_Y = 172;
 
 test.describe('1. zone hub layout (floor 1)', () => {
 
-    test('source: _showZoneView creates top info panel with zone name', async ({ page }) => {
+    test('source: _showZoneView creates top info panel with sm atlas border', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Info panel at y=6
-        expect(src).toContain('y: 6, width: W - 16, height: infoPanelH');
-        // Zone name centered
-        expect(src).toContain('W / 2, 14, zone.name');
+        // Info panel uses sm atlas border
+        expect(src).toContain("atlasKey = zone.atlasKey + '_sm'");
+        // Translucent fill behind border
+        expect(src).toContain('0x000000, 0.5)');
     });
 
     test('source: info panel shows party HP bars with fish names', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain('gs.party.forEach');
-        expect(src).toContain('f.name');
-        expect(src).toContain('(f.hp / f.maxHp) * barW');
+        expect(src).toContain('fish.name');
+        expect(src).toContain('ratio * barW');
     });
 
-    test('source: info panel shows gold count', async ({ page }) => {
+    test('source: info panel shows gold count with character accent color', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("gs.gold + 'g'");
-        expect(src).toContain("color: '#ffdd66'");
+        expect(src).toContain("'Gold: ' + gs.gold");
+        expect(src).toContain("accentHex(character)");
     });
 
     test('source: only Delve Deeper card on floor 1 (no transition queue)', async ({ page }) => {
@@ -165,18 +165,18 @@ test.describe('1. zone hub layout (floor 1)', () => {
         expect(src).toContain("gs._transitionQueue && gs._transitionQueue.includes('camp')");
     });
 
-    test('source: flavor text rendered in italic', async ({ page }) => {
+    test('source: flavor text rendered from zone data', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('zone.flavor');
-        expect(src).toContain("fontStyle: 'italic'");
+        expect(src).toContain('getZoneByFloor(gs.floor).flavor');
+        expect(src).toContain('TEXT_STYLES.FLAVOR');
     });
 
-    test('source: floor counter panel at bottom', async ({ page }) => {
+    test('source: floor counter panel at bottom with atlas border', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("'Floor ' + gs.floor");
-        expect(src).toContain('H - floorPanelH - 8');
+        expect(src).toContain("floorTheme.atlasKey = zone.atlasKey + '_sm'");
     });
 
     test('browser: zone hub at floor 1 renders without JS errors', async ({ page }) => {
@@ -227,11 +227,11 @@ test.describe('1. zone hub layout (floor 1)', () => {
 
 test.describe('2. card hover and click', () => {
 
-    test('source: card image has hover scale effect (1.05x)', async ({ page }) => {
+    test('source: card has hover scale effect (1.05x)', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('origScaleX * 1.05');
-        expect(src).toContain('origScaleY * 1.05');
+        expect(src).toContain('scaleX: 1.05, scaleY: 1.05');
+        expect(src).toContain('baseImgScale * 1.05');
         expect(src).toContain("'pointerover'");
         expect(src).toContain("'pointerout'");
     });
@@ -242,10 +242,11 @@ test.describe('2. card hover and click', () => {
         expect(src).toContain('setInteractive({ useHandCursor: true })');
     });
 
-    test('source: clicking card triggers onClick callback', async ({ page }) => {
+    test('source: clicking card triggers transition callback', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("hitArea.on('pointerdown', () => card.onClick())");
+        expect(src).toContain("hit.on('pointerdown'");
+        expect(src).toContain("this._transitionTo('delve'");
     });
 
     test('browser: hover over Delve Deeper card — no JS errors', async ({ page }) => {
@@ -343,8 +344,8 @@ test.describe('4. boss transitions (3 cards)', () => {
     test('source: shop card uses zone-specific key and name', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('zone.shop.cardKey');
-        expect(src).toContain('zone.shop.name');
+        expect(src).toContain('getShopCardKey(gs.floor)');
+        expect(src).toContain('getShopName(gs.floor)');
     });
 
     test('source: shop onClick removes shop from queue and starts ShopScene', async ({ page }) => {
@@ -403,12 +404,10 @@ test.describe('5. skip transitions via Delve Deeper', () => {
     test('source: Delve Deeper clears transition queue when pendingAdvance is set', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Inside Delve Deeper onClick, if _pendingAdvance: delete queue, advance floor
-        const delveBlock = src.match(/type: 'delve'[\s\S]*?onClick: \(\) => \{[\s\S]*?\}/);
-        expect(delveBlock).not.toBeNull();
-        expect(delveBlock[0]).toContain('delete gs._transitionQueue');
-        expect(delveBlock[0]).toContain('delete gs._pendingAdvance');
-        expect(delveBlock[0]).toContain('gs.floor++');
+        // Inside Delve Deeper click handler: delete queue, advance floor
+        expect(src).toContain('delete gs._transitionQueue');
+        expect(src).toContain('delete gs._pendingAdvance');
+        expect(src).toContain('gs.floor++');
     });
 
     test('browser: clicking Delve Deeper skips camp/shop, starts encounter — no JS errors', async ({ page }) => {
@@ -434,26 +433,24 @@ test.describe('5. skip transitions via Delve Deeper', () => {
 
 test.describe('6. info panel updates', () => {
 
-    test('source: gold displayed with "g" suffix in yellow', async ({ page }) => {
+    test('source: gold displayed with character accent color', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("gs.gold + 'g'");
-        expect(src).toContain("color: '#ffdd66'");
+        expect(src).toContain("'Gold: ' + gs.gold");
+        expect(src).toContain("accentHex(character)");
     });
 
     test('source: HP bar color changes based on health ratio', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         // Green above 50%, yellow above 25%, red below 25%
-        expect(src).toContain('f.hp / f.maxHp > 0.5 ? 0x44ff44');
-        expect(src).toContain('f.hp / f.maxHp > 0.25 ? 0xffaa00 : 0xff4444');
+        expect(src).toContain('ratio > 0.5 ? 0x33cc33');
+        expect(src).toContain('ratio > 0.25 ? 0xcccc33 : 0xcc3333');
     });
 
-    test('source: zone name updates from zone data', async ({ page }) => {
+    test('source: zone fetched by current floor', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('zone.name');
-        // Zone is fetched by current floor
         expect(src).toContain('getZoneByFloor(gs.floor)');
     });
 
@@ -486,14 +483,13 @@ test.describe('6. info panel updates', () => {
 
 test.describe('7. floor counter', () => {
 
-    test('source: floor counter in bottom panel', async ({ page }) => {
+    test('source: floor counter in bottom panel with atlas border', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("'Floor ' + gs.floor");
-        // Panel positioned at bottom
-        expect(src).toContain('H - floorPanelH - 8');
-        expect(src).toContain('floorPanelW = 100');
-        expect(src).toContain('floorPanelH = 26');
+        // Uses sm atlas and zone accent color
+        expect(src).toContain("floorTheme.atlasKey = zone.atlasKey + '_sm'");
+        expect(src).toContain("color: accentHex(zone)");
     });
 
     test('browser: floor counter at various floors — no JS errors', async ({ page }) => {
@@ -569,9 +565,9 @@ test.describe('8. save/load', () => {
 
 test.describe('9. version', () => {
 
-    test('game version is 0.10.0', async ({ page }) => {
+    test('game version is 0.11.0', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
-        expect(src).toContain("VERSION = '0.10.0'");
+        expect(src).toContain("VERSION = '0.11.0'");
     });
 });

@@ -58,7 +58,7 @@ const PUFFER = makeFish('pufferfish', 'Pufferfish', 0xffcc00, 60, 60, 12, 14, 8,
 function makeSave(party, floor = 1, extras = {}) {
     return {
         version: 4,
-        gameVersion: '0.10.0',
+        gameVersion: '0.11.0',
         savedAt: Date.now(),
         floor,
         gold: extras.gold ?? 200,
@@ -116,35 +116,40 @@ async function enterZoneHub(page, save) {
 
 test.describe('1. zone hub display (source verification)', () => {
 
-    test('_showZoneView renders zone name', async ({ page }) => {
+    test('_showZoneView creates info panel with sm atlas border', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("zone.name");
-        // Zone name centered in top info panel at y=14
-        expect(src).toContain("W / 2, 14, zone.name");
+        // Info panel uses sm atlas border
+        expect(src).toContain("atlasKey = zone.atlasKey + '_sm'");
+        // Gold + Items with character accent color
+        expect(src).toContain("'Gold: ' + gs.gold");
+        expect(src).toContain("accentHex(character)");
     });
 
     test('_showZoneView renders floor counter', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("'Floor ' + gs.floor");
-        // Floor counter in bottom panel
-        expect(src).toContain("H - floorPanelH / 2 - 8, 'Floor ' + gs.floor");
+        // Floor counter with atlas border and zone accent color
+        expect(src).toContain("floorTheme.atlasKey = zone.atlasKey + '_sm'");
+        expect(src).toContain("color: accentHex(zone)");
     });
 
-    test('_showZoneView renders italic flavor text', async ({ page }) => {
+    test('_showZoneView renders flavor text with effects', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("zone.flavor");
-        expect(src).toContain("fontStyle: 'italic'");
+        expect(src).toContain("getZoneByFloor(gs.floor).flavor");
+        expect(src).toContain("TEXT_STYLES.FLAVOR");
+        // Expanding scrim reveal
+        expect(src).toContain("ease: 'Back.easeOut'");
     });
 
     test('_showZoneView renders Delve Deeper card', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain("'card_delve'");
-        // Cards positioned at H*0.35
-        expect(src).toContain("H * 0.35");
+        // Cards positioned at H*0.74 (delve bottom-center)
+        expect(src).toContain("H * 0.74");
     });
 
     test('_showZoneView renders compact party HP bars in info panel', async ({ page }) => {
@@ -152,9 +157,9 @@ test.describe('1. zone hub display (source verification)', () => {
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         // Party HP in top info panel
         expect(src).toContain("gs.party.forEach");
-        expect(src).toContain("f.name");
-        // HP bar rendering
-        expect(src).toContain("(f.hp / f.maxHp) * barW");
+        expect(src).toContain("fish.name");
+        // HP bar rendering with color-coded ratio
+        expect(src).toContain("ratio * barW");
     });
 
     test('_showZoneView uses zone background with effects', async ({ page }) => {
@@ -179,9 +184,9 @@ test.describe('2. card interaction (source verification)', () => {
     test('Delve Deeper card has hover scale effect', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Hover scales card image to 1.05x original
-        expect(src).toContain("origScaleX * 1.05");
-        expect(src).toContain("origScaleY * 1.05");
+        // Hover scales card to 1.05x
+        expect(src).toContain("scaleX: 1.05, scaleY: 1.05");
+        expect(src).toContain("baseImgScale * 1.05");
         expect(src).toContain("'pointerover'");
         expect(src).toContain("'pointerout'");
     });
@@ -192,10 +197,11 @@ test.describe('2. card interaction (source verification)', () => {
         expect(src).toContain("setInteractive({ useHandCursor: true })");
     });
 
-    test('clicking card calls onClick callback', async ({ page }) => {
+    test('clicking card triggers transition', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain("hitArea.on('pointerdown', () => card.onClick())");
+        expect(src).toContain("hit.on('pointerdown'");
+        expect(src).toContain("this._transitionTo('delve'");
     });
 });
 
@@ -394,10 +400,10 @@ test.describe('7. zone transition', () => {
 
 test.describe('8. version', () => {
 
-    test('game version is 0.10.0', async ({ page }) => {
+    test('game version is 0.11.0', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
-        expect(src).toContain("VERSION = '0.10.0'");
+        expect(src).toContain("VERSION = '0.11.0'");
     });
 });
 
