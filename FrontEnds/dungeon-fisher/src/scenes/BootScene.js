@@ -116,6 +116,14 @@ export default class BootScene extends Phaser.Scene {
         // Merchant sprites
         this.load.image('merchant_rat', 'sprites/merchants/rat_merchant.png');
 
+        // Suppress missing-texture warnings for equipment item sprites (not yet generated)
+        this.load.on('loaderror', (file) => {
+            if (file.key && file.key.startsWith('item_')) {
+                // Expected — equipment sprites are optional
+                return;
+            }
+        });
+
         // Equipment item sprites (optional — graceful fallback if missing)
         const allItems = Object.values(equipmentItemsConfig);
         for (const item of allItems) {
@@ -127,14 +135,6 @@ export default class BootScene extends Phaser.Scene {
     }
 
     create() {
-        // Suppress missing-texture warnings for equipment item sprites (not yet generated)
-        this.load.on('loaderror', (file) => {
-            if (file.key && file.key.startsWith('item_')) {
-                // Expected — equipment sprites are optional
-                return;
-            }
-        });
-
         this.textures.each((key) => {
             if (key !== '__DEFAULT' && key !== '__MISSING' && key !== '__WHITE') {
                 const tex = this.textures.get(key);
