@@ -107,6 +107,31 @@ export default class CombatSystem {
                 const damage = this.calculateBaseDamage(effAtk, monsterDef);
                 const dmgResult = this._applyDamage(state, 'monster', damage, false, events);
                 events.push({ type: 'fish_base_attack', fishIndex: i, damage: dmgResult.actualDamage, shieldAbsorbed: dmgResult.shieldAbsorbed });
+
+                // Equipment action effects — fire on base attack hit
+                if (f.ref._equipActionEffects && f.ref._equipActionEffects.length > 0) {
+                    for (const effect of f.ref._equipActionEffects) {
+                        this._applyEffect(state, effect, 'monster', i, events);
+                    }
+                }
+
+                // Harmony double-strike — Bernie fires a bonus attack
+                if (f.ref.isCompanion && f.ref._harmonyAttack) {
+                    const ha = f.ref._harmonyAttack;
+                    const hResult = this._applyDamage(state, 'monster', ha.totalDamage, false, events);
+                    events.push({
+                        type: 'fish_base_attack',
+                        fishIndex: i,
+                        damage: hResult.actualDamage,
+                        shieldAbsorbed: hResult.shieldAbsorbed,
+                        isHarmonyStrike: true
+                    });
+                    if (ha.adjacencyEffects) {
+                        for (const effect of ha.adjacencyEffects) {
+                            this._applyEffect(state, effect, 'monster', i, events);
+                        }
+                    }
+                }
             }
         }
 

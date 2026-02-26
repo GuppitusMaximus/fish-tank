@@ -2,6 +2,7 @@ import CombatSystem from '../systems/CombatSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
 import EncounterSystem from '../systems/EncounterSystem.js';
+import EquipmentSystem from '../systems/EquipmentSystem.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
@@ -19,7 +20,16 @@ export default class BattleScene extends Phaser.Scene {
         this.gameState = data.gameState;
         this.monsters = data.monsters;
         this.isPvp = data.isPvp || false;
+
+        // Equipment stat injection — apply bonuses before combat state is created
+        if (this.gameState.equipment && this.gameState.equipment.grid.length > 0) {
+            const result = EquipmentSystem.applyBonuses(this.gameState.party, this.gameState.equipment.grid);
+            this.gameState.equipmentDelta = result.delta;
+            this.gameState.equipmentSnapshot = result.snapshot;
+        }
+
         this.combatState = CombatSystem.createCombatState(this.gameState.party, this.monsters, this.gameState.floor);
+        this.combatPaused = false;
         this.eventQueue = [];
         this.eventTimer = 0;
 
@@ -174,6 +184,8 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+        if (this.combatPaused) return;
+
         if (this.combatState.running) {
             const events = CombatSystem.update(this.combatState, delta);
             for (const e of events) this.eventQueue.push(e);
@@ -205,6 +217,26 @@ export default class BattleScene extends Phaser.Scene {
         this._drawMonsterPackHpBar();
         this._drawPartyHpBar();
         this._drawCooldowns();
+    }
+
+    pauseCombat() {
+        this.combatPaused = true;
+        this.tweens.pauseAll();
+        this.time.paused = true;
+    }
+
+    resumeCombat() {
+        this.combatPaused = false;
+        this.tweens.resumeAll();
+        this.time.paused = false;
+    }
+
+    _revertEquipmentBonuses() {
+        if (this.gameState.equipmentDelta) {
+            EquipmentSystem.revertBonuses(this.gameState.party, this.gameState.equipmentDelta);
+            this.gameState.equipmentDelta = null;
+            this.gameState.equipmentSnapshot = null;
+        }
     }
 
     // --- Event Processing ---
@@ -335,6 +367,7 @@ export default class BattleScene extends Phaser.Scene {
 
     _onMonstersDead() {
         this.combatState.running = false;
+        this._revertEquipmentBonuses();
         for (const anim of this.monsterAnimators) anim.faint();
 
         const encounterType = EncounterSystem.getEncounterType(this.gameState.floor);
@@ -367,6 +400,7 @@ export default class BattleScene extends Phaser.Scene {
 
     _onPartyDead() {
         this.combatState.running = false;
+        this._revertEquipmentBonuses();
         this.msgTxt.setText('All fish fainted!');
 
         this.time.delayedCall(1500, () => {
