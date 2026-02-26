@@ -3,6 +3,10 @@ name: Fetch Netatmo Weather Data
 on:
   workflow_dispatch:
 
+concurrency:
+  group: netatmo-fetch
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -71,4 +75,9 @@ jobs:
           git add BackEnds/the-snake-tank/data/ BackEnds/the-snake-tank/models/*.json FrontEnds/the-fish-tank/data/weather-public.json
           git diff --cached --quiet && echo "No new data to commit" && exit 0
           git commit -m "Add weather data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push
+          for i in 1 2 3; do
+            git push && break
+            echo "Push failed (attempt $i), rebasing and retrying..."
+            git pull --rebase origin main
+            sleep $((i * 2))
+          done
