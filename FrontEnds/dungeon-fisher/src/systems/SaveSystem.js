@@ -20,7 +20,9 @@ export default class SaveSystem {
             pveDeathCount: gameState.pveDeathCount || 0,
             pvpLossCount: gameState.pvpLossCount || 0,
             roster: gameState.roster || [],
-            companion: gameState.companion || null
+            companion: gameState.companion || null,
+            equipment: gameState.equipment || { grid: [], stash: [], harmonyPosition: { row: 4, col: 1 } },
+            equipmentDelta: gameState.equipmentDelta || null
         };
         try {
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -98,6 +100,17 @@ export default class SaveSystem {
             data.roster = [];
             data.companion = null;
             data.version = 4;
+        }
+
+        // v4 → v5: add equipment grid fields
+        if (data.version === 4) {
+            data.equipment = {
+                grid: [],
+                stash: [],
+                harmonyPosition: { row: 4, col: 1 }
+            };
+            data.equipmentDelta = null;
+            data.version = 5;
         }
 
         if (data.version === SAVE_FORMAT_VERSION) return data;

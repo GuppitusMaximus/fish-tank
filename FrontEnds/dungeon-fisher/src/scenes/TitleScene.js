@@ -1,6 +1,7 @@
 import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
+import EquipmentSystem from '../systems/EquipmentSystem.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { TITLE_THEME, getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
@@ -610,7 +611,14 @@ export default class TitleScene extends Phaser.Scene {
             roster: [],
             companion: dog,
             pveDeathCount: 0,
-            pvpLossCount: 0
+            pvpLossCount: 0,
+            equipment: {
+                grid: [{ itemId: 'harmony', col: 1, row: 4, rotation: 0, flipped: false }],
+                stash: [],
+                harmonyPosition: { row: 4, col: 1 }
+            },
+            equipmentDelta: null,
+            equipmentSnapshot: null
         };
 
         SaveSystem.save(gameState);
@@ -632,8 +640,21 @@ export default class TitleScene extends Phaser.Scene {
             roster: saveData.roster || [],
             companion: saveData.companion || null,
             pveDeathCount: saveData.pveDeathCount || 0,
-            pvpLossCount: saveData.pvpLossCount || 0
+            pvpLossCount: saveData.pvpLossCount || 0,
+            equipment: saveData.equipment || {
+                grid: [{ itemId: 'harmony', col: 1, row: 4, rotation: 0, flipped: false }],
+                stash: [],
+                harmonyPosition: { row: 4, col: 1 }
+            },
+            equipmentDelta: saveData.equipmentDelta || null,
+            equipmentSnapshot: null
         };
+
+        // Interrupted battle recovery: revert equipment bonuses if browser was closed mid-battle
+        if (gameState.equipmentDelta) {
+            EquipmentSystem.revertBonuses(gameState.party, gameState.equipmentDelta);
+            gameState.equipmentDelta = null;
+        }
 
         this.registry.set('gameState', gameState);
         this.scene.start('FloorScene', { gameState });
