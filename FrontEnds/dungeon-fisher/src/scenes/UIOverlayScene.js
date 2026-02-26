@@ -86,6 +86,8 @@ export default class UIOverlayScene extends Phaser.Scene {
         });
         this.equipBtn.setVisible(false);
 
+        this.sys.game.registry.set('_uiImports', { UIButton });
+
         this.inventoryElements = [];
         this.equipmentElements = [];
         this._equipMode = null;
@@ -488,16 +490,6 @@ export default class UIOverlayScene extends Phaser.Scene {
             if (battleScene && battleScene.pauseCombat) {
                 battleScene.pauseCombat();
             }
-            this._battleAutoCloseCheck = this.time.addEvent({
-                delay: 500,
-                loop: true,
-                callback: () => {
-                    const bs = this.scene.get('BattleScene');
-                    if (!bs || !bs.combatState || !bs.combatState.running) {
-                        this.closeEquipmentGrid();
-                    }
-                }
-            });
         }
     }
 
@@ -508,12 +500,15 @@ export default class UIOverlayScene extends Phaser.Scene {
                 battleScene.resumeCombat();
             }
         }
-        if (this._battleAutoCloseCheck) {
-            this._battleAutoCloseCheck.remove(false);
-            this._battleAutoCloseCheck = null;
+
+        // Restore held item to its original grid position
+        if (this._heldItem && this._heldItem._origEntry) {
+            const gameState = this.registry.get('gameState');
+            if (gameState && gameState.equipment) {
+                gameState.equipment.grid = [...gameState.equipment.grid, this._heldItem._origEntry];
+            }
         }
 
-        // If holding an item, return it to its original grid position
         this._heldItem = null;
         this._selectedItem = null;
         this._equipMode = null;
@@ -530,17 +525,26 @@ export default class UIOverlayScene extends Phaser.Scene {
     _refreshEquipmentDisplay() {
         const mode = this._equipMode;
         if (!mode) return;
-        this.closeEquipmentGrid();
+        // Destroy elements without running close logic (which restores held items)
+        for (const el of this.equipmentElements) el.destroy();
+        this.equipmentElements = [];
+        this._ghostCells = [];
+        this._tooltipEls = [];
+        this._actionBtnEls = [];
+        this._statPreviewEls = [];
+        this._equipMode = null;
+        this._selectedItem = null;
+        this._heldItem = null;
         this.openEquipmentGrid(mode);
     }
 
     _onStashItemTap(item, index) {
         if (this._equipMode !== 'edit') return;
+        if (this._heldItem) return; // Must place held item before selecting from stash
         this._clearTooltip();
         this._clearActionButtons();
         this._clearGhostPiece();
         this._clearStatPreview();
-        this._heldItem = null;
 
         const cfg = ConfigLoader.getEquipmentItem(item.id || item.itemId);
         if (!cfg) return;
@@ -632,13 +636,8 @@ export default class UIOverlayScene extends Phaser.Scene {
         const gridWidth = balance.gridWidth || 3;
         const gridHeight = balance.gridHeight || 5;
 
-        // For held items, exclude the held item from the grid for placement check
-        let checkGrid = grid;
-        if (this._heldItem && this._heldItem._gridEntry) {
-            checkGrid = EquipmentSystem.removeItem(grid, this._heldItem._gridEntry.itemId);
-        }
-
-        const result = EquipmentSystem.canPlace(checkGrid, item, col, row, gridWidth, gridHeight);
+        // Held items are already removed from the grid in _pickUpItem
+        const result = EquipmentSystem.canPlace(grid, item, col, row, gridWidth, gridHeight);
 
         this._clearGhostPiece();
         this._clearStatPreview();
@@ -648,7 +647,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         // Stat preview
         if (result.valid) {
             this._statPreviewEls = EquipmentRenderer.renderStatPreview(
-                this, gameState.party, checkGrid, item, col, row, this._gridConfig);
+                this, gameState.party, grid, item, col, row, this._gridConfig);
             this.equipmentElements.push(...this._statPreviewEls);
         }
 
@@ -677,20 +676,16 @@ export default class UIOverlayScene extends Phaser.Scene {
         const item = this._heldItem || this._selectedItem;
         if (!item) return;
 
-        // If held from grid, remove old placement first
-        if (this._heldItem && this._heldItem._gridEntry) {
-            gameState.equipment.grid = EquipmentSystem.removeItem(
-                gameState.equipment.grid, this._heldItem._gridEntry.itemId);
-        }
-        // If from stash, remove from stash
-        else if (this._selectedItem && this._selectedItem._stashIndex !== undefined) {
+        // Held items are already removed from grid in _pickUpItem.
+        // Stash items need to be removed from stash.
+        if (this._selectedItem && this._selectedItem._stashIndex !== undefined) {
             gameState.equipment.stash.splice(this._selectedItem._stashIndex, 1);
         }
 
         gameState.equipment.grid = EquipmentSystem.placeItem(gameState.equipment.grid, item, col, row);
 
         this._selectedItem = null;
-        this._heldItem = null;
+        this._heldItem = null; // Clear without restoring (placed at new position)
         this._refreshEquipmentDisplay();
     }
 
@@ -782,23 +777,46 @@ export default class UIOverlayScene extends Phaser.Scene {
         const cfg = ConfigLoader.getEquipmentItem(entry.itemId);
         if (!cfg) return;
 
-        this._heldItem = { ...cfg, id: cfg.id, rotation: entry.rotation, flipped: entry.flipped, _gridEntry: entry };
+        // Remove from grid and store original entry for restoration on close
+        gameState.equipment.grid = EquipmentSystem.removeItem(gameState.equipment.grid, entry.itemId);
+        this._heldItem = { ...cfg, id: cfg.id, rotation: entry.rotation, flipped: entry.flipped, _origEntry: { ...entry } };
         this._selectedItem = null;
 
-        this._clearTooltip();
-        this._clearActionButtons();
-        this._clearGhostPiece();
-        this._clearStatPreview();
+        // Refresh display then restore held item state
+        this._refreshWithHeld();
+    }
 
-        // Show rotate/flip buttons for repositioning
-        const { x: gx, y: gy, cellSize } = this._gridConfig;
-        const gridWidth = (ConfigLoader.getEquipmentBalance().gridWidth || 3);
-        const gridHeight = (ConfigLoader.getEquipmentBalance().gridHeight || 5);
-        this._actionBtnEls = EquipmentRenderer.renderActionButtons(this, [
-            { label: 'ROTATE', onClick: () => this._rotateItem() },
-            { label: 'FLIP', onClick: () => this._flipItem() }
-        ], { x: gx + (gridWidth * cellSize) / 2, y: gy + gridHeight * cellSize + 80, depth: 1007 });
-        this.equipmentElements.push(...this._actionBtnEls);
+    _refreshWithHeld() {
+        const mode = this._equipMode;
+        const held = this._heldItem;
+        if (!mode) return;
+
+        // Destroy all equipment elements without restoring held item
+        for (const el of this.equipmentElements) el.destroy();
+        this.equipmentElements = [];
+        this._ghostCells = [];
+        this._tooltipEls = [];
+        this._actionBtnEls = [];
+        this._statPreviewEls = [];
+        this._equipMode = null;
+        this._selectedItem = null;
+        this._heldItem = null;
+
+        this.openEquipmentGrid(mode);
+
+        // Restore held item and show placement actions
+        if (held) {
+            this._heldItem = held;
+            const { x: gx, y: gy, cellSize } = this._gridConfig;
+            const balance = ConfigLoader.getEquipmentBalance();
+            const gridWidth = balance.gridWidth || 3;
+            const gridHeight = balance.gridHeight || 5;
+            this._actionBtnEls = EquipmentRenderer.renderActionButtons(this, [
+                { label: 'ROTATE', onClick: () => this._rotateItem() },
+                { label: 'FLIP', onClick: () => this._flipItem() }
+            ], { x: gx + (gridWidth * cellSize) / 2, y: gy + gridHeight * cellSize + 80, depth: 1007 });
+            this.equipmentElements.push(...this._actionBtnEls);
+        }
     }
 
     _clearGhostPiece() {
