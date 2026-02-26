@@ -351,7 +351,7 @@ test.describe('4. stash display', () => {
         const src = await fetchSrc('/src/scenes/UIOverlayScene.js');
         expect(src).toContain("if (mode === 'edit')");
         // stashH is 0 for non-edit mode
-        expect(src).toContain("const stashH = mode === 'edit' ? 100 : 0");
+        expect(src).toContain("const stashH = mode === 'edit' ? 28 : 0");
     });
 
     test('stash counter shows usedCells/stashCapacity format', async ({ page }) => {
@@ -602,7 +602,7 @@ test.describe('9. battle mode (readonly)', () => {
     test('readonly mode has no stash area (stashH=0)', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc('/src/scenes/UIOverlayScene.js');
-        expect(src).toContain("const stashH = mode === 'edit' ? 100 : 0");
+        expect(src).toContain("const stashH = mode === 'edit' ? 28 : 0");
     });
 
     test('combat pauses when overlay opens in readonly', async ({ page }) => {
@@ -634,14 +634,14 @@ test.describe('9. battle mode (readonly)', () => {
         expect(src).toContain('this.time.paused = false');
     });
 
-    test('auto-close on battle end is NOT implemented (known gap)', async ({ page }) => {
+    test('auto-close on battle end IS implemented', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc('/src/scenes/UIOverlayScene.js');
-        // Plan requires: overlay auto-closes when battle ends while open.
-        // Current code does NOT have a timer or listener to detect battle end.
-        // This is a missing feature — filed as a bug.
-        const hasAutoClose = src.includes('battleAutoCloseCheck') || src.includes('combatState.running');
-        expect(hasAutoClose).toBe(false);
+        // Overlay auto-closes when battle ends: timer polls combatState.running
+        const hasAutoClose = src.includes('combatState.running');
+        expect(hasAutoClose).toBe(true);
+        // Timer cleanup in closeEquipmentGrid
+        expect(src).toContain('_equipBattleCheck');
     });
 
     test('readonly tooltip shows per-member breakdown with synergy indicator', async ({ page }) => {
@@ -699,18 +699,14 @@ test.describe('10. preview mode', () => {
 
 test.describe('panel sizing', () => {
 
-    test('edit mode panel height vs game height', async ({ page }) => {
+    test('edit mode panel fits within 270px viewport', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc('/src/scenes/UIOverlayScene.js');
-        // gridTotalH = 5 * 48 = 240
-        // stashH = 100 (edit)
-        // btnAreaH = 30 (edit)
-        // panelH = 240 + 100 + 30 + 50 = 420
-        // Game height = 270
-        // This means close button at panelY + panelH - 16 = 4 + 420 - 16 = 408 is off-screen
-        expect(src).toContain("const stashH = mode === 'edit' ? 100 : 0");
-        expect(src).toContain("const btnAreaH = mode === 'edit' ? 30 : 0");
-        expect(src).toContain('const panelH = gridTotalH + stashH + btnAreaH + 50');
+        // gridTotalH = 5 * 40 = 200
+        // stashH = 28 (edit)
+        // panelH = 200 + 28 + 34 = 262 ≤ 266 (270 - 4px margins)
+        expect(src).toContain("const stashH = mode === 'edit' ? 28 : 0");
+        expect(src).toContain('const panelH = gridTotalH + stashH + 34');
     });
 });
 
