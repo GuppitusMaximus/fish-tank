@@ -123,6 +123,38 @@ const ConfigLoader = {
             return { ...config, companion: parseColor(config.companion) };
         }
         return config;
+    },
+
+    getEquipmentItem(id) {
+        if (!_data) return null;
+        const config = (_data.equipmentItems || {})[id];
+        if (!config) {
+            console.warn(`[ConfigLoader] equipment item '${id}' not found`);
+            return null;
+        }
+        return config;
+    },
+
+    getAllEquipmentItems() {
+        if (!_data) return {};
+        return _data.equipmentItems || {};
+    },
+
+    getEquipmentBalance() {
+        if (!_data) return {};
+        return _data.equipmentBalance || {};
+    },
+
+    getZoneItems(zoneId) {
+        if (!_data) return {};
+        const all = _data.equipmentItems || {};
+        const result = {};
+        for (const [id, config] of Object.entries(all)) {
+            if (config.zone === zoneId) {
+                result[id] = config;
+            }
+        }
+        return result;
     }
 };
 

@@ -8,6 +8,8 @@ const characterConfigs = import.meta.glob('../config/characters/*.json', { eager
 import movesConfig from '../config/moves.json';
 import combatConfig from '../config/combat.json';
 import encountersConfig from '../config/encounters.json';
+import equipmentItemsConfig from '../config/equipment-items.json';
+import equipmentBalanceConfig from '../config/equipment-balance.json';
 
 export default class BootScene extends Phaser.Scene {
     constructor() {
@@ -37,7 +39,9 @@ export default class BootScene extends Phaser.Scene {
             characters: characterData,
             moves: movesConfig,
             combat: combatConfig,
-            encounters: encountersConfig
+            encounters: encountersConfig,
+            equipmentItems: equipmentItemsConfig,
+            equipmentBalance: equipmentBalanceConfig
         });
 
         // Fish sprites (128x64)
@@ -111,9 +115,26 @@ export default class BootScene extends Phaser.Scene {
 
         // Merchant sprites
         this.load.image('merchant_rat', 'sprites/merchants/rat_merchant.png');
+
+        // Equipment item sprites (optional — graceful fallback if missing)
+        const allItems = Object.values(equipmentItemsConfig);
+        for (const item of allItems) {
+            const key = `item_${item.id}`;
+            if (!this.textures.exists(key)) {
+                this.load.image(key, `sprites/items/${item.id}.png`);
+            }
+        }
     }
 
     create() {
+        // Suppress missing-texture warnings for equipment item sprites (not yet generated)
+        this.load.on('loaderror', (file) => {
+            if (file.key && file.key.startsWith('item_')) {
+                // Expected — equipment sprites are optional
+                return;
+            }
+        });
+
         this.textures.each((key) => {
             if (key !== '__DEFAULT' && key !== '__MISSING' && key !== '__WHITE') {
                 const tex = this.textures.get(key);
