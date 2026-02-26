@@ -383,23 +383,22 @@ export default class UIOverlayScene extends Phaser.Scene {
         const balance = ConfigLoader.getEquipmentBalance();
         const gridW = balance.gridWidth || 3;
         const gridH = balance.gridHeight || 5;
-        const cellSize = 48;
+        const cellSize = 40;
 
-        // Blocker
+        // Blocker — tap to dismiss
         const blocker = UILayout.overlay(this, { depth: 1004, alpha: 0.6 });
         blocker.setInteractive();
-        blocker.on('pointerdown', () => {});
+        blocker.on('pointerdown', () => this.closeEquipmentGrid());
         this.equipmentElements.push(blocker);
 
-        // Panel
+        // Panel — compact to fit 270px viewport
         const panelPad = 12;
         const gridTotalW = gridW * cellSize;
         const gridTotalH = gridH * cellSize;
         const labelW = 50;
-        const stashH = mode === 'edit' ? 100 : 0;
-        const btnAreaH = mode === 'edit' ? 30 : 0;
+        const stashH = mode === 'edit' ? 28 : 0;
         const panelW = labelW + gridTotalW + 60 + panelPad * 2;
-        const panelH = gridTotalH + stashH + btnAreaH + 50;
+        const panelH = gridTotalH + stashH + 34;
         const panelX = Math.max(4, (W - panelW) / 2);
         const panelY = Math.max(4, (H - panelH) / 2);
 
@@ -411,13 +410,13 @@ export default class UIOverlayScene extends Phaser.Scene {
         this.equipmentElements.push(panel);
 
         // Header
-        const header = this.add.text(panelX + panelW / 2, panelY + 10, 'EQUIPMENT',
+        const header = this.add.text(panelX + panelW / 2, panelY + 6, 'EQUIPMENT',
             makeStyle(TEXT_STYLES.TITLE_SMALL, { color: accentHex(character) }))
             .setOrigin(0.5).setDepth(1006).setScrollFactor(0);
         this.equipmentElements.push(header);
 
         if (mode === 'readonly') {
-            const tag = this.add.text(panelX + panelW - 10, panelY + 10, '[VIEW]',
+            const tag = this.add.text(panelX + panelW - 10, panelY + 6, '[VIEW]',
                 makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#666688' }))
                 .setOrigin(1, 0).setDepth(1006).setScrollFactor(0);
             this.equipmentElements.push(tag);
@@ -425,7 +424,7 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         // Grid position
         const gridX = panelX + labelW + panelPad;
-        const gridY = panelY + 28;
+        const gridY = panelY + 18;
         this._gridConfig = { x: gridX, y: gridY, cellSize, depth: 1006, gridWidth: gridW, gridHeight: gridH };
 
         // Render grid
@@ -449,17 +448,13 @@ export default class UIOverlayScene extends Phaser.Scene {
             }
         }
 
-        // Stash (edit mode only)
+        // Stash (edit mode only) — compact single row
         if (mode === 'edit') {
-            const stashY = gridY + gridTotalH + 10;
-            const stashLabel = this.add.text(panelX + panelPad, stashY - 14, 'STASH',
-                makeStyle(TEXT_STYLES.BODY_SMALL, { color: accentHex(character) }))
-                .setDepth(1006).setScrollFactor(0);
-            this.equipmentElements.push(stashLabel);
+            const stashY = gridY + gridTotalH + 2;
 
             const stashEls = EquipmentRenderer.renderStash(this, gameState.equipment.stash, {
                 x: panelX + panelPad, y: stashY,
-                depth: 1006, cellSize: 40, gap: 8, maxCols: 5,
+                depth: 1006, cellSize: 24, gap: 4, maxCols: 8,
                 stashCapacity: balance.stashCellCapacity || 15
             });
             this.equipmentElements.push(...stashEls);
@@ -473,7 +468,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         }
 
         // Close button
-        const closeBtnY = panelY + panelH - 16;
+        const closeBtnY = panelY + panelH - 12;
         const closeBtn = UIButton.create(this, {
             x: panelX + panelW / 2, y: closeBtnY,
             label: '[ CLOSE ]',
@@ -484,12 +479,23 @@ export default class UIOverlayScene extends Phaser.Scene {
         });
         this.equipmentElements.push(closeBtn);
 
-        // Pause combat in readonly mode
+        // Pause combat in readonly mode and auto-close if battle ends
         if (mode === 'readonly') {
             const battleScene = this.scene.get('BattleScene');
             if (battleScene && battleScene.pauseCombat) {
                 battleScene.pauseCombat();
             }
+            this._equipBattleCheck = this.time.addEvent({
+                delay: 500,
+                loop: true,
+                callback: () => {
+                    const bs = this.scene.get('BattleScene');
+                    if (!bs || !bs.combatState || !bs.combatState.running) {
+                        this.closeEquipmentGrid();
+                    }
+                }
+            });
+            this.equipmentElements.push({ destroy: () => this._equipBattleCheck.remove() });
         }
     }
 
@@ -507,6 +513,11 @@ export default class UIOverlayScene extends Phaser.Scene {
             if (gameState && gameState.equipment) {
                 gameState.equipment.grid = [...gameState.equipment.grid, this._heldItem._origEntry];
             }
+        }
+
+        if (this._equipBattleCheck) {
+            this._equipBattleCheck.remove();
+            this._equipBattleCheck = null;
         }
 
         this._heldItem = null;
@@ -561,7 +572,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         this._actionBtnEls = EquipmentRenderer.renderActionButtons(this, [
             { label: 'ROTATE', onClick: () => this._rotateItem() },
             { label: 'FLIP', onClick: () => this._flipItem() }
-        ], { x: gx + (gridWidth * cellSize) / 2, y: gy + this._gridConfig.gridHeight * cellSize + 80, depth: 1007 });
+        ], { x: gx + (gridWidth * cellSize) / 2, y: gy + this._gridConfig.gridHeight * cellSize + 6, depth: 1007 });
         this.equipmentElements.push(...this._actionBtnEls);
     }
 
@@ -602,7 +613,7 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         this._actionBtnEls = EquipmentRenderer.renderActionButtons(this, actions, {
             x: gx + (gridWidth * cellSize) / 2,
-            y: gy + this._gridConfig.gridHeight * cellSize + 80,
+            y: gy + this._gridConfig.gridHeight * cellSize + 6,
             depth: 1007
         });
         this.equipmentElements.push(...this._actionBtnEls);
@@ -663,7 +674,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         const { x: gx, y: gy, cellSize } = this._gridConfig;
         this._actionBtnEls = EquipmentRenderer.renderActionButtons(this, actions, {
             x: gx + (gridWidth * cellSize) / 2,
-            y: gy + gridHeight * cellSize + 80,
+            y: gy + gridHeight * cellSize + 6,
             depth: 1007
         });
         this.equipmentElements.push(...this._actionBtnEls);
@@ -731,7 +742,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         // Confirmation prompt
         const confirmEls = [];
         const confirmTxt = this.add.text(
-            gx + (gridWidth * cellSize) / 2, gy + gridHeight * cellSize + 65,
+            gx + (gridWidth * cellSize) / 2, gy + gridHeight * cellSize + 4,
             'Destroy this item permanently?',
             makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#ff6666' })
         ).setOrigin(0.5).setDepth(1008).setScrollFactor(0);
@@ -739,7 +750,7 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         const yesBtn = UIButton.create(this, {
             x: gx + (gridWidth * cellSize) / 2 - 40,
-            y: gy + gridHeight * cellSize + 82,
+            y: gy + gridHeight * cellSize + 16,
             label: '[ YES ]',
             style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', stroke: '#000000', strokeThickness: 2 }),
             depth: 1008, color: '#ff6666', hoverColor: '#ffffff',
@@ -757,7 +768,7 @@ export default class UIOverlayScene extends Phaser.Scene {
 
         const noBtn = UIButton.create(this, {
             x: gx + (gridWidth * cellSize) / 2 + 40,
-            y: gy + gridHeight * cellSize + 82,
+            y: gy + gridHeight * cellSize + 16,
             label: '[ NO ]',
             style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '10px', stroke: '#000000', strokeThickness: 2 }),
             depth: 1008, hoverColor: '#ffffff',
@@ -814,7 +825,7 @@ export default class UIOverlayScene extends Phaser.Scene {
             this._actionBtnEls = EquipmentRenderer.renderActionButtons(this, [
                 { label: 'ROTATE', onClick: () => this._rotateItem() },
                 { label: 'FLIP', onClick: () => this._flipItem() }
-            ], { x: gx + (gridWidth * cellSize) / 2, y: gy + gridHeight * cellSize + 80, depth: 1007 });
+            ], { x: gx + (gridWidth * cellSize) / 2, y: gy + gridHeight * cellSize + 6, depth: 1007 });
             this.equipmentElements.push(...this._actionBtnEls);
         }
     }

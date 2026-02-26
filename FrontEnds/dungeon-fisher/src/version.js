@@ -2,7 +2,7 @@
 //   MAJOR — large game changes, system overhauls, breaking save changes
 //   MINOR — new features, content additions (fish, scenes, mechanics)
 //   PATCH — bug fixes, UI tweaks, balance tuning
-export const VERSION = '0.12.0';
+export const VERSION = '0.12.1';
 
 // Save format version — bump when save data structure changes.
 // This is separate from the game version because UI/balance changes
