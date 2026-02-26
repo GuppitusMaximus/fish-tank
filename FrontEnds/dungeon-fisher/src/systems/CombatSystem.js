@@ -118,7 +118,8 @@ export default class CombatSystem {
                 // Harmony double-strike — Bernie fires a bonus attack
                 if (f.ref.isCompanion && f.ref._harmonyAttack) {
                     const ha = f.ref._harmonyAttack;
-                    const hResult = this._applyDamage(state, 'monster', ha.totalDamage, false, events);
+                    const harmonyDmg = this.calculateBaseDamage(ha.totalDamage, monsterDef);
+                    const hResult = this._applyDamage(state, 'monster', harmonyDmg, false, events);
                     events.push({
                         type: 'fish_base_attack',
                         fishIndex: i,
