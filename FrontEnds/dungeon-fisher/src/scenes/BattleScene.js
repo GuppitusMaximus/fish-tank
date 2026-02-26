@@ -10,7 +10,7 @@ import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
 import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
-import { UIPanel } from '../ui/index.js';
+import { UIPanel, UIButton } from '../ui/index.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 
 export default class BattleScene extends Phaser.Scene {
@@ -402,7 +402,7 @@ export default class BattleScene extends Phaser.Scene {
             const zoneId = getZoneByFloor(this.gameState.floor).id;
             const drop = EquipmentSystem.rollBossDrop(zoneId);
             if (drop) {
-                this._showBossDropPopup(drop);
+                this.time.delayedCall(1500, () => this._showBossDropPopup(drop));
                 return;
             }
         }
@@ -1072,6 +1072,7 @@ export default class BattleScene extends Phaser.Scene {
     // --- Cleanup ---
 
     shutdown() {
+        this._closeBossDropPopup();
         this.tweens.killAll();
         for (const a of this.fishAnimators) a.destroy();
         for (const a of this.monsterAnimators) a.destroy();
