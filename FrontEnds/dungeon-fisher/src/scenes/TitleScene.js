@@ -410,7 +410,7 @@ export default class TitleScene extends Phaser.Scene {
                 this.tweens.add({
                     targets: bg,
                     y: baseY - 100,
-                    duration: 1600,
+                    duration: 900,
                     ease: 'Cubic.In'
                 });
                 // Tunnel vision — darkness closes in from edges
@@ -426,7 +426,7 @@ export default class TitleScene extends Phaser.Scene {
                 this.tweens.add({
                     targets: tunnel,
                     r: 0,
-                    duration: 1200,
+                    duration: 800,
                     ease: 'Cubic.In',
                     onUpdate: () => {
                         ctx.clearRect(0, 0, width, height);
