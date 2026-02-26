@@ -2,6 +2,7 @@ import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import ConfigLoader from './ConfigLoader.js';
 import PartySystem from './PartySystem.js';
 import EncounterSystem from './EncounterSystem.js';
+import EquipmentSystem from './EquipmentSystem.js';
 
 export default class EconomySystem {
 
@@ -123,5 +124,55 @@ export default class EconomySystem {
         const scaling = ConfigLoader.getEncounterConfig().shopScaling;
         if (!scaling) return 100;
         return Math.floor(scaling.fishCostBase.base + zone * scaling.fishCostBase.perZone);
+    }
+
+    static buyEquipment(gameState, itemId) {
+        const itemConfig = ConfigLoader.getEquipmentItem(itemId);
+        if (!itemConfig) return false;
+        if (!gameState.equipment) return false;
+
+        const price = itemConfig.buyPrice || 0;
+        if (gameState.gold < price) return false;
+
+        const balance = ConfigLoader.getEquipmentBalance();
+        const stashCapacity = balance.stashCellCapacity || 15;
+        if (!EquipmentSystem.canFitInStash(gameState.equipment.stash, itemConfig, stashCapacity)) return false;
+
+        gameState.gold -= price;
+        gameState.equipment.stash.push({ id: itemId });
+        return true;
+    }
+
+    static sellEquipment(gameState, itemId) {
+        const itemConfig = ConfigLoader.getEquipmentItem(itemId);
+        if (!itemConfig) return 0;
+        if (!gameState.equipment) return 0;
+
+        const sellPrice = this.getEquipmentSellPrice(itemId);
+
+        // Check grid first
+        const gridIdx = gameState.equipment.grid.findIndex(e => e.itemId === itemId);
+        if (gridIdx >= 0) {
+            gameState.equipment.grid = EquipmentSystem.removeItem(gameState.equipment.grid, itemId);
+            gameState.gold += sellPrice;
+            return sellPrice;
+        }
+
+        // Check stash
+        const stashIdx = gameState.equipment.stash.findIndex(e => (e.id || e.itemId) === itemId);
+        if (stashIdx >= 0) {
+            gameState.equipment.stash.splice(stashIdx, 1);
+            gameState.gold += sellPrice;
+            return sellPrice;
+        }
+
+        return 0;
+    }
+
+    static getEquipmentSellPrice(itemId) {
+        const itemConfig = ConfigLoader.getEquipmentItem(itemId);
+        if (!itemConfig) return 0;
+        const balance = ConfigLoader.getEquipmentBalance();
+        return Math.floor((itemConfig.buyPrice || 0) * (balance.sellPriceMultiplier || 0.5));
     }
 }

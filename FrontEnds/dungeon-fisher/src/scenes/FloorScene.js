@@ -3,6 +3,7 @@ import SaveSystem from '../systems/SaveSystem.js';
 import PartySystem from '../systems/PartySystem.js';
 import EncounterSystem from '../systems/EncounterSystem.js';
 import EconomySystem from '../systems/EconomySystem.js';
+import EquipmentSystem from '../systems/EquipmentSystem.js';
 import { generateGhostParty } from '../systems/GhostGenerator.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, getShopCardKey, getShopName } from '../utils/zones.js';
@@ -676,6 +677,25 @@ export default class FloorScene extends Phaser.Scene {
                 PartySystem.awardXP(gs.companion, halfXp);
             }
 
+            // Equipment destruction — zone 6+ only (FR-13)
+            if (gs.equipment && gs.equipment.grid.length > 0) {
+                const zoneId = getZoneByFloor(gs.floor).id;
+                const balance = ConfigLoader.getEquipmentBalance();
+                const destructionChance = (balance.itemDestructionChance || {})[zoneId] || 0;
+                if (destructionChance > 0) {
+                    const deadIndices = gs.party
+                        .map((f, i) => f.hp <= 0 ? i : -1)
+                        .filter(i => i >= 0);
+                    const atRiskItems = EquipmentSystem.getItemsTouchingPartyMembers(
+                        gs.equipment.grid, deadIndices
+                    ).filter(item => !item.indestructible);
+                    if (atRiskItems.length > 0 && Math.random() < destructionChance) {
+                        const victim = atRiskItems[Math.floor(Math.random() * atRiskItems.length)];
+                        gs.equipment.grid = EquipmentSystem.removeItem(gs.equipment.grid, victim.itemId);
+                    }
+                }
+            }
+
             // Full heal party
             for (const f of gs.party) PartySystem.fullHeal(f);
             if (gs.companion) PartySystem.fullHeal(gs.companion);
@@ -699,6 +719,20 @@ export default class FloorScene extends Phaser.Scene {
 
     _roguelikeWipe() {
         const gs = this.gameState;
+
+        // Clear all equipment except Harmony on permadeath wipe (FR-17, AC-32)
+        if (gs.equipment) {
+            gs.equipment.grid = gs.equipment.grid.filter(item => item.itemId === 'harmony');
+            const harmony = gs.equipment.grid.find(item => item.itemId === 'harmony');
+            if (harmony) {
+                harmony.col = 1;
+                harmony.row = 4;
+                harmony.rotation = 0;
+                harmony.flipped = false;
+            }
+            gs.equipment.stash = [];
+        }
+
         SaveSystem.deleteSave();
 
         const W = this.scale.width;

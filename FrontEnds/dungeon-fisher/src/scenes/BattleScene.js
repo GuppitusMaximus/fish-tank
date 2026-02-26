@@ -3,6 +3,8 @@ import PartySystem from '../systems/PartySystem.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
 import EncounterSystem from '../systems/EncounterSystem.js';
 import EquipmentSystem from '../systems/EquipmentSystem.js';
+import EquipmentRenderer from '../systems/EquipmentRenderer.js';
+import EconomySystem from '../systems/EconomySystem.js';
 import { getBackgroundKey, coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import SpriteAnimator from '../effects/SpriteAnimator.js';
@@ -395,6 +397,16 @@ export default class BattleScene extends Phaser.Scene {
         lines.push(...allMsgs);
         this.msgTxt.setText(lines.join(' | '));
 
+        const isBoss = encounterType === 'boss';
+        if (isBoss && this.gameState.equipment) {
+            const zoneId = getZoneByFloor(this.gameState.floor).id;
+            const drop = EquipmentSystem.rollBossDrop(zoneId);
+            if (drop) {
+                this._showBossDropPopup(drop);
+                return;
+            }
+        }
+
         this.time.delayedCall(1500, () => this.advanceFloor());
     }
 
@@ -575,6 +587,224 @@ export default class BattleScene extends Phaser.Scene {
                 spr.setTint(0x999999);
                 this.time.delayedCall(300, () => this._restoreFishTint(e.fishIndex));
             }
+        }
+    }
+
+    // --- Boss Drop Popup ---
+
+    _showBossDropPopup(item) {
+        const W = this.scale.width;
+        const H = this.scale.height;
+        const gs = this.gameState;
+        this._dropPopupEls = [];
+
+        // Overlay
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7)
+            .setDepth(50).setScrollFactor(0);
+        this._dropPopupEls.push(overlay);
+
+        // Popup panel
+        const panelW = W - 40;
+        const panelH = 240;
+        const panelX = 20;
+        const panelY = Math.floor(H / 2 - panelH / 2);
+        const zone = getZoneByFloor(gs.floor);
+        const panel = new UIPanel(this, {
+            x: panelX, y: panelY, width: panelW, height: panelH,
+            theme: zone, depth: 51, padding: 0
+        });
+        this._dropPopupEls.push(panel);
+
+        // Title
+        const titleTxt = this.add.text(W / 2, panelY + 16, 'BOSS DROP!',
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '14px', color: '#ffd700' })
+        ).setOrigin(0.5).setDepth(52);
+        this._dropPopupEls.push(titleTxt);
+
+        // Item name with rarity color
+        const RARITY_HEX = { standard: '#888888', magic: '#44aa44', rare: '#9944cc', unique: '#ffd700' };
+        const rarityColor = RARITY_HEX[item.rarity] || '#888888';
+        const nameTxt = this.add.text(W / 2, panelY + 38, item.name,
+            makeStyle(TEXT_STYLES.BODY, { fontSize: '13px', color: rarityColor })
+        ).setOrigin(0.5).setDepth(52);
+        this._dropPopupEls.push(nameTxt);
+
+        // Rarity label
+        const rarityTxt = this.add.text(W / 2, panelY + 56, '[' + item.rarity + ']',
+            makeStyle(TEXT_STYLES.BODY_SMALL, { color: rarityColor })
+        ).setOrigin(0.5).setDepth(52);
+        this._dropPopupEls.push(rarityTxt);
+
+        // Mini shape preview
+        const shapeEls = EquipmentRenderer.renderItemSprite(this, item, W / 2, panelY + 90, 40, 52);
+        this._dropPopupEls.push(...shapeEls);
+
+        // Buff summary
+        const buffParts = (item.buffs || []).map(b => '+' + b.baseValue + ' ' + b.type.toUpperCase());
+        if (buffParts.length > 0) {
+            const buffTxt = this.add.text(W / 2, panelY + 120, buffParts.join(', '),
+                makeStyle(TEXT_STYLES.BODY_SMALL, { color: '#ccccee' })
+            ).setOrigin(0.5).setDepth(52);
+            this._dropPopupEls.push(buffTxt);
+        }
+
+        // Check stash capacity
+        const balance = ConfigLoader.getEquipmentBalance();
+        const stashCapacity = balance.stashCellCapacity || 15;
+        const canFit = EquipmentSystem.canFitInStash(gs.equipment.stash, item, stashCapacity);
+
+        // "Add to Stash" button
+        const addLabel = canFit ? '[ ADD TO STASH ]' : '[ STASH FULL — MAKE ROOM ]';
+        const addBtn = UIButton.create(this, {
+            x: W / 2, y: panelY + 160,
+            label: addLabel,
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+            depth: 52,
+            color: canFit ? '#88cc88' : '#ccaa44',
+            hoverColor: '#ffffff',
+            onClick: () => {
+                if (canFit) {
+                    gs.equipment.stash.push({ id: item.id });
+                    this._closeBossDropPopup();
+                    this.advanceFloor();
+                } else {
+                    this._showStashOverflow(item);
+                }
+            }
+        });
+        this._dropPopupEls.push(addBtn);
+
+        // "Forfeit Drop" button
+        const forfeitBtn = UIButton.create(this, {
+            x: W / 2, y: panelY + 190,
+            label: '[ FORFEIT DROP ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' }),
+            depth: 52,
+            color: '#888888',
+            hoverColor: '#ffffff',
+            onClick: () => {
+                this._closeBossDropPopup();
+                this.advanceFloor();
+            }
+        });
+        this._dropPopupEls.push(forfeitBtn);
+    }
+
+    _showStashOverflow(newItem) {
+        // Clear existing popup elements
+        this._closeBossDropPopup();
+
+        const W = this.scale.width;
+        const H = this.scale.height;
+        const gs = this.gameState;
+        this._dropPopupEls = [];
+
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.7)
+            .setDepth(50).setScrollFactor(0);
+        this._dropPopupEls.push(overlay);
+
+        const zone = getZoneByFloor(gs.floor);
+        const balance = ConfigLoader.getEquipmentBalance();
+        const stashCapacity = balance.stashCellCapacity || 15;
+
+        const panelW = W - 20;
+        const panelH = Math.min(H - 40, 320);
+        const panelX = 10;
+        const panelY = Math.floor(H / 2 - panelH / 2);
+        const panel = new UIPanel(this, {
+            x: panelX, y: panelY, width: panelW, height: panelH,
+            theme: zone, depth: 51, padding: 0
+        });
+        this._dropPopupEls.push(panel);
+
+        const titleTxt = this.add.text(W / 2, panelY + 14, 'MAKE ROOM IN STASH',
+            makeStyle(TEXT_STYLES.TITLE_MEDIUM, { fontSize: '12px', color: '#ccaa44' })
+        ).setOrigin(0.5).setDepth(52);
+        this._dropPopupEls.push(titleTxt);
+
+        // List stash items with sell/discard
+        let listY = panelY + 34;
+        for (let i = 0; i < gs.equipment.stash.length; i++) {
+            const stashItem = gs.equipment.stash[i];
+            const cfg = ConfigLoader.getEquipmentItem(stashItem.id || stashItem.itemId);
+            if (!cfg) continue;
+
+            const RARITY_HEX = { standard: '#888888', magic: '#44aa44', rare: '#9944cc', unique: '#ffd700' };
+            const color = RARITY_HEX[cfg.rarity] || '#888888';
+            const sellPrice = EconomySystem.getEquipmentSellPrice(cfg.id);
+
+            const nameTxt = this.add.text(panelX + 8, listY, cfg.name,
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color })
+            ).setDepth(52);
+            this._dropPopupEls.push(nameTxt);
+
+            if (sellPrice > 0) {
+                const sellBtn = UIButton.create(this, {
+                    x: W - 60, y: listY + 2,
+                    label: 'SELL ' + sellPrice + 'g',
+                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '9px' }),
+                    depth: 52, color: '#cccc44', hoverColor: '#ffffff',
+                    onClick: () => {
+                        EconomySystem.sellEquipment(gs, stashItem.id || stashItem.itemId);
+                        this._showStashOverflow(newItem);
+                    }
+                });
+                this._dropPopupEls.push(sellBtn);
+            }
+
+            const discardBtn = UIButton.create(this, {
+                x: W - 20, y: listY + 2,
+                label: 'X',
+                style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '9px' }),
+                depth: 52, color: '#cc4444', hoverColor: '#ffffff',
+                onClick: () => {
+                    const idx = gs.equipment.stash.findIndex(e => (e.id || e.itemId) === (stashItem.id || stashItem.itemId));
+                    if (idx >= 0) gs.equipment.stash.splice(idx, 1);
+                    this._showStashOverflow(newItem);
+                }
+            });
+            this._dropPopupEls.push(discardBtn);
+
+            listY += 22;
+        }
+
+        // Check if room was made
+        const canFit = EquipmentSystem.canFitInStash(gs.equipment.stash, newItem, stashCapacity);
+
+        if (canFit) {
+            const addBtn = UIButton.create(this, {
+                x: W / 2, y: panelY + panelH - 50,
+                label: '[ ADD TO STASH ]',
+                style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
+                depth: 52, color: '#88cc88', hoverColor: '#ffffff',
+                onClick: () => {
+                    gs.equipment.stash.push({ id: newItem.id });
+                    this._closeBossDropPopup();
+                    this.advanceFloor();
+                }
+            });
+            this._dropPopupEls.push(addBtn);
+        }
+
+        const forfeitBtn = UIButton.create(this, {
+            x: W / 2, y: panelY + panelH - 24,
+            label: '[ FORFEIT DROP ]',
+            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' }),
+            depth: 52, color: '#888888', hoverColor: '#ffffff',
+            onClick: () => {
+                this._closeBossDropPopup();
+                this.advanceFloor();
+            }
+        });
+        this._dropPopupEls.push(forfeitBtn);
+    }
+
+    _closeBossDropPopup() {
+        if (this._dropPopupEls) {
+            for (const el of this._dropPopupEls) {
+                if (el && el.destroy) el.destroy();
+            }
+            this._dropPopupEls = [];
         }
     }
 

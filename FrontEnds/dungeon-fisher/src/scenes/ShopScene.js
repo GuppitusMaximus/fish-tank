@@ -1,5 +1,8 @@
 import EconomySystem from '../systems/EconomySystem.js';
 import EncounterSystem from '../systems/EncounterSystem.js';
+import EquipmentSystem from '../systems/EquipmentSystem.js';
+import EquipmentRenderer from '../systems/EquipmentRenderer.js';
+import ConfigLoader from '../systems/ConfigLoader.js';
 import { ITEMS, MAX_INVENTORY } from '../data/items.js';
 import { getBackgroundKey, coverBackground, getShopBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
@@ -14,6 +17,8 @@ export default class ShopScene extends Phaser.Scene {
 
     init(data) {
         this.gameState = data.gameState;
+        this._shopTab = 'items';
+        this._shopEquipment = null;
     }
 
     create() {
@@ -64,13 +69,57 @@ export default class ShopScene extends Phaser.Scene {
             x: 4, y: 38, width: W - 8, height: H - 62, theme: zoneTheme, padding: 0
         });
 
+        // Tab buttons
+        const hasEquipment = gs.equipment != null;
+        if (hasEquipment) {
+            const tabY = 40;
+            const itemsActive = this._shopTab === 'items';
+            const equipActive = this._shopTab === 'equipment';
+
+            UIButton.create(this, {
+                x: W * 0.25, y: tabY,
+                label: '[ ITEMS ]',
+                style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' }),
+                color: itemsActive ? accentHex(zoneTheme) : '#555555',
+                hoverColor: '#ffffff',
+                onClick: () => { this._shopTab = 'items'; this.buildShop(); }
+            });
+            UIButton.create(this, {
+                x: W * 0.75, y: tabY,
+                label: '[ EQUIPMENT ]',
+                style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '11px' }),
+                color: equipActive ? accentHex(zoneTheme) : '#555555',
+                hoverColor: '#ffffff',
+                onClick: () => { this._shopTab = 'equipment'; this.buildShop(); }
+            });
+        }
+
+        const contentY = hasEquipment ? 56 : 40;
+
+        if (this._shopTab === 'items' || !hasEquipment) {
+            this._buildItemsTab(contentY, W, H, gs, isPortrait, zone, zoneTheme);
+        } else {
+            this._buildEquipmentTab(contentY, W, H, gs, zoneTheme);
+        }
+
+        // Back button
+        UIButton.create(this, {
+            x: W / 2, y: H - 18,
+            label: '[ BACK ]',
+            style: TEXT_STYLES.BUTTON,
+            hoverColor: '#ffffff',
+            onClick: () => this.scene.start('FloorScene', { gameState: gs })
+        });
+    }
+
+    _buildItemsTab(startY, W, H, gs, isPortrait, zone, zoneTheme) {
         // Items section
-        this.add.text(10, 40, '-- ITEMS --',
+        this.add.text(10, startY, '-- ITEMS --',
             makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '12px', color: accentHex(zoneTheme) })
         );
 
         const itemList = new UIList(this, {
-            x: 10, y: 56, spacing: isPortrait ? 28 : 16
+            x: 10, y: startY + 16, spacing: isPortrait ? 28 : 16
         });
 
         const itemKeys = Object.keys(ITEMS);
@@ -178,15 +227,118 @@ export default class ShopScene extends Phaser.Scene {
                 });
             }
         }
+    }
 
-        // Back button
-        UIButton.create(this, {
-            x: W / 2, y: H - 18,
-            label: '[ BACK ]',
-            style: TEXT_STYLES.BUTTON,
-            hoverColor: '#ffffff',
-            onClick: () => this.scene.start('FloorScene', { gameState: gs })
-        });
+    _buildEquipmentTab(startY, W, H, gs, zoneTheme) {
+        const RARITY_HEX = { standard: '#888888', magic: '#44aa44', rare: '#9944cc', unique: '#ffd700' };
+        const zoneId = getZoneByFloor(gs.floor).id;
+        const balance = ConfigLoader.getEquipmentBalance();
+        const stashCapacity = balance.stashCellCapacity || 15;
+
+        // Generate equipment on first tab switch
+        if (!this._shopEquipment) {
+            const count = balance.shopEquipmentCount || 3;
+            const zoneItems = ConfigLoader.getZoneItems(zoneId);
+            const candidates = Object.values(zoneItems);
+            this._shopEquipment = [];
+            const used = new Set();
+            for (let i = 0; i < count && candidates.length > 0; i++) {
+                const available = candidates.filter(c => !used.has(c.id));
+                if (available.length === 0) break;
+                const pick = available[Math.floor(Math.random() * available.length)];
+                used.add(pick.id);
+                this._shopEquipment.push(pick);
+            }
+        }
+
+        if (this._shopEquipment.length === 0) {
+            this.add.text(W / 2, startY + 30, 'No equipment available',
+                makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: '#555555' })
+            ).setOrigin(0.5);
+            return;
+        }
+
+        const itemH = 80;
+        for (let i = 0; i < this._shopEquipment.length; i++) {
+            const item = this._shopEquipment[i];
+            const y = startY + i * (itemH + 6);
+            const rarityColor = RARITY_HEX[item.rarity] || '#888888';
+            const price = item.buyPrice || 0;
+            const canFit = EquipmentSystem.canFitInStash(gs.equipment.stash, item, stashCapacity);
+            const canBuy = gs.gold >= price && canFit;
+
+            // Item name
+            this.add.text(50, y + 4, item.name,
+                makeStyle(TEXT_STYLES.BODY, { fontSize: '12px', color: rarityColor })
+            );
+
+            // Rarity label
+            this.add.text(50, y + 20, '[' + item.rarity + ']',
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color: rarityColor })
+            );
+
+            // Mini shape preview
+            EquipmentRenderer.renderItemSprite(this, item, 28, y + 30, 30, 2);
+
+            // Buff summary
+            const buffParts = (item.buffs || []).map(b => '+' + b.baseValue + ' ' + b.type.toUpperCase());
+            if (buffParts.length > 0) {
+                this.add.text(50, y + 36, buffParts.join(', '),
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color: '#ccccee' })
+                );
+            }
+
+            // Price
+            this.add.text(50, y + 52, price + 'g',
+                makeStyle(TEXT_STYLES.GOLD, { fontSize: '11px' })
+            );
+
+            // Preview button — opens equipment grid overlay
+            UIButton.create(this, {
+                x: W - 65, y: y + 14,
+                label: 'PREVIEW',
+                style: makeStyle(TEXT_STYLES.BUTTON, {
+                    fontSize: '10px', backgroundColor: '#2a2a4a', padding: { x: 4, y: 2 }
+                }),
+                color: '#8888cc',
+                hoverColor: '#ffffff',
+                onClick: () => {
+                    // Add item to stash temporarily for preview, then open grid
+                    const uiOverlay = this.scene.get('UIOverlay');
+                    if (uiOverlay && uiOverlay.openEquipmentGrid) {
+                        uiOverlay.openEquipmentGrid('edit');
+                    }
+                }
+            });
+
+            // Buy button
+            const buyLabel = !canFit ? 'FULL' : 'BUY';
+            const buyColor = canBuy ? '#88cc88' : '#555555';
+            UIButton.create(this, {
+                x: W - 25, y: y + 14,
+                label: buyLabel,
+                style: makeStyle(TEXT_STYLES.BUTTON, {
+                    fontSize: '11px', backgroundColor: '#2a2a4a', padding: { x: 5, y: 2 }
+                }),
+                color: buyColor,
+                hoverColor: canBuy ? '#ffffff' : '#555555',
+                origin: { x: 0.5, y: 0 },
+                onClick: () => {
+                    if (canBuy && EconomySystem.buyEquipment(gs, item.id)) {
+                        this._shopEquipment.splice(i, 1);
+                        this.buildShop();
+                        this._showMessage('Added to Stash!');
+                    }
+                }
+            });
+
+            // Separator line
+            if (i < this._shopEquipment.length - 1) {
+                const sep = this.add.graphics();
+                sep.lineStyle(1, 0x554433, 0.3);
+                sep.lineBetween(10, y + itemH - 2, W - 10, y + itemH - 2);
+            }
+        }
     }
 
     _showMessage(text) {
