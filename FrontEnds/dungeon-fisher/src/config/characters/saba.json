@@ -1,0 +1,22 @@
+{
+    "id": "saba",
+    "name": "Saba the Divine",
+    "description": "A serene healer who draws power from the deep, mending wounds and warding her companions with divine light.",
+    "portrait": "fisher_saba",
+    "emblem": "emblem_saba",
+    "companion": {
+        "id": "terrier",
+        "name": "Winnie",
+        "baseHp": 35, "baseAtk": 4, "baseDef": 6, "baseSpd": 5,
+        "baseShield": 8, "baseHealPower": 6,
+        "growth": { "hp": 3, "atk": 1, "def": 1, "spd": 1, "shield": 2, "healPower": 2 },
+        "specialMove": "divine_mend",
+        "specialMoves": ["divine_mend", "guardians_ward"],
+        "color": "0xd4a574"
+    },
+    "partySlots": { "fish": 2, "companion": 1 },
+    "startingGold": 50,
+    "starterFish": ["seahorse", "pufferfish"],
+    "lore": "Once a temple guardian of the sunlit shallows, Saba followed whispers of a divine light into the deep. Where others see darkness, she sees purpose — and her faithful terrier Winnie never leaves her side.",
+    "mechanics": "Winnie alternates between two support abilities each turn: Divine Mend heals your party, and Guardian's Ward grants protective shields. This alternating rhythm makes Saba's runs more forgiving but slower than Andy's aggressive approach."
+}

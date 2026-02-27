@@ -215,6 +215,19 @@ export const CHARACTER_THEMES = {
             accent: 0x88ccff,
         },
     },
+    saba: {
+        id: 'saba',
+        name: 'Saba the Divine',
+        accent: 0xf0d888,
+        emblemKey: 'emblem_saba',
+        panelTint: 0x2a2218,
+        panel: {
+            fill: 0x1a150e,
+            outer: 0xaa8844,
+            inner: 0x2a2218,
+            accent: 0xf0d888,
+        },
+    },
 };
 
 export const LEDGER_THEME = {

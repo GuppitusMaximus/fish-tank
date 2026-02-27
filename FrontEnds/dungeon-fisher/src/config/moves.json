@@ -257,5 +257,23 @@
         "effect": null,
         "animation": "lunge",
         "description": "A faithful companion's fierce bite."
+    },
+    "divine_mend": {
+        "id": "divine_mend",
+        "name": "Divine Mend",
+        "damage": 0,
+        "cooldown": 6,
+        "effect": { "type": "heal_pulse", "amount": { "base": 12, "perFloor": 0.3 } },
+        "animation": "lunge",
+        "description": "A warm light mends all allies."
+    },
+    "guardians_ward": {
+        "id": "guardians_ward",
+        "name": "Guardian's Ward",
+        "damage": 0,
+        "cooldown": 6,
+        "effect": { "type": "shield_grant", "amount": 15 },
+        "animation": "lunge",
+        "description": "Winnie barks a protective ward, granting shields."
     }
 }
