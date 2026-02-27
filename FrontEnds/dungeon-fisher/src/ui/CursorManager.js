@@ -13,6 +13,9 @@ const CursorManager = {
     _baseY: 0,
 
     attach(scene, fisherId) {
+        // Skip software cursor on touch devices — users tap with fingers
+        if (window.matchMedia?.('(pointer: coarse)')?.matches) return;
+
         this.detach();
 
         const id = fisherId || 'andy';
