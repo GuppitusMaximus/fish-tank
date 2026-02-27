@@ -14,6 +14,13 @@ export default class DelversLedgerScene extends Phaser.Scene {
         const { width, height } = this.scale;
         this._isPortrait = this.registry.get('isPortrait');
         this._transitioning = false;
+        this._bookOpen = false;
+
+        this._pages = [
+            { fisherId: 'andy', selectable: true },
+            { fisherId: null, comingSoon: true, selectable: false }
+        ];
+        this._currentPage = 0;
 
         UILayout.sceneBackground(this, 'bg_title');
         UILayout.overlay(this, { alpha: 0.7 });
@@ -36,7 +43,10 @@ export default class DelversLedgerScene extends Phaser.Scene {
         this._pageContainer = this.add.container(0, 0);
         this._pageContainer.setVisible(false);
         this._bookContainer.add(this._pageContainer);
-        this._buildCharacterPage(panelW, panelH, 'andy');
+        this._buildPageContent(panelW, panelH, this._pages[0]);
+
+        this._buildPageCorners(panelW, panelH);
+        this._setupSwipeGesture();
 
         this._animateEntrance(cy);
     }
@@ -86,9 +96,59 @@ export default class DelversLedgerScene extends Phaser.Scene {
         });
     }
 
-    _buildCharacterPage(w, h, fisherId) {
-        const fisher = ConfigLoader.getCharacter(fisherId);
-        if (!fisher) return;
+    _buildPageCorners(w, h) {
+        const cornerSize = 22;
+        const halfW = Math.round(w / 2);
+        const halfH = Math.round(h / 2);
+
+        this._backCorner = this.add.container(-halfW, -halfH);
+        const backGfx = this.add.graphics();
+        backGfx.fillStyle(0xb8a878, 1);
+        backGfx.fillTriangle(0, 0, cornerSize, 0, 0, cornerSize);
+        backGfx.lineStyle(1, 0x5a4a32, 0.5);
+        backGfx.lineBetween(cornerSize, 0, 0, cornerSize);
+        this._backCorner.add(backGfx);
+        this._backCorner.setSize(cornerSize, cornerSize);
+        this._backCorner.setInteractive({ useHandCursor: true });
+        this._backCorner.setAlpha(0.6);
+        this._backCorner.on('pointerover', () => this._backCorner.setAlpha(1));
+        this._backCorner.on('pointerout', () => this._backCorner.setAlpha(0.6));
+        this._backCorner.on('pointerdown', () => this._navigateToPage(-1));
+        this._backCorner.setVisible(false);
+        this._bookContainer.add(this._backCorner);
+
+        this._nextCorner = this.add.container(halfW - cornerSize, -halfH);
+        const nextGfx = this.add.graphics();
+        nextGfx.fillStyle(0xb8a878, 1);
+        nextGfx.fillTriangle(0, 0, cornerSize, 0, cornerSize, cornerSize);
+        nextGfx.lineStyle(1, 0x5a4a32, 0.5);
+        nextGfx.lineBetween(0, 0, cornerSize, cornerSize);
+        this._nextCorner.add(nextGfx);
+        this._nextCorner.setSize(cornerSize, cornerSize);
+        this._nextCorner.setInteractive({ useHandCursor: true });
+        this._nextCorner.setAlpha(0.6);
+        this._nextCorner.on('pointerover', () => this._nextCorner.setAlpha(1));
+        this._nextCorner.on('pointerout', () => this._nextCorner.setAlpha(0.6));
+        this._nextCorner.on('pointerdown', () => this._navigateToPage(1));
+        this._nextCorner.setVisible(false);
+        this._bookContainer.add(this._nextCorner);
+    }
+
+    _setupSwipeGesture() {
+        this._swipeStartX = 0;
+        this.input.on('pointerdown', (pointer) => {
+            this._swipeStartX = pointer.x;
+        });
+        this.input.on('pointerup', (pointer) => {
+            const dx = pointer.x - this._swipeStartX;
+            const threshold = this.scale.width * 0.15;
+            if (dx < -threshold) this._navigateToPage(1);
+            else if (dx > threshold) this._navigateToPage(-1);
+        });
+    }
+
+    _buildPageContent(w, h, page) {
+        this._pageContainer.removeAll(true);
 
         const bg = themedPanel(this,
             Math.round(-w / 2), Math.round(-h / 2), w, h,
@@ -96,14 +156,121 @@ export default class DelversLedgerScene extends Phaser.Scene {
         );
         this._pageContainer.add(bg);
 
+        if (page.comingSoon) {
+            if (this._isPortrait) {
+                this._buildComingSoonPortrait(w, h);
+            } else {
+                this._buildComingSoonLandscape(w, h);
+            }
+            return;
+        }
+
+        const fisher = ConfigLoader.getCharacter(page.fisherId);
+        if (!fisher) return;
+
         if (this._isPortrait) {
-            this._buildPortraitContent(fisher, w, h);
+            this._buildPortraitContent(fisher, w, h, page.selectable);
         } else {
-            this._buildLandscapeContent(fisher, w, h);
+            this._buildLandscapeContent(fisher, w, h, page.selectable);
         }
     }
 
-    _buildPortraitContent(fisher, w, h) {
+    _buildComingSoonPortrait(w, h) {
+        const silhouette = this.add.graphics();
+        silhouette.fillStyle(0x333333, 0.3);
+        silhouette.fillCircle(0, Math.round(-h * 0.1), 25);
+        silhouette.fillRoundedRect(-20, Math.round(-h * 0.1) + 20, 40, 55, 5);
+        this._pageContainer.add(silhouette);
+
+        const title = this.add.text(0, Math.round(h * 0.1),
+            'Coming Soon',
+            makeStyle(TEXT_STYLES.TITLE_SMALL, {
+                fontSize: '16px', color: '#c4a35a', align: 'center'
+            })
+        ).setOrigin(0.5).setAlpha(0.5);
+        this._pageContainer.add(title);
+
+        const subtitle = this.add.text(0, Math.round(h * 0.1) + 25,
+            'A new delver awaits...',
+            makeStyle(TEXT_STYLES.BODY_SMALL, {
+                fontSize: '11px', color: '#8a7a5a', align: 'center'
+            })
+        ).setOrigin(0.5).setAlpha(0.5);
+        this._pageContainer.add(subtitle);
+    }
+
+    _buildComingSoonLandscape(w, h) {
+        const leftCx = Math.round(-w / 4);
+        const rightCx = Math.round(w / 4);
+
+        const divider = this.add.rectangle(0, 0, 1, Math.round(h * 0.8), 0x5a4a32)
+            .setAlpha(0.6);
+        this._pageContainer.add(divider);
+
+        const silhouette = this.add.graphics();
+        silhouette.fillStyle(0x333333, 0.3);
+        silhouette.fillCircle(leftCx, Math.round(-h * 0.12), 25);
+        silhouette.fillRoundedRect(leftCx - 20, Math.round(-h * 0.12) + 20, 40, 55, 5);
+        this._pageContainer.add(silhouette);
+
+        const title = this.add.text(rightCx, Math.round(-h * 0.1),
+            'Coming Soon',
+            makeStyle(TEXT_STYLES.TITLE_SMALL, {
+                fontSize: '16px', color: '#c4a35a', align: 'center'
+            })
+        ).setOrigin(0.5).setAlpha(0.5);
+        this._pageContainer.add(title);
+
+        const subtitle = this.add.text(rightCx, Math.round(-h * 0.1) + 25,
+            'A new delver awaits...',
+            makeStyle(TEXT_STYLES.BODY_SMALL, {
+                fontSize: '11px', color: '#8a7a5a', align: 'center'
+            })
+        ).setOrigin(0.5).setAlpha(0.5);
+        this._pageContainer.add(subtitle);
+    }
+
+    _navigateToPage(direction) {
+        if (this._transitioning || !this._bookOpen) return;
+        const newPage = this._currentPage + direction;
+        if (newPage < 0 || newPage >= this._pages.length) return;
+
+        this._transitioning = true;
+        const half = 250;
+
+        this.tweens.add({
+            targets: this._pageContainer,
+            scaleX: 0,
+            duration: half,
+            ease: 'Sine.easeIn',
+            onComplete: () => {
+                this._currentPage = newPage;
+                this._buildPageContent(this._bookW, this._bookH, this._pages[newPage]);
+                this._updateCornerVisibility();
+
+                this.tweens.add({
+                    targets: this._pageContainer,
+                    scaleX: 1,
+                    duration: half,
+                    ease: 'Sine.easeOut',
+                    onComplete: () => {
+                        this._transitioning = false;
+                    }
+                });
+            }
+        });
+    }
+
+    _updateCornerVisibility() {
+        if (this._backCorner) {
+            this._backCorner.setVisible(this._currentPage > 0);
+        }
+        if (this._nextCorner) {
+            this._nextCorner.setVisible(this._currentPage < this._pages.length - 1);
+        }
+    }
+
+    _buildPortraitContent(fisher, w, h, selectable) {
         const contentW = Math.round(w * 0.85);
         let y = Math.round(-h / 2) + 20;
 
@@ -144,10 +311,12 @@ export default class DelversLedgerScene extends Phaser.Scene {
             this._pageContainer.add(mech);
         }
 
-        this._addSelectButton(0, Math.round(h / 2 - 22), fisher.id);
+        if (selectable) {
+            this._addSelectButton(0, Math.round(h / 2 - 22), fisher.id);
+        }
     }
 
-    _buildLandscapeContent(fisher, w, h) {
+    _buildLandscapeContent(fisher, w, h, selectable) {
         const leftCx = Math.round(-w / 4);
         const rightCx = Math.round(w / 4);
         const rightContentW = Math.round(w * 0.4);
@@ -193,7 +362,9 @@ export default class DelversLedgerScene extends Phaser.Scene {
             this._pageContainer.add(mech);
         }
 
-        this._addSelectButton(rightCx, Math.round(h / 2 - 20), fisher.id);
+        if (selectable) {
+            this._addSelectButton(rightCx, Math.round(h / 2 - 20), fisher.id);
+        }
     }
 
     _addSelectButton(x, y, fisherId) {
@@ -230,7 +401,10 @@ export default class DelversLedgerScene extends Phaser.Scene {
     }
 
     _flipCoverOpen() {
-        this._flipPage(this._coverContainer, this._pageContainer, 'forward', 600);
+        this._flipPage(this._coverContainer, this._pageContainer, 'forward', 600, () => {
+            this._bookOpen = true;
+            this._updateCornerVisibility();
+        });
     }
 
     _flipPage(fromContainer, toContainer, direction, duration, onComplete) {
@@ -311,6 +485,9 @@ export default class DelversLedgerScene extends Phaser.Scene {
     _closeBook(onComplete) {
         if (this._transitioning) return;
         this._transitioning = true;
+        this._bookOpen = false;
+        if (this._backCorner) this._backCorner.setVisible(false);
+        if (this._nextCorner) this._nextCorner.setVisible(false);
 
         const half = 200;
 
