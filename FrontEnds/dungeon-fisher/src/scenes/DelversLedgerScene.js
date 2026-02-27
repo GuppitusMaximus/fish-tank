@@ -24,6 +24,7 @@ export default class DelversLedgerScene extends Phaser.Scene {
 
         this._pages = [
             { fisherId: 'andy', selectable: true },
+            { fisherId: 'saba', selectable: true },
             { fisherId: null, comingSoon: true, selectable: false }
         ];
         this._currentPage = 0;

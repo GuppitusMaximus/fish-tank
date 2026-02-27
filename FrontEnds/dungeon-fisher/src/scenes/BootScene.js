@@ -63,13 +63,14 @@ export default class BootScene extends Phaser.Scene {
         }
 
         // Fisher portraits
-        const fishers = ['andy'];
+        const fishers = ['andy', 'saba'];
         for (const id of fishers) {
             this.load.image(`fisher_${id}`, `sprites/fishers/${id}.png`);
         }
 
         // Character emblems
         this.load.image('emblem_andy', 'sprites/emblems/andy.png');
+        this.load.image('emblem_saba', 'sprites/emblems/saba.png');
 
         // Background images — load only title + save zone at boot (others load on demand)
         this.load.image('bg_title', 'backgrounds/title.png');
@@ -121,6 +122,7 @@ export default class BootScene extends Phaser.Scene {
 
         // Cursor sprites
         this.load.image('cursor_andy', 'sprites/ui/cursor_andy.png');
+        this.load.image('cursor_saba', 'sprites/ui/cursor_saba.png');
     }
 
     create() {
