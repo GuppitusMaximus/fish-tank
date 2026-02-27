@@ -209,11 +209,11 @@ test.describe('readonly mode overlay layout', () => {
 
 test.describe('layout code verification', () => {
 
-    test('cellSize is 40px (compact fit)', async ({ page }) => {
+    test('cellSize is 32px (4-column compact fit)', async ({ page }) => {
         await page.goto(BASE);
         const resp = await fetch(`${BASE}/src/scenes/UIOverlayScene.js`);
         const src = await resp.text();
-        expect(src).toContain('const cellSize = 40');
+        expect(src).toContain('const cellSize = 32');
     });
 
     test('panelH = gridTotalH + stashH + 34', async ({ page }) => {
