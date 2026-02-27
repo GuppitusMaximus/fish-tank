@@ -104,6 +104,7 @@ export default class DelversLedgerScene extends Phaser.Scene {
 
     _buildPageCorners(w, h) {
         const cornerSize = 22;
+        const hitSize = 44;
         const halfW = Math.round(w / 2);
         const halfH = Math.round(h / 2);
 
@@ -114,8 +115,12 @@ export default class DelversLedgerScene extends Phaser.Scene {
         backGfx.lineStyle(1, 0x5a4a32, 0.5);
         backGfx.lineBetween(cornerSize, 0, 0, cornerSize);
         this._backCorner.add(backGfx);
-        this._backCorner.setSize(cornerSize, cornerSize);
-        this._backCorner.setInteractive({ useHandCursor: true });
+        this._backCorner.setSize(hitSize, hitSize);
+        this._backCorner.setInteractive({
+            hitArea: new Phaser.Geom.Rectangle(0, 0, hitSize, hitSize),
+            hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            useHandCursor: true
+        });
         this._backCorner.setAlpha(0.6);
         this._backCorner.on('pointerover', () => this._backCorner.setAlpha(1));
         this._backCorner.on('pointerout', () => this._backCorner.setAlpha(0.6));
@@ -123,15 +128,19 @@ export default class DelversLedgerScene extends Phaser.Scene {
         this._backCorner.setVisible(false);
         this._bookContainer.add(this._backCorner);
 
-        this._nextCorner = this.add.container(halfW - cornerSize, -halfH);
+        this._nextCorner = this.add.container(halfW - hitSize, -halfH);
         const nextGfx = this.add.graphics();
         nextGfx.fillStyle(0xb8a878, 1);
-        nextGfx.fillTriangle(0, 0, cornerSize, 0, cornerSize, cornerSize);
+        nextGfx.fillTriangle(hitSize - cornerSize, 0, hitSize, 0, hitSize, cornerSize);
         nextGfx.lineStyle(1, 0x5a4a32, 0.5);
-        nextGfx.lineBetween(0, 0, cornerSize, cornerSize);
+        nextGfx.lineBetween(hitSize - cornerSize, 0, hitSize, cornerSize);
         this._nextCorner.add(nextGfx);
-        this._nextCorner.setSize(cornerSize, cornerSize);
-        this._nextCorner.setInteractive({ useHandCursor: true });
+        this._nextCorner.setSize(hitSize, hitSize);
+        this._nextCorner.setInteractive({
+            hitArea: new Phaser.Geom.Rectangle(0, 0, hitSize, hitSize),
+            hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            useHandCursor: true
+        });
         this._nextCorner.setAlpha(0.6);
         this._nextCorner.on('pointerover', () => this._nextCorner.setAlpha(1));
         this._nextCorner.on('pointerout', () => this._nextCorner.setAlpha(0.6));
