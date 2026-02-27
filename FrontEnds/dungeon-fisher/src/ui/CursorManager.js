@@ -15,13 +15,20 @@ const CursorManager = {
     attach(scene, fisherId) {
         this.detach();
 
-        const key = `cursor_${fisherId || 'andy'}`;
-        if (!scene.textures.exists(key)) return;
+        const id = fisherId || 'andy';
+        const key = `cursor_${id}`;
+        if (!scene.textures.exists(key)) {
+            // Fallback to andy if character cursor missing
+            if (id !== 'andy' && scene.textures.exists('cursor_andy')) {
+                return this.attach(scene, 'andy');
+            }
+            return;
+        }
 
         scene.input.setDefaultCursor('none');
 
         this._scene = scene;
-        this._fisherId = fisherId || 'andy';
+        this._fisherId = id;
         this._sprite = scene.add.image(0, 0, key)
             .setDepth(10000)
             .setScrollFactor(0)
@@ -46,9 +53,13 @@ const CursorManager = {
             this._scene.input.off('pointermove', this._onMove, this);
             this._scene.input.off('pointerdown', this._onDown, this);
         }
+        // Restore browser cursor — try new scene first, fall back to old scene, then canvas directly
         const cursorScene = optScene || this._scene;
-        if (cursorScene && cursorScene.input) {
+        if (cursorScene && cursorScene.input && cursorScene.input.manager) {
             cursorScene.input.setDefaultCursor('default');
+        } else if (typeof document !== 'undefined') {
+            const canvas = document.querySelector('canvas');
+            if (canvas) canvas.style.cursor = 'default';
         }
         this._scene = null;
         this._fisherId = null;
