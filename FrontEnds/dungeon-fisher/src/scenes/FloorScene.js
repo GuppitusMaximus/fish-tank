@@ -378,7 +378,7 @@ export default class FloorScene extends Phaser.Scene {
                 delay: entranceDelay,
                 onComplete: () => {
                     this.time.delayedCall(500, () => {
-                        this._startPersonality(card.type, personalityOverlay, scrimX, scrimY, scrimW, scrimH);
+                        this._startPersonality(card.type, personalityOverlay, cx, cy, cardW, cardH);
                     });
                 }
             });
