@@ -495,7 +495,7 @@ export default class UIOverlayScene extends Phaser.Scene {
                     }
                 }
             });
-            this.equipmentElements.push({ destroy: () => this._equipBattleCheck.remove() });
+            this.equipmentElements.push({ destroy: () => this._equipBattleCheck?.remove() });
         }
     }
 
