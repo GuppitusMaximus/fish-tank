@@ -111,13 +111,15 @@ const CursorManager = {
             this._idleTween = null;
         }
         if (!this._sprite) return;
-        this._idleTween = scene.tweens.add({
-            targets: this._sprite,
-            y: '+=2',
-            duration: 800,
-            yoyo: true,
+        this._idleTween = scene.tweens.addCounter({
+            from: 0, to: Math.PI * 2,
+            duration: 1600,
             repeat: -1,
-            ease: 'Sine.easeInOut',
+            onUpdate: (tween) => {
+                if (this._sprite && this._sprite.active) {
+                    this._sprite.y = this._baseY + Math.sin(tween.getValue()) * 2;
+                }
+            }
         });
     },
 };

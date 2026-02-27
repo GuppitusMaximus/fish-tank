@@ -359,6 +359,8 @@ export default class FloorScene extends Phaser.Scene {
             // Collect visual elements for animation
             const uiElements = [panel.bg, cardScrim, label, labelScrim];
             if (personalityOverlay) uiElements.push(personalityOverlay);
+            const hoverTargets = [cardScrim, label, labelScrim];
+            if (personalityOverlay) hoverTargets.push(personalityOverlay);
             const allElements = [...uiElements, img];
 
             // --- Slide-in entrance animation ---
@@ -419,7 +421,7 @@ export default class FloorScene extends Phaser.Scene {
                 label.setTint(0xffffff);
                 img.setTint(0xdddddd);
                 this.tweens.add({
-                    targets: uiElements,
+                    targets: hoverTargets,
                     scaleX: 1.05, scaleY: 1.05,
                     duration: 150, ease: 'Sine.easeOut'
                 });
@@ -433,7 +435,7 @@ export default class FloorScene extends Phaser.Scene {
                 label.clearTint();
                 img.clearTint();
                 this.tweens.add({
-                    targets: uiElements,
+                    targets: hoverTargets,
                     scaleX: 1, scaleY: 1,
                     duration: 150, ease: 'Sine.easeOut'
                 });
