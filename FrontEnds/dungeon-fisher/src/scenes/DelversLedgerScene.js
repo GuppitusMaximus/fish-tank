@@ -121,7 +121,6 @@ export default class DelversLedgerScene extends Phaser.Scene {
             fontSize: '12px', color: '#5a4a32', fontFamily: 'serif'
         }).setOrigin(0.5);
         this._backCorner.add(backArrow);
-        this._backCorner.setSize(hitSize, hitSize);
         this._backCorner.setInteractive({
             hitArea: new Phaser.Geom.Rectangle(0, hitSize - cornerSize, hitSize, cornerSize),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
@@ -146,7 +145,6 @@ export default class DelversLedgerScene extends Phaser.Scene {
             fontSize: '12px', color: '#5a4a32', fontFamily: 'serif'
         }).setOrigin(0.5);
         this._nextCorner.add(nextArrow);
-        this._nextCorner.setSize(hitSize, hitSize);
         this._nextCorner.setInteractive({
             hitArea: new Phaser.Geom.Rectangle(0, hitSize - cornerSize, hitSize, cornerSize),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
