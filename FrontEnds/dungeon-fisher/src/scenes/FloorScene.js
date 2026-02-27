@@ -308,32 +308,27 @@ export default class FloorScene extends Phaser.Scene {
             const cardTheme = { ...zone };
             delete cardTheme.compositeKey;
             delete cardTheme.pieceSize;
-            delete cardTheme.atlasKey;
+            cardTheme.atlasKey = zone.atlasKey + '_sm';
 
-            // Dark fill behind card image (depth 2)
-            const cardScrim = this.add.rectangle(midX, midY, cardW, cardH, 0x111111, 1)
-                .setDepth(2).setScrollFactor(0);
+            const panel = new UIPanel(this, {
+                x: cx, y: cy, width: cardW, height: cardH,
+                theme: cardTheme, depth: 2, padding: 0, cornerSize: 10, fx: false
+            });
 
-            // Card image — fills content area (depth 2.5, below border)
             const topInset = 2;
             const bottomInset = 10;
             const sideInset = 10;
-            const contentH = cardH - topInset - bottomInset;
-            const img = this.add.image(midX, cy + topInset + contentH / 2, card.key);
-            const baseImgScale = Math.min((cardW - sideInset * 2) / img.width, contentH / img.height);
-            img.setScale(baseImgScale).setDepth(2.5).setScrollFactor(0);
-
-            // Procedural border on top (depth 3) — transparent fill, ornate green borders
-            const panel = new UIPanel(this, {
-                x: cx, y: cy, width: cardW, height: cardH,
-                theme: cardTheme, depth: 3, padding: 0, alpha: 0, fx: false
-            });
-
-            // Particle bounds for _startPersonality (shop sparkle effect)
             const scrimX = cx + sideInset;
             const scrimY = cy + topInset;
             const scrimW = cardW - sideInset * 2;
-            const scrimH = contentH;
+            const scrimH = cardH - topInset - bottomInset;
+            const cardScrim = this.add.rectangle(scrimX + scrimW / 2, scrimY + scrimH / 2, scrimW, scrimH, 0x000000, 0.5)
+                .setDepth(2.5).setScrollFactor(0);
+
+            const contentH = cardH - topInset - bottomInset;
+            const img = this.add.image(midX, cy + topInset + contentH / 2, card.key);
+            const baseImgScale = Math.min((cardW - sideInset * 2) / img.width, contentH / img.height);
+            img.setScale(baseImgScale).setDepth(3).setScrollFactor(0);
 
             const labelY = cy + cardH - bottomInset - 7;
             const label = this.add.text(midX, labelY, card.label,
@@ -359,8 +354,6 @@ export default class FloorScene extends Phaser.Scene {
             // Collect visual elements for animation
             const uiElements = [panel.bg, cardScrim, label, labelScrim];
             if (personalityOverlay) uiElements.push(personalityOverlay);
-            const hoverTargets = [cardScrim, label, labelScrim];
-            if (personalityOverlay) hoverTargets.push(personalityOverlay);
             const allElements = [...uiElements, img];
 
             // --- Slide-in entrance animation ---
@@ -421,7 +414,7 @@ export default class FloorScene extends Phaser.Scene {
                 label.setTint(0xffffff);
                 img.setTint(0xdddddd);
                 this.tweens.add({
-                    targets: hoverTargets,
+                    targets: uiElements,
                     scaleX: 1.05, scaleY: 1.05,
                     duration: 150, ease: 'Sine.easeOut'
                 });
@@ -435,7 +428,7 @@ export default class FloorScene extends Phaser.Scene {
                 label.clearTint();
                 img.clearTint();
                 this.tweens.add({
-                    targets: hoverTargets,
+                    targets: uiElements,
                     scaleX: 1, scaleY: 1,
                     duration: 150, ease: 'Sine.easeOut'
                 });
