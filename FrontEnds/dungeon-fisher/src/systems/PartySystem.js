@@ -74,7 +74,7 @@ export default class PartySystem {
             shield: comp.baseShield,
             maxShield: comp.baseShield,
             healPower: comp.baseHealPower,
-            moves: [comp.specialMove],
+            moves: comp.specialMoves || [comp.specialMove],
             poisoned: null,
             buffs: [],
             burn: null,

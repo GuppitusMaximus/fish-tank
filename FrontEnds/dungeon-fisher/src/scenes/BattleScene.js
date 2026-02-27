@@ -921,7 +921,8 @@ export default class BattleScene extends Phaser.Scene {
             cd.base.fillStyle(0xcccccc, 0.8);
             cd.base.fillRect(cd.x, cd.y, baseFill * 36, 3);
 
-            const move = ConfigLoader.getMove(f.ref.moves[0]);
+            const moveIdx = f.specialMoveIndex % f.ref.moves.length;
+            const move = ConfigLoader.getMove(f.ref.moves[moveIdx]);
             if (move) {
                 const specFill = Math.min(1, f.specialTimer / move.cooldown);
                 cd.special.clear();

@@ -59,6 +59,7 @@ export default class CombatSystem {
                 alive: true,
                 baseTimer: 0,
                 specialTimer: 0,
+                specialMoveIndex: 0,
                 poisoned: null,
                 buffs: [],
                 shield: f.maxShield || 0,
@@ -141,7 +142,8 @@ export default class CombatSystem {
             const f = state.fish[i];
             if (!f.alive) continue;
 
-            const move = ConfigLoader.getMove(f.ref.moves[0]);
+            const moveIdx = f.specialMoveIndex % f.ref.moves.length;
+            const move = ConfigLoader.getMove(f.ref.moves[moveIdx]);
             if (move) {
                 f.specialTimer += dt;
                 if (f.specialTimer >= move.cooldown) {
@@ -159,6 +161,7 @@ export default class CombatSystem {
                     if (move.effect) {
                         this._applyEffect(state, move.effect, 'monster', i, events);
                     }
+                    f.specialMoveIndex++;
                 }
             }
         }
