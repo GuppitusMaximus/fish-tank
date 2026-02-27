@@ -383,7 +383,7 @@ export default class UIOverlayScene extends Phaser.Scene {
         const balance = ConfigLoader.getEquipmentBalance();
         const gridW = balance.gridWidth || 3;
         const gridH = balance.gridHeight || 5;
-        const cellSize = 40;
+        const cellSize = 32;
 
         // Blocker — tap to dismiss
         const blocker = UILayout.overlay(this, { depth: 1004, alpha: 0.6 });
