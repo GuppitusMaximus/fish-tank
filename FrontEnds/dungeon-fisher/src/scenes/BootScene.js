@@ -118,6 +118,9 @@ export default class BootScene extends Phaser.Scene {
 
         // Merchant sprites
         this.load.image('merchant_rat', 'sprites/merchants/rat_merchant.png');
+
+        // Cursor sprites
+        this.load.image('cursor_andy', 'sprites/ui/cursor_andy.png');
     }
 
     create() {

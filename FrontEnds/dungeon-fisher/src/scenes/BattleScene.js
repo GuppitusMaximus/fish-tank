@@ -12,6 +12,7 @@ import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { UIPanel, UIButton } from '../ui/index.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
+import CursorManager from '../ui/CursorManager.js';
 
 export default class BattleScene extends Phaser.Scene {
     constructor() {
@@ -183,6 +184,8 @@ export default class BattleScene extends Phaser.Scene {
         this._drawMonsterPackHpBar();
         this._drawPartyHpBar();
         this._drawCooldowns();
+
+        CursorManager.attach(this, this.gameState.fisherId);
     }
 
     update(time, delta) {

@@ -9,6 +9,7 @@ import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 import { UIPanel, UIButton, UIList, UILayout } from '../ui/index.js';
+import CursorManager from '../ui/CursorManager.js';
 
 export default class ShopScene extends Phaser.Scene {
     constructor() {
@@ -110,6 +111,8 @@ export default class ShopScene extends Phaser.Scene {
             hoverColor: '#ffffff',
             onClick: () => this.scene.start('FloorScene', { gameState: gs })
         });
+
+        CursorManager.attach(this, gs.fisherId);
     }
 
     _buildItemsTab(startY, W, H, gs, isPortrait, zone, zoneTheme) {

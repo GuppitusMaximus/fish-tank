@@ -13,6 +13,7 @@ import WaterEffect from '../effects/WaterEffect.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { loadZoneTheme, unloadZoneTheme } from '../systems/ThemeAssetLoader.js';
 import { UIButton, UIPanel, UIList, UILayout } from '../ui/index.js';
+import CursorManager from '../ui/CursorManager.js';
 
 export default class FloorScene extends Phaser.Scene {
     constructor() {
@@ -36,6 +37,8 @@ export default class FloorScene extends Phaser.Scene {
             unloadZoneTheme(this, prevZone);
         }
         this.registry.set('previousZone', zone);
+
+        CursorManager.attach(this, gs.fisherId);
 
         loadZoneTheme(this, zone, () => this._onZoneReady());
     }

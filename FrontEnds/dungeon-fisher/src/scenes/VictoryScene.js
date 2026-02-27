@@ -3,6 +3,7 @@ import { coverBackground } from '../utils/zones.js';
 import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { UIButton, UILayout } from '../ui/index.js';
+import CursorManager from '../ui/CursorManager.js';
 
 export default class VictoryScene extends Phaser.Scene {
     constructor() {
@@ -67,5 +68,7 @@ export default class VictoryScene extends Phaser.Scene {
                 this.scene.start('TitleScene');
             }
         });
+
+        CursorManager.attach(this, this.registry.get('gameState')?.fisherId);
     }
 }

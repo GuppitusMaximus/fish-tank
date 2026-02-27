@@ -5,6 +5,7 @@ import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { LEDGER_THEME, PAGE_THEME, getZoneByFloor } from '../data/themes.js';
 import { UILayout } from '../ui/index.js';
+import CursorManager from '../ui/CursorManager.js';
 import { themedPanel } from '../ui/ThemedPanel.js';
 import { coverBackground } from '../utils/zones.js';
 
@@ -14,6 +15,8 @@ export default class DelversLedgerScene extends Phaser.Scene {
     }
 
     create(data) {
+        CursorManager.detach(this);
+
         const { width, height } = this.scale;
         this._isPortrait = this.registry.get('isPortrait');
         this._transitioning = false;

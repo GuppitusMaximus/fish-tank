@@ -3,6 +3,7 @@ import { addEffects } from '../effects/BackgroundEffects.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { ZONE_THEMES } from '../data/themes.js';
 import { UIPanel, UIButton } from '../ui/index.js';
+import CursorManager from '../ui/CursorManager.js';
 import { loadZoneTheme } from '../systems/ThemeAssetLoader.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
 
@@ -158,6 +159,8 @@ export default class ZonePreviewScene extends Phaser.Scene {
 
             this.currentIndex = index;
             this.transitioning = false;
+
+            CursorManager.attach(this, this.registry.get('gameState')?.fisherId);
 
             if (fadeIn) this.cameras.main.fadeIn(300, 0, 0, 0);
 

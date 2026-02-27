@@ -4,6 +4,7 @@ import EquipmentSystem from '../systems/EquipmentSystem.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { TITLE_THEME, getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 import { UIPanel, UIButton, UILayout } from '../ui/index.js';
+import CursorManager from '../ui/CursorManager.js';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -11,6 +12,8 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     create() {
+        CursorManager.detach(this);
+
         const { width, height } = this.scale;
 
         this._createParticleTextures();
