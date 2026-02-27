@@ -1,0 +1,174 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1772231716,
+        "firmware": 300,
+        "wifi_status": 21,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1772231714,
+          "Temperature": 20.4,
+          "CO2": 674,
+          "Humidity": 34,
+          "Noise": 66,
+          "Pressure": 1015,
+          "AbsolutePressure": 988.7,
+          "min_temp": 20,
+          "max_temp": 20.7,
+          "date_max_temp": 1772228988,
+          "date_min_temp": 1772226262,
+          "temp_trend": "stable"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1772231710,
+            "last_seen": 1772231685,
+            "rf_status": 60,
+            "battery_vp": 5996,
+            "dashboard_data": {
+              "time_utc": 1772231685,
+              "Temperature": -0.8,
+              "Humidity": 61,
+              "min_temp": -1,
+              "max_temp": -0.7,
+              "date_max_temp": 1772226865,
+              "date_min_temp": 1772225018,
+              "temp_trend": "stable"
+            }
+          },
+          {
+            "_id": "redacted",
+            "type": "NAModule4",
+            "module_name": "Bed room",
+            "last_setup": 1772065716,
+            "data_type": [
+              "Temperature",
+              "CO2",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 51,
+            "last_message": 1772231710,
+            "last_seen": 1772231685,
+            "rf_status": 73,
+            "battery_vp": 6295,
+            "dashboard_data": {
+              "time_utc": 1772231685,
+              "Temperature": 18.5,
+              "CO2": 561,
+              "Humidity": 36,
+              "min_temp": 18.1,
+              "max_temp": 18.5,
+              "date_max_temp": 1772231377,
+              "date_min_temp": 1772225018,
+              "temp_trend": "stable"
+            }
+          },
+          {
+            "_id": "redacted",
+            "type": "NAModule4",
+            "module_name": "Kat\u2019s Room",
+            "last_setup": 1772066684,
+            "data_type": [
+              "Temperature",
+              "CO2",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 51,
+            "last_message": 1772231710,
+            "last_seen": 1772231685,
+            "rf_status": 59,
+            "battery_vp": 6290,
+            "dashboard_data": {
+              "time_utc": 1772231685,
+              "Temperature": 19,
+              "CO2": 493,
+              "Humidity": 31,
+              "min_temp": 19,
+              "max_temp": 19.4,
+              "date_max_temp": 1772227429,
+              "date_min_temp": 1772231685,
+              "temp_trend": "stable"
+            }
+          },
+          {
+            "_id": "redacted",
+            "type": "NAModule4",
+            "module_name": "Finlay\u2019s Room",
+            "last_setup": 1772066989,
+            "data_type": [
+              "Temperature",
+              "CO2",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 51,
+            "last_message": 1772231710,
+            "last_seen": 1772231691,
+            "rf_status": 63,
+            "battery_vp": 6268,
+            "dashboard_data": {
+              "time_utc": 1772231691,
+              "Temperature": 20.1,
+              "CO2": 646,
+              "Humidity": 34,
+              "min_temp": 19.9,
+              "max_temp": 20.3,
+              "date_max_temp": 1772225024,
+              "date_min_temp": 1772226564,
+              "temp_trend": "stable"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.04727482795715332,
+  "time_server": 1772232034
+}
