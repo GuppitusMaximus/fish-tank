@@ -1,8 +1,6 @@
 import SaveSystem from '../systems/SaveSystem.js';
-import PartySystem from '../systems/PartySystem.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
 import EquipmentSystem from '../systems/EquipmentSystem.js';
-import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { TITLE_THEME, getZoneByFloor, getCharacterTheme, accentHex } from '../data/themes.js';
 import { UIPanel, UIButton, UILayout } from '../ui/index.js';
@@ -12,13 +10,7 @@ export default class TitleScene extends Phaser.Scene {
         super('TitleScene');
     }
 
-    create(data) {
-        if (data && data.selectedFisher) {
-            this._selectedFisher = data.selectedFisher;
-            this.showStarterSelection();
-            return;
-        }
-
+    create() {
         const { width, height } = this.scale;
 
         this._createParticleTextures();
@@ -458,172 +450,6 @@ export default class TitleScene extends Phaser.Scene {
                 });
             }
         });
-    }
-
-    showStarterSelection() {
-        this.children.removeAll();
-        this._selectedStarters = [];
-
-        const { width, height } = this.scale;
-        const fisherId = this._selectedFisher || 'andy';
-        const character = ConfigLoader.getCharacter(fisherId);
-        const maxPicks = character ? character.partySlots.fish : 2;
-
-        UILayout.sceneBackground(this, 'bg_title');
-        UILayout.overlay(this, { alpha: 0.6, depth: 0 });
-
-        this.add.text(width / 2, 20, `Pick ${maxPicks} starter fish:`,
-            makeStyle(TEXT_STYLES.TITLE_SMALL, { color: '#ccccee' })
-        ).setOrigin(0.5);
-
-        const starters = Object.values(ConfigLoader.getAllFish()).filter(s => s.isStarter);
-        this._starterButtons = [];
-        this._starterChecks = [];
-
-        const isPortrait = this.registry.get('isPortrait');
-
-        if (isPortrait) {
-            starters.forEach((species, i) => {
-                const y = height * 0.17 + i * (height * 0.18);
-
-                const fishImg = this.add.image(45, y, `fish_${species.id}`).setScale(0.5);
-                new SpriteAnimator(this, fishImg).idle();
-
-                this.add.text(85, y - 16, species.name,
-                    makeStyle(TEXT_STYLES.FISH_NAME, { color: '#ffffff' })
-                );
-                this.add.text(85, y - 4, `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef}`,
-                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
-                );
-                this.add.text(85, y + 6, `SPD:${species.baseSpd}`,
-                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
-                );
-
-                const check = this.add.text(width - 70, y, '', makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#44ff44' }));
-                this._starterChecks.push(check);
-
-                const btn = UIButton.create(this, {
-                    x: width - 40, y,
-                    label: '[ SELECT ]',
-                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
-                    hoverColor: '#ffffff',
-                    onClick: () => this._toggleStarter(species.id, i, maxPicks)
-                });
-                this._starterButtons.push(btn);
-            });
-        } else {
-            const startX = width / 2 - (starters.length - 1) * 60;
-
-            starters.forEach((species, i) => {
-                const x = startX + i * 120;
-                const y = height * 0.38;
-
-                const fishImg = this.add.image(x, y - 20, `fish_${species.id}`).setScale(0.5);
-                new SpriteAnimator(this, fishImg).idle();
-
-                this.add.text(x, y + 5, species.name,
-                    makeStyle(TEXT_STYLES.FISH_NAME, { color: '#ffffff' })
-                ).setOrigin(0.5);
-
-                this.add.text(x, y + 18, `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef} SPD:${species.baseSpd}`,
-                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
-                ).setOrigin(0.5);
-
-                this.add.text(x, y + 28, species.description,
-                    makeStyle(TEXT_STYLES.FLAVOR, { fontSize: '10px', wordWrap: { width: 110 }, align: 'center' })
-                ).setOrigin(0.5);
-
-                const check = this.add.text(x, y + 42, '', makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#44ff44' })).setOrigin(0.5);
-                this._starterChecks.push(check);
-
-                const btn = UIButton.create(this, {
-                    x, y: y + 55,
-                    label: '[ SELECT ]',
-                    style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '12px' }),
-                    hoverColor: '#ffffff',
-                    onClick: () => this._toggleStarter(species.id, i, maxPicks)
-                });
-                this._starterButtons.push(btn);
-            });
-        }
-
-        // Show companion preview
-        const compY = isPortrait ? height * 0.17 + starters.length * (height * 0.18) + 10 : height * 0.78;
-        if (character && character.companion) {
-            const comp = character.companion;
-            this.add.text(width / 2, compY, `Companion: ${comp.name}`,
-                makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '12px', color: '#a1887f' })
-            ).setOrigin(0.5);
-            this.add.text(width / 2, compY + 14, `HP:${comp.baseHp} ATK:${comp.baseAtk} DEF:${comp.baseDef} SPD:${comp.baseSpd}`,
-                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px' })
-            ).setOrigin(0.5);
-        }
-
-        // GO button (hidden until enough picks)
-        const goY = compY + 35;
-        this._goBtn = UIButton.create(this, {
-            x: width / 2, y: goY,
-            label: '[ BEGIN ]',
-            style: makeStyle(TEXT_STYLES.BUTTON, { fontSize: '15px' }),
-            hoverColor: '#ffffff',
-            onClick: () => this.startNewGame(this._selectedStarters)
-        });
-        this._goBtn.text.setAlpha(0.3);
-        if (this._goBtn.panel) this._goBtn.panel.setAlpha(0.3);
-        this._goBtnEnabled = false;
-    }
-
-    _toggleStarter(speciesId, index, maxPicks) {
-        const idx = this._selectedStarters.indexOf(speciesId);
-        if (idx >= 0) {
-            this._selectedStarters.splice(idx, 1);
-            this._starterChecks[index].setText('');
-        } else {
-            if (this._selectedStarters.length >= maxPicks) return;
-            this._selectedStarters.push(speciesId);
-            this._starterChecks[index].setText('\u2713');
-        }
-
-        const ready = this._selectedStarters.length === maxPicks;
-        const alpha = ready ? 1 : 0.3;
-        this._goBtn.text.setAlpha(alpha);
-        if (this._goBtn.panel) this._goBtn.panel.setAlpha(alpha);
-        this._goBtnEnabled = ready;
-    }
-
-    startNewGame(starterSpeciesIds) {
-        SaveSystem.deleteSave();
-        const fisherId = this._selectedFisher || 'andy';
-        const character = ConfigLoader.getCharacter(fisherId);
-
-        const ids = Array.isArray(starterSpeciesIds) ? starterSpeciesIds : [starterSpeciesIds];
-        const party = ids.map(id => PartySystem.createFish(id));
-        const dog = PartySystem.createCompanion(fisherId);
-        if (dog) party.push(dog);
-
-        const gameState = {
-            floor: 1,
-            gold: character ? character.startingGold : 0,
-            party,
-            inventory: [],
-            campFloor: 1,
-            fisherId,
-            roster: [],
-            companion: dog,
-            pveDeathCount: 0,
-            pvpLossCount: 0,
-            equipment: {
-                grid: [{ itemId: 'harmony', col: 1, row: 4, rotation: 0, flipped: false }],
-                stash: [],
-                harmonyPosition: { row: 4, col: 1 }
-            },
-            equipmentDelta: null,
-            equipmentSnapshot: null
-        };
-
-        SaveSystem.save(gameState);
-        this.registry.set('gameState', gameState);
-        this.scene.start('FloorScene', { gameState });
     }
 
     continueGame() {

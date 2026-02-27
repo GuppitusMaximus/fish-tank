@@ -1,4 +1,7 @@
 import ConfigLoader from '../systems/ConfigLoader.js';
+import SaveSystem from '../systems/SaveSystem.js';
+import PartySystem from '../systems/PartySystem.js';
+import SpriteAnimator from '../effects/SpriteAnimator.js';
 import { TEXT_STYLES, makeStyle } from '../constants/textStyles.js';
 import { LEDGER_THEME, PAGE_THEME, getZoneByFloor } from '../data/themes.js';
 import { UILayout } from '../ui/index.js';
@@ -439,6 +442,7 @@ export default class DelversLedgerScene extends Phaser.Scene {
 
     _rapidFlipToStarters(fisherId) {
         if (this._transitioning) return;
+        this._selectedFisher = fisherId;
 
         const w = this._bookW;
         const h = this._bookH;
@@ -467,7 +471,22 @@ export default class DelversLedgerScene extends Phaser.Scene {
                     duration: Math.round(durations[step] / 2),
                     ease: 'Sine.easeIn',
                     onComplete: () => {
-                        this.scene.start('TitleScene', { selectedFisher: fisherId });
+                        blanks.forEach(b => b.destroy());
+                        this._buildStarterFishContent(w, h);
+                        this._pageContainer.setVisible(true);
+                        this._pageContainer.scaleX = 0;
+
+                        this.tweens.add({
+                            targets: this._pageContainer,
+                            scaleX: 1,
+                            duration: 150,
+                            ease: 'Sine.easeOut',
+                            onComplete: () => {
+                                this._transitioning = false;
+                                if (this._backCorner) this._backCorner.setVisible(false);
+                                if (this._nextCorner) this._nextCorner.setVisible(false);
+                            }
+                        });
                     }
                 });
                 return;
@@ -526,6 +545,221 @@ export default class DelversLedgerScene extends Phaser.Scene {
         });
     }
 
+    _buildStarterFishContent(w, h) {
+        this._pageContainer.removeAll(true);
+        this._selectedStarters = [];
+        this._starterChecks = [];
+        this._confirmEnabled = false;
+        this._selectedCountText = null;
+        this._selectedSlots = null;
+
+        const bg = themedPanel(this,
+            Math.round(-w / 2), Math.round(-h / 2), w, h,
+            PAGE_THEME, { depth: 0, alpha: 0.95, fx: false, borderRadius: 0 }
+        );
+        this._pageContainer.add(bg);
+
+        const fisherId = this._selectedFisher || 'andy';
+        const character = ConfigLoader.getCharacter(fisherId);
+        this._maxPicks = character ? character.partySlots.fish : 2;
+        const starters = Object.values(ConfigLoader.getAllFish()).filter(s => s.isStarter);
+
+        if (this._isPortrait) {
+            this._buildStarterFishPortrait(w, h, starters);
+        } else {
+            this._buildStarterFishLandscape(w, h, starters);
+        }
+    }
+
+    _buildStarterFishPortrait(w, h, starters) {
+        const contentW = Math.round(w * 0.85);
+        let y = Math.round(-h / 2) + 25;
+
+        this._pageContainer.add(
+            this.add.text(0, y, `Pick ${this._maxPicks} Starter Fish`,
+                makeStyle(TEXT_STYLES.TITLE_SMALL, {
+                    fontSize: '14px', color: '#c4a35a', align: 'center'
+                })
+            ).setOrigin(0.5)
+        );
+        y += 28;
+
+        starters.forEach((species, i) => {
+            const rowY = y + i * 52;
+
+            const fishImg = this.add.image(Math.round(-w * 0.28), rowY, `fish_${species.id}`)
+                .setScale(0.4);
+            new SpriteAnimator(this, fishImg).idle();
+            this._pageContainer.add(fishImg);
+
+            this._pageContainer.add(
+                this.add.text(Math.round(-w * 0.12), rowY - 10, species.name,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '11px', color: '#c4a35a' })
+                ).setOrigin(0, 0.5)
+            );
+            this._pageContainer.add(
+                this.add.text(Math.round(-w * 0.12), rowY + 5,
+                    `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef} SPD:${species.baseSpd}`,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '9px', color: '#888878' })
+                ).setOrigin(0, 0.5)
+            );
+
+            const check = this.add.text(Math.round(w * 0.3), rowY, '',
+                makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#44ff44' })
+            ).setOrigin(0.5);
+            this._pageContainer.add(check);
+            this._starterChecks.push(check);
+
+            const zone = this.add.rectangle(0, rowY, contentW, 48, 0xffffff, 0)
+                .setInteractive({ useHandCursor: true });
+            zone.on('pointerdown', () => this._toggleStarter(species.id, i));
+            this._pageContainer.add(zone);
+        });
+
+        const countY = y + starters.length * 52 + 5;
+        this._selectedCountText = this.add.text(0, countY,
+            `0 / ${this._maxPicks} selected`,
+            makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color: '#8a7a5a', align: 'center' })
+        ).setOrigin(0.5);
+        this._pageContainer.add(this._selectedCountText);
+
+        this._addConfirmButton(0, Math.round(h / 2) - 25);
+    }
+
+    _buildStarterFishLandscape(w, h, starters) {
+        const leftCx = Math.round(-w / 4);
+        const rightCx = Math.round(w / 4);
+        const rightContentW = Math.round(w * 0.4);
+
+        const divider = this.add.rectangle(0, 0, 1, Math.round(h * 0.8), 0x5a4a32)
+            .setAlpha(0.6);
+        this._pageContainer.add(divider);
+
+        this._pageContainer.add(
+            this.add.text(leftCx, Math.round(-h / 2) + 20, 'Your Party',
+                makeStyle(TEXT_STYLES.TITLE_SMALL, {
+                    fontSize: '13px', color: '#c4a35a', align: 'center'
+                })
+            ).setOrigin(0.5)
+        );
+
+        this._selectedSlots = [];
+        for (let i = 0; i < this._maxPicks; i++) {
+            const slotY = Math.round(-h * 0.1) + i * 60;
+            this._pageContainer.add(
+                this.add.rectangle(leftCx, slotY, 80, 45, 0x333333, 0.2)
+                    .setStrokeStyle(1, 0x5a4a32, 0.4)
+            );
+            const label = this.add.text(leftCx, slotY, 'Empty',
+                makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '10px', color: '#5a5a4a' })
+            ).setOrigin(0.5);
+            this._pageContainer.add(label);
+            this._selectedSlots.push({ label });
+        }
+
+        this._addConfirmButton(leftCx, Math.round(h / 2) - 25);
+
+        this._pageContainer.add(
+            this.add.text(rightCx, Math.round(-h / 2) + 20,
+                `Pick ${this._maxPicks} Starter Fish`,
+                makeStyle(TEXT_STYLES.TITLE_SMALL, {
+                    fontSize: '12px', color: '#c4a35a', align: 'center'
+                })
+            ).setOrigin(0.5)
+        );
+
+        let ry = Math.round(-h / 2) + 50;
+        starters.forEach((species, i) => {
+            const rowY = ry + i * 48;
+
+            const fishImg = this.add.image(rightCx - 40, rowY, `fish_${species.id}`)
+                .setScale(0.35);
+            new SpriteAnimator(this, fishImg).idle();
+            this._pageContainer.add(fishImg);
+
+            this._pageContainer.add(
+                this.add.text(rightCx, rowY - 8, species.name,
+                    makeStyle(TEXT_STYLES.FISH_NAME, { fontSize: '10px', color: '#c4a35a' })
+                ).setOrigin(0.5)
+            );
+            this._pageContainer.add(
+                this.add.text(rightCx, rowY + 5,
+                    `HP:${species.baseHp} ATK:${species.baseAtk} DEF:${species.baseDef} SPD:${species.baseSpd}`,
+                    makeStyle(TEXT_STYLES.BODY_SMALL, { fontSize: '8px', color: '#888878' })
+                ).setOrigin(0.5)
+            );
+
+            const check = this.add.text(rightCx + 45, rowY, '',
+                makeStyle(TEXT_STYLES.BODY, { fontSize: '14px', color: '#44ff44' })
+            ).setOrigin(0.5);
+            this._pageContainer.add(check);
+            this._starterChecks.push(check);
+
+            const zone = this.add.rectangle(rightCx, rowY, rightContentW, 44, 0xffffff, 0)
+                .setInteractive({ useHandCursor: true });
+            zone.on('pointerdown', () => this._toggleStarter(species.id, i));
+            this._pageContainer.add(zone);
+        });
+    }
+
+    _addConfirmButton(x, y) {
+        this._confirmBtn = this.add.text(x, y, '[ CONFIRM ]',
+            makeStyle(TEXT_STYLES.BUTTON, { fontSize: '14px', color: '#c4a35a' })
+        ).setOrigin(0.5).setAlpha(0.3);
+        this._confirmBtn.setInteractive({ useHandCursor: true });
+        this._confirmBtn.on('pointerover', () => {
+            if (this._confirmEnabled) this._confirmBtn.setColor('#ffffff');
+        });
+        this._confirmBtn.on('pointerout', () => this._confirmBtn.setColor('#c4a35a'));
+        this._confirmBtn.on('pointerdown', () => {
+            if (this._confirmEnabled) this._confirmStarters();
+        });
+        this._pageContainer.add(this._confirmBtn);
+    }
+
+    _toggleStarter(speciesId, index) {
+        const idx = this._selectedStarters.indexOf(speciesId);
+        if (idx >= 0) {
+            this._selectedStarters.splice(idx, 1);
+            this._starterChecks[index].setText('');
+        } else {
+            if (this._selectedStarters.length >= this._maxPicks) return;
+            this._selectedStarters.push(speciesId);
+            this._starterChecks[index].setText('\u2713');
+        }
+
+        const ready = this._selectedStarters.length === this._maxPicks;
+        this._confirmEnabled = ready;
+        this._confirmBtn.setAlpha(ready ? 1 : 0.3);
+
+        if (this._selectedCountText) {
+            this._selectedCountText.setText(
+                `${this._selectedStarters.length} / ${this._maxPicks} selected`
+            );
+        }
+
+        if (this._selectedSlots) {
+            const allFish = ConfigLoader.getAllFish();
+            this._selectedSlots.forEach((slot, i) => {
+                if (i < this._selectedStarters.length) {
+                    const species = allFish[this._selectedStarters[i]];
+                    slot.label.setText(species ? species.name : '?');
+                    slot.label.setColor('#c4a35a');
+                } else {
+                    slot.label.setText('Empty');
+                    slot.label.setColor('#5a5a4a');
+                }
+            });
+        }
+    }
+
+    _confirmStarters() {
+        if (!this._confirmEnabled) return;
+        this._closeBook(() => {
+            this._sewerTransition();
+        });
+    }
+
     _sewerTransition() {
         if (this._sewerBg) {
             this._sewerBg.setVisible(true);
@@ -539,7 +773,42 @@ export default class DelversLedgerScene extends Phaser.Scene {
         });
 
         this.cameras.main.once('camerafadeoutcomplete', () => {
-            this.scene.start('TitleScene', { selectedFisher: 'andy' });
+            this._startNewGame(this._selectedStarters);
         });
+    }
+
+    _startNewGame(starterIds) {
+        SaveSystem.deleteSave();
+        const fisherId = this._selectedFisher || 'andy';
+        const character = ConfigLoader.getCharacter(fisherId);
+
+        const ids = Array.isArray(starterIds) ? starterIds : [starterIds];
+        const party = ids.map(id => PartySystem.createFish(id));
+        const dog = PartySystem.createCompanion(fisherId);
+        if (dog) party.push(dog);
+
+        const gameState = {
+            floor: 1,
+            gold: character ? character.startingGold : 0,
+            party,
+            inventory: [],
+            campFloor: 1,
+            fisherId,
+            roster: [],
+            companion: dog,
+            pveDeathCount: 0,
+            pvpLossCount: 0,
+            equipment: {
+                grid: [{ itemId: 'harmony', col: 1, row: 4, rotation: 0, flipped: false }],
+                stash: [],
+                harmonyPosition: { row: 4, col: 1 }
+            },
+            equipmentDelta: null,
+            equipmentSnapshot: null
+        };
+
+        SaveSystem.save(gameState);
+        this.registry.set('gameState', gameState);
+        this.scene.start('FloorScene', { gameState });
     }
 }
