@@ -69,7 +69,14 @@ const CursorManager = {
     },
 
     _ensureSprite() {
-        if (this._sprite && this._sprite.active) return true;
+        if (this._sprite && this._sprite.active) {
+            // Sprite may have been removed from display list by children.removeAll()
+            if (this._scene.children.exists(this._sprite)) return true;
+            this._scene.add.existing(this._sprite);
+            this._sprite.setDepth(10000);
+            this._startIdleBob(this._scene);
+            return true;
+        }
         if (!this._scene || !this._scene.textures) return false;
         const key = `cursor_${this._fisherId || 'andy'}`;
         if (!this._scene.textures.exists(key)) return false;
