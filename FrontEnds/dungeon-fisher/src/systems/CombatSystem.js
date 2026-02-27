@@ -169,6 +169,8 @@ export default class CombatSystem {
             for (let m = 0; m < state.monsters.length; m++) {
                 const mon = state.monsters[m];
                 if (!mon.alive) continue;
+                const monChunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === m);
+                if (!monChunk || monChunk.hp <= 0) continue;
 
                 const mEffSpd = this.getEffectiveStat(mon, 'spd');
                 const mEffAtk = this.getEffectiveStat(mon, 'atk');
@@ -191,6 +193,8 @@ export default class CombatSystem {
             for (let m = 0; m < state.monsters.length; m++) {
                 const mon = state.monsters[m];
                 if (!mon.alive) continue;
+                const monChunk = state.monsterHpBar.chunks.find(c => c.monsterIndex === m);
+                if (!monChunk || monChunk.hp <= 0) continue;
 
                 const mMove = ConfigLoader.getMove(mon.ref.specialMove);
                 if (mMove) {
