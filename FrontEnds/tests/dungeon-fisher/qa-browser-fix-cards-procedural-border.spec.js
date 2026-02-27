@@ -157,10 +157,10 @@ test.describe('1. procedural border source verification', () => {
 
 test.describe('2. version', () => {
 
-    test('game version is 0.18.1', async ({ page }) => {
+    test('game version is 0.18.2', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
-        expect(src).toContain("VERSION = '0.18.1'");
+        expect(src).toContain("VERSION = '0.18.2'");
     });
 });
 
