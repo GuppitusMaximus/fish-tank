@@ -123,7 +123,7 @@ export default class DelversLedgerScene extends Phaser.Scene {
         this._backCorner.add(backArrow);
         this._backCorner.setSize(hitSize, hitSize);
         this._backCorner.setInteractive({
-            hitArea: new Phaser.Geom.Rectangle(0, 0, hitSize, hitSize),
+            hitArea: new Phaser.Geom.Rectangle(0, hitSize - cornerSize, hitSize, cornerSize),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
             useHandCursor: true
         });
@@ -148,7 +148,7 @@ export default class DelversLedgerScene extends Phaser.Scene {
         this._nextCorner.add(nextArrow);
         this._nextCorner.setSize(hitSize, hitSize);
         this._nextCorner.setInteractive({
-            hitArea: new Phaser.Geom.Rectangle(0, 0, hitSize, hitSize),
+            hitArea: new Phaser.Geom.Rectangle(0, hitSize - cornerSize, hitSize, cornerSize),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
             useHandCursor: true
         });
