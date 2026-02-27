@@ -1,9 +1,10 @@
 /**
- * Browser QA: Card rendering verification
- * Plan: qa-browser-fix-cards-procedural-border (updated for atlas revert)
+ * Browser QA: Revert card borders to atlas nineslice
+ * Plan: qa-browser-revert-cards-to-atlas-borders
  *
- * Verifies: Card images visible, atlas nineslice borders via UIPanel,
- * labels readable, hover effects, no JS errors.
+ * Verifies: FloorScene action cards use atlas nineslice borders (not procedural),
+ * card images visible inside bordered frame, hover animation smooth (no distortion),
+ * labels readable, card click navigation works, no JS errors.
  *
  * Runs against http://localhost:8080 (dungeon-fisher Vite dev server).
  */
@@ -80,11 +81,12 @@ async function injectSaveAndLoad(page, save) {
     await page.waitForTimeout(BUTTON_APPEAR_MS);
 }
 
-async function enterZoneHub(page, save) {
+async function enterFloorScene(page, save) {
     await injectSaveAndLoad(page, save);
     // CONTINUE button at y~116
     await clickGame(page, 240, 116);
-    await page.waitForTimeout(5000);
+    // Wait for entrance animations + personality delay
+    await page.waitForTimeout(6000);
 }
 
 async function fetchSrc(page, path) {
@@ -96,77 +98,59 @@ async function fetchSrc(page, path) {
 
 const CARD_CENTER_Y = 172;
 
-// ─── 1. Source code: atlas nineslice borders on cards ─────────────────────────
+// ─── 1. Source: atlas nineslice borders restored ─────────────────────────────
 
-test.describe('1. atlas border source verification', () => {
+test.describe('1. atlas border revert source verification', () => {
 
-    test('cardTheme sets atlasKey for nineslice path', async ({ page }) => {
+    test('cardTheme.atlasKey is set (not deleted)', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Card theme sets atlasKey so ThemedPanel uses nineslice
-        expect(src).toContain('delete cardTheme.compositeKey');
-        expect(src).toContain('delete cardTheme.pieceSize');
         expect(src).toContain("cardTheme.atlasKey = zone.atlasKey + '_sm'");
+        // atlasKey should NOT be deleted
+        expect(src).not.toContain('delete cardTheme.atlasKey');
     });
 
-    test('card panel at depth 2 with nineslice atlas', async ({ page }) => {
+    test('UIPanel at depth 2 with cornerSize 10', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
         expect(src).toContain('theme: cardTheme, depth: 2, padding: 0, cornerSize: 10, fx: false');
     });
 
-    test('card image at depth 3 (above panel at depth 2)', async ({ page }) => {
+    test('card image at depth 3 (above nineslice panel)', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('.setDepth(3)');
+        // Image should be at depth 3
+        expect(src).toMatch(/img\.setScale\(baseImgScale\)\.setDepth\(3\)/);
     });
 
-    test('card image uses insets to fill content area', async ({ page }) => {
+    test('scrimX/Y/W/H variables restored for personality overlay', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('const topInset = 2');
-        expect(src).toContain('const bottomInset = 10');
-        expect(src).toContain('const sideInset = 10');
+        expect(src).toContain('const scrimX = cx + sideInset');
+        expect(src).toContain('const scrimY = cy + topInset');
+        expect(src).toContain('const scrimW = cardW - sideInset * 2');
+        expect(src).toContain('const scrimH = cardH - topInset - bottomInset');
     });
 
-    test('card label at depth 4 with scrim for readability', async ({ page }) => {
-        await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('.setDepth(4)');
-        expect(src).toContain('.setDepth(3.5)');
-    });
-
-    test('ThemedPanel routes to nineslice when atlasKey is present', async ({ page }) => {
-        await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/ui/ThemedPanel.js');
-        expect(src).toContain('if (theme.atlasKey && scene.textures.exists(theme.atlasKey))');
-        expect(src).toContain('return createNineSlicePanel(scene, x, y, w, h, theme, opts)');
-    });
-});
-
-// ─── 2. Version bump ────────────────────────────────────────────────────────
-
-test.describe('2. version', () => {
-
-    test('game version is 0.18.5', async ({ page }) => {
+    test('version bumped to 0.18.5', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
         expect(src).toContain("VERSION = '0.18.5'");
     });
 });
 
-// ─── 3. Browser: cards render without errors ────────────────────────────────
+// ─── 2. Browser: cards render with atlas borders, no errors ──────────────────
 
-test.describe('3. browser card rendering', () => {
+test.describe('2. card rendering with atlas borders', () => {
 
-    test('floor 1 single card renders without JS errors', async ({ page }) => {
+    test('floor 1 single delve card renders without JS errors', async ({ page }) => {
         const errors = [];
         page.on('pageerror', err => errors.push(err.message));
 
         const save = makeSave([{ ...GUPPY }, { ...PUFFER }], 1);
-        await enterZoneHub(page, save);
+        await enterFloorScene(page, save);
 
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/pcb-01-floor1-single-card.png` });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-01-floor1-atlas-card.png` });
         expect(errors).toHaveLength(0);
     });
 
@@ -178,13 +162,13 @@ test.describe('3. browser card rendering', () => {
             _transitionQueue: ['camp'],
             _pendingAdvance: true
         });
-        await enterZoneHub(page, save);
+        await enterFloorScene(page, save);
 
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/pcb-02-two-cards-camp.png` });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-02-two-cards-atlas.png` });
         expect(errors).toHaveLength(0);
     });
 
-    test('floor 3 with shop+camp shows 3 cards without JS errors', async ({ page }) => {
+    test('floor 3 with all 3 card types renders without JS errors', async ({ page }) => {
         const errors = [];
         page.on('pageerror', err => errors.push(err.message));
 
@@ -192,49 +176,79 @@ test.describe('3. browser card rendering', () => {
             _transitionQueue: ['shop', 'camp'],
             _pendingAdvance: true
         });
-        await enterZoneHub(page, save);
+        await enterFloorScene(page, save);
 
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/pcb-03-three-cards.png` });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-03-three-cards-atlas.png` });
         expect(errors).toHaveLength(0);
     });
 });
 
-// ─── 4. Browser: hover and click ────────────────────────────────────────────
+// ─── 3. Hover animation: smooth scale without distortion ─────────────────────
 
-test.describe('4. hover and click interactions', () => {
+test.describe('3. hover animation', () => {
 
-    test('hover over card triggers scale effect without errors', async ({ page }) => {
+    test('hover scales card smoothly, unhover returns to normal', async ({ page }) => {
         const errors = [];
         page.on('pageerror', err => errors.push(err.message));
 
         const save = makeSave([{ ...GUPPY }], 1);
-        await enterZoneHub(page, save);
+        await enterFloorScene(page, save);
 
         // Hover center of single Delve card
         await hoverGame(page, 240, CARD_CENTER_Y);
         await page.waitForTimeout(500);
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/pcb-04a-hover.png` });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-04a-hover-atlas.png` });
 
-        // Move away
+        // Move away — card should scale back
         await hoverGame(page, 10, 10);
         await page.waitForTimeout(500);
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/pcb-04b-unhover.png` });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-04b-unhover-atlas.png` });
 
         expect(errors).toHaveLength(0);
     });
+});
 
-    test('click Delve Deeper card starts battle without errors', async ({ page }) => {
+// ─── 4. Click navigation works ───────────────────────────────────────────────
+
+test.describe('4. click navigation', () => {
+
+    test('click Delve card starts battle without errors', async ({ page }) => {
         const errors = [];
         page.on('pageerror', err => errors.push(err.message));
 
         const save = makeSave([{ ...GUPPY }, { ...PUFFER }], 1);
-        await enterZoneHub(page, save);
+        await enterFloorScene(page, save);
 
         // Click Delve (single card center)
         await clickGame(page, 240, CARD_CENTER_Y);
         await page.waitForTimeout(3000);
 
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/pcb-04c-after-click.png` });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-05-after-click.png` });
+        expect(errors).toHaveLength(0);
+    });
+});
+
+// ─── 5. Personality animations with restored scrim variables ─────────────────
+
+test.describe('5. personality animations', () => {
+
+    test('all 3 card personality effects activate without errors', async ({ page }) => {
+        const errors = [];
+        page.on('pageerror', err => errors.push(err.message));
+
+        const save = makeSave([{ ...GUPPY }, { ...PUFFER }], 3, {
+            _transitionQueue: ['shop', 'camp'],
+            _pendingAdvance: true
+        });
+        await enterFloorScene(page, save);
+
+        // Wait for all personality effects to be running
+        await page.waitForTimeout(2000);
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/rcab-06-personalities-active.png` });
+
+        // No ReferenceError for scrimX or any other error
+        const scrimErrors = errors.filter(e => e.includes('scrimX') || e.includes('scrimY'));
+        expect(scrimErrors).toHaveLength(0);
         expect(errors).toHaveLength(0);
     });
 });

@@ -1,10 +1,10 @@
 /**
- * Browser QA: Fix scrimX undefined in card personality animation
- * Plan: qa-browser-fix-cards-procedural-border-scrimx
+ * Browser QA: Card personality animation scrim variables
+ * Plan: qa-browser-fix-cards-procedural-border-scrimx (updated for atlas revert)
  *
- * Verifies: _startPersonality called with cx/cy/cardW/cardH instead of
- * removed scrimX/Y/W/H variables, no ReferenceError, personality effects
- * activate after card entrance animations complete.
+ * Verifies: _startPersonality called with restored scrimX/Y/W/H variables,
+ * no ReferenceError, personality effects activate after card entrance
+ * animations complete.
  *
  * Runs against http://localhost:8080 (dungeon-fisher Vite dev server).
  */
@@ -49,7 +49,7 @@ const PUFFER = makeFish('pufferfish', 'Pufferfish', 0xffcc00, 60, 60, 12, 14, 8,
 function makeSave(party, floor = 1, extras = {}) {
     return {
         version: 5,
-        gameVersion: '0.18.2',
+        gameVersion: '0.18.5',
         savedAt: Date.now(),
         floor,
         gold: extras.gold ?? 200,
@@ -89,27 +89,29 @@ async function fetchSrc(page, path) {
     }, `${BASE}${path}`);
 }
 
-// ─── 1. Source: _startPersonality called with cx/cy/cardW/cardH ──────────────
+// ─── 1. Source: _startPersonality called with scrimX/Y/W/H (restored) ────────
 
-test.describe('1. scrimX fix source verification', () => {
+test.describe('1. scrimX restoration source verification', () => {
 
-    test('_startPersonality call uses cx, cy, cardW, cardH parameters', async ({ page }) => {
+    test('_startPersonality call uses restored scrimX, scrimY, scrimW, scrimH', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('this._startPersonality(card.type, personalityOverlay, cx, cy, cardW, cardH)');
+        expect(src).toContain('this._startPersonality(card.type, personalityOverlay, scrimX, scrimY, scrimW, scrimH)');
     });
 
-    test('no external scrimX variable reference at call site', async ({ page }) => {
+    test('scrimX/Y/W/H variables are defined from card insets', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // The call should NOT use scrimX as an argument
-        expect(src).not.toContain('this._startPersonality(card.type, personalityOverlay, scrimX');
+        expect(src).toContain('const scrimX = cx + sideInset');
+        expect(src).toContain('const scrimY = cy + topInset');
+        expect(src).toContain('const scrimW = cardW - sideInset * 2');
+        expect(src).toContain('const scrimH = cardH - topInset - bottomInset');
     });
 
-    test('version bumped to 0.18.2', async ({ page }) => {
+    test('version is 0.18.5', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
-        expect(src).toContain("VERSION = '0.18.2'");
+        expect(src).toContain("VERSION = '0.18.5'");
     });
 });
 
