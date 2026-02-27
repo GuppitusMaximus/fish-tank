@@ -26,12 +26,13 @@ const PAGE_TURN_MS = 700;   // 500ms animation + buffer
 const NEW_GAME_BTN = { x: 240, y: 97 };
 const CENTER = { x: 240, y: 135 };
 
-// Book dimensions (landscape): panelW=408, panelH=216, halfW=204, halfH=108, cornerSize=22
-// Next corner container at (halfW-22, -halfH) = (182, -108) relative to book center (240, 135)
-// Hitbox is Rectangle(0,0,22,22) in local space → center at (193, -97) → game (433, 38)
-const NEXT_CORNER = { x: 433, y: 38 };
+// Book dimensions (landscape): panelW=408, panelH=216, halfW=204, halfH=108
+// hitSize=44, cornerSize=22 (hit area enlarged, visual triangle unchanged)
+// Next corner container at (halfW-44, -halfH) = (160, -108) relative to book center (240, 135)
+// Hit area: game (400, 27) to (444, 71). Click in expanded zone at (410, 38).
+const NEXT_CORNER = { x: 410, y: 38 };
 // Back corner container at (-halfW, -halfH) = (-204, -108) relative to book center
-// Hitbox center at (-193, -97) → game (47, 38)
+// Hit area: game (36, 27) to (80, 71). Click at (47, 38).
 const BACK_CORNER = { x: 47, y: 38 };
 
 // Portrait game coordinates (270x480)
@@ -39,10 +40,10 @@ const PORT_GAME_W = 270;
 const PORT_GAME_H = 480;
 const PORT_NEW_GAME = { x: 135, y: 173 };
 const PORT_CENTER = { x: 135, y: 240 };
-// Book dims (portrait): panelW=230, panelH=360, halfW=115, halfH=180, cornerSize=22
-// Next corner container at (93, -180) → hitbox center (104, -169) → game (239, 71)
-const PORT_NEXT_CORNER = { x: 239, y: 71 };
-// Back corner container at (-115, -180) → hitbox center (-104, -169) → game (31, 71)
+// Book dims (portrait): panelW=230, panelH=360, halfW=115, halfH=180, hitSize=44
+// Next corner container at (71, -180) → hit area: game (206, 60) to (250, 104)
+const PORT_NEXT_CORNER = { x: 216, y: 71 };
+// Back corner container at (-115, -180) → hit area: game (20, 60) to (64, 104)
 const PORT_BACK_CORNER = { x: 31, y: 71 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,6 +57,8 @@ async function clickGame(page, gx, gy, gameW = GAME_W, gameH = GAME_H) {
     const bounds = await getCanvasBounds(page);
     const x = bounds.x + gx * (bounds.width / gameW);
     const y = bounds.y + gy * (bounds.height / gameH);
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(100);
     await page.mouse.click(x, y);
 }
 
