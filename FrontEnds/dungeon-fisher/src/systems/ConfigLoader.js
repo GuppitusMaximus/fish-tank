@@ -45,12 +45,12 @@ const ConfigLoader = {
         }
     },
 
-    getFish(id) {
+    getFish(id, { silent = false } = {}) {
         if (!_data) return null;
         const config = _data.fish[id];
         if (!config) {
             if (_strict) throw new Error(`ConfigLoader: fish '${id}' not found`);
-            console.warn(`[ConfigLoader] fish '${id}' not found`);
+            if (!silent) console.warn(`[ConfigLoader] fish '${id}' not found`);
             return null;
         }
         return parseColor(config);

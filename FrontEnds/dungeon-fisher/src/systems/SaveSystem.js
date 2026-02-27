@@ -64,7 +64,7 @@ export default class SaveSystem {
         // v2 → v3: replace multi-move system with single specialMove
         if (data.version === 2) {
             for (const fish of data.party) {
-                const species = ConfigLoader.getFish(fish.speciesId);
+                const species = ConfigLoader.getFish(fish.speciesId, { silent: true });
                 if (species) {
                     fish.moves = [species.specialMove];
                 } else {
@@ -79,7 +79,7 @@ export default class SaveSystem {
         // v3 → v4: add shield/healPower stats, species-specific growth recompute, new effect types, new game fields
         if (data.version === 3) {
             for (const fish of data.party) {
-                const species = ConfigLoader.getFish(fish.speciesId);
+                const species = ConfigLoader.getFish(fish.speciesId, { silent: true });
                 if (species) {
                     fish.maxHp = species.baseHp + (fish.level - 1) * species.growth.hp;
                     fish.atk = species.baseAtk + (fish.level - 1) * species.growth.atk;
