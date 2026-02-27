@@ -410,7 +410,7 @@ export default class FloorScene extends Phaser.Scene {
 
             // Hit zone
             const hit = this.add.rectangle(midX, midY, cardW, cardH, 0xffffff, 0)
-                .setDepth(5).setInteractive({ useHandCursor: true });
+                .setDepth(5).setInteractive();
 
             // --- Hover feedback: scale + tint ---
             hit.on('pointerover', () => {
