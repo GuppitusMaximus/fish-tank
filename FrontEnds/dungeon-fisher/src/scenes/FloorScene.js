@@ -973,6 +973,10 @@ export default class FloorScene extends Phaser.Scene {
         const H = this.scale.height;
         const gs = this.gameState;
 
+        this.children.removeAll();
+        this.tweens.killAll();
+        this.input.enabled = true;
+
         const bgKey = getBackgroundKey(gs.floor);
         UILayout.sceneBackground(this, bgKey, { effects: true });
         UILayout.overlay(this, { alpha: 0.4, depth: 0 });
