@@ -1,4 +1,4 @@
-import { getZoneByFloor } from '../data/themes.js';
+import { getZoneByFloor, ZONE_THEMES } from '../data/themes.js';
 import SaveSystem from '../systems/SaveSystem.js';
 import ConfigLoader from '../systems/ConfigLoader.js';
 
@@ -75,14 +75,17 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('bg_title', 'backgrounds/title.png');
         this.load.image('atlas_title', 'atlases/title.png');
         this.load.atlas('ui_gold', 'atlases/ui_gold.png', 'atlases/ui_gold.json');
+        for (const zone of Object.values(ZONE_THEMES)) {
+            if (zone.bgKey && zone.bgKey !== 'bg_title') {
+                const filename = zone.bgKey.replace('bg_', '');
+                this.load.image(zone.bgKey, `backgrounds/${filename}.png`);
+            }
+        }
+
         if (SaveSystem.hasSave()) {
             const saveData = SaveSystem.load();
             if (saveData) {
                 const zone = getZoneByFloor(saveData.floor);
-                if (zone.bgKey !== 'bg_title') {
-                    const filename = zone.bgKey.replace('bg_', '');
-                    this.load.image(zone.bgKey, `backgrounds/${filename}.png`);
-                }
                 if (zone.atlasKey) {
                     this.load.image(zone.atlasKey, `atlases/${zone.id}.png`);
                 }
