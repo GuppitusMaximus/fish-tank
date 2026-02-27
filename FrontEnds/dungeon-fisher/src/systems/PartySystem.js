@@ -89,7 +89,7 @@ export default class PartySystem {
     // Award XP and handle level ups. Returns array of messages.
     static awardXP(fish, xp) {
         const messages = [];
-        const species = ConfigLoader.getFish(fish.speciesId);
+        const species = ConfigLoader.getFish(fish.speciesId, { silent: !!fish.isCompanion });
         const combatConfig = ConfigLoader.getCombatConfig();
         const maxLevel = combatConfig.maxLevel || 20;
         const xpCurve = combatConfig.xpCurve || { base: 25, perLevel: 25 };
