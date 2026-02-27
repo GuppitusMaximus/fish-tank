@@ -104,47 +104,57 @@ export default class DelversLedgerScene extends Phaser.Scene {
     }
 
     _buildPageCorners(w, h) {
-        const cornerSize = 22;
-        const hitSize = 44;
+        const cornerSize = 36;
+        const hitSize = 56;
         const halfW = Math.round(w / 2);
         const halfH = Math.round(h / 2);
 
-        this._backCorner = this.add.container(-halfW, -halfH);
+        // Back corner (bottom-left page curl)
+        this._backCorner = this.add.container(-halfW, halfH - hitSize);
         const backGfx = this.add.graphics();
         backGfx.fillStyle(0xb8a878, 1);
-        backGfx.fillTriangle(0, 0, cornerSize, 0, 0, cornerSize);
-        backGfx.lineStyle(1, 0x5a4a32, 0.5);
-        backGfx.lineBetween(cornerSize, 0, 0, cornerSize);
+        backGfx.fillTriangle(0, hitSize, cornerSize, hitSize, 0, hitSize - cornerSize);
+        backGfx.lineStyle(1, 0x5a4a32, 0.6);
+        backGfx.lineBetween(cornerSize, hitSize, 0, hitSize - cornerSize);
         this._backCorner.add(backGfx);
+        const backArrow = this.add.text(Math.round(cornerSize / 3), Math.round(hitSize - cornerSize / 3), '\u25C4', {
+            fontSize: '12px', color: '#5a4a32', fontFamily: 'serif'
+        }).setOrigin(0.5);
+        this._backCorner.add(backArrow);
         this._backCorner.setSize(hitSize, hitSize);
         this._backCorner.setInteractive({
             hitArea: new Phaser.Geom.Rectangle(0, 0, hitSize, hitSize),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
             useHandCursor: true
         });
-        this._backCorner.setAlpha(0.6);
+        this._backCorner.setAlpha(0.8);
         this._backCorner.on('pointerover', () => this._backCorner.setAlpha(1));
-        this._backCorner.on('pointerout', () => this._backCorner.setAlpha(0.6));
+        this._backCorner.on('pointerout', () => this._backCorner.setAlpha(0.8));
         this._backCorner.on('pointerdown', () => this._navigateToPage(-1));
         this._backCorner.setVisible(false);
         this._bookContainer.add(this._backCorner);
 
-        this._nextCorner = this.add.container(halfW - hitSize, -halfH);
+        // Next corner (bottom-right page curl)
+        this._nextCorner = this.add.container(halfW - hitSize, halfH - hitSize);
         const nextGfx = this.add.graphics();
         nextGfx.fillStyle(0xb8a878, 1);
-        nextGfx.fillTriangle(hitSize - cornerSize, 0, hitSize, 0, hitSize, cornerSize);
-        nextGfx.lineStyle(1, 0x5a4a32, 0.5);
-        nextGfx.lineBetween(hitSize - cornerSize, 0, hitSize, cornerSize);
+        nextGfx.fillTriangle(hitSize - cornerSize, hitSize, hitSize, hitSize, hitSize, hitSize - cornerSize);
+        nextGfx.lineStyle(1, 0x5a4a32, 0.6);
+        nextGfx.lineBetween(hitSize - cornerSize, hitSize, hitSize, hitSize - cornerSize);
         this._nextCorner.add(nextGfx);
+        const nextArrow = this.add.text(Math.round(hitSize - cornerSize / 3), Math.round(hitSize - cornerSize / 3), '\u25BA', {
+            fontSize: '12px', color: '#5a4a32', fontFamily: 'serif'
+        }).setOrigin(0.5);
+        this._nextCorner.add(nextArrow);
         this._nextCorner.setSize(hitSize, hitSize);
         this._nextCorner.setInteractive({
             hitArea: new Phaser.Geom.Rectangle(0, 0, hitSize, hitSize),
             hitAreaCallback: Phaser.Geom.Rectangle.Contains,
             useHandCursor: true
         });
-        this._nextCorner.setAlpha(0.6);
+        this._nextCorner.setAlpha(0.8);
         this._nextCorner.on('pointerover', () => this._nextCorner.setAlpha(1));
-        this._nextCorner.on('pointerout', () => this._nextCorner.setAlpha(0.6));
+        this._nextCorner.on('pointerout', () => this._nextCorner.setAlpha(0.8));
         this._nextCorner.on('pointerdown', () => this._navigateToPage(1));
         this._nextCorner.setVisible(false);
         this._bookContainer.add(this._nextCorner);
@@ -283,6 +293,21 @@ export default class DelversLedgerScene extends Phaser.Scene {
         }
         if (this._nextCorner) {
             this._nextCorner.setVisible(this._currentPage < this._pages.length - 1);
+        }
+        // Pulse corners on first appearance to draw player attention
+        if (!this._cornersHinted) {
+            this._cornersHinted = true;
+            this.time.delayedCall(200, () => {
+                [this._backCorner, this._nextCorner].forEach(c => {
+                    if (c && c.visible) {
+                        this.tweens.add({
+                            targets: c, alpha: 1, duration: 400,
+                            yoyo: true, repeat: 1, ease: 'Sine.easeInOut',
+                            onComplete: () => { if (c.scene) c.setAlpha(0.8); }
+                        });
+                    }
+                });
+            });
         }
     }
 
