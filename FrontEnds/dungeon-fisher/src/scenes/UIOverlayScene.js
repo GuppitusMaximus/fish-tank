@@ -43,7 +43,7 @@ export default class UIOverlayScene extends Phaser.Scene {
                 this.closeInventory();
                 this.closeEquipmentGrid();
                 const scenesToStop = [
-                    'TitleScene', 'CharacterSelectScene', 'FloorScene', 'BattleScene',
+                    'TitleScene', 'DelversLedgerScene', 'FloorScene', 'BattleScene',
                     'ShopScene', 'CampScene', 'VictoryScene', 'ZonePreviewScene'
                 ];
                 for (const key of scenesToStop) {
@@ -102,9 +102,9 @@ export default class UIOverlayScene extends Phaser.Scene {
         this._equipEditScenes = new Set(['FloorScene', 'CampScene', 'ShopScene']);
         this._currentScene = null;
 
-        const menuHiddenScenes = new Set(['BootScene', 'TitleScene']);
-        const bagHiddenScenes = new Set(['BootScene', 'TitleScene', 'CharacterSelectScene', 'ZonePreviewScene']);
-        const equipHiddenScenes = new Set(['BootScene', 'TitleScene', 'CharacterSelectScene', 'ZonePreviewScene']);
+        const menuHiddenScenes = new Set(['BootScene', 'TitleScene', 'DelversLedgerScene']);
+        const bagHiddenScenes = new Set(['BootScene', 'TitleScene', 'DelversLedgerScene', 'ZonePreviewScene']);
+        const equipHiddenScenes = new Set(['BootScene', 'TitleScene', 'DelversLedgerScene', 'ZonePreviewScene']);
 
         for (const s of this.scene.manager.scenes) {
             if (s.scene.key === 'UIOverlay') continue;

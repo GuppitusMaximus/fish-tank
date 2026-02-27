@@ -217,6 +217,28 @@ export const CHARACTER_THEMES = {
     },
 };
 
+export const LEDGER_THEME = {
+    id: 'ledger',
+    name: "Delver's Ledger",
+    panel: {
+        fill: 0x1a0e08,
+        outer: 0x6b4226,
+        inner: 0x3d2414,
+        accent: 0xc4a35a,
+    },
+};
+
+export const PAGE_THEME = {
+    id: 'ledger_page',
+    name: 'Ledger Page',
+    panel: {
+        fill: 0x2a2218,
+        outer: 0x5a4a32,
+        inner: 0x3a3020,
+        accent: 0x1a1008,
+    },
+};
+
 const ZONE_LIST = Object.values(ZONE_THEMES).sort((a, b) => a.floorRange[0] - b.floorRange[0]);
 
 export function getZoneByFloor(floor) {

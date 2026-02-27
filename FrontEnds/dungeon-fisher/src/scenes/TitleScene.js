@@ -163,7 +163,7 @@ export default class TitleScene extends Phaser.Scene {
         // Animated title buttons
         this._buttons = [];
         this._buttons.push(this._createTitleButton(width / 2, height * 0.36, 'NEW GAME',
-            () => this.scene.start('CharacterSelectScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8, titleContainer));
+            () => this.scene.start('DelversLedgerScene'), 3500, '16px', TITLE_THEME, null, 20, 10, 8, titleContainer));
 
         if (SaveSystem.hasSave()) {
             const saveData = SaveSystem.load();

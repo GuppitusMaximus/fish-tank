@@ -7,7 +7,7 @@ import ShopScene from './scenes/ShopScene.js';
 import CampScene from './scenes/CampScene.js';
 import VictoryScene from './scenes/VictoryScene.js';
 import ZonePreviewScene from './scenes/ZonePreviewScene.js';
-import CharacterSelectScene from './scenes/CharacterSelectScene.js';
+import DelversLedgerScene from './scenes/DelversLedgerScene.js';
 import UIOverlayScene from './scenes/UIOverlayScene.js';
 
 const isPortrait = window.innerHeight > window.innerWidth;
@@ -26,7 +26,7 @@ const config = {
     scene: [
         BootScene,
         TitleScene,
-        CharacterSelectScene,
+        DelversLedgerScene,
         FloorScene,
         BattleScene,
         ShopScene,
