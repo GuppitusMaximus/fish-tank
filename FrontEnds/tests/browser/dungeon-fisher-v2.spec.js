@@ -54,7 +54,7 @@ async function waitForGame(page) {
 // Wait 5s to ensure buttons are fully visible and interactive.
 async function freshStart(page) {
     await page.goto(BASE);
-    await page.evaluate(() => localStorage.removeItem('dungeon-fisher-save'));
+    await page.evaluate(() => localStorage.removeItem('fathom-fall-save'));
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('canvas', { timeout: 10000 });
     await page.waitForTimeout(5000);
@@ -137,7 +137,7 @@ test('title: canvas renders content on fresh start', async ({ page }) => {
 
 test('title: no save file on fresh start', async ({ page }) => {
     await freshStart(page);
-    const hasSave = await page.evaluate(() => !!localStorage.getItem('dungeon-fisher-save'));
+    const hasSave = await page.evaluate(() => !!localStorage.getItem('fathom-fall-save'));
     expect(hasSave).toBe(false);
 });
 
@@ -169,12 +169,12 @@ test('new game: selecting starter creates save with guppy at floor 1', async ({ 
     await page.waitForTimeout(300);
     // First starter (Guppy) SELECT button: x=120, y = H*0.45+45 = 166
     await clickGame(page, 120, 166);
-    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
+    await page.waitForFunction(() => !!localStorage.getItem('fathom-fall-save'), { timeout: 5000 });
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-03b-floor-scene.png' });
 
     const save = await page.evaluate(() => {
-        const raw = localStorage.getItem('dungeon-fisher-save');
+        const raw = localStorage.getItem('fathom-fall-save');
         return raw ? JSON.parse(raw) : null;
     });
     expect(save).not.toBeNull();
@@ -193,9 +193,9 @@ test('new game: pufferfish starter creates save with correct species', async ({ 
     await page.waitForTimeout(300);
     // Second starter (Pufferfish) SELECT at x=240, y=166
     await clickGame(page, 240, 166);
-    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
+    await page.waitForFunction(() => !!localStorage.getItem('fathom-fall-save'), { timeout: 5000 });
 
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     expect(save).not.toBeNull();
     expect(save.party[0].speciesId).toBe('pufferfish');
     expect(save.party[0].hp).toBe(45);  // pufferfish baseHp
@@ -209,9 +209,9 @@ test('new game: swordfish starter creates save with correct species', async ({ p
     await page.waitForTimeout(300);
     // Third starter (Swordfish) SELECT at x=360, y=166
     await clickGame(page, 360, 166);
-    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
+    await page.waitForFunction(() => !!localStorage.getItem('fathom-fall-save'), { timeout: 5000 });
 
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     expect(save).not.toBeNull();
     expect(save.party[0].speciesId).toBe('swordfish');
     expect(save.party[0].atk).toBe(14);  // swordfish baseAtk
@@ -298,7 +298,7 @@ test('shop: buy item with sufficient gold updates inventory', async ({ page }) =
     await page.goto(BASE);
     // Set up save with 100 gold
     await page.evaluate(() => {
-        localStorage.setItem('dungeon-fisher-save', JSON.stringify({
+        localStorage.setItem('fathom-fall-save', JSON.stringify({
             version: 1, savedAt: Date.now(), floor: 5, gold: 100, campFloor: 1,
             party: [{ speciesId: 'guppy', name: 'Guppy', level: 1, xp: 0, xpToNext: 25,
                 hp: 30, maxHp: 30, atk: 8, def: 5, spd: 6, moves: ['splash'], poisoned: null, buffs: [] }],
@@ -322,7 +322,7 @@ test('shop: buy item with sufficient gold updates inventory', async ({ page }) =
     await page.waitForTimeout(500);
 
     // After buying, shop rebuilds — check save
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     if (save && save.inventory.length > 0) {
         expect(save.gold).toBe(85);
         expect(save.inventory).toContain('potion');
@@ -360,7 +360,7 @@ test('camp: entering camp heals fish and saves checkpoint', async ({ page }) => 
 
     await page.goto(BASE);
     await page.evaluate(() => {
-        localStorage.setItem('dungeon-fisher-save', JSON.stringify({
+        localStorage.setItem('fathom-fall-save', JSON.stringify({
             version: 1, savedAt: Date.now(), floor: 3, gold: 20, campFloor: 1,
             party: [{ speciesId: 'guppy', name: 'Guppy', level: 1, xp: 0, xpToNext: 25,
                 hp: 10, maxHp: 30, atk: 8, def: 5, spd: 6, moves: ['splash'], poisoned: null, buffs: [] }],
@@ -380,7 +380,7 @@ test('camp: entering camp heals fish and saves checkpoint', async ({ page }) => 
 
     await page.screenshot({ path: 'tests/browser/screenshots/v2-06-camp-scene.png' });
 
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     if (save) {
         expect(save.campFloor).toBe(3);  // checkpoint updated to current floor
         expect(save.party[0].hp).toBe(30);  // fully healed
@@ -395,7 +395,7 @@ test('camp: continue button returns to floor scene', async ({ page }) => {
 
     await page.goto(BASE);
     await page.evaluate(() => {
-        localStorage.setItem('dungeon-fisher-save', JSON.stringify({
+        localStorage.setItem('fathom-fall-save', JSON.stringify({
             version: 1, savedAt: Date.now(), floor: 2, gold: 10, campFloor: 1,
             party: [{ speciesId: 'guppy', name: 'Guppy', level: 1, xp: 0, xpToNext: 25,
                 hp: 25, maxHp: 30, atk: 8, def: 5, spd: 6, moves: ['splash'], poisoned: null, buffs: [] }],
@@ -427,11 +427,11 @@ test('save: save data has correct structure', async ({ page }) => {
     await clickGame(page, 312, 211);  // CharacterSelect SELECT
     await page.waitForTimeout(300);
     await clickGame(page, 120, 166);  // SELECT guppy
-    await page.waitForFunction(() => !!localStorage.getItem('dungeon-fisher-save'), { timeout: 5000 });
+    await page.waitForFunction(() => !!localStorage.getItem('fathom-fall-save'), { timeout: 5000 });
 
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     expect(save).not.toBeNull();
-    expect(save).toHaveProperty('version', 3);  // SAVE_FORMAT_VERSION is now 3
+    expect(save).toHaveProperty('version', 5);
     expect(save).toHaveProperty('floor');
     expect(save).toHaveProperty('gold');
     expect(save).toHaveProperty('party');
@@ -446,7 +446,7 @@ test('save: save data has correct structure', async ({ page }) => {
 test('load: CONTINUE button loads correct floor', async ({ page }) => {
     await page.goto(BASE);
     await page.evaluate(() => {
-        localStorage.setItem('dungeon-fisher-save', JSON.stringify({
+        localStorage.setItem('fathom-fall-save', JSON.stringify({
             version: 1, savedAt: Date.now(), floor: 7, gold: 50, campFloor: 5,
             party: [{ speciesId: 'swordfish', name: 'Swordfish', level: 3, xp: 0, xpToNext: 75,
                 hp: 32, maxHp: 32, atk: 18, def: 5, spd: 10, moves: ['fin_slash', 'deep_strike'],
@@ -465,7 +465,7 @@ test('load: CONTINUE button loads correct floor', async ({ page }) => {
     await page.screenshot({ path: 'tests/browser/screenshots/v2-07-load-floor7.png' });
 
     // Save should still show floor 7
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     if (save) {
         expect(save.floor).toBe(7);
         expect(save.party[0].speciesId).toBe('swordfish');
@@ -476,7 +476,7 @@ test('load: CONTINUE button loads correct floor', async ({ page }) => {
 test('load: new game overwrites old save', async ({ page }) => {
     await page.goto(BASE);
     await page.evaluate(() => {
-        localStorage.setItem('dungeon-fisher-save', JSON.stringify({
+        localStorage.setItem('fathom-fall-save', JSON.stringify({
             version: 1, savedAt: Date.now(), floor: 42, gold: 300, campFloor: 40,
             party: [{ speciesId: 'pufferfish', name: 'Pufferfish', level: 8, xp: 0, xpToNext: 200,
                 hp: 85, maxHp: 85, atk: 21, def: 17, spd: 11, moves: ['tackle', 'harden', 'poison_bite'],
@@ -494,12 +494,12 @@ test('load: new game overwrites old save', async ({ page }) => {
     await page.waitForTimeout(300);
     await clickGame(page, 360, 166);  // SELECT swordfish
     await page.waitForFunction(() => {
-        const raw = localStorage.getItem('dungeon-fisher-save');
+        const raw = localStorage.getItem('fathom-fall-save');
         if (!raw) return false;
         return JSON.parse(raw).floor === 1;
     }, { timeout: 5000 });
 
-    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('dungeon-fisher-save') || 'null'));
+    const save = await page.evaluate(() => JSON.parse(localStorage.getItem('fathom-fall-save') || 'null'));
     expect(save).not.toBeNull();
     expect(save.floor).toBe(1);
     expect(save.party[0].speciesId).toBe('swordfish');
@@ -594,27 +594,27 @@ test('logic: monster scales significantly by floor 50', async ({ page }) => {
     expect(f50.atk).toBeGreaterThan(f1.atk * 4);
 });
 
-test('logic: XP to next level = level * 25', async ({ page }) => {
+test('logic: XP to next level = 25 + level * 25', async ({ page }) => {
     await page.goto(BASE);
     const thresholds = await page.evaluate(() =>
-        [1, 2, 3, 4, 5].map(lvl => lvl * 25)
+        [1, 2, 3, 4, 5].map(lvl => 25 + lvl * 25)
     );
-    expect(thresholds).toEqual([25, 50, 75, 100, 125]);
+    expect(thresholds).toEqual([50, 75, 100, 125, 150]);
 });
 
 test('logic: level up stat increases are correct', async ({ page }) => {
     await page.goto(BASE);
     const result = await page.evaluate(() => {
         // Guppy level 1: hp=30, atk=8, def=5, spd=6
-        // After 1 level up: hp+5, atk+2, def+1, spd+1
+        // After 1 level up: hp+4, atk+2, def+1, spd+1 (guppy growth)
         return {
-            hp: 30 + 5,
+            hp: 30 + 4,
             atk: 8 + 2,
             def: 5 + 1,
             spd: 6 + 1
         };
     });
-    expect(result.hp).toBe(35);
+    expect(result.hp).toBe(34);
     expect(result.atk).toBe(10);
     expect(result.def).toBe(6);
     expect(result.spd).toBe(7);
@@ -680,7 +680,7 @@ test('victory: injecting floor 101 triggers victory in game state', async ({ pag
     // Set up at floor 100 with full party
     await page.goto(BASE);
     await page.evaluate(() => {
-        localStorage.setItem('dungeon-fisher-save', JSON.stringify({
+        localStorage.setItem('fathom-fall-save', JSON.stringify({
             version: 1, savedAt: Date.now(), floor: 100, gold: 500, campFloor: 90,
             party: [
                 { speciesId: 'guppy', name: 'Guppy', level: 15, xp: 0, xpToNext: 375,
