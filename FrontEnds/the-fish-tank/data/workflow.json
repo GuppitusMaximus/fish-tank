@@ -1,21 +1,29 @@
 {
-  "generated_at": "2026-02-28T19:02:24Z",
+  "generated_at": "2026-02-28T19:22:25Z",
   "schedule": {
     "cron": "0,20,40 * * * *",
-    "next_run": "2026-02-28T19:20:00Z"
+    "next_run": "2026-02-28T19:40:00Z"
   },
   "latest": {
-    "id": 22526983181,
+    "id": 22527310873,
     "status": "completed",
     "conclusion": "success",
     "event": "workflow_dispatch",
-    "created_at": "2026-02-28T19:00:28Z",
-    "updated_at": "2026-02-28T19:02:16Z",
-    "duration_seconds": 108,
-    "duration_display": "1m 48s",
-    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22526983181"
+    "created_at": "2026-02-28T19:20:17Z",
+    "updated_at": "2026-02-28T19:22:17Z",
+    "duration_seconds": 120,
+    "duration_display": "2m 0s",
+    "html_url": "https://github.com/GuppitusMaximus/fish-tank/actions/runs/22527310873"
   },
   "runs": [
+    {
+      "id": 22527310873,
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "created_at": "2026-02-28T19:20:17Z",
+      "duration_seconds": 120,
+      "duration_display": "2m 0s"
+    },
     {
       "id": 22526983181,
       "conclusion": "success",
@@ -807,14 +815,6 @@
       "created_at": "2026-02-27T10:20:18Z",
       "duration_seconds": 101,
       "duration_display": "1m 41s"
-    },
-    {
-      "id": 22481610798,
-      "conclusion": "success",
-      "event": "workflow_dispatch",
-      "created_at": "2026-02-27T10:00:18Z",
-      "duration_seconds": 106,
-      "duration_display": "1m 46s"
     }
   ],
   "stats": {
