@@ -1,0 +1,155 @@
+{
+  "body": {
+    "devices": [
+      {
+        "_id": "redacted",
+        "date_setup": 1770498755,
+        "last_setup": 1770498755,
+        "type": "NAMain",
+        "last_status_store": 1773028323,
+        "firmware": 300,
+        "wifi_status": 45,
+        "reachable": true,
+        "co2_calibrating": false,
+        "data_type": [
+          "Temperature",
+          "CO2",
+          "Humidity",
+          "Noise",
+          "Pressure"
+        ],
+        "place": {
+          "timezone": "America/New_York"
+        },
+        "station_name": "My Home (Indoor)",
+        "home_id": "redacted",
+        "home_name": "redacted",
+        "dashboard_data": {
+          "time_utc": 1773028320,
+          "Temperature": 22,
+          "CO2": 589,
+          "Humidity": 39,
+          "Noise": 68,
+          "Pressure": 1008.5,
+          "AbsolutePressure": 982.4,
+          "temp_trend": "stable",
+          "pressure_trend": "up"
+        },
+        "modules": [
+          {
+            "_id": "redacted",
+            "type": "NAModule1",
+            "last_setup": 1770498755,
+            "data_type": [
+              "Temperature",
+              "Humidity"
+            ],
+            "battery_percent": 97,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1773028318,
+            "last_seen": 1773028273,
+            "rf_status": 64,
+            "battery_vp": 5950,
+            "dashboard_data": {
+              "time_utc": 1773028273,
+              "Temperature": 5,
+              "Humidity": 65,
+              "temp_trend": "stable"
+            }
+          },
+          {
+            "_id": "redacted",
+            "type": "NAModule4",
+            "module_name": "Bed room",
+            "last_setup": 1772065716,
+            "data_type": [
+              "Temperature",
+              "CO2",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1773028318,
+            "last_seen": 1773028305,
+            "rf_status": 70,
+            "battery_vp": 6126,
+            "dashboard_data": {
+              "time_utc": 1773028305,
+              "Temperature": 21.3,
+              "CO2": 771,
+              "Humidity": 41,
+              "temp_trend": "stable"
+            }
+          },
+          {
+            "_id": "redacted",
+            "type": "NAModule4",
+            "module_name": "Kat\u2019s Room",
+            "last_setup": 1772066684,
+            "data_type": [
+              "Temperature",
+              "CO2",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1773028318,
+            "last_seen": 1773028305,
+            "rf_status": 62,
+            "battery_vp": 6128,
+            "dashboard_data": {
+              "time_utc": 1773028305,
+              "Temperature": 20.1,
+              "CO2": 746,
+              "Humidity": 40,
+              "temp_trend": "stable"
+            }
+          },
+          {
+            "_id": "redacted",
+            "type": "NAModule4",
+            "module_name": "Finlay\u2019s Room",
+            "last_setup": 1772066989,
+            "data_type": [
+              "Temperature",
+              "CO2",
+              "Humidity"
+            ],
+            "battery_percent": 100,
+            "reachable": true,
+            "firmware": 53,
+            "last_message": 1773028318,
+            "last_seen": 1773028306,
+            "rf_status": 59,
+            "battery_vp": 6112,
+            "dashboard_data": {
+              "time_utc": 1773028306,
+              "Temperature": 20.8,
+              "CO2": 717,
+              "Humidity": 41,
+              "temp_trend": "stable"
+            }
+          }
+        ]
+      }
+    ],
+    "user": {
+      "mail": "redacted",
+      "administrative": {
+        "lang": "en-US",
+        "reg_locale": "en-US",
+        "country": "US",
+        "unit": 1,
+        "windunit": 1,
+        "pressureunit": 0,
+        "feel_like_algo": 1
+      }
+    }
+  },
+  "status": "ok",
+  "time_exec": 0.04465794563293457,
+  "time_server": 1773028823
+}
