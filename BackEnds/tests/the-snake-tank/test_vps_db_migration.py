@@ -229,21 +229,35 @@ class TestBackfillIdempotency:
         section = backfill.split("def backfill_prediction_history")[1].split("def ")[0]
         assert "ON CONFLICT" in section and "DO NOTHING" in section
 
-    def test_public_stations_missing_on_conflict(self):
-        """BUG: public_stations has no ON CONFLICT — re-running backfill duplicates rows."""
+    def test_public_stations_has_on_conflict(self):
         backfill = _read("backfill.py")
         section = backfill.split("def backfill_public_stations")[1].split("def ")[0]
-        has_conflict = "ON CONFLICT" in section
-        assert not has_conflict, \
-            "Expected ON CONFLICT to be missing (known bug). If fixed, update this test."
+        assert "ON CONFLICT (fetched_at, station_id) DO NOTHING" in section
 
-    def test_predictions_missing_on_conflict(self):
-        """BUG: predictions has no ON CONFLICT — re-running backfill duplicates rows."""
+    def test_predictions_has_on_conflict(self):
         backfill = _read("backfill.py")
         section = backfill.split("def backfill_predictions")[1].split("def ")[0]
-        has_conflict = "ON CONFLICT" in section
-        assert not has_conflict, \
-            "Expected ON CONFLICT to be missing (known bug). If fixed, update this test."
+        assert "ON CONFLICT (generated_at, model_type, for_hour) DO NOTHING" in section
+
+    def test_public_stations_conflict_cols_match_unique(self):
+        sql = _schema_sql()
+        match = re.search(
+            r"CREATE TABLE IF NOT EXISTS public_stations\s*\((.*?)\);",
+            sql, re.DOTALL)
+        assert "UNIQUE(fetched_at, station_id)" in match.group(1)
+        backfill = _read("backfill.py")
+        section = backfill.split("def backfill_public_stations")[1].split("def ")[0]
+        assert "ON CONFLICT (fetched_at, station_id)" in section
+
+    def test_predictions_conflict_cols_match_unique(self):
+        sql = _schema_sql()
+        match = re.search(
+            r"CREATE TABLE IF NOT EXISTS predictions\s*\((.*?)\);",
+            sql, re.DOTALL)
+        assert "UNIQUE(generated_at, model_type, for_hour)" in match.group(1)
+        backfill = _read("backfill.py")
+        section = backfill.split("def backfill_predictions")[1].split("def ")[0]
+        assert "ON CONFLICT (generated_at, model_type, for_hour)" in section
 
 
 # --- Retention cleanup tests ---
