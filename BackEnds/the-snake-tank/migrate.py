@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS public_stations (
     wind_strength   INTEGER,
     wind_angle      INTEGER,
     gust_strength   INTEGER,
-    gust_angle      INTEGER
+    gust_angle      INTEGER,
+    UNIQUE(fetched_at, station_id)
 );
 
 -- ML model predictions
@@ -71,7 +72,8 @@ CREATE TABLE IF NOT EXISTS predictions (
     temp_outdoor_predicted      DOUBLE PRECISION,
     last_reading_ts             BIGINT,
     last_reading_temp_indoor    DOUBLE PRECISION,
-    last_reading_temp_outdoor   DOUBLE PRECISION
+    last_reading_temp_outdoor   DOUBLE PRECISION,
+    UNIQUE(generated_at, model_type, for_hour)
 );
 
 -- Prediction validation history

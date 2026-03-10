@@ -141,7 +141,7 @@ def backfill_public_stations(cur):
 
     cols = ", ".join(PUBLIC_STATIONS_COLS)
     placeholders = ", ".join(["%s"] * len(PUBLIC_STATIONS_COLS))
-    sql = f"INSERT INTO public_stations ({cols}) VALUES ({placeholders})"
+    sql = f"INSERT INTO public_stations ({cols}) VALUES ({placeholders}) ON CONFLICT (fetched_at, station_id) DO NOTHING"
 
     inserted = 0
     for csv_path in csv_files:
@@ -157,7 +157,8 @@ def backfill_public_stations(cur):
                     _int(row["wind_strength"]), _int(row["wind_angle"]),
                     _int(row["gust_strength"]), _int(row["gust_angle"]),
                 ])
-                inserted += 1
+                if cur.rowcount > 0:
+                    inserted += 1
 
     print(f"Public stations: {inserted} rows from {len(csv_files)} files")
     return inserted
@@ -173,7 +174,8 @@ def backfill_predictions(cur):
              (generated_at, model_type, model_version, for_hour,
               temp_indoor_predicted, temp_outdoor_predicted,
               last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+             ON CONFLICT (generated_at, model_type, for_hour) DO NOTHING"""
 
     inserted = 0
     skipped = 0
@@ -194,7 +196,8 @@ def backfill_predictions(cur):
                 lr.get("temp_indoor"),
                 lr.get("temp_outdoor"),
             ))
-            inserted += 1
+            if cur.rowcount > 0:
+                inserted += 1
         except (json.JSONDecodeError, KeyError, ValueError):
             skipped += 1
 
