@@ -1,0 +1,15 @@
+[Unit]
+Description=FishTank ML API
+After=network.target
+
+[Service]
+Type=simple
+User=fishtank
+WorkingDirectory=/home/fishtank/the-snake-tank
+EnvironmentFile=/home/fishtank/the-snake-tank/.env
+ExecStart=/home/fishtank/the-snake-tank/.venv/bin/uvicorn app_ml:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
