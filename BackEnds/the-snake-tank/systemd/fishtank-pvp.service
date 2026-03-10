@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=simple
 User=fishtank
-WorkingDirectory=/home/fishtank/the-snake-tank
-EnvironmentFile=/home/fishtank/the-snake-tank/.env
-ExecStart=/home/fishtank/the-snake-tank/.venv/bin/uvicorn app_pvp:app --host 127.0.0.1 --port 8002
+WorkingDirectory=/opt/fishtank/BackEnds/the-snake-tank
+EnvironmentFile=/opt/fishtank/BackEnds/the-snake-tank/.env
+ExecStart=/opt/fishtank/BackEnds/the-snake-tank/.venv/bin/uvicorn app_pvp:app --host 127.0.0.1 --port 8002
 Restart=always
 RestartSec=5
 
