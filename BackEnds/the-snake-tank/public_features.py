@@ -1,11 +1,11 @@
 """Spatial features from nearby public Netatmo weather stations.
 
-Queries the public_stations table in weather.db and computes regional
+Queries the public_stations table in the database and computes regional
 statistics for each reading timestamp in a lookback window. Used by
 both predict.py and train_model.py to ensure feature consistency.
 """
 
-import sqlite3
+from db import get_connection
 
 # Full spatial features (used by 24hrRaw model)
 SPATIAL_COLS_FULL = [
@@ -33,30 +33,31 @@ SPATIAL_COLS_ENRICHED = SPATIAL_COLS_FULL + [
 ]
 
 
-def _has_public_stations(conn):
+def _has_public_stations(cur):
     """Check if the public_stations table exists and has data."""
-    tables = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='public_stations'"
-    ).fetchall()
-    if not tables:
+    cur.execute(
+        "SELECT tablename FROM information_schema.tables WHERE schemaname='public' AND tablename='public_stations'"
+    )
+    if not cur.fetchone():
         return False
-    count = conn.execute("SELECT COUNT(*) FROM public_stations").fetchone()[0]
-    return count > 0
+    cur.execute("SELECT COUNT(*) FROM public_stations")
+    return cur.fetchone()[0] > 0
 
 
-def _get_features_for_timestamp(conn, timestamp, temp_outdoor):
+def _get_features_for_timestamp(cur, timestamp, temp_outdoor):
     """Compute spatial features for a single reading timestamp.
 
     Queries public stations within +/-30 minutes of the timestamp.
-    Returns a dict with all SPATIAL_COLS_FULL keys.
+    Returns a dict with all SPATIAL_COLS_ENRICHED keys.
     """
-    rows = conn.execute("""
+    cur.execute("""
         SELECT temperature, humidity, pressure,
                rain_60min, rain_24h, wind_strength, gust_strength
         FROM public_stations
-        WHERE abs(cast(strftime('%%s', fetched_at) as integer) - ?) < 1800
+        WHERE ABS(EXTRACT(EPOCH FROM fetched_at::TIMESTAMPTZ) - %s) < 1800
           AND temperature IS NOT NULL
-    """, (int(timestamp),)).fetchall()
+    """, (int(timestamp),))
+    rows = cur.fetchall()
 
     if not rows:
         return {col: 0.0 for col in SPATIAL_COLS_ENRICHED}
@@ -85,7 +86,7 @@ def _get_features_for_timestamp(conn, timestamp, temp_outdoor):
     }
 
 
-def add_spatial_columns(db_path, df):
+def add_spatial_columns(df):
     """Add spatial feature columns to a readings DataFrame.
 
     For each row, queries public_stations for readings within +/-30 minutes
@@ -95,7 +96,6 @@ def add_spatial_columns(db_path, df):
     columns are filled with 0.0 (models learn to ignore zero features).
 
     Args:
-        db_path: Path to weather.db
         df: pandas DataFrame with 'timestamp' and 'temp_outdoor' columns
 
     Returns:
@@ -106,19 +106,18 @@ def add_spatial_columns(db_path, df):
         if col not in df.columns:
             df[col] = 0.0
 
-    conn = sqlite3.connect(db_path)
+    with get_connection() as conn:
+        cur = conn.cursor()
 
-    if not _has_public_stations(conn):
-        conn.close()
-        return df
+        if not _has_public_stations(cur):
+            return df
 
-    for idx in range(len(df)):
-        ts = df.iloc[idx]["timestamp"]
-        temp_outdoor = df.iloc[idx].get("temp_outdoor")
-        features = _get_features_for_timestamp(conn, ts, temp_outdoor)
-        for col in SPATIAL_COLS_ENRICHED:
-            if col in features:
-                df.iat[idx, df.columns.get_loc(col)] = features[col]
+        for idx in range(len(df)):
+            ts = df.iloc[idx]["timestamp"]
+            temp_outdoor = df.iloc[idx].get("temp_outdoor")
+            features = _get_features_for_timestamp(cur, ts, temp_outdoor)
+            for col in SPATIAL_COLS_ENRICHED:
+                if col in features:
+                    df.iat[idx, df.columns.get_loc(col)] = features[col]
 
-    conn.close()
     return df

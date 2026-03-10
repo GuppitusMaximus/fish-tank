@@ -22,6 +22,10 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 
+from config import DATA_DIR, MODEL_DIR
+from db import get_connection
+from psycopg2.extras import RealDictCursor
+
 def upload_to_r2(file_path, object_key):
     """Upload a file to Cloudflare R2 via S3-compatible API."""
     import boto3
@@ -51,45 +55,14 @@ def upload_to_r2(file_path, object_key):
         print(f"WARNING: R2 upload failed for {object_key}: {e}")
 
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
 PUBLIC_STATIONS_DIR = os.path.join(DATA_DIR, "public-stations")
 VALIDATION_DIR = os.path.join(DATA_DIR, "validation")
 HISTORY_JSON = os.path.join(DATA_DIR, "prediction-history.json")
-DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
-
-PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    generated_at TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    model_version INTEGER,
-    for_hour TEXT NOT NULL,
-    temp_indoor_predicted REAL,
-    temp_outdoor_predicted REAL,
-    last_reading_ts INTEGER,
-    last_reading_temp_indoor REAL,
-    last_reading_temp_outdoor REAL
-)"""
-
-PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    predicted_at TEXT NOT NULL,
-    for_hour TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    model_version INTEGER,
-    predicted_indoor REAL,
-    predicted_outdoor REAL,
-    actual_indoor REAL,
-    actual_outdoor REAL,
-    error_indoor REAL,
-    error_outdoor REAL,
-    UNIQUE(model_type, for_hour)
-)"""
 
 PROPERTY_META = {
-    "temp_indoor": {"label": "Indoor Temp", "unit": "°C", "format": "temperature"},
-    "temp_outdoor": {"label": "Outdoor Temp", "unit": "°C", "format": "temperature"},
+    "temp_indoor": {"label": "Indoor Temp", "unit": "\u00b0C", "format": "temperature"},
+    "temp_outdoor": {"label": "Outdoor Temp", "unit": "\u00b0C", "format": "temperature"},
 }
 
 
@@ -126,31 +99,28 @@ def _find_latest_for_hour(directory, hour):
 def _find_predictions_for_hour_from_db(date_str, target_hour):
     """Try to find predictions from DB for a given date and hour.
     Returns list of prediction dicts, or None if unavailable."""
-    if not os.path.exists(DB_PATH):
-        return None
     try:
         # Build the hour pattern: predictions generated at this hour predict for hour+1
         hour_prefix = f"{date_str}T{target_hour:02d}"
 
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """SELECT model_type, model_version, for_hour,
-                      temp_indoor_predicted, temp_outdoor_predicted,
-                      generated_at
-               FROM predictions
-               WHERE generated_at LIKE ?
-               GROUP BY model_type
-               HAVING MAX(generated_at)""",
-            (f"{hour_prefix}%",)).fetchall()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """SELECT DISTINCT ON (model_type)
+                       model_type, model_version, for_hour,
+                       temp_indoor_predicted, temp_outdoor_predicted,
+                       generated_at
+                   FROM predictions
+                   WHERE generated_at LIKE %s
+                   ORDER BY model_type, generated_at DESC""",
+                (f"{hour_prefix}%",))
+            rows = cur.fetchall()
 
         if not rows:
             return None
 
         results = []
         for row in rows:
-            row = dict(row)
             results.append({
                 "model_type": row["model_type"],
                 "model_version": row["model_version"],
@@ -281,29 +251,26 @@ def get_predictions_for_hour_all(date_str, hour):
 def _load_validated_history_from_db(hours):
     """Try to load prediction history from DB.
     Returns list of history records, or None if unavailable."""
-    if not os.path.exists(DB_PATH):
-        return None
     try:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """SELECT predicted_at, for_hour, model_type, model_version,
-                      predicted_indoor, predicted_outdoor,
-                      actual_indoor, actual_outdoor
-               FROM prediction_history
-               WHERE for_hour > ?
-               ORDER BY for_hour DESC""",
-            (cutoff,)).fetchall()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """SELECT predicted_at, for_hour, model_type, model_version,
+                          predicted_indoor, predicted_outdoor,
+                          actual_indoor, actual_outdoor
+                   FROM prediction_history
+                   WHERE for_hour > %s
+                   ORDER BY for_hour DESC""",
+                (cutoff,))
+            rows = cur.fetchall()
 
         if not rows:
             return None
 
         history = []
         for row in rows:
-            row = dict(row)
             for_hour_dt = datetime.strptime(row["for_hour"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
             record = {
                 "date": for_hour_dt.strftime("%Y-%m-%d"),
@@ -646,21 +613,17 @@ def generate_manifest(output_dir):
 def build_frontend_db(output_dir):
     """Build a clean SQLite database for frontend consumption.
 
-    Creates a new database with only the tables needed for Browse Data,
-    adds indexes for common query patterns, and compresses with gzip.
+    Queries Postgres for all data, writes it to a temporary SQLite file
+    for browser consumption via sql.js, adds indexes, and compresses with gzip.
     """
     db_output = os.path.join(output_dir, "frontend.db.gz")
     tmp_db = os.path.join(output_dir, "_frontend_tmp.db")
 
     try:
-        conn = sqlite3.connect(tmp_db)
-        conn.execute("PRAGMA journal_mode=WAL")
+        sqlite_conn = sqlite3.connect(tmp_db)
 
-        # Attach the source database
-        conn.execute(f"ATTACH DATABASE ? AS source", (DB_PATH,))
-
-        # Create and populate tables
-        conn.executescript("""
+        # Create tables in temp SQLite
+        sqlite_conn.executescript("""
             CREATE TABLE readings (
                 timestamp INTEGER PRIMARY KEY,
                 date TEXT NOT NULL,
@@ -740,19 +703,56 @@ def build_frontend_db(output_dir):
             );
         """)
 
-        # Copy data from source database
-        conn.execute("INSERT INTO readings SELECT * FROM source.readings")
-        conn.execute("INSERT INTO predictions SELECT * FROM source.predictions")
-        conn.execute("INSERT INTO prediction_history SELECT * FROM source.prediction_history")
-        conn.execute("INSERT INTO public_stations SELECT * FROM source.public_stations")
+        # Query Postgres and populate SQLite
+        with get_connection() as pg_conn:
+            pg_cur = pg_conn.cursor()
+
+            # readings (26 columns)
+            pg_cur.execute("""SELECT timestamp, date, hour, temp_indoor, co2, humidity_indoor,
+                noise, pressure, pressure_absolute, temp_indoor_min, temp_indoor_max,
+                date_min_temp_indoor, date_max_temp_indoor, temp_trend, pressure_trend,
+                wifi_status, temp_outdoor, humidity_outdoor, temp_outdoor_min, temp_outdoor_max,
+                date_min_temp_outdoor, date_max_temp_outdoor, temp_outdoor_trend,
+                battery_percent, rf_status, battery_vp
+                FROM readings""")
+            rows = pg_cur.fetchall()
+            sqlite_conn.executemany(
+                "INSERT INTO readings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+
+            # predictions (10 columns)
+            pg_cur.execute("""SELECT id, generated_at, model_type, model_version, for_hour,
+                temp_indoor_predicted, temp_outdoor_predicted, last_reading_ts,
+                last_reading_temp_indoor, last_reading_temp_outdoor
+                FROM predictions""")
+            rows = pg_cur.fetchall()
+            sqlite_conn.executemany(
+                "INSERT INTO predictions VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
+
+            # prediction_history (11 columns)
+            pg_cur.execute("""SELECT id, predicted_at, for_hour, model_type, model_version,
+                predicted_indoor, predicted_outdoor, actual_indoor, actual_outdoor,
+                error_indoor, error_outdoor
+                FROM prediction_history""")
+            rows = pg_cur.fetchall()
+            sqlite_conn.executemany(
+                "INSERT INTO prediction_history VALUES (?,?,?,?,?,?,?,?,?,?,?)", rows)
+
+            # public_stations (14 columns)
+            pg_cur.execute("""SELECT id, fetched_at, station_id, lat, lon, temperature,
+                humidity, pressure, rain_60min, rain_24h, wind_strength, wind_angle,
+                gust_strength, gust_angle
+                FROM public_stations""")
+            rows = pg_cur.fetchall()
+            sqlite_conn.executemany(
+                "INSERT INTO public_stations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
 
         # Add metadata
         generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        conn.execute("INSERT INTO _metadata VALUES ('schema_version', '1')", )
-        conn.execute("INSERT INTO _metadata VALUES ('generated_at', ?)", (generated_at,))
+        sqlite_conn.execute("INSERT INTO _metadata VALUES ('schema_version', '1')")
+        sqlite_conn.execute("INSERT INTO _metadata VALUES ('generated_at', ?)", (generated_at,))
 
         # Add indexes for common query patterns
-        conn.executescript("""
+        sqlite_conn.executescript("""
             CREATE INDEX idx_readings_timestamp ON readings(timestamp);
             CREATE INDEX idx_readings_date ON readings(date);
             CREATE INDEX idx_predictions_model_ts ON predictions(model_type, for_hour);
@@ -760,10 +760,9 @@ def build_frontend_db(output_dir):
             CREATE INDEX idx_pub_stations_fetched ON public_stations(fetched_at, station_id);
         """)
 
-        conn.execute("DETACH DATABASE source")
-        conn.execute("VACUUM")
-        conn.commit()
-        conn.close()
+        sqlite_conn.execute("VACUUM")
+        sqlite_conn.commit()
+        sqlite_conn.close()
 
         # Gzip compress
         with open(tmp_db, "rb") as f_in:
@@ -781,8 +780,7 @@ def build_frontend_db(output_dir):
 def load_feature_rankings():
     """Load feature rankings from all models that have Lasso output."""
     rankings = []
-    rankings_dir = os.path.join(os.path.dirname(DB_PATH), "..", "models")
-    for path in glob.glob(os.path.join(rankings_dir, "lasso_rankings_*.json")):
+    for path in glob.glob(os.path.join(MODEL_DIR, "lasso_rankings_*.json")):
         data = read_json(path)
         if data and "features" in data:
             rankings.append(data)
@@ -954,7 +952,7 @@ def export(output_path, hours, history_path=None):
 
     print(f"Exported weather dashboard data to {output_path}")
     if result["current"]:
-        print(f"  Current: indoor {result['current']['readings']['temp_indoor']}°C, outdoor {result['current']['readings']['temp_outdoor']}°C")
+        print(f"  Current: indoor {result['current']['readings']['temp_indoor']}\u00b0C, outdoor {result['current']['readings']['temp_outdoor']}\u00b0C")
     print(f"  Predictions: {len(result['predictions'])} model(s)")
     print(f"  History entries: {len(result['history'])}")
 
@@ -969,10 +967,14 @@ def export(output_path, hours, history_path=None):
     upload_to_r2(os.path.join(manifest_dir, 'frontend.db.gz'), 'frontend.db.gz')
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Export weather dashboard data")
     parser.add_argument("--output", required=True, help="Output path for weather.json")
     parser.add_argument("--hours", type=int, default=24, help="Hours of history to scan (default: 24)")
     parser.add_argument("--history", help="Path to prediction-history.json for validated history")
     args = parser.parse_args()
     export(args.output, args.hours, args.history)
+
+
+if __name__ == "__main__":
+    main()

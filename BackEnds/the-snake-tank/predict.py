@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Predict next-hour temperatures using the trained model.
 
-Loads the most recent readings from data/weather.db, builds a feature
+Loads the most recent readings from the database, builds a feature
 vector using available Netatmo sensor data, and outputs predicted indoor
 and outdoor temperatures.
 
@@ -14,7 +14,6 @@ Usage:
 import argparse
 import json
 import os
-import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -22,10 +21,10 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from db import get_connection
 from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, SPATIAL_COLS_ENRICHED, add_spatial_columns
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor.joblib")
 META_PATH = os.path.join(SCRIPT_DIR, "models", "model_meta.json")
 PREV_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_prev.joblib")
@@ -42,19 +41,6 @@ HISTORY_PATH = os.path.join(SCRIPT_DIR, "data", "prediction-history.json")
 GB_LOOKBACK = 24
 GB_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_gb.joblib")
 GB_META_PATH = os.path.join(SCRIPT_DIR, "models", "gb_meta.json")
-
-PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    generated_at TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    model_version INTEGER,
-    for_hour TEXT NOT NULL,
-    temp_indoor_predicted REAL,
-    temp_outdoor_predicted REAL,
-    last_reading_ts INTEGER,
-    last_reading_temp_indoor REAL,
-    last_reading_temp_outdoor REAL
-)"""
 
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
@@ -150,11 +136,10 @@ def _run_full_model():
     if not os.path.exists(MODEL_PATH):
         return None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query(
-            f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {LOOKBACK}", conn
-        )
-        conn.close()
+        with get_connection() as conn:
+            df = pd.read_sql_query(
+                f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {LOOKBACK}", conn
+            )
 
         if len(df) < LOOKBACK:
             print("Full model: not enough data")
@@ -178,7 +163,7 @@ def _run_full_model():
         df["rf_status"] = df["rf_status"].fillna(0)
 
         # Add spatial features from public stations
-        df = add_spatial_columns(DB_PATH, df)
+        df = add_spatial_columns(df)
 
         feature_vector = df[FULL_ALL_COLS].values.flatten().reshape(1, -1)
 
@@ -197,11 +182,10 @@ def _run_simple_model():
     if not os.path.exists(SIMPLE_MODEL_PATH):
         return None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query(
-            f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {SIMPLE_LOOKBACK}", conn
-        )
-        conn.close()
+        with get_connection() as conn:
+            df = pd.read_sql_query(
+                f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {SIMPLE_LOOKBACK}", conn
+            )
 
         if len(df) < SIMPLE_LOOKBACK:
             print("Simple model: not enough data")
@@ -213,7 +197,7 @@ def _run_simple_model():
             df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
 
         # Add spatial features from public stations
-        df = add_spatial_columns(DB_PATH, df)
+        df = add_spatial_columns(df)
 
         feature_vector = df[SIMPLE_ALL_COLS].values.flatten().reshape(1, -1)
 
@@ -232,11 +216,10 @@ def _run_6hr_rc_model():
     if not os.path.exists(RC_MODEL_PATH):
         return None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query(
-            f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {RC_LOOKBACK}", conn
-        )
-        conn.close()
+        with get_connection() as conn:
+            df = pd.read_sql_query(
+                f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {RC_LOOKBACK}", conn
+            )
 
         if len(df) < RC_LOOKBACK:
             print("6hrRC model: not enough data")
@@ -248,7 +231,7 @@ def _run_6hr_rc_model():
             df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
 
         # Add spatial features from public stations
-        df = add_spatial_columns(DB_PATH, df)
+        df = add_spatial_columns(df)
 
         # Base features: (9 + 3 spatial) x 6 = 72
         base_features = df[RC_ALL_COLS].values.flatten()
@@ -288,14 +271,15 @@ def _run_6hr_rc_model():
 def _get_prediction_error(model_type, hour_str):
     """Look up prediction error for a specific model and hour from DB."""
     try:
-        conn = sqlite3.connect(DB_PATH)
-        row = conn.execute(
-            "SELECT error_indoor, error_outdoor FROM prediction_history WHERE model_type = ? AND for_hour = ?",
-            (model_type, hour_str),
-        ).fetchone()
-        conn.close()
-        if row:
-            return (row[0] or 0.0, row[1] or 0.0)
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT error_indoor, error_outdoor FROM prediction_history WHERE model_type = %s AND for_hour = %s",
+                (model_type, hour_str),
+            )
+            row = cur.fetchone()
+            if row:
+                return (row[0] or 0.0, row[1] or 0.0)
     except Exception:
         pass
     return (0.0, 0.0)
@@ -306,12 +290,11 @@ def _run_gb_model():
     if not os.path.exists(GB_MODEL_PATH):
         return None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query(
-            f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {GB_LOOKBACK}",
-            conn,
-        )
-        conn.close()
+        with get_connection() as conn:
+            df = pd.read_sql_query(
+                f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {GB_LOOKBACK}",
+                conn,
+            )
 
         if len(df) < GB_LOOKBACK:
             print("  GB model: not enough readings")
@@ -333,7 +316,7 @@ def _run_gb_model():
         df["rf_status"] = df["rf_status"].fillna(0)
         df["battery_vp"] = df["battery_vp"].fillna(0)
 
-        df = add_spatial_columns(DB_PATH, df)
+        df = add_spatial_columns(df)
 
         base_features = df[GB_ALL_COLS].values.flatten()
 
@@ -420,32 +403,27 @@ def _write_prediction(result, predictions_dir, model_type):
             f.write("\n")
         print(f"Compat prediction written to {compat_path}")
 
-    # Write to predictions table in weather.db
+    # Write to predictions table in Postgres
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute(PREDICTIONS_TABLE_SQL)
-        conn.execute(
-            """INSERT INTO predictions
-            (generated_at, model_type, model_version, for_hour,
-             temp_indoor_predicted, temp_outdoor_predicted,
-             last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (result["generated_at"], model_type, result["model_version"],
-             result["prediction"]["prediction_for"],
-             result["prediction"]["temp_indoor"], result["prediction"]["temp_outdoor"],
-             result["last_reading"]["timestamp"],
-             result["last_reading"]["temp_indoor"], result["last_reading"]["temp_outdoor"]))
-        conn.commit()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """INSERT INTO predictions
+                (generated_at, model_type, model_version, for_hour,
+                 temp_indoor_predicted, temp_outdoor_predicted,
+                 last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (result["generated_at"], model_type, result["model_version"],
+                 result["prediction"]["prediction_for"],
+                 result["prediction"]["temp_indoor"], result["prediction"]["temp_outdoor"],
+                 result["last_reading"]["timestamp"],
+                 result["last_reading"]["temp_indoor"], result["last_reading"]["temp_outdoor"]))
+            conn.commit()
     except Exception as e:
         print(f"Warning: failed to write prediction to DB: {e}")
 
 
 def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
-    if not os.path.exists(DB_PATH):
-        print(f"Error: database not found at {DB_PATH}")
-        sys.exit(1)
-
     models_to_run = []
     if model_type_filter == "all":
         models_to_run = ["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB"]
@@ -501,7 +479,7 @@ def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
         sys.exit(1)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Predict next-hour temperatures")
     parser.add_argument("--output", help="Path to write prediction JSON file")
     parser.add_argument("--predictions-dir", help="Directory to store timestamped prediction files")
@@ -510,3 +488,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     predict(output_path=args.output, predictions_dir=args.predictions_dir,
             model_type_filter=args.model_type)
+
+
+if __name__ == "__main__":
+    main()

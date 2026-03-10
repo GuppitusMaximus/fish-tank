@@ -6,33 +6,14 @@ import csv
 import glob
 import json
 import os
-import sqlite3
 import sys
 import urllib.request
 import urllib.error
 import urllib.parse
 from datetime import datetime, timezone, timedelta
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(SCRIPT_DIR, "data")
-DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
-
-PUBLIC_STATIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS public_stations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fetched_at TEXT NOT NULL,
-    station_id TEXT NOT NULL,
-    lat REAL,
-    lon REAL,
-    temperature REAL,
-    humidity INTEGER,
-    pressure REAL,
-    rain_60min REAL,
-    rain_24h REAL,
-    wind_strength INTEGER,
-    wind_angle INTEGER,
-    gust_strength INTEGER,
-    gust_angle INTEGER
-)"""
+from config import DATA_DIR
+from db import get_connection
 
 
 def scrub_pii(data):
@@ -119,80 +100,78 @@ def get_public_data(access_token, lat_ne, lon_ne, lat_sw, lon_sw):
         return json.loads(resp.read())
 
 
-def store_public_stations(data, db_path, fetched_at):
-    """Parse getpublicdata response and store station readings in SQLite."""
-    conn = sqlite3.connect(db_path)
-    conn.execute(PUBLIC_STATIONS_TABLE_SQL)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_public_stations_time ON public_stations(fetched_at)")
+def store_public_stations(data, fetched_at):
+    """Parse getpublicdata response and store station readings in Postgres."""
+    with get_connection() as conn:
+        cur = conn.cursor()
 
-    count = 0
-    rows_written = []
-    for station in data.get("body", []):
-        station_id = station.get("_id", "unknown")
+        count = 0
+        rows_written = []
+        for station in data.get("body", []):
+            station_id = station.get("_id", "unknown")
 
-        # Location: place.location is [lon, lat]
-        place = station.get("place", {})
-        location = place.get("location", [None, None])
-        lon = location[0] if len(location) > 0 else None
-        lat = location[1] if len(location) > 1 else None
+            # Location: place.location is [lon, lat]
+            place = station.get("place", {})
+            location = place.get("location", [None, None])
+            lon = location[0] if len(location) > 0 else None
+            lat = location[1] if len(location) > 1 else None
 
-        # Parse measures from different module types
-        temp, humidity, pressure = None, None, None
-        rain_60min, rain_24h = None, None
-        wind_strength, wind_angle, gust_strength, gust_angle = None, None, None, None
+            # Parse measures from different module types
+            temp, humidity, pressure = None, None, None
+            rain_60min, rain_24h = None, None
+            wind_strength, wind_angle, gust_strength, gust_angle = None, None, None, None
 
-        for module_mac, module_data in station.get("measures", {}).items():
-            if "type" in module_data:
-                # Temperature, humidity, pressure modules use type/res format
-                types = module_data["type"]
-                for ts_str, values in module_data.get("res", {}).items():
-                    for i, t in enumerate(types):
-                        if i < len(values):
-                            if t == "temperature":
-                                temp = values[i]
-                            elif t == "humidity":
-                                humidity = values[i]
-                            elif t == "pressure":
-                                pressure = values[i]
-            elif "rain_60min" in module_data:
-                rain_60min = module_data.get("rain_60min")
-                rain_24h = module_data.get("rain_24h")
-            elif "wind_strength" in module_data:
-                wind_strength = module_data.get("wind_strength")
-                wind_angle = module_data.get("wind_angle")
-                gust_strength = module_data.get("gust_strength")
-                gust_angle = module_data.get("gust_angle")
+            for module_mac, module_data in station.get("measures", {}).items():
+                if "type" in module_data:
+                    # Temperature, humidity, pressure modules use type/res format
+                    types = module_data["type"]
+                    for ts_str, values in module_data.get("res", {}).items():
+                        for i, t in enumerate(types):
+                            if i < len(values):
+                                if t == "temperature":
+                                    temp = values[i]
+                                elif t == "humidity":
+                                    humidity = values[i]
+                                elif t == "pressure":
+                                    pressure = values[i]
+                elif "rain_60min" in module_data:
+                    rain_60min = module_data.get("rain_60min")
+                    rain_24h = module_data.get("rain_24h")
+                elif "wind_strength" in module_data:
+                    wind_strength = module_data.get("wind_strength")
+                    wind_angle = module_data.get("wind_angle")
+                    gust_strength = module_data.get("gust_strength")
+                    gust_angle = module_data.get("gust_angle")
 
-        conn.execute(
-            """INSERT INTO public_stations
-            (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
-             rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (fetched_at, station_id, lat, lon, temp, humidity, pressure,
-             rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
-        rows_written.append((fetched_at, station_id, lat, lon, temp, humidity, pressure,
-                             rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
-        count += 1
+            cur.execute(
+                """INSERT INTO public_stations
+                (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
+                 rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (fetched_at, station_id, lat, lon, temp, humidity, pressure,
+                 rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
+            rows_written.append((fetched_at, station_id, lat, lon, temp, humidity, pressure,
+                                 rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
+            count += 1
 
-    # Clean up data older than 30 days
-    conn.execute("DELETE FROM public_stations WHERE fetched_at < datetime('now', '-30 days')")
+        # Clean up data older than 30 days
+        cur.execute("DELETE FROM public_stations WHERE fetched_at::TIMESTAMPTZ < NOW() - INTERVAL '30 days'")
 
-    # Also save as CSV for persistence across runs
-    if count > 0:
-        now_str = fetched_at
-        csv_dir = os.path.join(DATA_DIR, "public-stations", now_str[:10])
-        os.makedirs(csv_dir, exist_ok=True)
-        csv_path = os.path.join(csv_dir, now_str[11:19].replace(":", "") + ".csv")
-        with open(csv_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["fetched_at", "station_id", "lat", "lon", "temperature",
-                             "humidity", "pressure", "rain_60min", "rain_24h",
-                             "wind_strength", "wind_angle", "gust_strength", "gust_angle"])
-            for row in rows_written:
-                writer.writerow(row)
+        # Also save as CSV for persistence across runs
+        if count > 0:
+            now_str = fetched_at
+            csv_dir = os.path.join(DATA_DIR, "public-stations", now_str[:10])
+            os.makedirs(csv_dir, exist_ok=True)
+            csv_path = os.path.join(csv_dir, now_str[11:19].replace(":", "") + ".csv")
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["fetched_at", "station_id", "lat", "lon", "temperature",
+                                 "humidity", "pressure", "rain_60min", "rain_24h",
+                                 "wind_strength", "wind_angle", "gust_strength", "gust_angle"])
+                for row in rows_written:
+                    writer.writerow(row)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
     print(f"Stored {count} public station readings")
 
     # Clean up CSV files older than 30 days
@@ -231,7 +210,7 @@ def main():
     # --- Scrub PII before saving ---
     data = scrub_pii(data)
 
-    # --- Save to the-snake-tank/data/{YYYY-MM-DD}/{HHMMSS}.json ---
+    # --- Save to data/{YYYY-MM-DD}/{HHMMSS}.json ---
     now = datetime.now(timezone.utc)
     date_dir = now.strftime("%Y-%m-%d")
     filename = now.strftime("%H%M%S") + ".json"
@@ -257,7 +236,7 @@ def main():
             print("Fetching public station data...")
             public_data = get_public_data(access_token, lat_ne, lon_ne, lat_sw, lon_sw)
             fetched_at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-            store_public_stations(public_data, DB_PATH, fetched_at)
+            store_public_stations(public_data, fetched_at)
         except Exception as e:
             print(f"Warning: public station fetch failed: {e}")
     else:

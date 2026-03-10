@@ -2,7 +2,7 @@
 """Validate the previous prediction against the actual reading that arrived.
 
 Compares predictions from the predictions directory with the most recent reading
-in weather.db, and appends the results to prediction-history.json.
+in the database, and appends the results to prediction-history.json.
 Handles multiple model types, validating each independently.
 
 Usage:
@@ -14,64 +14,35 @@ import argparse
 import json
 import os
 import re
-import sqlite3
 import sys
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
+from db import get_connection
+from psycopg2.extras import RealDictCursor
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MAX_HISTORY_PER_MODEL = 168  # 1 week of hourly predictions per model
-
-PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    predicted_at TEXT NOT NULL,
-    for_hour TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    model_version INTEGER,
-    predicted_indoor REAL,
-    predicted_outdoor REAL,
-    actual_indoor REAL,
-    actual_outdoor REAL,
-    error_indoor REAL,
-    error_outdoor REAL,
-    UNIQUE(model_type, for_hour)
-)"""
-
-PREDICTIONS_TABLE_SQL = """CREATE TABLE IF NOT EXISTS predictions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    generated_at TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    model_version INTEGER,
-    for_hour TEXT NOT NULL,
-    temp_indoor_predicted REAL,
-    temp_outdoor_predicted REAL,
-    last_reading_ts INTEGER,
-    last_reading_temp_indoor REAL,
-    last_reading_temp_outdoor REAL
-)"""
 
 
 def _find_best_predictions_from_db():
     """Try to find best predictions from the DB predictions table.
     Returns list of prediction dicts, or None if table doesn't exist or is empty."""
-    if not os.path.exists(DB_PATH):
-        return None
     try:
         now = datetime.now(timezone.utc)
         min_time = (now - timedelta(minutes=90)).strftime("%Y-%m-%dT%H:%M:%SZ")
         max_time = (now - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """SELECT generated_at, model_type, model_version, for_hour,
-                      temp_indoor_predicted, temp_outdoor_predicted,
-                      last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor
-               FROM predictions
-               WHERE generated_at > ? AND generated_at < ?""",
-            (min_time, max_time)).fetchall()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """SELECT generated_at, model_type, model_version, for_hour,
+                          temp_indoor_predicted, temp_outdoor_predicted,
+                          last_reading_ts, last_reading_temp_indoor, last_reading_temp_outdoor
+                   FROM predictions
+                   WHERE generated_at > %s AND generated_at < %s""",
+                (min_time, max_time))
+            rows = cur.fetchall()
 
         if not rows:
             return None
@@ -79,7 +50,6 @@ def _find_best_predictions_from_db():
         # Group by model_type, keep closest to 60 minutes old
         best_by_model = {}
         for row in rows:
-            row = dict(row)
             generated_at = datetime.strptime(row["generated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
             age_minutes = (now - generated_at).total_seconds() / 60
             diff = abs(age_minutes - 60)
@@ -189,17 +159,18 @@ def load_history(path):
 
 
 def get_latest_reading():
-    if not os.path.exists(DB_PATH):
+    try:
+        with get_connection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT timestamp, temp_indoor, temp_outdoor FROM readings ORDER BY timestamp DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return dict(row)
+    except Exception:
         return None
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT timestamp, temp_indoor, temp_outdoor FROM readings ORDER BY timestamp DESC LIMIT 1"
-    ).fetchone()
-    conn.close()
-    if row is None:
-        return None
-    return dict(row)
 
 
 def trim_history(history):
@@ -330,28 +301,28 @@ def validate(prediction_paths, history_path):
 
     # Write new entries to prediction_history table
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute(PREDICTION_HISTORY_TABLE_SQL)
-        for entry in new_entries:
-            conn.execute(
-                """INSERT OR IGNORE INTO prediction_history
-                (predicted_at, for_hour, model_type, model_version,
-                 predicted_indoor, predicted_outdoor,
-                 actual_indoor, actual_outdoor,
-                 error_indoor, error_outdoor)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (entry["predicted_at"], entry["for_hour"],
-                 entry.get("model_type", "simple"), entry.get("model_version"),
-                 entry["predicted"]["temp_indoor"], entry["predicted"]["temp_outdoor"],
-                 entry["actual"]["temp_indoor"], entry["actual"]["temp_outdoor"],
-                 entry["error"]["temp_indoor"], entry["error"]["temp_outdoor"]))
-        conn.commit()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor()
+            for entry in new_entries:
+                cur.execute(
+                    """INSERT INTO prediction_history
+                    (predicted_at, for_hour, model_type, model_version,
+                     predicted_indoor, predicted_outdoor,
+                     actual_indoor, actual_outdoor,
+                     error_indoor, error_outdoor)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (model_type, for_hour) DO NOTHING""",
+                    (entry["predicted_at"], entry["for_hour"],
+                     entry.get("model_type", "simple"), entry.get("model_version"),
+                     entry["predicted"]["temp_indoor"], entry["predicted"]["temp_outdoor"],
+                     entry["actual"]["temp_indoor"], entry["actual"]["temp_outdoor"],
+                     entry["error"]["temp_indoor"], entry["error"]["temp_outdoor"]))
+            conn.commit()
     except Exception as e:
         print(f"Warning: failed to write history to DB: {e}")
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description="Validate prediction against actual reading"
     )
@@ -373,3 +344,7 @@ if __name__ == "__main__":
         prediction_paths = [args.prediction]
 
     validate(prediction_paths, args.history)
+
+
+if __name__ == "__main__":
+    main()

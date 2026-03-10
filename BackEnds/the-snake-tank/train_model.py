@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Train a temperature prediction model from weather station data.
 
-Loads readings from data/weather.db, builds 24-hour sliding window features
+Loads readings from the database, builds 24-hour sliding window features
 using all available Netatmo sensor data (22 features), and trains a
 RandomForestRegressor to predict the next hour's indoor and outdoor temperatures.
 
@@ -11,7 +11,6 @@ Usage:
 
 import json
 import os
-import sqlite3
 import sys
 from datetime import datetime, timezone
 
@@ -23,10 +22,11 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, train_test_split
 from sklearn.multioutput import MultiOutputRegressor
 
+from db import get_connection
+from psycopg2.extras import RealDictCursor
 from public_features import SPATIAL_COLS_FULL, SPATIAL_COLS_SIMPLE, SPATIAL_COLS_ENRICHED, add_spatial_columns
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(SCRIPT_DIR, "data", "weather.db")
 MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor.joblib")
 META_PATH = os.path.join(MODEL_DIR, "model_meta.json")
@@ -46,21 +46,6 @@ GB_MIN_READINGS = 336
 GB_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_gb.joblib")
 GB_META_PATH = os.path.join(MODEL_DIR, "gb_meta.json")
 GB_LASSO_PATH = os.path.join(MODEL_DIR, "lasso_rankings_24hr_pubRA_RC3_GB.json")
-
-PREDICTION_HISTORY_TABLE_SQL = """CREATE TABLE IF NOT EXISTS prediction_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    predicted_at TEXT NOT NULL,
-    for_hour TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    model_version INTEGER,
-    predicted_indoor REAL,
-    predicted_outdoor REAL,
-    actual_indoor REAL,
-    actual_outdoor REAL,
-    error_indoor REAL,
-    error_outdoor REAL,
-    UNIQUE(model_type, for_hour)
-)"""
 
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
@@ -96,9 +81,8 @@ RC_MODEL_TYPES = ["3hrRaw", "24hrRaw", "6hrRC"]
 
 
 def load_readings():
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM readings ORDER BY timestamp", conn)
-    conn.close()
+    with get_connection() as conn:
+        df = pd.read_sql_query("SELECT * FROM readings ORDER BY timestamp", conn)
     return df
 
 
@@ -196,16 +180,14 @@ def read_simple_meta():
 def _load_prediction_errors_from_db():
     """Try to load prediction errors from the DB prediction_history table.
     Returns dict: hour_str -> (error_indoor, error_outdoor), or None if unavailable."""
-    if not os.path.exists(DB_PATH):
-        return None
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """SELECT for_hour, error_indoor, error_outdoor
-               FROM prediction_history
-               WHERE model_type IN ('3hrRaw', 'simple')""").fetchall()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """SELECT for_hour, error_indoor, error_outdoor
+                   FROM prediction_history
+                   WHERE model_type IN ('3hrRaw', 'simple')""")
+            rows = cur.fetchall()
 
         if not rows:
             return None
@@ -250,15 +232,13 @@ def load_prediction_errors(history_path):
 def load_prediction_errors_all_models():
     """Load prediction errors from all model types.
     Returns dict: (model_type, hour_str) -> (error_indoor, error_outdoor)"""
-    if not os.path.exists(DB_PATH):
-        return {}
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT model_type, for_hour, error_indoor, error_outdoor FROM prediction_history"
-        ).fetchall()
-        conn.close()
+        with get_connection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT model_type, for_hour, error_indoor, error_outdoor FROM prediction_history"
+            )
+            rows = cur.fetchall()
         errors = {}
         for row in rows:
             errors[(row["model_type"], row["for_hour"])] = (
@@ -379,11 +359,6 @@ def read_6hr_rc_meta():
 
 
 def train():
-    if not os.path.exists(DB_PATH):
-        print(f"Error: database not found at {DB_PATH}")
-        print("Run build_dataset.py first.")
-        sys.exit(1)
-
     df = load_readings()
     print(f"Loaded {len(df)} readings from database")
 
@@ -396,7 +371,7 @@ def train():
     df["rf_status"] = df["rf_status"].fillna(0)
 
     # Add spatial features from public stations
-    df = add_spatial_columns(DB_PATH, df)
+    df = add_spatial_columns(df)
 
     X, y = build_windows(df, FULL_ALL_COLS)
 
@@ -435,8 +410,8 @@ def train():
     mae_outdoor = mean_absolute_error(y_eval[:, 1], y_pred[:, 1])
 
     print(f"\nEvaluation:")
-    print(f"  MAE indoor:  {mae_indoor:.2f}°C")
-    print(f"  MAE outdoor: {mae_outdoor:.2f}°C")
+    print(f"  MAE indoor:  {mae_indoor:.2f}\u00b0C")
+    print(f"  MAE outdoor: {mae_outdoor:.2f}\u00b0C")
 
     # Train final model on all data
     model.fit(X, y)
@@ -473,15 +448,11 @@ def train_simple():
     """Train the simple 3-hour fallback model."""
     print("\n--- Simple Model (3h fallback) ---")
 
-    if not os.path.exists(DB_PATH):
-        print("Skipping simple model: no database")
-        return
-
     df = load_readings()
     df = encode_trends(df)
 
     # Add spatial features from public stations
-    df = add_spatial_columns(DB_PATH, df)
+    df = add_spatial_columns(df)
 
     X, y = build_simple_windows(df, SIMPLE_ALL_COLS)
 
@@ -508,8 +479,8 @@ def train_simple():
     mae_indoor = mean_absolute_error(y_eval[:, 0], y_pred[:, 0])
     mae_outdoor = mean_absolute_error(y_eval[:, 1], y_pred[:, 1])
 
-    print(f"  MAE indoor:  {mae_indoor:.2f}°C")
-    print(f"  MAE outdoor: {mae_outdoor:.2f}°C")
+    print(f"  MAE indoor:  {mae_indoor:.2f}\u00b0C")
+    print(f"  MAE outdoor: {mae_outdoor:.2f}\u00b0C")
 
     model.fit(X, y)
 
@@ -536,15 +507,11 @@ def train_6hr_rc():
     """Train the 6hrRC residual correction model."""
     print("\n--- 6hrRC Model (6h + residual correction) ---")
 
-    if not os.path.exists(DB_PATH):
-        print("Skipping 6hrRC model: no database")
-        return
-
     df = load_readings()
     df = encode_trends(df)
 
     # Add spatial features from public stations
-    df = add_spatial_columns(DB_PATH, df)
+    df = add_spatial_columns(df)
 
     error_lookup = load_prediction_errors(HISTORY_PATH)
     print(f"Loaded {len(error_lookup)} prediction error entries")
@@ -611,10 +578,6 @@ def train_gb():
     """Train the 24hr_pubRA_RC3_GB gradient-boosted model with Lasso diagnostic."""
     print("\n--- 24hr_pubRA_RC3_GB Model (LightGBM + multi-model RC) ---")
 
-    if not os.path.exists(DB_PATH):
-        print("Database not found, skipping GB model")
-        return
-
     df = load_readings()
     if len(df) < GB_MIN_READINGS:
         print(f"Not enough data: {len(df)} readings (need {GB_MIN_READINGS}). Skipping GB model.")
@@ -627,7 +590,7 @@ def train_gb():
     df["rf_status"] = df["rf_status"].fillna(0)
     df["battery_vp"] = df["battery_vp"].fillna(0)
 
-    df = add_spatial_columns(DB_PATH, df)
+    df = add_spatial_columns(df)
 
     error_lookup = load_prediction_errors_all_models()
     X, y = build_gb_windows(df, error_lookup, GB_ALL_COLS)
@@ -742,8 +705,12 @@ def _build_gb_feature_names():
     return names
 
 
-if __name__ == "__main__":
+def main():
     train()
     train_simple()
     train_6hr_rc()
     train_gb()
+
+
+if __name__ == "__main__":
+    main()
