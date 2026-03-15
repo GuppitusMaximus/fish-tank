@@ -127,11 +127,11 @@ nav a.active {
 }
 
 /* ========== Views ========== */
-#home, #weather, #tank, #arena, #sky, #dungeon {
+#home, #weather, #tank, #arena, #sky, #dungeon, #fathomfall {
     display: none;
 }
 
-#home.active, #weather.active, #tank.active, #arena.active, #sky.active, #dungeon.active {
+#home.active, #weather.active, #tank.active, #arena.active, #sky.active, #dungeon.active, #fathomfall.active {
     display: flex;
 }
 
@@ -1714,4 +1714,159 @@ body.theme-dungeon {
 
 #dungeon iframe {
     border-radius: 12px;
+}
+
+/* ========== Fathom Fall Admin ========== */
+#fathomfall.active {
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    max-height: calc(100vh - 4rem);
+    -webkit-overflow-scrolling: touch;
+}
+
+.ff-admin-wrap {
+    width: 94vw;
+    max-width: 900px;
+    padding: 1rem 0;
+}
+
+.admin-header h2 {
+    font-size: 0.85rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    margin-bottom: 1rem;
+}
+
+.admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.admin-stat-card {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(100,150,200,0.3);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.admin-stat-card .stat-value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #88ccee;
+}
+
+.admin-stat-card .stat-label {
+    font-size: 0.85em;
+    color: #8899aa;
+    margin-top: 4px;
+}
+
+.admin-section {
+    margin-bottom: 24px;
+}
+
+.admin-section h3 {
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.5;
+    margin-bottom: 0.6rem;
+}
+
+.admin-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+}
+
+.admin-search {
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(100,150,200,0.3);
+    border-radius: 4px;
+    color: #dde0cc;
+    font-size: 14px;
+    width: 220px;
+}
+
+.admin-search::placeholder {
+    color: rgba(200,220,255,0.4);
+}
+
+.admin-btn {
+    padding: 6px 16px;
+    background: rgba(40,80,60,0.6);
+    border: 1px solid rgba(80,160,120,0.4);
+    border-radius: 4px;
+    color: #dde0cc;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.admin-btn:hover {
+    background: rgba(40,80,60,0.8);
+}
+
+.admin-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.admin-table th {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid rgba(100,150,200,0.3);
+    color: #8899aa;
+    font-weight: normal;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.admin-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(100,150,200,0.1);
+}
+
+.admin-table tr:hover td {
+    background: rgba(100,150,200,0.05);
+}
+
+.admin-pagination {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+    align-items: center;
+}
+
+.admin-detail-panel {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(100,150,200,0.3);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+@media (max-width: 600px) {
+    .ff-admin-wrap { width: 98vw; }
+    .admin-stats-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+    .admin-stat-card .stat-value { font-size: 1.4em; }
+    .admin-table { font-size: 12px; }
+    .admin-table th, .admin-table td { padding: 6px 4px; }
+    .admin-search { width: 140px; font-size: 13px; }
+    .admin-controls { flex-wrap: wrap; }
 }

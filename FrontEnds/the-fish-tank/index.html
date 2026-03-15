@@ -14,6 +14,7 @@
         <nav>
             <a data-view="home">Home</a>
             <a data-view="weather" class="auth-gated auth-hidden">Potter Weather Predictions</a>
+            <a data-view="fathomfall" class="auth-gated auth-hidden">Fathom Fall</a>
             <div class="nav-dropdown">
                 <a class="nav-dropdown-toggle">Fish Games</a>
                 <div class="nav-dropdown-menu">
@@ -58,6 +59,55 @@
         <div class="cloud cloud-3"></div>
     </div>
 
+    <div id="fathomfall">
+        <div class="ff-admin-wrap">
+            <div class="admin-header">
+                <h2>Fathom Fall — Admin</h2>
+            </div>
+
+            <div id="ff-stats" class="admin-stats-grid"></div>
+
+            <div class="admin-section" id="ff-main-tables">
+                <h3>Players</h3>
+                <div class="admin-controls">
+                    <input type="text" id="ff-player-search" placeholder="Search by name..." class="admin-search">
+                    <button id="ff-refresh-players" class="admin-btn">Refresh</button>
+                </div>
+                <table id="ff-players-table" class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Platform</th>
+                            <th>Highest Floor</th>
+                            <th>Snapshots</th>
+                            <th>Last Active</th>
+                            <th>Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="ff-players-pagination" class="admin-pagination"></div>
+
+                <h3 style="margin-top:24px">Recent Snapshots</h3>
+                <table id="ff-snapshots-table" class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Character</th>
+                            <th>Floor</th>
+                            <th>Power</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="ff-snapshots-pagination" class="admin-pagination"></div>
+            </div>
+
+            <div id="ff-player-detail" class="admin-detail-panel" style="display:none;"></div>
+        </div>
+    </div>
+
     <p class="hint" id="hint"></p>
     <div id="signin-modal">
       <div class="signin-card">
@@ -79,6 +129,7 @@
     <script src="js/fighter.js"></script>
 
     <script src="js/weather.js"></script>
+    <script src="js/fathomfall-admin.js"></script>
     <script>
     (() => {
         const views = {
@@ -116,6 +167,13 @@
                 title: 'Fighter Fish',
                 hint: 'Click to scramble a fighter',
                 theme: 'theme-sky'
+            },
+            fathomfall: {
+                el: document.getElementById('fathomfall'),
+                app: window.FathomFallAdmin,
+                title: 'Fathom Fall — Admin',
+                hint: '',
+                theme: 'theme-ocean'
             },
         };
 
