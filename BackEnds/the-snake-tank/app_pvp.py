@@ -367,6 +367,192 @@ def player_name(playerId: str = Query(...)):
     return {"displayName": name}
 
 
+@app.get("/pvp/admin/stats")
+def admin_stats():
+    from db import get_connection
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM players")
+            total_players = cur.fetchone()[0]
+
+            cur.execute("""
+                SELECT COUNT(DISTINCT ps.player_id)
+                FROM party_snapshots ps
+                WHERE ps.created_at >= %s
+            """, (month_start,))
+            active_this_month = cur.fetchone()[0]
+
+            cur.execute("SELECT COUNT(*) FROM party_snapshots")
+            total_snapshots = cur.fetchone()[0]
+
+            cur.execute("""
+                SELECT COUNT(*) FROM party_snapshots
+                WHERE created_at >= %s
+            """, (month_start,))
+            snapshots_this_month = cur.fetchone()[0]
+
+            cur.execute("SELECT COALESCE(MAX(floor), 0) FROM party_snapshots")
+            top_floor = cur.fetchone()[0]
+
+            cur.execute("""
+                SELECT COALESCE(AVG(highest), 0) FROM (
+                    SELECT MAX(floor) AS highest
+                    FROM party_snapshots
+                    WHERE created_at >= %s
+                    GROUP BY player_id
+                ) sub
+            """, (month_start,))
+            avg_highest = round(cur.fetchone()[0], 1)
+
+    return {
+        "totalPlayers": total_players,
+        "activeThisMonth": active_this_month,
+        "totalSnapshots": total_snapshots,
+        "snapshotsThisMonth": snapshots_this_month,
+        "topFloor": top_floor,
+        "avgHighestFloor": avg_highest,
+    }
+
+
+@app.get("/pvp/admin/players")
+def admin_players(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+    search: str = Query(None),
+):
+    from db import get_connection
+    offset = (page - 1) * per_page
+
+    search_clause = ""
+    params = []
+    if search:
+        search_clause = "WHERE p.display_name ILIKE %s"
+        params.append(f"%{search}%")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(f"""
+                SELECT COUNT(*) FROM players p {search_clause}
+            """, params)
+            total = cur.fetchone()[0]
+
+            cur.execute(f"""
+                SELECT p.id, p.display_name, p.platform, p.created_at,
+                       COALESCE(MAX(ps.floor), 0) AS highest_floor,
+                       COUNT(ps.id) AS snapshot_count,
+                       MAX(ps.created_at) AS last_active
+                FROM players p
+                LEFT JOIN party_snapshots ps ON ps.player_id = p.id::text
+                {search_clause}
+                GROUP BY p.id, p.display_name, p.platform, p.created_at
+                ORDER BY last_active DESC NULLS LAST
+                LIMIT %s OFFSET %s
+            """, params + [per_page, offset])
+            rows = cur.fetchall()
+
+    players = [
+        {
+            "playerId": str(row[0]),
+            "displayName": row[1],
+            "platform": row[2],
+            "createdAt": row[3].isoformat() if row[3] else None,
+            "highestFloor": row[4],
+            "snapshotCount": row[5],
+            "lastActive": row[6].isoformat() if row[6] else None,
+        }
+        for row in rows
+    ]
+
+    return {"players": players, "total": total, "page": page, "perPage": per_page}
+
+
+@app.get("/pvp/admin/player/{player_id}")
+def admin_player_detail(player_id: str):
+    from db import get_connection
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, display_name, platform, created_at
+                FROM players WHERE id = %s
+            """, (player_id,))
+            player_row = cur.fetchone()
+
+            if not player_row:
+                raise HTTPException(status_code=404, detail="Player not found")
+
+            cur.execute("""
+                SELECT floor, character, power_level, fish, created_at
+                FROM party_snapshots
+                WHERE player_id = %s
+                ORDER BY created_at DESC
+                LIMIT 50
+            """, (player_id,))
+            snap_rows = cur.fetchall()
+
+    snapshots = [
+        {
+            "floor": row[0],
+            "character": row[1],
+            "powerLevel": row[2],
+            "fishCount": len(row[3]) if row[3] else 0,
+            "createdAt": row[4].isoformat() if row[4] else None,
+        }
+        for row in snap_rows
+    ]
+
+    return {
+        "player": {
+            "playerId": str(player_row[0]),
+            "displayName": player_row[1],
+            "platform": player_row[2],
+            "createdAt": player_row[3].isoformat() if player_row[3] else None,
+        },
+        "snapshots": snapshots,
+    }
+
+
+@app.get("/pvp/admin/snapshots")
+def admin_snapshots(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+):
+    from db import get_connection
+    offset = (page - 1) * per_page
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM party_snapshots")
+            total = cur.fetchone()[0]
+
+            cur.execute("""
+                SELECT ps.player_id, COALESCE(p.display_name, 'Angler'),
+                       ps.floor, ps.character, ps.power_level, ps.created_at
+                FROM party_snapshots ps
+                LEFT JOIN players p ON p.id::text = ps.player_id
+                ORDER BY ps.created_at DESC
+                LIMIT %s OFFSET %s
+            """, (per_page, offset))
+            rows = cur.fetchall()
+
+    snapshots = [
+        {
+            "playerId": row[0],
+            "displayName": row[1],
+            "floor": row[2],
+            "character": row[3],
+            "powerLevel": row[4],
+            "createdAt": row[5].isoformat() if row[5] else None,
+        }
+        for row in rows
+    ]
+
+    return {"snapshots": snapshots, "total": total, "page": page, "perPage": per_page}
+
+
 @app.get("/pvp/metrics")
 def metrics():
     return _metrics
