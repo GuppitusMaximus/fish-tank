@@ -10,6 +10,7 @@ Run with: uvicorn app_pvp:app --host 127.0.0.1 --port 8002
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -199,6 +200,11 @@ def upload_snapshot(snapshot: SnapshotUpload):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
+                INSERT INTO players (id, display_name, platform)
+                VALUES (%s, 'Angler', 'web')
+                ON CONFLICT (id) DO NOTHING
+            """, (snapshot.playerId,))
+            cur.execute("""
                 INSERT INTO party_snapshots
                     (player_id, character, floor, fish, equipment, companion_level, power_level)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -281,11 +287,15 @@ def leaderboard(limit: int = Query(20, ge=1, le=100)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT player_id, character, MAX(floor) as highest_floor,
-                       COUNT(*) as snapshots, MAX(power_level) as peak_power
-                FROM party_snapshots
-                WHERE created_at >= %s
-                GROUP BY player_id, character
+                SELECT ps.player_id, ps.character,
+                       MAX(ps.floor) as highest_floor,
+                       COUNT(*) as snapshots,
+                       MAX(ps.power_level) as peak_power,
+                       COALESCE(p.display_name, 'Angler') as display_name
+                FROM party_snapshots ps
+                LEFT JOIN players p ON p.id::text = ps.player_id
+                WHERE ps.created_at >= %s
+                GROUP BY ps.player_id, ps.character, p.display_name
                 ORDER BY highest_floor DESC
                 LIMIT %s
             """, (month_start, limit))
@@ -298,11 +308,63 @@ def leaderboard(limit: int = Query(20, ge=1, le=100)):
             "highestFloor": row[2],
             "snapshots": row[3],
             "peakPower": row[4],
+            "displayName": row[5],
         }
         for row in rows
     ]
 
     return {"season": season, "entries": entries}
+
+
+class SetNameRequest(BaseModel):
+    playerId: str
+    displayName: str
+
+    @field_validator("playerId")
+    @classmethod
+    def valid_player_id(cls, v):
+        try:
+            uuid.UUID(v)
+        except ValueError:
+            raise ValueError(f"playerId must be UUID format, got {v}")
+        return v
+
+    @field_validator("displayName")
+    @classmethod
+    def valid_display_name(cls, v):
+        v = re.sub(r'[\x00-\x1f\x7f]', '', v).strip()
+        if not v or len(v) > 20:
+            raise ValueError("displayName must be 1-20 characters after stripping whitespace")
+        return v
+
+
+@app.post("/pvp/set-name")
+def set_name(req: SetNameRequest):
+    from db import get_connection
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO players (id, display_name, platform)
+                VALUES (%s, %s, 'web')
+                ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name
+            """, (req.playerId, req.displayName))
+        conn.commit()
+    return {"success": True, "displayName": req.displayName}
+
+
+@app.get("/pvp/player-name")
+def player_name(playerId: str = Query(...)):
+    try:
+        uuid.UUID(playerId)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="playerId must be UUID format")
+    from db import get_connection
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT display_name FROM players WHERE id = %s", (playerId,))
+            row = cur.fetchone()
+    name = row[0] if row else "Angler"
+    return {"displayName": name}
 
 
 @app.get("/pvp/metrics")

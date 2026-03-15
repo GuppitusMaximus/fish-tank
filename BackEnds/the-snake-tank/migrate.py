@@ -106,6 +106,17 @@ CREATE TABLE IF NOT EXISTS party_snapshots (
     UNIQUE(player_id, floor)
 );
 
+-- Players table for display names and identity
+CREATE TABLE IF NOT EXISTS players (
+    id              UUID PRIMARY KEY,
+    display_name    TEXT NOT NULL DEFAULT 'Angler',
+    platform        TEXT NOT NULL DEFAULT 'web',
+    platform_id     TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_players_platform
+    ON players(platform, platform_id) WHERE platform_id IS NOT NULL;
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_readings_timestamp ON readings (timestamp);
 CREATE INDEX IF NOT EXISTS idx_predictions_model_time ON predictions (model_type, generated_at);
