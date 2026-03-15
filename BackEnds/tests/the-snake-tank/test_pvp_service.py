@@ -139,17 +139,18 @@ class TestSnapshotUpsert:
         client.post("/pvp/snapshot", json=snap)
         client.post("/pvp/snapshot", json=snap)
 
-        assert mock_cursor.execute.call_count == 2
+        # Each snapshot does 2 executes: players INSERT + snapshot INSERT
+        assert mock_cursor.execute.call_count == 4
         for c in mock_cursor.execute.call_args_list:
             sql = c[0][0]
             assert "ON CONFLICT" in sql
-            assert "DO UPDATE" in sql
 
     def test_upsert_passes_correct_params(self, client, mock_db):
         mock_conn, mock_cursor = mock_db
         snap = _make_snapshot()
         client.post("/pvp/snapshot", json=snap)
 
+        # Last execute is the snapshot INSERT (second of two)
         args = mock_cursor.execute.call_args[0][1]
         assert args[0] == snap["playerId"]
         assert args[1] == snap["character"]
@@ -229,9 +230,9 @@ class TestLeaderboard:
     def test_leaderboard_returns_entries(self, client, mock_db):
         mock_conn, mock_cursor = mock_db
         mock_cursor.fetchall.return_value = [
-            ("p1", "andy", 50, 3, 1200.0),
-            ("p2", "saba", 40, 2, 900.0),
-            ("p3", "andy", 30, 1, 600.0),
+            ("p1", "andy", 50, 3, 1200.0, "Angler"),
+            ("p2", "saba", 40, 2, 900.0, "Angler"),
+            ("p3", "andy", 30, 1, 600.0, "Angler"),
         ]
 
         resp = client.get("/pvp/leaderboard?limit=3")
@@ -250,12 +251,12 @@ class TestLeaderboard:
     def test_leaderboard_entry_fields(self, client, mock_db):
         mock_conn, mock_cursor = mock_db
         mock_cursor.fetchall.return_value = [
-            ("p1", "andy", 50, 3, 1200.0),
+            ("p1", "andy", 50, 3, 1200.0, "Angler"),
         ]
 
         data = client.get("/pvp/leaderboard?limit=1").json()
         entry = data["entries"][0]
-        for field in ("playerId", "character", "highestFloor", "snapshots", "peakPower"):
+        for field in ("playerId", "character", "highestFloor", "snapshots", "peakPower", "displayName"):
             assert field in entry, f"Missing leaderboard field: {field}"
 
     def test_leaderboard_sql_orders_by_floor_desc(self, client, mock_db):
