@@ -103,8 +103,10 @@ CREATE TABLE IF NOT EXISTS party_snapshots (
     companion_level     INTEGER,
     power_level         DOUBLE PRECISION,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(player_id, floor)
 );
+
+-- Drop legacy UNIQUE(player_id, floor) so multiple snapshots per run are kept
+ALTER TABLE party_snapshots DROP CONSTRAINT IF EXISTS party_snapshots_player_id_floor_key;
 
 -- Players table for display names and identity
 CREATE TABLE IF NOT EXISTS players (
