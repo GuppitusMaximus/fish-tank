@@ -36,7 +36,7 @@ SPATIAL_COLS_ENRICHED = SPATIAL_COLS_FULL + [
 def _has_public_stations(cur):
     """Check if the public_stations table exists and has data."""
     cur.execute(
-        "SELECT tablename FROM information_schema.tables WHERE schemaname='public' AND tablename='public_stations'"
+        "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name='public_stations'"
     )
     if not cur.fetchone():
         return False
