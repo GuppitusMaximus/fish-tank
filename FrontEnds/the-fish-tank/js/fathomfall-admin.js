@@ -39,11 +39,11 @@ var FathomFallAdmin = (function() {
         apiFetch('/pvp/admin/stats').then(function(data) {
             container.innerHTML = '';
             var stats = [
-                { label: 'Total Players', value: data.total_players },
-                { label: 'Active This Month', value: data.active_this_month },
-                { label: 'Total Snapshots', value: data.total_snapshots },
-                { label: 'Top Floor', value: data.top_floor },
-                { label: 'Avg Floor', value: data.avg_floor != null ? data.avg_floor.toFixed(1) : '—' }
+                { label: 'Total Players', value: data.totalPlayers },
+                { label: 'Active This Month', value: data.activeThisMonth },
+                { label: 'Total Snapshots', value: data.totalSnapshots },
+                { label: 'Top Floor', value: data.topFloor },
+                { label: 'Avg Floor', value: data.avgHighestFloor != null ? data.avgHighestFloor.toFixed(1) : '—' }
             ];
             stats.forEach(function(s) {
                 var card = document.createElement('div');
@@ -74,18 +74,18 @@ var FathomFallAdmin = (function() {
                 players.forEach(function(p) {
                     var tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td>' + esc(p.display_name || p.player_id) + '</td>' +
+                        '<td>' + esc(p.displayName || p.playerId) + '</td>' +
                         '<td>' + esc(p.platform || '—') + '</td>' +
-                        '<td>' + (p.highest_floor != null ? p.highest_floor : '—') + '</td>' +
-                        '<td>' + (p.snapshot_count != null ? p.snapshot_count : '—') + '</td>' +
-                        '<td>' + relativeTime(p.last_active) + '</td>' +
-                        '<td>' + formatDate(p.created_at) + '</td>';
+                        '<td>' + (p.highestFloor != null ? p.highestFloor : '—') + '</td>' +
+                        '<td>' + (p.snapshotCount != null ? p.snapshotCount : '—') + '</td>' +
+                        '<td>' + relativeTime(p.lastActive) + '</td>' +
+                        '<td>' + formatDate(p.createdAt) + '</td>';
                     tr.style.cursor = 'pointer';
-                    tr.addEventListener('click', function() { showPlayerDetail(p.player_id); });
+                    tr.addEventListener('click', function() { showPlayerDetail(p.playerId); });
                     tbody.appendChild(tr);
                 });
             }
-            renderPagination('ff-players-pagination', playersPage, data.total_pages || 1, function(page) {
+            renderPagination('ff-players-pagination', playersPage, Math.ceil((data.total || 0) / (data.perPage || 50)) || 1, function(page) {
                 playersPage = page;
                 loadPlayers();
             });
@@ -108,15 +108,15 @@ var FathomFallAdmin = (function() {
                 snaps.forEach(function(s) {
                     var tr = document.createElement('tr');
                     tr.innerHTML =
-                        '<td>' + esc(s.display_name || s.player_id) + '</td>' +
+                        '<td>' + esc(s.displayName || s.playerId) + '</td>' +
                         '<td>' + esc(s.character || '—') + '</td>' +
                         '<td>' + (s.floor != null ? s.floor : '—') + '</td>' +
-                        '<td>' + (s.power_level != null ? s.power_level : '—') + '</td>' +
-                        '<td>' + relativeTime(s.created_at) + '</td>';
+                        '<td>' + (s.powerLevel != null ? s.powerLevel : '—') + '</td>' +
+                        '<td>' + relativeTime(s.createdAt) + '</td>';
                     tbody.appendChild(tr);
                 });
             }
-            renderPagination('ff-snapshots-pagination', snapshotsPage, data.total_pages || 1, function(page) {
+            renderPagination('ff-snapshots-pagination', snapshotsPage, Math.ceil((data.total || 0) / (data.perPage || 50)) || 1, function(page) {
                 snapshotsPage = page;
                 loadSnapshots();
             });
@@ -138,12 +138,12 @@ var FathomFallAdmin = (function() {
 
             var html = '<div class="admin-controls" style="margin-bottom:16px">' +
                 '<button class="admin-btn" id="ff-detail-back">← Back to Players</button>' +
-                '<h3 style="margin:0 0 0 12px">' + esc(p.display_name || p.player_id) + '</h3>' +
+                '<h3 style="margin:0 0 0 12px">' + esc(p.displayName || p.playerId) + '</h3>' +
                 '</div>' +
                 '<div class="admin-stats-grid" style="margin-bottom:16px">' +
                 '<div class="admin-stat-card"><div class="stat-value">' + esc(p.platform || '—') + '</div><div class="stat-label">Platform</div></div>' +
-                '<div class="admin-stat-card"><div class="stat-value">' + (p.highest_floor != null ? p.highest_floor : '—') + '</div><div class="stat-label">Highest Floor</div></div>' +
-                '<div class="admin-stat-card"><div class="stat-value">' + formatDate(p.created_at) + '</div><div class="stat-label">Joined</div></div>' +
+                '<div class="admin-stat-card"><div class="stat-value">' + (p.highestFloor != null ? p.highestFloor : '—') + '</div><div class="stat-label">Highest Floor</div></div>' +
+                '<div class="admin-stat-card"><div class="stat-value">' + formatDate(p.createdAt) + '</div><div class="stat-label">Joined</div></div>' +
                 '</div>';
 
             if (snaps.length > 0) {
@@ -155,8 +155,8 @@ var FathomFallAdmin = (function() {
                     html += '<tr>' +
                         '<td>' + (s.floor != null ? s.floor : '—') + '</td>' +
                         '<td>' + esc(s.character || '—') + '</td>' +
-                        '<td>' + (s.power_level != null ? s.power_level : '—') + '</td>' +
-                        '<td>' + relativeTime(s.created_at) + '</td>' +
+                        '<td>' + (s.powerLevel != null ? s.powerLevel : '—') + '</td>' +
+                        '<td>' + relativeTime(s.createdAt) + '</td>' +
                         '</tr>';
                 });
                 html += '</tbody></table>';
