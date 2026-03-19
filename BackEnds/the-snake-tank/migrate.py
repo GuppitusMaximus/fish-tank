@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS party_snapshots (
     equipment           JSONB,
     companion_level     INTEGER,
     power_level         DOUBLE PRECISION,
-    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    created_at          TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Drop legacy UNIQUE(player_id, floor) so multiple snapshots per run are kept
