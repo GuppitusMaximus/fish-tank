@@ -21,7 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from psycopg2.extras import Json
 
@@ -113,9 +113,9 @@ class FishSnapshot(BaseModel):
     healPower: Optional[int] = None
     shield: Optional[int] = None
     maxShield: Optional[int] = None
-    color: Optional[str] = None
-    effectAffinity: Optional[str] = None
-    effectResistance: Optional[str] = None
+    color: Optional[Any] = None
+    effectAffinity: Optional[Any] = None
+    effectResistance: Optional[Any] = None
     isCompanion: Optional[bool] = None
 
     model_config = ConfigDict(populate_by_name=True)
