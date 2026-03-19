@@ -478,7 +478,7 @@ def admin_player_detail(player_id: str):
                 raise HTTPException(status_code=404, detail="Player not found")
 
             cur.execute("""
-                SELECT floor, character, power_level, fish, created_at
+                SELECT floor, character, power_level, fish, equipment, created_at
                 FROM party_snapshots
                 WHERE player_id = %s
                 ORDER BY created_at DESC
@@ -491,8 +491,9 @@ def admin_player_detail(player_id: str):
             "floor": row[0],
             "character": row[1],
             "powerLevel": row[2],
-            "fishCount": len(row[3]) if row[3] else 0,
-            "createdAt": row[4].isoformat() if row[4] else None,
+            "fish": row[3] if row[3] else [],
+            "equipment": row[4] if row[4] else [],
+            "createdAt": row[5].isoformat() if row[5] else None,
         }
         for row in snap_rows
     ]
@@ -523,7 +524,7 @@ def admin_snapshots(
 
             cur.execute("""
                 SELECT ps.player_id, COALESCE(p.display_name, 'Angler'),
-                       ps.floor, ps.character, ps.power_level, ps.created_at
+                       ps.floor, ps.character, ps.power_level, ps.fish, ps.equipment, ps.created_at
                 FROM party_snapshots ps
                 LEFT JOIN players p ON p.id::text = ps.player_id
                 ORDER BY ps.created_at DESC
@@ -538,7 +539,9 @@ def admin_snapshots(
             "floor": row[2],
             "character": row[3],
             "powerLevel": row[4],
-            "createdAt": row[5].isoformat() if row[5] else None,
+            "fish": row[5] if row[5] else [],
+            "equipment": row[6] if row[6] else [],
+            "createdAt": row[7].isoformat() if row[7] else None,
         }
         for row in rows
     ]
