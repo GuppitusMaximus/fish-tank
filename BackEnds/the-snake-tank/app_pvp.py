@@ -227,11 +227,12 @@ def upload_snapshot(snapshot: SnapshotUpload):
 
     with get_connection() as conn:
         with conn.cursor() as cur:
+            default_name = f'Angler#{snapshot.playerId[:4]}'
             cur.execute("""
                 INSERT INTO players (id, display_name, platform)
-                VALUES (%s, 'Angler', 'web')
+                VALUES (%s, %s, 'web')
                 ON CONFLICT (id) DO NOTHING
-            """, (snapshot.playerId,))
+            """, (snapshot.playerId, default_name))
             cur.execute("""
                 INSERT INTO party_snapshots
                     (player_id, character, floor, fish, equipment, companion, companion_level, power_level)
