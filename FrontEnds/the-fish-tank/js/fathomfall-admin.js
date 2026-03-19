@@ -97,20 +97,24 @@ var FathomFallAdmin = (function() {
     function loadSnapshots() {
         var query = '?page=' + snapshotsPage;
         var tbody = document.querySelector('#ff-snapshots-table tbody');
-        tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.4">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="opacity:0.4">Loading...</td></tr>';
 
         apiFetch('/pvp/admin/snapshots' + query).then(function(data) {
             tbody.innerHTML = '';
             var snaps = data.snapshots || [];
             if (snaps.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.4">No snapshots found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="opacity:0.4">No snapshots found</td></tr>';
             } else {
                 snaps.forEach(function(s) {
+                    var fishSummary = (s.fish || []).map(function(f) {
+                        return esc(f.speciesId) + ' L' + f.level;
+                    }).join(', ') || '—';
                     var tr = document.createElement('tr');
                     tr.innerHTML =
                         '<td>' + esc(s.displayName || s.playerId) + '</td>' +
                         '<td>' + esc(s.character || '—') + '</td>' +
                         '<td>' + (s.floor != null ? s.floor : '—') + '</td>' +
+                        '<td>' + fishSummary + '</td>' +
                         '<td>' + (s.powerLevel != null ? s.powerLevel : '—') + '</td>' +
                         '<td>' + relativeTime(s.createdAt) + '</td>';
                     tbody.appendChild(tr);
@@ -121,7 +125,7 @@ var FathomFallAdmin = (function() {
                 loadSnapshots();
             });
         }).catch(function() {
-            tbody.innerHTML = '<tr><td colspan="5" style="opacity:0.4">Failed to load snapshots</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="opacity:0.4">Failed to load snapshots</td></tr>';
         });
     }
 
@@ -149,15 +153,41 @@ var FathomFallAdmin = (function() {
             if (snaps.length > 0) {
                 html += '<h3>Snapshot History</h3>' +
                     '<table class="admin-table"><thead><tr>' +
-                    '<th>Floor</th><th>Character</th><th>Power</th><th>Date</th>' +
+                    '<th>Floor</th><th>Character</th><th>Power</th><th>Party</th><th>Date</th>' +
                     '</tr></thead><tbody>';
-                snaps.forEach(function(s) {
-                    html += '<tr>' +
+                snaps.forEach(function(s, i) {
+                    var fishSummary = (s.fish || []).map(function(f) {
+                        return esc(f.speciesId) + ' L' + f.level;
+                    }).join(', ') || '—';
+
+                    html += '<tr class="snapshot-row" data-idx="' + i + '" style="cursor:pointer">' +
                         '<td>' + (s.floor != null ? s.floor : '—') + '</td>' +
                         '<td>' + esc(s.character || '—') + '</td>' +
                         '<td>' + (s.powerLevel != null ? s.powerLevel : '—') + '</td>' +
+                        '<td>' + fishSummary + '</td>' +
                         '<td>' + relativeTime(s.createdAt) + '</td>' +
                         '</tr>';
+
+                    var detailParts = [];
+                    if (s.fish && s.fish.length > 0) {
+                        detailParts.push('<div style="margin-bottom:8px"><strong>Party:</strong></div>');
+                        s.fish.forEach(function(f) {
+                            detailParts.push('<div style="margin-left:12px;margin-bottom:4px">' +
+                                esc(f.speciesId) + ' — Level ' + f.level +
+                                (f.moves && f.moves.length ? ' — Moves: ' + f.moves.map(esc).join(', ') : '') +
+                                '</div>');
+                        });
+                    }
+                    if (s.equipment && s.equipment.length > 0) {
+                        detailParts.push('<div style="margin-top:8px;margin-bottom:8px"><strong>Equipment:</strong></div>');
+                        detailParts.push('<pre style="margin-left:12px;font-size:0.75rem;opacity:0.7;white-space:pre-wrap">' +
+                            esc(JSON.stringify(s.equipment, null, 2)) + '</pre>');
+                    }
+
+                    html += '<tr class="snapshot-detail" id="snap-detail-' + i + '" style="display:none">' +
+                        '<td colspan="5" style="padding:8px 16px;background:rgba(255,255,255,0.03)">' +
+                        detailParts.join('') +
+                        '</td></tr>';
                 });
                 html += '</tbody></table>';
             } else {
@@ -165,6 +195,15 @@ var FathomFallAdmin = (function() {
             }
 
             panel.innerHTML = html;
+            panel.querySelectorAll('.snapshot-row').forEach(function(row) {
+                row.addEventListener('click', function() {
+                    var idx = row.getAttribute('data-idx');
+                    var detail = document.getElementById('snap-detail-' + idx);
+                    if (detail) {
+                        detail.style.display = detail.style.display === 'none' ? '' : 'none';
+                    }
+                });
+            });
             document.getElementById('ff-detail-back').addEventListener('click', function() {
                 panel.style.display = 'none';
                 mainTables.style.display = 'block';
