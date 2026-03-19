@@ -17,7 +17,9 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Query, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional
 
@@ -52,7 +54,7 @@ app.add_middleware(
 
 class JSONFormatter(logging.Formatter):
     EXTRA_FIELDS = ("event", "floor", "power_level", "found", "bracket_size",
-                    "duration_ms", "status_code", "error")
+                    "duration_ms", "status_code", "error", "path")
 
     def format(self, record):
         entry = {
@@ -72,6 +74,16 @@ logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
 _handler.setFormatter(JSONFormatter())
 logger.addHandler(_handler)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logger.error("Validation error", extra={
+        "event": "validation_error",
+        "path": request.url.path,
+        "error": str(exc.errors())[:500]
+    })
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 # --- State & Metrics ---
@@ -224,6 +236,14 @@ def upload_snapshot(snapshot: SnapshotUpload):
                 INSERT INTO party_snapshots
                     (player_id, character, floor, fish, equipment, companion, companion_level, power_level)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (player_id, floor) DO UPDATE SET
+                    character = EXCLUDED.character,
+                    fish = EXCLUDED.fish,
+                    equipment = EXCLUDED.equipment,
+                    companion = EXCLUDED.companion,
+                    companion_level = EXCLUDED.companion_level,
+                    power_level = EXCLUDED.power_level,
+                    created_at = NOW()
             """, (snapshot.playerId, snapshot.character, snapshot.floor,
                   Json(fish_data),
                   Json(snapshot.equipment) if snapshot.equipment else None,
