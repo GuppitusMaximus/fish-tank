@@ -30,7 +30,7 @@ if SCRIPT_DIR not in sys.path:
 
 # --- Constants ---
 
-VALID_SPECIES = ["pufferfish", "swordfish", "seahorse", "guppy"]
+VALID_SPECIES = ["pufferfish", "swordfish", "seahorse", "guppy", "dog"]
 VALID_CHARACTERS = ["andy", "saba"]
 MATCHMAKING_BRACKET = 0.15
 MATCHMAKING_BRACKET_WIDE = 0.30
