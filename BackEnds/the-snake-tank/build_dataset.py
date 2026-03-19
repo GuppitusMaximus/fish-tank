@@ -35,6 +35,9 @@ def parse_json_file(filepath):
     with open(filepath) as f:
         raw = json.load(f)
 
+    if not isinstance(raw, dict):
+        return None
+
     devices = raw.get("body", {}).get("devices", [])
     if not devices:
         return None
@@ -162,7 +165,7 @@ def main():
                     ),
                 )
                 inserted += 1
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
+            except (json.JSONDecodeError, KeyError, ValueError, AttributeError) as e:
                 print(f"  SKIP (error): {filepath} — {e}")
                 skipped += 1
 
