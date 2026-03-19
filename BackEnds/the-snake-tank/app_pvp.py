@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional
 
 from psycopg2.extras import Json
@@ -92,6 +92,21 @@ class FishSnapshot(BaseModel):
     speciesId: str
     level: int
     moves: List[str]
+    name: Optional[str] = None
+    hp: Optional[int] = None
+    maxHp: Optional[int] = None
+    atk: Optional[int] = None
+    def_: Optional[int] = Field(None, alias='def')
+    spd: Optional[int] = None
+    healPower: Optional[int] = None
+    shield: Optional[int] = None
+    maxShield: Optional[int] = None
+    color: Optional[str] = None
+    effectAffinity: Optional[str] = None
+    effectResistance: Optional[str] = None
+    isCompanion: Optional[bool] = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("speciesId")
     @classmethod
@@ -115,6 +130,7 @@ class SnapshotUpload(BaseModel):
     fish: List[FishSnapshot] = Field(min_length=1, max_length=3)
     powerLevel: float = Field(ge=0, le=5000)
     equipment: Optional[List] = None
+    companion: Optional[dict] = None
     companionLevel: Optional[int] = None
 
     @field_validator("playerId")
@@ -156,7 +172,7 @@ def _find_opponent(floor, power_level, exclude_player_id=None, bracket=MATCHMAKI
             if exclude_player_id:
                 cur.execute("""
                     SELECT player_id, character, floor, fish, equipment,
-                           companion_level, power_level
+                           companion_level, power_level, companion
                     FROM party_snapshots
                     WHERE floor = %s
                       AND power_level BETWEEN %s AND %s
@@ -167,7 +183,7 @@ def _find_opponent(floor, power_level, exclude_player_id=None, bracket=MATCHMAKI
             else:
                 cur.execute("""
                     SELECT player_id, character, floor, fish, equipment,
-                           companion_level, power_level
+                           companion_level, power_level, companion
                     FROM party_snapshots
                     WHERE floor = %s
                       AND power_level BETWEEN %s AND %s
@@ -195,7 +211,7 @@ def upload_snapshot(snapshot: SnapshotUpload):
     start = time.time()
     from db import get_connection
 
-    fish_data = [f.model_dump() for f in snapshot.fish]
+    fish_data = [f.model_dump(by_alias=True) for f in snapshot.fish]
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -206,11 +222,12 @@ def upload_snapshot(snapshot: SnapshotUpload):
             """, (snapshot.playerId,))
             cur.execute("""
                 INSERT INTO party_snapshots
-                    (player_id, character, floor, fish, equipment, companion_level, power_level)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (player_id, character, floor, fish, equipment, companion, companion_level, power_level)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (snapshot.playerId, snapshot.character, snapshot.floor,
                   Json(fish_data),
                   Json(snapshot.equipment) if snapshot.equipment else None,
+                  Json(snapshot.companion) if snapshot.companion else None,
                   snapshot.companionLevel, snapshot.powerLevel))
         conn.commit()
 
@@ -260,6 +277,7 @@ def get_opponent(
         "equipment": row[4],
         "companionLevel": row[5],
         "powerLevel": row[6],
+        "companion": row[7],
     }
 
     logger.info("Matchmaking hit", extra={
@@ -478,7 +496,7 @@ def admin_player_detail(player_id: str):
                 raise HTTPException(status_code=404, detail="Player not found")
 
             cur.execute("""
-                SELECT floor, character, power_level, fish, equipment, created_at
+                SELECT floor, character, power_level, fish, equipment, companion, created_at
                 FROM party_snapshots
                 WHERE player_id = %s
                 ORDER BY created_at DESC
@@ -493,7 +511,8 @@ def admin_player_detail(player_id: str):
             "powerLevel": row[2],
             "fish": row[3] if row[3] else [],
             "equipment": row[4] if row[4] else [],
-            "createdAt": row[5].isoformat() if row[5] else None,
+            "companion": row[5] if row[5] else None,
+            "createdAt": row[6].isoformat() if row[6] else None,
         }
         for row in snap_rows
     ]
@@ -524,7 +543,8 @@ def admin_snapshots(
 
             cur.execute("""
                 SELECT ps.player_id, COALESCE(p.display_name, 'Angler'),
-                       ps.floor, ps.character, ps.power_level, ps.fish, ps.equipment, ps.created_at
+                       ps.floor, ps.character, ps.power_level, ps.fish, ps.equipment,
+                       ps.companion, ps.created_at
                 FROM party_snapshots ps
                 LEFT JOIN players p ON p.id::text = ps.player_id
                 ORDER BY ps.created_at DESC
@@ -541,7 +561,8 @@ def admin_snapshots(
             "powerLevel": row[4],
             "fish": row[5] if row[5] else [],
             "equipment": row[6] if row[6] else [],
-            "createdAt": row[7].isoformat() if row[7] else None,
+            "companion": row[7] if row[7] else None,
+            "createdAt": row[8].isoformat() if row[8] else None,
         }
         for row in rows
     ]

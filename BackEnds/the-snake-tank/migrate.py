@@ -108,6 +108,9 @@ CREATE TABLE IF NOT EXISTS party_snapshots (
 -- Drop legacy UNIQUE(player_id, floor) so multiple snapshots per run are kept
 ALTER TABLE party_snapshots DROP CONSTRAINT IF EXISTS party_snapshots_player_id_floor_key;
 
+-- Rich snapshot data: companion object
+ALTER TABLE party_snapshots ADD COLUMN IF NOT EXISTS companion JSONB;
+
 -- Players table for display names and identity
 CREATE TABLE IF NOT EXISTS players (
     id              UUID PRIMARY KEY,
