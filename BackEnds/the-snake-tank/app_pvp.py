@@ -236,14 +236,6 @@ def upload_snapshot(snapshot: SnapshotUpload):
                 INSERT INTO party_snapshots
                     (player_id, character, floor, fish, equipment, companion, companion_level, power_level)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (player_id, floor) DO UPDATE SET
-                    character = EXCLUDED.character,
-                    fish = EXCLUDED.fish,
-                    equipment = EXCLUDED.equipment,
-                    companion = EXCLUDED.companion,
-                    companion_level = EXCLUDED.companion_level,
-                    power_level = EXCLUDED.power_level,
-                    created_at = NOW()
             """, (snapshot.playerId, snapshot.character, snapshot.floor,
                   Json(fish_data),
                   Json(snapshot.equipment) if snapshot.equipment else None,
