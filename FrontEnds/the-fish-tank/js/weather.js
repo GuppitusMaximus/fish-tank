@@ -2323,7 +2323,9 @@ window.WeatherApp = (() => {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
 
-    fetch('data/weather-public.json')
+    var workerUrl = AUTH_API_URL ? AUTH_API_URL + '/data/weather-public' : null;
+    var primary = workerUrl ? fetch(workerUrl) : Promise.reject();
+    primary
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
@@ -2333,8 +2335,7 @@ window.WeatherApp = (() => {
         renderHomeSummary(data);
       })
       .catch(function() {
-        if (!AUTH_API_URL) return;
-        fetch(AUTH_API_URL + '/data/weather-public')
+        fetch('data/weather-public.json')
           .then(function(res) {
             if (!res.ok) throw new Error(res.status);
             return res.json();
@@ -2740,8 +2741,13 @@ window.WeatherApp = (() => {
       return;
     }
 
-    fetch('data/weather-public.json')
-      .then(function(r) { return r.json(); })
+    var workerUrl = AUTH_API_URL ? AUTH_API_URL + '/data/weather-public' : null;
+    var primary = workerUrl ? fetch(workerUrl) : Promise.reject();
+    primary
+      .then(function(r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      })
       .then(function(d) {
         if (d && d.public_stations) {
           if (!latestData) latestData = {};
@@ -2749,7 +2755,18 @@ window.WeatherApp = (() => {
           renderCompass(d.public_stations, 'dash-compass-container');
         }
       })
-      .catch(function() {});
+      .catch(function() {
+        fetch('data/weather-public.json')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d && d.public_stations) {
+              if (!latestData) latestData = {};
+              latestData.public_stations = d.public_stations;
+              renderCompass(d.public_stations, 'dash-compass-container');
+            }
+          })
+          .catch(function() {});
+      });
   }
 
   function loadCompassData() {
