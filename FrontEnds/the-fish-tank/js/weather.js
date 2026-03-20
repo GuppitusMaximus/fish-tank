@@ -1759,6 +1759,12 @@ window.WeatherApp = (() => {
     '</div>';
   }
 
+  function renderPredictionsV2(predictions, propertyMeta) {
+    predictionState.predictions = predictions || [];
+    predictionState.propertyMeta = propertyMeta;
+    return buildPredictionContent();
+  }
+
   function initPredictionsV2(predictions, propertyMeta) {
     predictionState.predictions = predictions || [];
     predictionState.propertyMeta = propertyMeta;
