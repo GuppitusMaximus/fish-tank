@@ -649,7 +649,10 @@ def train_gb():
         json.dump(new_meta, f, indent=2)
     print(f"  Saved GB model v{new_version}")
 
-    _run_lasso_diagnostic(X, y)
+    try:
+        _run_lasso_diagnostic(X, y)
+    except Exception as e:
+        print(f"  Lasso diagnostic skipped: {e}")
 
 
 def _run_lasso_diagnostic(X, y):
@@ -658,6 +661,14 @@ def _run_lasso_diagnostic(X, y):
     from sklearn.preprocessing import StandardScaler
 
     print("  Running Lasso feature selection diagnostic...")
+
+    mask = ~np.isnan(y).any(axis=1) if y.ndim > 1 else ~np.isnan(y)
+    X = X[mask]
+    y = y[mask]
+
+    from sklearn.impute import SimpleImputer
+    imputer = SimpleImputer(strategy='median')
+    X = imputer.fit_transform(X)
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
