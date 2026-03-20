@@ -367,7 +367,7 @@ def get_home_location():
         return None
 
 
-def filter_nearest_stations(stations, home, count=10):
+def filter_nearest_stations(stations, home, count=20):
     """Add distance fields and return the nearest `count` stations."""
     for s in stations:
         dist = haversine_km(home["lat"], home["lon"], s["lat"], s["lon"])
