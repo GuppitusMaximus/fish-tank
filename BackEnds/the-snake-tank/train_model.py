@@ -47,6 +47,14 @@ GB_MODEL_PATH = os.path.join(MODEL_DIR, "temp_predictor_gb.joblib")
 GB_META_PATH = os.path.join(MODEL_DIR, "gb_meta.json")
 GB_LASSO_PATH = os.path.join(MODEL_DIR, "lasso_rankings_24hr_pubRA_RC3_GB.json")
 
+MULTI_HORIZONS = {
+    '1h': 3,     # 3 steps × 20min = 1 hour
+    '3h': 9,     # 9 steps × 20min = 3 hours
+    '6h': 18,    # 18 steps × 20min = 6 hours
+    '12h': 36,   # 36 steps × 20min = 12 hours
+    '24h': 72,   # 72 steps × 20min = 24 hours
+}
+
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
     "humidity_outdoor", "noise", "pressure",
@@ -716,11 +724,206 @@ def _build_gb_feature_names():
     return names
 
 
+def build_multi_horizon_windows(df, horizon_steps, feature_cols=None):
+    """Build sliding windows targeting horizon_steps readings into the future."""
+    if feature_cols is None:
+        feature_cols = GB_ALL_COLS
+    timestamps = df["timestamp"].values
+    features_matrix = df[feature_cols].values
+
+    X, y = [], []
+
+    for i in range(GB_LOOKBACK, len(df)):
+        target_idx = i + horizon_steps
+        if target_idx >= len(df):
+            break
+
+        # Check lookback window contiguity
+        window_start = i - GB_LOOKBACK
+        contiguous = True
+        for j in range(window_start, i):
+            if timestamps[j + 1] - timestamps[j] > MAX_GAP:
+                contiguous = False
+                break
+        if not contiguous:
+            continue
+
+        # Check no gap > MAX_GAP between window end and target
+        for j in range(i, target_idx):
+            if timestamps[j + 1] - timestamps[j] > MAX_GAP:
+                contiguous = False
+                break
+        if not contiguous:
+            continue
+
+        feature_vector = features_matrix[window_start:i].flatten()
+        target = df[TARGET_COLS].values[target_idx]
+        X.append(feature_vector)
+        y.append(target)
+
+    return np.array(X) if X else np.array([]), np.array(y) if y else np.array([])
+
+
+def train_multi_horizon():
+    """Train multi-horizon prediction models (1h, 3h, 6h, 12h, 24h)."""
+    print("\n--- Multi-Horizon Models ---")
+
+    df = load_readings()
+    if len(df) < GB_MIN_READINGS:
+        print(f"Not enough data: {len(df)} readings (need {GB_MIN_READINGS}). Skipping multi-horizon.")
+        return
+
+    df = encode_trends(df)
+    df = engineer_features(df)
+    df["wifi_status"] = df["wifi_status"].fillna(0)
+    df["battery_percent"] = df["battery_percent"].fillna(100)
+    df["rf_status"] = df["rf_status"].fillna(0)
+    df["battery_vp"] = df["battery_vp"].fillna(0)
+
+    df = add_spatial_columns(df)
+
+    from lightgbm import LGBMRegressor
+
+    for horizon_name, horizon_steps in MULTI_HORIZONS.items():
+        print(f"\n  Training multiHorizon_{horizon_name} ({horizon_steps} steps ahead)...")
+
+        X, y = build_multi_horizon_windows(df, horizon_steps, GB_ALL_COLS)
+
+        if len(X) == 0:
+            print(f"    No valid windows. Skipping {horizon_name}.")
+            continue
+        if len(X) < 2:
+            print(f"    Only {len(X)} window(s). Skipping {horizon_name}.")
+            continue
+
+        print(f"    {len(X)} windows, {X.shape[1]} features")
+
+        if len(X) < 50:
+            loo = LeaveOneOut()
+            base = LGBMRegressor(
+                n_estimators=200, max_depth=8, learning_rate=0.05,
+                num_leaves=31, min_child_samples=5, verbosity=-1,
+            )
+            model = MultiOutputRegressor(base)
+            preds = cross_val_predict(model, X, y, cv=loo)
+            mae_indoor = mean_absolute_error(y[:, 0], preds[:, 0])
+            mae_outdoor = mean_absolute_error(y[:, 1], preds[:, 1])
+            model.fit(X, y)
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            base = LGBMRegressor(
+                n_estimators=200, max_depth=8, learning_rate=0.05,
+                num_leaves=31, min_child_samples=10, verbosity=-1,
+            )
+            model = MultiOutputRegressor(base)
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
+            mae_indoor = mean_absolute_error(y_test[:, 0], preds[:, 0])
+            mae_outdoor = mean_absolute_error(y_test[:, 1], preds[:, 1])
+
+        print(f"    MAE indoor:  {mae_indoor:.4f}°C")
+        print(f"    MAE outdoor: {mae_outdoor:.4f}°C")
+
+        # Train final model on all data (if we used train/test split)
+        if len(X) >= 50:
+            model.fit(X, y)
+
+        model_path = os.path.join(MODEL_DIR, f"temp_predictor_mh_{horizon_name}.joblib")
+        meta_path = os.path.join(MODEL_DIR, f"mh_{horizon_name}_meta.json")
+
+        os.makedirs(MODEL_DIR, exist_ok=True)
+        joblib.dump(model, model_path)
+
+        meta = {
+            "version": 1,
+            "trained_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "sample_count": len(X),
+            "feature_count": int(X.shape[1]),
+            "mae_indoor": round(mae_indoor, 4),
+            "mae_outdoor": round(mae_outdoor, 4),
+            "horizon": horizon_name,
+            "horizon_steps": horizon_steps,
+        }
+
+        # Increment version if meta already exists
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path) as f:
+                    old_meta = json.load(f)
+                meta["version"] = old_meta.get("version", 0) + 1
+            except (OSError, json.JSONDecodeError):
+                pass
+
+        with open(meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
+        print(f"    Saved multiHorizon_{horizon_name} v{meta['version']}")
+
+        # Lasso diagnostic
+        try:
+            _run_mh_lasso_diagnostic(X, y, horizon_name)
+        except Exception as e:
+            print(f"    Lasso diagnostic skipped: {e}")
+
+
+def _run_mh_lasso_diagnostic(X, y, horizon_name):
+    """Run Lasso regression for a multi-horizon model."""
+    from sklearn.linear_model import Lasso
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.impute import SimpleImputer
+
+    mask = ~np.isnan(y).any(axis=1) if y.ndim > 1 else ~np.isnan(y)
+    X = X[mask]
+    y = y[mask]
+
+    imputer = SimpleImputer(strategy='median')
+    X = imputer.fit_transform(X)
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    lasso = MultiOutputRegressor(Lasso(alpha=0.01, max_iter=5000))
+    lasso.fit(X_scaled, y)
+
+    coefs = np.mean([est.coef_ for est in lasso.estimators_], axis=0)
+
+    feature_names = _build_mh_feature_names()
+
+    rankings = []
+    for name, coef in zip(feature_names, coefs):
+        if abs(coef) > 1e-8:
+            rankings.append({"name": name, "coefficient": round(float(coef), 6)})
+
+    rankings.sort(key=lambda r: abs(r["coefficient"]), reverse=True)
+
+    result = {
+        "model_type": f"multiHorizon_{horizon_name}",
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "feature_count": len(coefs),
+        "nonzero_count": len(rankings),
+        "features": rankings,
+    }
+
+    lasso_path = os.path.join(MODEL_DIR, f"lasso_rankings_mh_{horizon_name}.json")
+    with open(lasso_path, "w") as f:
+        json.dump(result, f, indent=2)
+    print(f"    Lasso: {len(rankings)}/{len(coefs)} non-zero features")
+
+
+def _build_mh_feature_names():
+    """Build feature name list for multi-horizon models (same layout as GB base features)."""
+    names = []
+    for lag in range(GB_LOOKBACK):
+        for col in GB_ALL_COLS:
+            names.append(f"{col}_lag_{lag}")
+    return names
+
+
 def main():
     train()
     train_simple()
     train_6hr_rc()
     train_gb()
+    train_multi_horizon()
 
 
 if __name__ == "__main__":

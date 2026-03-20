@@ -42,6 +42,15 @@ GB_LOOKBACK = 24
 GB_MODEL_PATH = os.path.join(SCRIPT_DIR, "models", "temp_predictor_gb.joblib")
 GB_META_PATH = os.path.join(SCRIPT_DIR, "models", "gb_meta.json")
 
+MULTI_HORIZONS = {
+    '1h': 3,
+    '3h': 9,
+    '6h': 18,
+    '12h': 36,
+    '24h': 72,
+}
+MH_HORIZON_HOURS = {'1h': 1, '3h': 3, '6h': 6, '12h': 12, '24h': 24}
+
 SIMPLE_FEATURE_COLS = [
     "temp_indoor", "temp_outdoor", "co2", "humidity_indoor",
     "humidity_outdoor", "noise", "pressure",
@@ -356,7 +365,7 @@ def _run_gb_model():
         return None
 
 
-def _build_result(prediction, model_version, model_type, last_row):
+def _build_result(prediction, model_version, model_type, last_row, hours_ahead=1):
     """Build a prediction result dict."""
     last_ts = int(last_row["timestamp"])
     last_dt = datetime.fromtimestamp(last_ts, tz=timezone.utc)
@@ -372,11 +381,65 @@ def _build_result(prediction, model_version, model_type, last_row):
             "temp_outdoor": round(float(last_row["temp_outdoor"]), 1),
         },
         "prediction": {
-            "prediction_for": (last_dt + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "prediction_for": (last_dt + timedelta(hours=hours_ahead)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "temp_indoor": round(float(prediction[0]), 1),
             "temp_outdoor": round(float(prediction[1]), 1),
         },
     }
+
+
+def _run_multi_horizon_model(horizon_name):
+    """Run a multi-horizon model. Returns (prediction, model_version, last_row) or None."""
+    model_path = os.path.join(SCRIPT_DIR, "models", f"temp_predictor_mh_{horizon_name}.joblib")
+    meta_path = os.path.join(SCRIPT_DIR, "models", f"mh_{horizon_name}_meta.json")
+
+    if not os.path.exists(model_path):
+        return None
+    try:
+        with get_connection() as conn:
+            df = pd.read_sql_query(
+                f"SELECT * FROM readings ORDER BY timestamp DESC LIMIT {GB_LOOKBACK}",
+                conn,
+            )
+
+        if len(df) < GB_LOOKBACK:
+            print(f"  multiHorizon_{horizon_name}: not enough readings")
+            return None
+
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+        for col in ("temp_trend", "pressure_trend", "temp_outdoor_trend"):
+            df[col] = df[col].map(TREND_MAP).fillna(0).astype(int)
+        for prefix, src in [
+            ("hours_since_min_temp_indoor", "date_min_temp_indoor"),
+            ("hours_since_max_temp_indoor", "date_max_temp_indoor"),
+            ("hours_since_min_temp_outdoor", "date_min_temp_outdoor"),
+            ("hours_since_max_temp_outdoor", "date_max_temp_outdoor"),
+        ]:
+            df[prefix] = (df["timestamp"] - df[src].fillna(df["timestamp"])) / 3600.0
+        df["wifi_status"] = df["wifi_status"].fillna(0)
+        df["battery_percent"] = df["battery_percent"].fillna(100)
+        df["rf_status"] = df["rf_status"].fillna(0)
+        df["battery_vp"] = df["battery_vp"].fillna(0)
+
+        df = add_spatial_columns(df)
+
+        feature_vector = df[GB_ALL_COLS].values.flatten().reshape(1, -1)
+
+        meta = {}
+        try:
+            with open(meta_path) as f:
+                meta = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+        model = joblib.load(model_path)
+        prediction = model.predict(feature_vector)[0]
+        print(f"  Using multiHorizon_{horizon_name} model")
+        return (prediction, meta.get("version", 0), df.iloc[-1])
+    except Exception as e:
+        print(f"  multiHorizon_{horizon_name} failed: {e}")
+        return None
 
 
 def _write_prediction(result, predictions_dir, model_type):
@@ -425,18 +488,25 @@ def _write_prediction(result, predictions_dir, model_type):
 
 def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
     models_to_run = []
+    mh_models = [f"multiHorizon_{h}" for h in MULTI_HORIZONS]
+
     if model_type_filter == "all":
-        models_to_run = ["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB"]
+        models_to_run = ["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB"] + mh_models
     elif model_type_filter == "3hrRaw":
         models_to_run = ["3hrRaw"]
     elif model_type_filter == "24hrRaw":
         models_to_run = ["24hrRaw"]
     elif model_type_filter == "24hr_pubRA_RC3_GB":
         models_to_run = ["24hr_pubRA_RC3_GB"]
+    elif model_type_filter == "multiHorizon":
+        models_to_run = mh_models
+    elif model_type_filter.startswith("multiHorizon_"):
+        models_to_run = [model_type_filter]
 
     results = []
 
     for model_name in models_to_run:
+        hours_ahead = 1
         if model_name == "24hrRaw":
             out = _run_full_model()
         elif model_name == "3hrRaw":
@@ -445,6 +515,13 @@ def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
             out = _run_6hr_rc_model()
         elif model_name == "24hr_pubRA_RC3_GB":
             out = _run_gb_model()
+        elif model_name.startswith("multiHorizon_"):
+            horizon_name = model_name.split("_", 1)[1]
+            if horizon_name not in MULTI_HORIZONS:
+                print(f"  Unknown horizon: {horizon_name}")
+                continue
+            hours_ahead = MH_HORIZON_HOURS[horizon_name]
+            out = _run_multi_horizon_model(horizon_name)
         else:
             continue
 
@@ -453,12 +530,12 @@ def predict(output_path=None, predictions_dir=None, model_type_filter="all"):
             continue
 
         prediction, model_version, last_row = out
-        result = _build_result(prediction, model_version, model_name, last_row)
+        result = _build_result(prediction, model_version, model_name, last_row, hours_ahead=hours_ahead)
 
         last_ts = int(last_row["timestamp"])
         last_dt = datetime.fromtimestamp(last_ts, tz=timezone.utc)
         print(f"  Last reading: {last_dt.strftime('%Y-%m-%d %H:%M UTC')}")
-        print(f"  Predicted next hour ({model_name}):")
+        print(f"  Predicted +{hours_ahead}h ({model_name}):")
         print(f"    Indoor:  {prediction[0]:.1f}\u00b0C")
         print(f"    Outdoor: {prediction[1]:.1f}\u00b0C")
 
@@ -483,7 +560,10 @@ def main():
     parser = argparse.ArgumentParser(description="Predict next-hour temperatures")
     parser.add_argument("--output", help="Path to write prediction JSON file")
     parser.add_argument("--predictions-dir", help="Directory to store timestamped prediction files")
-    parser.add_argument("--model-type", choices=["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB", "all"], default="all",
+    mh_choices = [f"multiHorizon_{h}" for h in ["1h", "3h", "6h", "12h", "24h"]]
+    parser.add_argument("--model-type",
+                        choices=["3hrRaw", "24hrRaw", "6hrRC", "24hr_pubRA_RC3_GB", "multiHorizon"] + mh_choices + ["all"],
+                        default="all",
                         help="Which model to run predictions for")
     args = parser.parse_args()
     predict(output_path=args.output, predictions_dir=args.predictions_dir,
