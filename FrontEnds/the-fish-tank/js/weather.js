@@ -1714,9 +1714,10 @@ window.WeatherApp = (() => {
       return '<p class="empty-state">No predictions available</p>';
     }
     var now = new Date();
+    var twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
     predictions = predictions.filter(function(pred) {
       if (!pred.prediction_for) return true;
-      return new Date(pred.prediction_for) > now;
+      return new Date(pred.prediction_for) > twoHoursAgo;
     });
     if (predictions.length === 0) {
       return '<p class="empty-state">No current predictions</p>';
