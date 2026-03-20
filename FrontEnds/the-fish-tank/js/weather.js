@@ -1624,6 +1624,54 @@ window.WeatherApp = (() => {
     wireSharedHandlers(data);
   }
 
+  var PRED_FILTER_KEY = 'fishtank_pred_filter';
+  var predictionState = {
+    predictions: [],
+    propertyMeta: null,
+    filterModels: [],
+    filterHorizon: 'all'
+  };
+
+  try {
+    var savedPredFilter = localStorage.getItem(PRED_FILTER_KEY);
+    if (savedPredFilter) {
+      var pf = JSON.parse(savedPredFilter);
+      if (pf.filterModels) predictionState.filterModels = pf.filterModels;
+      if (pf.filterHorizon) predictionState.filterHorizon = pf.filterHorizon;
+    }
+  } catch (e) {}
+
+  function savePredFilterPrefs() {
+    try {
+      localStorage.setItem(PRED_FILTER_KEY, JSON.stringify({
+        filterModels: predictionState.filterModels,
+        filterHorizon: predictionState.filterHorizon
+      }));
+    } catch (e) {}
+  }
+
+  function getHorizon(pred) {
+    var modelType = pred.model_type || '';
+    var match = modelType.match(/_(\d+)h$/);
+    if (match) return parseInt(match[1], 10);
+    if (pred.prediction_for && pred.generated_at) {
+      var diff = new Date(pred.prediction_for).getTime() - new Date(pred.generated_at).getTime();
+      var hours = Math.round(diff / 3600000);
+      if (hours > 1) return hours;
+    }
+    return 1;
+  }
+
+  function getHorizonLabel(hours) {
+    if (hours === 1) return '1h Forecast';
+    return hours + 'h Forecast';
+  }
+
+  function getHorizonGroupLabel(hours) {
+    if (hours === 1) return 'Next Hour';
+    return hours + '-Hour Forecast';
+  }
+
   var historyState = {
     fullData: [],
     filtered: [],
@@ -1634,6 +1682,7 @@ window.WeatherApp = (() => {
     sortAsc: false,
     filterModel: [],
     filterVersion: [],
+    filterHorizon: 'all',
     filterDateStart: '',
     filterDateEnd: '',
     propertyMeta: null,
@@ -1675,7 +1724,7 @@ window.WeatherApp = (() => {
         '<div class="dash-subtab" id="subtab-dashboard"' + (activeSubtab !== 'dashboard' ? ' style="display:none"' : '') + '>' +
           renderCurrentV2(data.current, pm) +
           '<div id="dash-compass-container"></div>' +
-          renderPredictionsV2(data.predictions, pm) +
+          '<div id="predictions-v2-container"></div>' +
           '<div id="history-v2-container"></div>' +
           '<div class="dash-updated">Last updated: ' + formatDateTime(new Date(data.generated_at)) + '</div>' +
         '</div>' +
@@ -1684,6 +1733,7 @@ window.WeatherApp = (() => {
         '<div class="dash-subtab" id="subtab-rankings"' + (activeSubtab !== 'rankings' ? ' style="display:none"' : '') + '></div>' +
       '</div>';
 
+    initPredictionsV2(data.predictions, pm);
     initHistoryV2();
     wireSharedHandlers(data);
     loadDashCompass();
@@ -1709,48 +1759,166 @@ window.WeatherApp = (() => {
     '</div>';
   }
 
-  function renderPredictionsV2(predictions, propertyMeta) {
+  function initPredictionsV2(predictions, propertyMeta) {
+    predictionState.predictions = predictions || [];
+    predictionState.propertyMeta = propertyMeta;
+    var el = document.getElementById('predictions-v2-container');
+    if (!el) return;
+    el.innerHTML = buildPredictionContent();
+    wirePredictionHandlers();
+  }
+
+  function refreshPredictionsV2() {
+    var el = document.getElementById('predictions-v2-container');
+    if (!el) return;
+    el.innerHTML = buildPredictionContent();
+    wirePredictionHandlers();
+  }
+
+  function buildPredictionContent() {
+    var predictions = predictionState.predictions;
+    var pm = predictionState.propertyMeta;
+
     if (!predictions || predictions.length === 0) {
       return '<p class="empty-state">No predictions available</p>';
     }
+
     var now = new Date();
     var twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-    predictions = predictions.filter(function(pred) {
+    var filtered = predictions.filter(function(pred) {
       if (!pred.prediction_for) return true;
       return new Date(pred.prediction_for) > twoHoursAgo;
     });
-    if (predictions.length === 0) {
-      return '<p class="empty-state">No current predictions</p>';
+
+    if (predictionState.filterModels.length > 0) {
+      filtered = filtered.filter(function(pred) {
+        return predictionState.filterModels.indexOf(pred.model_type) !== -1;
+      });
     }
-    var cards = predictions.map(function(pred) {
-      var forTime = pred.prediction_for ? new Date(pred.prediction_for) : null;
-      var timeStr = forTime ? formatTime(forTime) : 'Next hour';
-      var values = pred.values || {};
-      var blocks = Object.keys(values).map(function(key) {
-        return '<div class="temp-block">' +
-          '<span class="temp-label">' + getPropertyLabel(key, propertyMeta) + '</span>' +
-          '<span class="temp-value">' + formatProperty(key, values[key], propertyMeta) + '</span>' +
+
+    if (predictionState.filterHorizon !== 'all') {
+      var targetH = parseInt(predictionState.filterHorizon, 10);
+      filtered = filtered.filter(function(pred) {
+        return getHorizon(pred) === targetH;
+      });
+    }
+
+    var allModels = {};
+    var allHorizons = {};
+    predictions.forEach(function(pred) {
+      if (pred.model_type) allModels[pred.model_type] = true;
+      allHorizons[getHorizon(pred)] = true;
+    });
+    var modelList = Object.keys(allModels).sort();
+    var horizonList = Object.keys(allHorizons).map(Number).sort(function(a, b) { return a - b; });
+
+    var filterHtml = '<div class="prediction-filters">' +
+      '<span id="pred-filter-model-container"></span>' +
+      '<div class="pred-horizon-btns">' +
+        '<button class="pred-horizon-btn' + (predictionState.filterHorizon === 'all' ? ' active' : '') + '" data-horizon="all">All</button>';
+    horizonList.forEach(function(h) {
+      filterHtml += '<button class="pred-horizon-btn' + (predictionState.filterHorizon === String(h) ? ' active' : '') + '" data-horizon="' + h + '">' + h + 'h</button>';
+    });
+    filterHtml += '</div></div>';
+
+    if (filtered.length === 0) {
+      return filterHtml + '<p class="empty-state">No predictions match current filters</p>';
+    }
+
+    filtered.sort(function(a, b) {
+      var ta = a.prediction_for ? new Date(a.prediction_for).getTime() : 0;
+      var tb = b.prediction_for ? new Date(b.prediction_for).getTime() : 0;
+      return ta - tb;
+    });
+
+    var groups = {};
+    var horizonOrder = [];
+    filtered.forEach(function(pred) {
+      var h = getHorizon(pred);
+      if (!groups[h]) {
+        groups[h] = [];
+        horizonOrder.push(h);
+      }
+      groups[h].push(pred);
+    });
+    horizonOrder.sort(function(a, b) { return a - b; });
+
+    var cardsHtml = '';
+    horizonOrder.forEach(function(h) {
+      if (horizonOrder.length > 1) {
+        cardsHtml += '<div class="prediction-group-label">' + getHorizonGroupLabel(h) + '</div>';
+      }
+      cardsHtml += '<div class="prediction-group-cards">';
+      groups[h].forEach(function(pred) {
+        var forTime = pred.prediction_for ? new Date(pred.prediction_for) : null;
+        var timeStr = forTime ? formatTime(forTime) : 'Next hour';
+        var values = pred.values || {};
+        var blocks = Object.keys(values).map(function(key) {
+          return '<div class="temp-block">' +
+            '<span class="temp-label">' + getPropertyLabel(key, pm) + '</span>' +
+            '<span class="temp-value">' + formatProperty(key, values[key], pm) + '</span>' +
+          '</div>';
+        }).join('');
+
+        cardsHtml += '<div class="dash-card dash-card-prediction">' +
+          '<div class="prediction-header">' +
+            '<h2>' + getHorizonLabel(h) + '</h2>' +
+            '<span class="model-badge">' + escapeHtml(pred.model_type || 'unknown') + '</span>' +
+          '</div>' +
+          '<div class="card-time">' + timeStr +
+            (pred.model_version ? ' <span class="card-meta">v' + pred.model_version + '</span>' : '') +
+          '</div>' +
+          '<div class="temp-row">' + blocks + '</div>' +
         '</div>';
-      }).join('');
+      });
+      cardsHtml += '</div>';
+    });
 
-      return '<div class="dash-card dash-card-prediction">' +
-        '<div class="prediction-header">' +
-          '<h2>Forecast</h2>' +
-          '<span class="model-badge">' + escapeHtml(pred.model_type || 'unknown') + '</span>' +
-        '</div>' +
-        '<div class="card-time">' + timeStr +
-          (pred.model_version ? ' <span class="card-meta">v' + pred.model_version + '</span>' : '') +
-        '</div>' +
-        '<div class="temp-row">' + blocks + '</div>' +
-      '</div>';
-    }).join('');
+    return filterHtml + '<div class="dash-predictions">' + cardsHtml + '</div>';
+  }
 
-    return '<div class="dash-predictions">' + cards + '</div>';
+  function wirePredictionHandlers() {
+    var predictions = predictionState.predictions || [];
+    var allModels = {};
+    predictions.forEach(function(pred) {
+      if (pred.model_type) allModels[pred.model_type] = true;
+    });
+    var modelList = Object.keys(allModels).sort();
+
+    var modelContainer = document.getElementById('pred-filter-model-container');
+    if (modelContainer) {
+      modelContainer.innerHTML = '';
+      modelContainer.appendChild(createMultiSelect('pred-filter-model', modelList, predictionState.filterModels, function(selected) {
+        predictionState.filterModels = selected;
+        savePredFilterPrefs();
+        refreshPredictionsV2();
+      }));
+    }
+
+    var horizonBtns = document.querySelectorAll('.pred-horizon-btn');
+    horizonBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        predictionState.filterHorizon = btn.dataset.horizon;
+        savePredFilterPrefs();
+        refreshPredictionsV2();
+      });
+    });
   }
 
   function getHistoryTimestamp(entry) {
     if (entry.timestamp) return new Date(entry.timestamp);
     return new Date(entry.date + 'T' + (entry.hour < 10 ? '0' : '') + entry.hour + ':00:00Z');
+  }
+
+  function getHistoryHorizon(entry) {
+    var modelType = entry.model_type || '';
+    var match = modelType.match(/_(\d+)h$/);
+    if (match) return parseInt(match[1], 10);
+    return 1;
+  }
+
+  function getHistoryHorizonLabel(entry) {
+    return getHistoryHorizon(entry) + 'h';
   }
 
   function applyHistoryFilters() {
@@ -1762,6 +1930,9 @@ window.WeatherApp = (() => {
     historyState.filtered = data.filter(function(entry) {
       if (historyState.filterModel.length > 0 && historyState.filterModel.indexOf(entry.model_type) === -1) return false;
       if (historyState.filterVersion.length > 0 && historyState.filterVersion.indexOf(String(entry.model_version)) === -1) return false;
+      if (historyState.filterHorizon !== 'all') {
+        if (getHistoryHorizon(entry) !== parseInt(historyState.filterHorizon, 10)) return false;
+      }
       if (historyState.filterDateStart || historyState.filterDateEnd) {
         var d = entry.date || (entry.timestamp ? entry.timestamp.substring(0, 10) : '');
         if (historyState.filterDateStart && d < historyState.filterDateStart) return false;
@@ -1790,6 +1961,10 @@ window.WeatherApp = (() => {
     if (historyState.filterDateEnd) {
       sql += " AND for_hour <= ?";
       params.push(historyState.filterDateEnd + 'T23:59:59');
+    }
+    if (historyState.filterHorizon !== 'all') {
+      sql += " AND model_type LIKE ?";
+      params.push('%_' + historyState.filterHorizon + 'h');
     }
 
     sql += " ORDER BY for_hour DESC";
@@ -1826,6 +2001,9 @@ window.WeatherApp = (() => {
       if (col === 'timestamp') {
         va = getHistoryTimestamp(a).getTime();
         vb = getHistoryTimestamp(b).getTime();
+      } else if (col === 'horizon') {
+        va = getHistoryHorizon(a);
+        vb = getHistoryHorizon(b);
       } else if (col === 'model_type') {
         va = a.model_type || '';
         vb = b.model_type || '';
@@ -1850,7 +2028,8 @@ window.WeatherApp = (() => {
 
     var headerCells = '<th class="sortable" data-sort="timestamp">Time' + sortIndicator('timestamp') + '</th>' +
       '<th class="sortable" data-sort="model_type">Model' + sortIndicator('model_type') + '</th>' +
-      '<th class="sortable model-version-col" data-sort="model_version">Version' + sortIndicator('model_version') + '</th>';
+      '<th class="sortable model-version-col" data-sort="model_version">Version' + sortIndicator('model_version') + '</th>' +
+      '<th class="sortable horizon-col" data-sort="horizon">Horizon' + sortIndicator('horizon') + '</th>';
 
     props.forEach(function(suffix) {
       var metaKey = resolvePropertyKey(suffix, pm);
@@ -1860,7 +2039,7 @@ window.WeatherApp = (() => {
         '<th class="sortable" data-sort="delta_' + suffix + '">\u0394' + sortIndicator('delta_' + suffix) + '</th>';
     });
 
-    var avgCells = '<th></th><th></th><th></th>';
+    var avgCells = '<th></th><th></th><th></th><th></th>';
     props.forEach(function(suffix) {
       var deltas = sorted.filter(function(e) {
         return e['delta_' + suffix] !== undefined && e['delta_' + suffix] !== null;
@@ -1885,7 +2064,8 @@ window.WeatherApp = (() => {
       rows += '<tr>' +
         '<td>' + formatDateTime(time) + '</td>' +
         '<td>' + (entry.model_type ? escapeHtml(entry.model_type) : '—') + '</td>' +
-        '<td class="model-version-col">' + (entry.model_version ? 'v' + entry.model_version : '—') + '</td>';
+        '<td class="model-version-col">' + (entry.model_version ? 'v' + entry.model_version : '—') + '</td>' +
+        '<td class="horizon-col">' + getHistoryHorizonLabel(entry) + '</td>';
       props.forEach(function(suffix) {
         var actual = entry['actual_' + suffix];
         var predicted = entry['predicted_' + suffix];
@@ -1928,9 +2108,28 @@ window.WeatherApp = (() => {
     var minDate = dates.length > 0 ? dates.reduce(function(a, b) { return a < b ? a : b; }) : '';
     var maxDate = dates.length > 0 ? dates.reduce(function(a, b) { return a > b ? a : b; }) : '';
 
+    var horizonSet = {};
+    var source = historyState.fullData;
+    if (_db && !_dbFailed) {
+      queryDb("SELECT DISTINCT model_type FROM prediction_history ORDER BY model_type").forEach(function(r) {
+        horizonSet[getHistoryHorizon({ model_type: r.model_type })] = true;
+      });
+    } else {
+      source.forEach(function(e) { horizonSet[getHistoryHorizon(e)] = true; });
+    }
+    var horizons = Object.keys(horizonSet).map(Number).sort(function(a, b) { return a - b; });
+
+    var horizonBtns = '<div class="history-horizon-btns">' +
+      '<button class="hist-horizon-btn' + (historyState.filterHorizon === 'all' ? ' active' : '') + '" data-horizon="all">All</button>';
+    horizons.forEach(function(h) {
+      horizonBtns += '<button class="hist-horizon-btn' + (historyState.filterHorizon === String(h) ? ' active' : '') + '" data-horizon="' + h + '">' + h + 'h</button>';
+    });
+    horizonBtns += '</div>';
+
     return '<div class="history-filters">' +
       '<span id="filter-model-container"></span>' +
       '<span id="filter-version-container"></span>' +
+      horizonBtns +
       '<input type="date" id="filter-date-start" class="history-filter-date" value="' + historyState.filterDateStart + '"' +
         (minDate ? ' min="' + minDate + '"' : '') + (maxDate ? ' max="' + maxDate + '"' : '') + '>' +
       '<input type="date" id="filter-date-end" class="history-filter-date" value="' + historyState.filterDateEnd + '"' +
@@ -2050,6 +2249,14 @@ window.WeatherApp = (() => {
   function wireHistoryHandlers() {
     buildFilterDropdowns();
 
+    var histHorizonBtns = document.querySelectorAll('.hist-horizon-btn');
+    histHorizonBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        historyState.filterHorizon = btn.dataset.horizon;
+        refreshHistoryV2();
+      });
+    });
+
     var sortHeaders = document.querySelectorAll('#history-table .sortable');
     sortHeaders.forEach(function(th) {
       th.addEventListener('click', function() {
@@ -2097,7 +2304,8 @@ window.WeatherApp = (() => {
           var tr = document.createElement('tr');
           var cells = '<td>' + formatDateTime(time) + '</td>' +
             '<td>' + (entry.model_type ? escapeHtml(entry.model_type) : '—') + '</td>' +
-            '<td class="model-version-col">' + (entry.model_version ? 'v' + entry.model_version : '—') + '</td>';
+            '<td class="model-version-col">' + (entry.model_version ? 'v' + entry.model_version : '—') + '</td>' +
+            '<td class="horizon-col">' + getHistoryHorizonLabel(entry) + '</td>';
           props.forEach(function(suffix) {
             var actual = entry['actual_' + suffix];
             var predicted = entry['predicted_' + suffix];
@@ -2140,7 +2348,8 @@ window.WeatherApp = (() => {
       return;
     }
 
-    var modelOptions = rankings.map(function(r) {
+    var modelOptions = '<option value="__compare__">Compare All</option>';
+    modelOptions += rankings.map(function(r) {
       return '<option value="' + escapeHtml(r.model_type) + '">' + escapeHtml(r.model_type) + '</option>';
     }).join('');
 
@@ -2151,20 +2360,43 @@ window.WeatherApp = (() => {
           '<select id="rankings-model-select" class="rankings-select">' +
             modelOptions +
           '</select>' +
+          '<select id="rankings-topn-select" class="rankings-select">' +
+            '<option value="10">Top 10</option>' +
+            '<option value="25">Top 25</option>' +
+            '<option value="50" selected>Top 50</option>' +
+            '<option value="100">Top 100</option>' +
+            '<option value="0">All</option>' +
+          '</select>' +
+          '<input type="text" id="rankings-search" class="rankings-search" placeholder="Search features\u2026">' +
           '<span id="rankings-meta" class="rankings-meta"></span>' +
         '</div>' +
         '<div id="rankings-list"></div>' +
       '</div>';
 
     var select = document.getElementById('rankings-model-select');
-    renderRankingsForModel(rankings, select.value);
+    var topNSelect = document.getElementById('rankings-topn-select');
+    var searchInput = document.getElementById('rankings-search');
 
-    select.addEventListener('change', function() {
-      renderRankingsForModel(rankings, select.value);
+    function refreshRankings() {
+      if (select.value === '__compare__') {
+        renderRankingsComparison(rankings, searchInput.value, parseInt(topNSelect.value, 10));
+      } else {
+        renderRankingsForModel(rankings, select.value, searchInput.value, parseInt(topNSelect.value, 10));
+      }
+    }
+
+    refreshRankings();
+
+    select.addEventListener('change', refreshRankings);
+    topNSelect.addEventListener('change', refreshRankings);
+    var searchTimer = null;
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(refreshRankings, 200);
     });
   }
 
-  function renderRankingsForModel(rankings, modelType) {
+  function renderRankingsForModel(rankings, modelType, searchFilter, topN) {
     var data = rankings.find(function(r) { return r.model_type === modelType; });
     if (!data) return;
 
@@ -2173,13 +2405,22 @@ window.WeatherApp = (() => {
     meta.textContent = data.nonzero_count + ' of ' + data.feature_count + ' features with signal' +
       (genDate ? ' — updated ' + genDate : '');
 
+    var features = data.features;
+    if (searchFilter) {
+      var q = searchFilter.toLowerCase();
+      features = features.filter(function(f) { return f.name.toLowerCase().indexOf(q) !== -1; });
+    }
+    if (topN > 0) {
+      features = features.slice(0, topN);
+    }
+
     var maxCoef = 0;
-    data.features.forEach(function(f) {
+    features.forEach(function(f) {
       var abs = Math.abs(f.coefficient);
       if (abs > maxCoef) maxCoef = abs;
     });
 
-    var rows = data.features.map(function(f, i) {
+    var rows = features.map(function(f, i) {
       var abs = Math.abs(f.coefficient);
       var pct = maxCoef > 0 ? (abs / maxCoef * 100) : 0;
       var direction = f.coefficient > 0 ? 'positive' : 'negative';
@@ -2190,11 +2431,73 @@ window.WeatherApp = (() => {
         '<span class="ranking-bar-container">' +
           '<span class="ranking-bar ranking-bar-' + direction + '" style="width:' + pct.toFixed(1) + '%"></span>' +
         '</span>' +
-        '<span class="ranking-coef">' + sign + f.coefficient.toFixed(4) + '</span>' +
+        '<span class="ranking-coef coef-' + direction + '">' + sign + f.coefficient.toFixed(4) + '</span>' +
       '</div>';
     }).join('');
 
-    document.getElementById('rankings-list').innerHTML = rows;
+    document.getElementById('rankings-list').innerHTML = rows ||
+      '<div class="rankings-empty"><p>No features match search</p></div>';
+  }
+
+  function renderRankingsComparison(rankings, searchFilter, topN) {
+    var meta = document.getElementById('rankings-meta');
+    meta.textContent = 'Comparing ' + rankings.length + ' models';
+
+    var allFeatures = {};
+    rankings.forEach(function(r) {
+      r.features.forEach(function(f) {
+        if (!allFeatures[f.name]) allFeatures[f.name] = {};
+        allFeatures[f.name][r.model_type] = f.coefficient;
+      });
+    });
+
+    var featureNames = Object.keys(allFeatures);
+    if (searchFilter) {
+      var q = searchFilter.toLowerCase();
+      featureNames = featureNames.filter(function(n) { return n.toLowerCase().indexOf(q) !== -1; });
+    }
+
+    featureNames.sort(function(a, b) {
+      var maxA = 0, maxB = 0;
+      rankings.forEach(function(r) {
+        if (allFeatures[a][r.model_type]) maxA = Math.max(maxA, Math.abs(allFeatures[a][r.model_type]));
+        if (allFeatures[b][r.model_type]) maxB = Math.max(maxB, Math.abs(allFeatures[b][r.model_type]));
+      });
+      return maxB - maxA;
+    });
+
+    if (topN > 0) {
+      featureNames = featureNames.slice(0, topN);
+    }
+
+    var headerCells = '<th class="compare-feature-col">Feature</th>';
+    rankings.forEach(function(r) {
+      var label = r.model_type.replace(/_/g, ' ');
+      headerCells += '<th class="compare-coef-col">' + escapeHtml(label) + '</th>';
+    });
+
+    var bodyRows = featureNames.map(function(name) {
+      var cells = '<td class="compare-feature-col">' + escapeHtml(name) + '</td>';
+      rankings.forEach(function(r) {
+        var coef = allFeatures[name][r.model_type];
+        if (coef !== undefined) {
+          var direction = coef > 0 ? 'positive' : 'negative';
+          var sign = coef > 0 ? '+' : '';
+          cells += '<td class="compare-coef-col coef-' + direction + '">' + sign + coef.toFixed(4) + '</td>';
+        } else {
+          cells += '<td class="compare-coef-col">—</td>';
+        }
+      });
+      return '<tr>' + cells + '</tr>';
+    }).join('');
+
+    document.getElementById('rankings-list').innerHTML =
+      '<div class="table-scroll">' +
+      '<table class="rankings-compare-table">' +
+        '<thead><tr>' + headerCells + '</tr></thead>' +
+        '<tbody>' + bodyRows + '</tbody>' +
+      '</table>' +
+      '</div>';
   }
 
   function wireSharedHandlers(data) {
