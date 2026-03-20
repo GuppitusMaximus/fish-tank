@@ -14,8 +14,9 @@ import json
 import os
 import sys
 
-from config import DATA_DIR
-from db import get_connection
+import psycopg2
+
+from config import DATA_DIR, DATABASE_URL
 
 
 def _num(val):
@@ -89,6 +90,12 @@ def parse_json_file(filepath):
     }
 
 
+def _connect():
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = False
+    return conn
+
+
 def main():
     """Scan all JSON files and upsert readings into Postgres."""
     json_files = sorted(glob.glob(os.path.join(DATA_DIR, "*", "*.json")))
@@ -97,85 +104,114 @@ def main():
         print("No JSON data files found in", DATA_DIR)
         sys.exit(1)
 
-    print(f"Found {len(json_files)} data files")
+    total_files = len(json_files)
+    print(f"Found {total_files} data files")
 
-    with get_connection() as conn:
-        cur = conn.cursor()
+    BATCH_SIZE = 50
+    PS_BATCH_SIZE = 500
 
-        inserted = 0
-        skipped = 0
+    conn = _connect()
+    cur = conn.cursor()
 
-        for filepath in json_files:
-            try:
-                row = parse_json_file(filepath)
-                if row is None or row["timestamp"] is None:
-                    print(f"  SKIP (no data): {filepath}")
-                    skipped += 1
-                    continue
+    inserted = 0
+    skipped = 0
+    batch_count = 0
 
-                cur.execute(
-                    """INSERT INTO readings
-                       (timestamp, date, hour, temp_indoor, co2, humidity_indoor,
-                        noise, pressure, pressure_absolute, temp_indoor_min,
-                        temp_indoor_max, date_min_temp_indoor, date_max_temp_indoor,
-                        temp_trend, pressure_trend, wifi_status,
-                        temp_outdoor, humidity_outdoor, temp_outdoor_min, temp_outdoor_max,
-                        date_min_temp_outdoor, date_max_temp_outdoor, temp_outdoor_trend,
-                        battery_percent, rf_status, battery_vp)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                               %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                       ON CONFLICT (timestamp) DO UPDATE SET
-                           date = EXCLUDED.date,
-                           hour = EXCLUDED.hour,
-                           temp_indoor = EXCLUDED.temp_indoor,
-                           co2 = EXCLUDED.co2,
-                           humidity_indoor = EXCLUDED.humidity_indoor,
-                           noise = EXCLUDED.noise,
-                           pressure = EXCLUDED.pressure,
-                           pressure_absolute = EXCLUDED.pressure_absolute,
-                           temp_indoor_min = EXCLUDED.temp_indoor_min,
-                           temp_indoor_max = EXCLUDED.temp_indoor_max,
-                           date_min_temp_indoor = EXCLUDED.date_min_temp_indoor,
-                           date_max_temp_indoor = EXCLUDED.date_max_temp_indoor,
-                           temp_trend = EXCLUDED.temp_trend,
-                           pressure_trend = EXCLUDED.pressure_trend,
-                           wifi_status = EXCLUDED.wifi_status,
-                           temp_outdoor = EXCLUDED.temp_outdoor,
-                           humidity_outdoor = EXCLUDED.humidity_outdoor,
-                           temp_outdoor_min = EXCLUDED.temp_outdoor_min,
-                           temp_outdoor_max = EXCLUDED.temp_outdoor_max,
-                           date_min_temp_outdoor = EXCLUDED.date_min_temp_outdoor,
-                           date_max_temp_outdoor = EXCLUDED.date_max_temp_outdoor,
-                           temp_outdoor_trend = EXCLUDED.temp_outdoor_trend,
-                           battery_percent = EXCLUDED.battery_percent,
-                           rf_status = EXCLUDED.rf_status,
-                           battery_vp = EXCLUDED.battery_vp""",
-                    (
-                        row["timestamp"], row["date"], row["hour"],
-                        row["temp_indoor"], row["co2"], row["humidity_indoor"],
-                        row["noise"], row["pressure"], row["pressure_absolute"],
-                        row["temp_indoor_min"], row["temp_indoor_max"],
-                        row["date_min_temp_indoor"], row["date_max_temp_indoor"],
-                        row["temp_trend"], row["pressure_trend"], row["wifi_status"],
-                        row["temp_outdoor"], row["humidity_outdoor"],
-                        row["temp_outdoor_min"], row["temp_outdoor_max"],
-                        row["date_min_temp_outdoor"], row["date_max_temp_outdoor"],
-                        row["temp_outdoor_trend"],
-                        row["battery_percent"], row["rf_status"], row["battery_vp"],
-                    ),
-                )
-                inserted += 1
-            except (json.JSONDecodeError, KeyError, ValueError, AttributeError) as e:
-                print(f"  SKIP (error): {filepath} — {e}")
+    for i, filepath in enumerate(json_files, 1):
+        try:
+            row = parse_json_file(filepath)
+            if row is None or row["timestamp"] is None:
+                print(f"  SKIP (no data): {filepath}")
                 skipped += 1
+                continue
 
+            cur.execute(
+                """INSERT INTO readings
+                   (timestamp, date, hour, temp_indoor, co2, humidity_indoor,
+                    noise, pressure, pressure_absolute, temp_indoor_min,
+                    temp_indoor_max, date_min_temp_indoor, date_max_temp_indoor,
+                    temp_trend, pressure_trend, wifi_status,
+                    temp_outdoor, humidity_outdoor, temp_outdoor_min, temp_outdoor_max,
+                    date_min_temp_outdoor, date_max_temp_outdoor, temp_outdoor_trend,
+                    battery_percent, rf_status, battery_vp)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                           %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (timestamp) DO UPDATE SET
+                       date = EXCLUDED.date,
+                       hour = EXCLUDED.hour,
+                       temp_indoor = EXCLUDED.temp_indoor,
+                       co2 = EXCLUDED.co2,
+                       humidity_indoor = EXCLUDED.humidity_indoor,
+                       noise = EXCLUDED.noise,
+                       pressure = EXCLUDED.pressure,
+                       pressure_absolute = EXCLUDED.pressure_absolute,
+                       temp_indoor_min = EXCLUDED.temp_indoor_min,
+                       temp_indoor_max = EXCLUDED.temp_indoor_max,
+                       date_min_temp_indoor = EXCLUDED.date_min_temp_indoor,
+                       date_max_temp_indoor = EXCLUDED.date_max_temp_indoor,
+                       temp_trend = EXCLUDED.temp_trend,
+                       pressure_trend = EXCLUDED.pressure_trend,
+                       wifi_status = EXCLUDED.wifi_status,
+                       temp_outdoor = EXCLUDED.temp_outdoor,
+                       humidity_outdoor = EXCLUDED.humidity_outdoor,
+                       temp_outdoor_min = EXCLUDED.temp_outdoor_min,
+                       temp_outdoor_max = EXCLUDED.temp_outdoor_max,
+                       date_min_temp_outdoor = EXCLUDED.date_min_temp_outdoor,
+                       date_max_temp_outdoor = EXCLUDED.date_max_temp_outdoor,
+                       temp_outdoor_trend = EXCLUDED.temp_outdoor_trend,
+                       battery_percent = EXCLUDED.battery_percent,
+                       rf_status = EXCLUDED.rf_status,
+                       battery_vp = EXCLUDED.battery_vp""",
+                (
+                    row["timestamp"], row["date"], row["hour"],
+                    row["temp_indoor"], row["co2"], row["humidity_indoor"],
+                    row["noise"], row["pressure"], row["pressure_absolute"],
+                    row["temp_indoor_min"], row["temp_indoor_max"],
+                    row["date_min_temp_indoor"], row["date_max_temp_indoor"],
+                    row["temp_trend"], row["pressure_trend"], row["wifi_status"],
+                    row["temp_outdoor"], row["humidity_outdoor"],
+                    row["temp_outdoor_min"], row["temp_outdoor_max"],
+                    row["date_min_temp_outdoor"], row["date_max_temp_outdoor"],
+                    row["temp_outdoor_trend"],
+                    row["battery_percent"], row["rf_status"], row["battery_vp"],
+                ),
+            )
+            inserted += 1
+            batch_count += 1
+
+            if batch_count >= BATCH_SIZE:
+                conn.commit()
+                print(f"Processed {i}/{total_files} files...")
+                batch_count = 0
+
+        except psycopg2.OperationalError as e:
+            print(f"  Connection error at {filepath}: {e}")
+            print("  Reconnecting...")
+            try:
+                conn.close()
+            except Exception:
+                pass
+            conn = _connect()
+            cur = conn.cursor()
+            batch_count = 0
+            skipped += 1
+
+        except (json.JSONDecodeError, KeyError, ValueError, AttributeError) as e:
+            print(f"  SKIP (error): {filepath} — {e}")
+            skipped += 1
+
+    if batch_count > 0:
         conn.commit()
 
-        # --- Rebuild public_stations from CSVs ---
-        cur.execute("DELETE FROM public_stations")
-        public_csvs = sorted(glob.glob(os.path.join(DATA_DIR, "public-stations", "*", "*.csv")))
-        ps_count = 0
-        for csv_path in public_csvs:
+    # --- Rebuild public_stations from CSVs ---
+    cur.execute("DELETE FROM public_stations")
+    conn.commit()
+
+    public_csvs = sorted(glob.glob(os.path.join(DATA_DIR, "public-stations", "*", "*.csv")))
+    ps_count = 0
+    ps_batch = 0
+    for csv_path in public_csvs:
+        try:
             with open(csv_path, "r") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
@@ -191,9 +227,27 @@ def main():
                          _int(row["wind_strength"]), _int(row["wind_angle"]),
                          _int(row["gust_strength"]), _int(row["gust_angle"])))
                     ps_count += 1
-        conn.commit()
-        print(f"Public stations: {ps_count} readings from {len(public_csvs)} files")
+                    ps_batch += 1
+                    if ps_batch >= PS_BATCH_SIZE:
+                        conn.commit()
+                        print(f"Public stations: {ps_count} rows inserted...")
+                        ps_batch = 0
+        except psycopg2.OperationalError as e:
+            print(f"  Connection error during public_stations: {e}")
+            print("  Reconnecting...")
+            try:
+                conn.close()
+            except Exception:
+                pass
+            conn = _connect()
+            cur = conn.cursor()
+            ps_batch = 0
 
+    if ps_batch > 0:
+        conn.commit()
+    print(f"Public stations: {ps_count} readings from {len(public_csvs)} files")
+
+    conn.close()
     print(f"\nDone: {inserted} readings inserted, {skipped} skipped")
 
 
