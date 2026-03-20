@@ -1022,11 +1022,13 @@ nav a.active {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.4rem;
     margin-bottom: 0.3rem;
 }
 
 .prediction-header h2 {
     margin-bottom: 0;
+    min-width: 0;
 }
 
 .model-badge {
@@ -1039,6 +1041,11 @@ nav a.active {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     opacity: 0.7;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .empty-state {
