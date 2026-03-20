@@ -1790,10 +1790,10 @@ window.WeatherApp = (() => {
     }
 
     var now = new Date();
-    var twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    var sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
     var filtered = predictions.filter(function(pred) {
       if (!pred.prediction_for) return true;
-      return new Date(pred.prediction_for) > twoHoursAgo;
+      return new Date(pred.prediction_for) > sixHoursAgo;
     });
 
     if (predictionState.filterModels.length > 0) {
