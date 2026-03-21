@@ -1564,6 +1564,7 @@ window.WeatherApp = (() => {
       (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>');
 
     wireToolbarHandlers(el, function() { renderHomeSummary(latestData); if (latestCompassData) renderCompass(latestCompassData, 'home-compass'); });
+    if (isV2) wirePredictionHandlers();
   }
 
   function render(data) {
@@ -2531,6 +2532,7 @@ window.WeatherApp = (() => {
         activeSubtab = target;
         if (target === 'dashboard') {
           history.replaceState(null, '', '#weather');
+          wirePredictionHandlers();
         } else {
           history.replaceState(null, '', '#weather/' + target);
         }
