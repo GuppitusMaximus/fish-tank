@@ -1367,49 +1367,52 @@ window.WeatherApp = (() => {
   var workflowData = null;
   var countdownInterval = null;
 
-  var WORKFLOW_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/workflow.json';
-
   function loadWorkflow() {
     var el = document.getElementById('subtab-workflow');
-    if (el) el.innerHTML = '<p class="browse-loading">Loading workflow data\u2026</p>';
+    if (el) el.innerHTML = '<p class="browse-loading">Loading pipeline status\u2026</p>';
 
-    fetch(cacheBust(WORKFLOW_URL))
+    fetch('https://api.the-fish-tank.com/ml/status')
       .then(function(res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
-      })
-      .catch(function() {
-        return fetch('data/workflow.json')
-          .then(function(res) {
-            if (!res.ok) throw new Error(res.status);
-            return res.json();
-          });
       })
       .then(function(data) {
         workflowData = data;
         renderWorkflow();
       })
       .catch(function() {
-        if (el) el.innerHTML = '<p class="dash-error">Workflow data unavailable</p>';
+        if (el) el.innerHTML = '<p class="dash-error">Pipeline status unavailable</p>';
       });
+  }
+
+  function formatDurationSec(seconds) {
+    var m = Math.floor(seconds / 60);
+    var s = Math.round(seconds % 60);
+    return m + 'm ' + s + 's';
+  }
+
+  function formatDurationMs(ms) {
+    if (ms < 1000) return ms + 'ms';
+    if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+    return Math.floor(ms / 60000) + 'm ' + Math.round((ms % 60000) / 1000) + 's';
   }
 
   function startCountdown() {
     if (countdownInterval) clearInterval(countdownInterval);
     countdownInterval = setInterval(function() {
       var el = document.getElementById('workflow-countdown');
-      if (!el || !workflowData || !workflowData.schedule) return;
-      var next = new Date(workflowData.schedule.next_run).getTime();
+      if (!el || !workflowData || !workflowData.last_run) return;
+      var lastRun = new Date(workflowData.last_run.timestamp).getTime();
+      var next = lastRun + 20 * 60 * 1000;
       var now = Date.now();
       var diff = next - now;
       if (diff <= 0) {
         var overdue = Math.floor(Math.abs(diff) / 60000);
         el.textContent = overdue === 0 ? 'Due now' : 'Overdue by ' + overdue + 'm';
       } else {
-        var h = Math.floor(diff / 3600000);
-        var m = Math.floor((diff % 3600000) / 60000);
+        var m = Math.floor(diff / 60000);
         var s = Math.floor((diff % 60000) / 1000);
-        el.textContent = h + 'h ' + m + 'm ' + s + 's';
+        el.textContent = m + 'm ' + s + 's';
       }
     }, 1000);
   }
@@ -1419,28 +1422,49 @@ window.WeatherApp = (() => {
     if (!el || !workflowData) return;
 
     var html = '';
+    var run = workflowData.last_run;
 
-    // Status banner
-    var latest = workflowData.latest;
-    if (latest) {
-      var status = latest.conclusion || latest.status || 'unknown';
-      var statusLabel = status === 'success' ? 'Success' : status === 'failure' ? 'Failed' : status === 'in_progress' ? 'In Progress' : status === 'cancelled' ? 'Cancelled' : status;
-      var trigger = latest.event === 'schedule' || latest.event === 'workflow_dispatch' ? 'Scheduled' : latest.event;
-      var time = latest.created_at ? formatDateTime(new Date(latest.created_at)) : '\u2014';
+    if (run) {
+      var statusLabel = run.status === 'ok' ? 'Success' : run.status === 'error' ? 'Error' : run.status === 'partial' ? 'Partial' : run.status;
+      var dotClass = run.status === 'ok' ? 'success' : run.status === 'error' ? 'failure' : 'in_progress';
+      var time = run.timestamp ? formatDateTime(new Date(run.timestamp)) : '\u2014';
 
       html += '<div class="dash-card">' +
         '<h2>Latest Run</h2>' +
-        '<div class="data-field"><span class="data-label">Status</span><span class="data-value"><span class="status-dot ' + status + '"></span> ' + statusLabel + '</span></div>' +
-        '<div class="data-field"><span class="data-label">Trigger</span><span class="data-value">' + trigger + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Status</span><span class="data-value"><span class="status-dot ' + dotClass + '"></span> ' + statusLabel + '</span></div>' +
+        '<div class="data-field"><span class="data-label">Trigger</span><span class="data-value">Scheduled</span></div>' +
         '<div class="data-field"><span class="data-label">Time</span><span class="data-value">' + time + '</span></div>' +
-        '<div class="data-field"><span class="data-label">Duration</span><span class="data-value">' + (latest.duration_display || '\u2014') + '</span></div>' +
-        (latest.html_url ? '<a class="workflow-link" href="' + latest.html_url + '" target="_blank" rel="noopener">View on GitHub \u2192</a>' : '') +
+        '<div class="data-field"><span class="data-label">Duration</span><span class="data-value">' + formatDurationSec(run.duration_seconds) + '</span></div>' +
       '</div>';
+
+      if (run.steps && run.steps.length > 0) {
+        var stepRows = run.steps.map(function(step) {
+          var sDot = step.status === 'ok' ? 'success' : 'failure';
+          var sLabel = step.status === 'ok' ? 'OK' : 'Error';
+          var name = step.name.replace(/_/g, ' ');
+          var row = '<tr>' +
+            '<td class="step-name">' + name + '</td>' +
+            '<td><span class="status-dot ' + sDot + '"></span> ' + sLabel + '</td>' +
+            '<td>' + formatDurationMs(step.duration_ms) + '</td>' +
+          '</tr>';
+          if (step.error) {
+            row += '<tr><td colspan="3" class="step-error">' + escapeHtml(step.error) + '</td></tr>';
+          }
+          return row;
+        }).join('');
+
+        html += '<div class="dash-card">' +
+          '<h2>Pipeline Steps</h2>' +
+          '<table class="pipeline-table">' +
+            '<thead><tr><th>Step</th><th>Status</th><th>Duration</th></tr></thead>' +
+            '<tbody>' + stepRows + '</tbody>' +
+          '</table>' +
+        '</div>';
+      }
     }
 
-    // Next run countdown
-    if (workflowData.schedule) {
-      var nextTime = formatDateTime(new Date(workflowData.schedule.next_run));
+    if (run && run.timestamp) {
+      var nextTime = formatDateTime(new Date(new Date(run.timestamp).getTime() + 20 * 60 * 1000));
       html += '<div class="dash-card">' +
         '<h2>Next Scheduled Run</h2>' +
         '<div class="data-field"><span class="data-label">Scheduled</span><span class="data-value">' + nextTime + '</span></div>' +
@@ -1448,54 +1472,36 @@ window.WeatherApp = (() => {
       '</div>';
     }
 
-    // Stats card
-    var stats = workflowData.stats;
-    if (stats) {
-      var rateClass = stats.success_rate > 95 ? 'delta-low' : stats.success_rate > 80 ? 'delta-mid' : 'delta-high';
-      html += '<div class="dash-card">' +
-        '<h2>Stats (' + stats.period_hours + 'h)</h2>' +
-        '<div class="data-field"><span class="data-label">Success Rate</span><span class="data-value ' + rateClass + '">' + stats.success_rate + '%</span></div>' +
-        '<div class="data-field"><span class="data-label">Avg Duration</span><span class="data-value">' + (stats.avg_duration_display || '\u2014') + '</span></div>' +
-        '<div class="data-field"><span class="data-label">Total Runs</span><span class="data-value">' + stats.total_runs + '</span></div>' +
-        (stats.failure_count > 0 ? '<div class="data-field"><span class="data-label">Failures</span><span class="data-value delta-high">' + stats.failure_count + '</span></div>' : '') +
-      '</div>';
-    }
+    var pred = workflowData.last_prediction;
+    if (pred && pred.models) {
+      var modelNames = Object.keys(pred.models);
+      modelNames.sort(function(a, b) {
+        var aMulti = a.indexOf('multiHorizon') === 0;
+        var bMulti = b.indexOf('multiHorizon') === 0;
+        if (aMulti && !bMulti) return 1;
+        if (!aMulti && bMulti) return -1;
+        return a.localeCompare(b);
+      });
 
-    // Run history table
-    var runs = workflowData.runs;
-    if (runs && runs.length > 0) {
-      var rows = runs.map(function(r) {
-        var conclusion = r.conclusion || 'in_progress';
-        var statusCls = conclusion === 'success' ? 'delta-low' : conclusion === 'failure' ? 'delta-high' : 'delta-mid';
-        var label = conclusion === 'success' ? 'Success' : conclusion === 'failure' ? 'Failed' : conclusion === 'in_progress' ? 'In Progress' : conclusion === 'cancelled' ? 'Cancelled' : conclusion;
-        var trigger = r.event === 'schedule' || r.event === 'workflow_dispatch' ? 'Scheduled' : r.event;
-        var time = r.created_at ? formatDateTime(new Date(r.created_at)) : '\u2014';
+      var predRows = modelNames.map(function(name) {
+        var m = pred.models[name];
         return '<tr>' +
-          '<td>' + time + '</td>' +
-          '<td>' + (r.duration_display || '\u2014') + '</td>' +
-          '<td class="' + statusCls + '">' + label + '</td>' +
-          '<td>' + trigger + '</td>' +
+          '<td>' + name + '</td>' +
+          '<td>' + formatTemp(m.indoor) + '</td>' +
+          '<td>' + formatTemp(m.outdoor) + '</td>' +
         '</tr>';
       }).join('');
 
-      html += '<div class="history-section">' +
-        '<h2>Run History</h2>' +
-        '<div class="table-scroll workflow-history-scroll">' +
-        '<table id="workflow-table">' +
-          '<thead><tr><th>Time</th><th>Duration</th><th>Status</th><th>Trigger</th></tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
+      html += '<div class="dash-card">' +
+        '<h2>Latest Predictions</h2>' +
+        '<table class="pipeline-table">' +
+          '<thead><tr><th>Model</th><th>Indoor</th><th>Outdoor</th></tr></thead>' +
+          '<tbody>' + predRows + '</tbody>' +
         '</table>' +
-        '</div>' +
       '</div>';
     }
 
     el.innerHTML = html;
-    el.querySelectorAll('.table-scroll').forEach(function(scroll) {
-      scroll.addEventListener('scroll', function() {
-        var atEnd = scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 5;
-        scroll.classList.toggle('scrolled-end', atEnd);
-      });
-    });
     startCountdown();
   }
 

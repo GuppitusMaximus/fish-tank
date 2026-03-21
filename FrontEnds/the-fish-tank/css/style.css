@@ -949,25 +949,12 @@ nav a.active {
   letter-spacing: 0.05em;
 }
 
-.workflow-link {
-  color: #6496ff;
-  text-decoration: none;
-  font-size: 0.7rem;
-  opacity: 0.6;
-  display: inline-block;
-  margin-top: 0.6rem;
-}
-.workflow-link:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-#workflow-table {
+.pipeline-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.8rem;
 }
-#workflow-table th {
+.pipeline-table th {
   font-size: 0.65rem;
   font-weight: 400;
   text-transform: uppercase;
@@ -977,14 +964,17 @@ nav a.active {
   text-align: left;
   border-bottom: 1px solid rgba(100, 160, 220, 0.15);
 }
-#workflow-table td {
+.pipeline-table td {
   padding: 0.5rem 0.6rem;
   border-bottom: 1px solid rgba(100, 160, 220, 0.06);
 }
-
-.workflow-history-scroll {
-  max-height: 400px;
-  overflow-y: auto;
+.pipeline-table .step-name {
+  text-transform: capitalize;
+}
+.step-error {
+  color: #e05080;
+  font-size: 0.75rem;
+  padding-left: 1.2rem;
 }
 
 /* ========== V2 Dashboard ========== */
@@ -1538,11 +1528,10 @@ nav a.active {
     #history-table th,
     #history-table td { padding: 0.4rem 0.35rem; }
 
-    /* --- Workflow table --- */
-    #workflow-table { font-size: 0.75rem; }
-    #workflow-table th,
-    #workflow-table td { padding: 0.4rem 0.35rem; }
-    .workflow-history-scroll { max-height: 250px; }
+    /* --- Pipeline table --- */
+    .pipeline-table { font-size: 0.75rem; }
+    .pipeline-table th,
+    .pipeline-table td { padding: 0.4rem 0.35rem; }
 
     /* --- Data fields (workflow cards, data browser) --- */
     .data-field { gap: 0.5rem; }
