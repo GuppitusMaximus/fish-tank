@@ -1,11 +1,11 @@
 /**
- * Browser QA: Card rendering verification
- * Plan: qa-browser-fix-cards-procedural-border (updated for atlas revert)
+ * Browser QA: Card rendering with procedural borders
+ * Plan: qa-browser-fix-cards-procedural-border
  *
- * Verifies: Card images visible, atlas nineslice borders via UIPanel,
- * labels readable, hover effects, no JS errors.
+ * Verifies: Card images visible, procedural graphics borders (fillRoundedRect/strokeRoundedRect),
+ * zone accent color, labels readable, hover effects, no JS errors.
  *
- * Runs against http://localhost:8080 (dungeon-fisher Vite dev server).
+ * Runs against http://localhost:8080 (fathom-fall Vite dev server).
  */
 
 const { test, expect } = require('@playwright/test');
@@ -54,8 +54,8 @@ const PUFFER = makeFish('pufferfish', 'Pufferfish', 0xffcc00, 60, 60, 12, 14, 8,
 
 function makeSave(party, floor = 1, extras = {}) {
     return {
-        version: 5,
-        gameVersion: '0.18.5',
+        version: 10,
+        gameVersion: '0.69.49',
         savedAt: Date.now(),
         floor,
         gold: extras.gold ?? 200,
@@ -96,66 +96,69 @@ async function fetchSrc(page, path) {
 
 const CARD_CENTER_Y = 172;
 
-// ─── 1. Source code: atlas nineslice borders on cards ─────────────────────────
+// ─── 1. Source code: procedural borders on cards ─────────────────────────────
 
-test.describe('1. atlas border source verification', () => {
+test.describe('1. procedural border source verification', () => {
 
-    test('cardTheme sets atlasKey for nineslice path', async ({ page }) => {
+    test('card bg uses procedural graphics at depth 2', async ({ page }) => {
         await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        // Card theme sets atlasKey so ThemedPanel uses nineslice
-        expect(src).toContain('delete cardTheme.compositeKey');
-        expect(src).toContain('delete cardTheme.pieceSize');
-        expect(src).toContain("cardTheme.atlasKey = zone.atlasKey + '_sm'");
+        const src = await fetchSrc(page, '/src/ui/ActionPanelGroup.js');
+        // Procedural border: scene.add.graphics().setDepth(2)
+        expect(src).toContain('scene.add.graphics().setDepth(2)');
+        expect(src).toContain('fillRoundedRect(cx, cy, card.width, card.height, 4)');
+        expect(src).toContain('strokeRoundedRect(cx, cy, card.width, card.height, 4)');
     });
 
-    test('card panel at depth 2 with nineslice atlas', async ({ page }) => {
+    test('border uses zone accent color', async ({ page }) => {
         await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('theme: cardTheme, depth: 2, padding: 0, cornerSize: 10, fx: false');
+        const src = await fetchSrc(page, '/src/ui/ActionPanelGroup.js');
+        expect(src).toContain('zone.panel ? zone.panel.accent : 0x666688');
+        expect(src).toContain('bg.lineStyle(1, accent, 0.6)');
     });
 
-    test('card image at depth 3 (above panel at depth 2)', async ({ page }) => {
+    test('card image at depth 3 (above bg at depth 2)', async ({ page }) => {
         await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('.setDepth(3)');
+        const src = await fetchSrc(page, '/src/ui/ActionPanelGroup.js');
+        expect(src).toContain('.setDepth(3).setScrollFactor(0)');
     });
 
-    test('card image uses insets to fill content area', async ({ page }) => {
+    test('card image uses 3px inset for border visibility', async ({ page }) => {
         await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
-        expect(src).toContain('const topInset = 2');
-        expect(src).toContain('const bottomInset = 10');
-        expect(src).toContain('const sideInset = 10');
+        const src = await fetchSrc(page, '/src/ui/ActionPanelGroup.js');
+        expect(src).toContain('const inset = 3');
+        expect(src).toContain('card.width - inset * 2');
+        expect(src).toContain('card.height - inset * 2');
     });
 
-    test('card label at depth 4 with scrim for readability', async ({ page }) => {
+    test('card label at depth 4 with scrim at depth 3.5', async ({ page }) => {
         await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/scenes/FloorScene.js');
+        const src = await fetchSrc(page, '/src/ui/ActionPanelGroup.js');
         expect(src).toContain('.setDepth(4)');
         expect(src).toContain('.setDepth(3.5)');
     });
 
-    test('ThemedPanel routes to nineslice when atlasKey is present', async ({ page }) => {
+    test('no atlasKey or nineslice used for card borders', async ({ page }) => {
         await page.goto(BASE);
-        const src = await fetchSrc(page, '/src/ui/ThemedPanel.js');
-        expect(src).toContain('if (theme.atlasKey && scene.textures.exists(theme.atlasKey))');
-        expect(src).toContain('return createNineSlicePanel(scene, x, y, w, h, theme, opts)');
+        const src = await fetchSrc(page, '/src/ui/ActionPanelGroup.js');
+        expect(src).not.toContain('atlasKey');
+        expect(src).not.toContain('NineSlice');
+        expect(src).not.toContain('compositeKey');
     });
 });
 
-// ─── 2. Version bump ────────────────────────────────────────────────────────
+// ─── 2. Version ──────────────────────────────────────────────────────────────
 
 test.describe('2. version', () => {
 
-    test('game version is 0.18.5', async ({ page }) => {
+    test('game version is current', async ({ page }) => {
         await page.goto(BASE);
         const src = await fetchSrc(page, '/src/version.js');
-        expect(src).toContain("VERSION = '0.18.5'");
+        // Version should be 0.69.x (post procedural-border patch)
+        expect(src).toMatch(/VERSION = '0\.69\.\d+'/);
     });
 });
 
-// ─── 3. Browser: cards render without errors ────────────────────────────────
+// ─── 3. Browser: cards render without errors ─────────────────────────────────
 
 test.describe('3. browser card rendering', () => {
 
@@ -199,7 +202,7 @@ test.describe('3. browser card rendering', () => {
     });
 });
 
-// ─── 4. Browser: hover and click ────────────────────────────────────────────
+// ─── 4. Browser: hover and click ─────────────────────────────────────────────
 
 test.describe('4. hover and click interactions', () => {
 
