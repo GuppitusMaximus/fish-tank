@@ -183,22 +183,26 @@ def _find_opponent(floor, power_level, exclude_player_id=None, bracket=MATCHMAKI
         with conn.cursor() as cur:
             if exclude_player_id:
                 cur.execute("""
-                    SELECT player_id, character, floor, fish, equipment,
-                           companion_level, power_level, companion
-                    FROM party_snapshots
-                    WHERE floor = %s
-                      AND power_level BETWEEN %s AND %s
-                      AND player_id != %s
+                    SELECT ps.player_id, ps.character, ps.floor, ps.fish, ps.equipment,
+                           ps.companion_level, ps.power_level, ps.companion,
+                           COALESCE(p.display_name, 'Angler') as display_name
+                    FROM party_snapshots ps
+                    LEFT JOIN players p ON p.id::text = ps.player_id
+                    WHERE ps.floor = %s
+                      AND ps.power_level BETWEEN %s AND %s
+                      AND ps.player_id != %s
                     ORDER BY RANDOM()
                     LIMIT 1
                 """, (floor, low, high, exclude_player_id))
             else:
                 cur.execute("""
-                    SELECT player_id, character, floor, fish, equipment,
-                           companion_level, power_level, companion
-                    FROM party_snapshots
-                    WHERE floor = %s
-                      AND power_level BETWEEN %s AND %s
+                    SELECT ps.player_id, ps.character, ps.floor, ps.fish, ps.equipment,
+                           ps.companion_level, ps.power_level, ps.companion,
+                           COALESCE(p.display_name, 'Angler') as display_name
+                    FROM party_snapshots ps
+                    LEFT JOIN players p ON p.id::text = ps.player_id
+                    WHERE ps.floor = %s
+                      AND ps.power_level BETWEEN %s AND %s
                     ORDER BY RANDOM()
                     LIMIT 1
                 """, (floor, low, high))
@@ -291,6 +295,7 @@ def get_opponent(
         "companionLevel": row[5],
         "powerLevel": row[6],
         "companion": row[7],
+        "displayName": row[8],
     }
 
     logger.info("Matchmaking hit", extra={
