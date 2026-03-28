@@ -209,6 +209,37 @@ def _find_opponent(floor, power_level, exclude_player_id=None, bracket=MATCHMAKI
             return cur.fetchone()
 
 
+def _find_any_opponent(floor, exclude_player_id=None):
+    """Last-resort matchmaking: any opponent on the same floor, ignoring power level."""
+    from db import get_connection
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            if exclude_player_id:
+                cur.execute("""
+                    SELECT ps.player_id, ps.character, ps.floor, ps.fish, ps.equipment,
+                           ps.companion_level, ps.power_level, ps.companion,
+                           COALESCE(p.display_name, 'Angler') as display_name
+                    FROM party_snapshots ps
+                    LEFT JOIN players p ON p.id::text = ps.player_id
+                    WHERE ps.floor = %s
+                      AND ps.player_id != %s
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                """, (floor, exclude_player_id))
+            else:
+                cur.execute("""
+                    SELECT ps.player_id, ps.character, ps.floor, ps.fish, ps.equipment,
+                           ps.companion_level, ps.power_level, ps.companion,
+                           COALESCE(p.display_name, 'Angler') as display_name
+                    FROM party_snapshots ps
+                    LEFT JOIN players p ON p.id::text = ps.player_id
+                    WHERE ps.floor = %s
+                    ORDER BY RANDOM()
+                    LIMIT 1
+                """, (floor,))
+            return cur.fetchone()
+
+
 # --- Endpoints ---
 
 @app.get("/pvp/health")
@@ -273,6 +304,10 @@ def get_opponent(
     if not row:
         row = _find_opponent(floor, powerLevel, playerId, MATCHMAKING_BRACKET_WIDE)
         bracket_used = "wide"
+
+    if not row:
+        row = _find_any_opponent(floor, playerId)
+        bracket_used = "any"
 
     duration_ms = int((time.time() - start) * 1000)
 
