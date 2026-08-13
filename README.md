@@ -54,7 +54,19 @@ The interesting engineering problem isn't getting agents to write code — it's 
 
 ## Institutional memory
 
-Agents are stateless; the platform isn't. An **exploration cache** stores what previous agents learned about every file they studied, with staleness detection against the working tree. A **knowledge graph** (components, request flows, dependencies, data shapes — PostgreSQL-backed) lets an agent ask "what breaks if I change this data model?" before it edits anything. Cached insights are injected into plans selectively, because the design principle underneath the whole system is **context discipline**: a narrow, relevant context outperforms a big one.
+Agents are stateless — whatever one learns about the codebase dies with its session, and the next agent pays to rediscover it. At fleet scale that's the dominant cost: the same heavily-touched files get re-read by scoping, planning, implementation, and QA agents, feature after feature. The platform's answer is a shared memory layer (PostgreSQL-backed) with three tiers:
+
+| Layer | What it holds | The question it answers |
+|---|---|---|
+| **Exploration cache** | Per-file summaries: what the file does, what it exports, which agent wrote the entry, staleness state | "What's in this file?" — without reading it |
+| **Insight store** | One "landmine" per topic — gotchas that look correct but fail in non-obvious ways (`"NineSlice panels don't reposition on scale — setPosition after setScale"`) | "What will waste the next agent's hour?" |
+| **Knowledge graph** | Components, directed dependency edges, traced request flows, data-shape catalogs | "What breaks if I change this?" — before editing |
+
+**How it stays trustworthy** is the interesting part. Three population paths with different authority: rich summaries from dedicated scoping agents, lightweight auto-capture whenever any agent reads an uncached file (which never overwrites a rich entry), and automatic refresh of modified files when a plan completes. When a file changes underneath an entry, the entry is **marked stale rather than deleted** — a stale summary with a warning still gives directional context, which beats a blank. Daily drift detection compares the cache against the working tree and flags what diverged.
+
+**Delivery is proactive, not reactive.** The planning agent embeds relevant gotchas directly into each plan at write time, and file reads arrive with cached context attached — the implementing agent gets warnings as part of its instructions, not as queries it might forget to make. Reactive lookup exists as a fallback for surprises. This follows the design principle underneath the whole system: **context discipline** — a narrow, relevant context produces measurably more reliable agent output than a big one.
+
+**Measured, not vibes** (614 agent runs): cached summaries compress a file read ~48× (≈80 tokens vs ≈3,800), which across 985 plan-file touches saved **~5.5M tokens** on context injection alone; 185 cached insights help hold the autonomous success rate at ~92%; and the cache compounds — by the twentieth feature in a project, scoping finds 90%+ of relevant files already summarized, so each feature makes the next one cheaper.
 
 ## The infrastructure
 
