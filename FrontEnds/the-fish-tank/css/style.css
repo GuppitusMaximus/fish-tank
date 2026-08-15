@@ -1387,6 +1387,18 @@ nav a.active {
     margin-top: 0.75rem;
 }
 
+.compass-meta.stale {
+    color: #f0c040;
+    opacity: 0.8;
+}
+
+.stale-notice {
+    font-size: 0.7rem;
+    color: #f0c040;
+    opacity: 0.8;
+    margin-bottom: 0.5rem;
+}
+
 .compass-list {
     display: none;
 }

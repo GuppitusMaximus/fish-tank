@@ -62,6 +62,26 @@ window.WeatherApp = (() => {
       ' ' + formatTime(date);
   }
 
+  var STALE_AFTER_MS = 6 * 60 * 60 * 1000;
+
+  function parseTimestamp(ts) {
+    if (!ts) return null;
+    var d = new Date(ts);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function isStale(date) {
+    return !!date && (Date.now() - date.getTime()) > STALE_AFTER_MS;
+  }
+
+  // Renders a warning when the payload predates the staleness threshold, so a
+  // frozen static fallback (or a stale R2 object) degrades visibly.
+  function staleNoticeHtml(ts) {
+    var d = parseTimestamp(ts);
+    if (!isStale(d)) return '';
+    return '<div class="stale-notice">\u26a0 Data from ' + formatDateTime(d) + '</div>';
+  }
+
   function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
@@ -1566,6 +1586,7 @@ window.WeatherApp = (() => {
 
     el.innerHTML =
       buildToolbarHtml() +
+      staleNoticeHtml(data.generated_at) +
       currentHtml +
       (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>');
 
@@ -3033,15 +3054,16 @@ window.WeatherApp = (() => {
     }
 
     // Timestamp
-    var ts = data.fetched_at;
+    var d = parseTimestamp(data.fetched_at);
+    var stale = isStale(d);
     var timeStr = '';
-    if (ts) {
-      var d = new Date(ts);
-      timeStr = formatTime(d);
+    if (d) {
+      // Stale data gets the full date so an old reading can't pass as today's.
+      timeStr = stale ? formatDateTime(d) : formatTime(d);
     }
     var stationCount = data.station_count || data.stations.length;
     var meta = document.createElement('div');
-    meta.className = 'compass-meta';
+    meta.className = 'compass-meta' + (stale ? ' stale' : '');
     meta.textContent = stationCount + ' stations' + (timeStr ? ' \u00b7 Updated ' + timeStr : '');
     card.appendChild(meta);
 
