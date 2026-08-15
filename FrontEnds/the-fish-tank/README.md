@@ -32,7 +32,7 @@ The site uses Cloudflare Workers for authentication and protected data access.
 
 - **Sign-in modal** — Username/password form that authenticates against the Worker API and stores a JWT in localStorage (7-day sessions)
 - **Content gating** — The "Potter Weather Predictions" nav link and sign-out link are hidden until authenticated (`.auth-gated` / `.auth-hidden` classes toggled by `auth.js`)
-- **Worker-backed data fetching** — Protected data files (`weather.json`, `workflow.json`, `frontend.db.gz`) are fetched from the Cloudflare Worker with a `Bearer` token, not from static files in git
+- **Worker-backed data fetching** — Protected data files (`weather.json`, `frontend.db.gz`) are fetched from the Cloudflare Worker with a `Bearer` token, not from static files in git
 - **Public home summary** — The home page shows a brief weather summary loaded from `data/weather-public.json` without requiring authentication (`loadHomeSummary()`)
 
 Auth configuration is in `js/auth-config.js` (sets `AUTH_API_URL` for the deployed Worker). Auth logic is in `js/auth.js` (sign-in, sign-out, token management, content gating). Auth styles are in `css/auth.css` (modal, overlay, gated content).
@@ -70,9 +70,8 @@ the-fish-tank/
 │   ├── style.css           # All styles, themes, and animations
 │   └── auth.css            # Auth modal and content gating styles
 ├── data/
-│   ├── data-index.json     # Manifest of available data files for the browser
+│   ├── weather-public.json # Committed fallback for the public home summary
 │   ├── weather.json        # (local dev only — production fetched from Worker)
-│   ├── workflow.json       # (local dev only — production fetched from Worker)
 │   └── frontend.db.gz      # (local dev only — production fetched from Worker)
 ├── js/
 │   ├── auth-config.js      # Worker URL configuration (AUTH_API_URL)
@@ -107,6 +106,6 @@ Test files cover: auth modal, content gating, auth theme, SQLite browse, view sw
 
 ## Deployment
 
-GitHub Pages via GitHub Actions ([`pages.yml`](../../.github/workflows/pages.yml)). Deploys automatically on push to `main` when files in `FrontEnds/the-fish-tank/` change, and also auto-deploys when the Netatmo weather workflow completes (via `workflow_run` trigger). Custom domain configured via `CNAME`.
+GitHub Pages via GitHub Actions ([`pages.yml`](../../.github/workflows/pages.yml)). Deploys automatically on push to `main` when files in `FrontEnds/the-fish-tank/` change. Custom domain configured via `CNAME`.
 
-**Data files are not deployed via git.** Protected data (`weather.json`, `workflow.json`, `frontend.db.gz`) is uploaded to Cloudflare R2 by the backend pipeline and served through the Cloudflare Worker. Only `data-index.json` (a public manifest) is committed to the repo.
+**Data files are not deployed via git.** Protected data (`weather.json`, `frontend.db.gz`) is uploaded to Cloudflare R2 by the backend pipeline and served through the Cloudflare Worker. Only `data/weather-public.json` (the public home-summary fallback) is committed to the repo.

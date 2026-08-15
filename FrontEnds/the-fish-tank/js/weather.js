@@ -270,15 +270,6 @@ window.WeatherApp = (() => {
     '</div>';
   }
 
-  var MANIFEST_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/FrontEnds/the-fish-tank/data/data-index.json';
-  var DATA_BASE_URL = 'https://raw.githubusercontent.com/GuppitusMaximus/fish-tank/main/BackEnds/the-snake-tank/data';
-
-  function cacheBust(url) {
-    var sep = url.indexOf('?') === -1 ? '?' : '&';
-    return url + sep + '_t=' + Date.now();
-  }
-
-  var manifest = null;
   var browseState = {
     category: 'readings',
     viewMode: 'formatted',
@@ -436,7 +427,7 @@ window.WeatherApp = (() => {
         });
       });
     }).catch(function(err) {
-      console.error('Database load failed, falling back to JSON:', err);
+      console.error('Database load failed:', err);
       _dbFailed = true;
       _dbReady = null;
       return null;
@@ -801,12 +792,7 @@ window.WeatherApp = (() => {
     }
 
     if (_dbFailed) {
-      if (!manifestLoaded) {
-        manifestLoaded = true;
-        loadManifest();
-      } else if (manifest) {
-        renderBrowse();
-      }
+      renderBrowseUnavailable();
       return;
     }
 
@@ -825,118 +811,26 @@ window.WeatherApp = (() => {
       if (db) {
         renderBrowseFromDb();
       } else {
-        if (!manifestLoaded) {
-          manifestLoaded = true;
-          loadManifest();
-        } else if (manifest) {
-          renderBrowse();
-        }
+        renderBrowseUnavailable();
       }
     });
   }
 
-  function loadManifest() {
-    return fetch(cacheBust(MANIFEST_URL))
-      .then(function(res) {
-        if (!res.ok) throw new Error(res.status);
-        return res.json();
-      })
-      .catch(function() {
-        return fetch('data/data-index.json')
-          .then(function(res) {
-            if (!res.ok) throw new Error(res.status);
-            return res.json();
-          });
-      })
-      .then(function(data) {
-        manifest = data;
-        renderBrowse();
-      })
-      .catch(function() {
-        var browseEl = document.getElementById('subtab-browse');
-        if (browseEl) browseEl.innerHTML = '<p class="dash-error">Data index unavailable</p>';
+  function renderBrowseUnavailable() {
+    var browseEl = document.getElementById('subtab-browse');
+    if (!browseEl) return;
+    browseEl.innerHTML = '<div class="dash-card">' +
+      '<p class="dash-error">Data unavailable</p>' +
+      '<p>The weather database could not be loaded. Check your connection and try again.</p>' +
+      '<button class="browse-btn" id="db-retry-btn">Retry</button>' +
+    '</div>';
+    var retryBtn = document.getElementById('db-retry-btn');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', function() {
+        _dbFailed = false;
+        _dbReady = null;
+        enterBrowseData();
       });
-  }
-
-  function fetchJson(remotePath, localPath) {
-    var url = cacheBust(DATA_BASE_URL + remotePath);
-    var local = '../../BackEnds/the-snake-tank/data' + remotePath;
-    if (localPath) local = localPath;
-    return fetch(url)
-      .then(function(res) {
-        if (!res.ok) throw new Error(res.status);
-        return res.json();
-      })
-      .catch(function() {
-        return fetch(local)
-          .then(function(res) {
-            if (!res.ok) throw new Error(res.status);
-            return res.json();
-          });
-      });
-  }
-
-  function loadRawData() {
-    if (_db && !_dbFailed) {
-      loadRawDataFromDb();
-      return;
-    }
-    var cat = browseState.category;
-    var date = browseState.selectedDate;
-    var hour = browseState.selectedHour;
-    var display = document.querySelector('.browse-display');
-    if (display) display.innerHTML = '<p class="browse-loading">Loading\u2026</p>';
-
-    if (cat === 'readings') {
-      fetchJson('/' + date + '/' + hour + '.json')
-        .then(function(data) { browseState.currentData = data; renderBrowseDisplay(); })
-        .catch(function() { if (display) display.innerHTML = '<p class="dash-error">Failed to load data</p>'; });
-
-    } else if (cat === 'predictions') {
-      var model = browseState.selectedModel;
-      var models = getModelsForHour(date, hour);
-      if (model) {
-        var path = '/predictions/' + date + '/' + hour + '_' + model + '.json';
-        fetchJson(path)
-          .catch(function() {
-            if (model === 'simple') return fetchJson('/predictions/' + date + '/' + hour + '.json');
-            throw new Error('not found');
-          })
-          .then(function(data) { browseState.currentData = data; renderBrowseDisplay(); })
-          .catch(function() { if (display) display.innerHTML = '<p class="dash-error">Failed to load data</p>'; });
-      } else if (models.length === 0) {
-        fetchJson('/predictions/' + date + '/' + hour + '.json')
-          .then(function(data) { browseState.currentData = data; renderBrowseDisplay(); })
-          .catch(function() { if (display) display.innerHTML = '<p class="dash-error">Failed to load data</p>'; });
-      } else {
-        var fetches = models.map(function(m) {
-          return fetchJson('/predictions/' + date + '/' + hour + '_' + m + '.json')
-            .catch(function() {
-              if (m === 'simple') return fetchJson('/predictions/' + date + '/' + hour + '.json');
-              return null;
-            });
-        });
-        Promise.all(fetches)
-          .then(function(results) {
-            var combined = [];
-            for (var i = 0; i < results.length; i++) {
-              if (results[i]) combined.push(results[i]);
-            }
-            browseState.currentData = combined.length === 1 ? combined[0] : combined;
-            renderBrowseDisplay();
-          })
-          .catch(function() { if (display) display.innerHTML = '<p class="dash-error">Failed to load data</p>'; });
-      }
-
-    } else if (cat === 'public-stations') {
-      fetchJson('/public-stations/' + date + '/' + hour + '.json')
-        .then(function(data) { browseState.currentData = data; renderBrowseDisplay(); })
-        .catch(function() { if (display) display.innerHTML = '<p class="dash-error">Failed to load data</p>'; });
-
-    } else if (cat === 'validation') {
-      fetchJson('/validation/' + date + '.json')
-        .then(function(data) { browseState.currentData = data; renderBrowseDisplay(); })
-        .catch(function() { if (display) display.innerHTML = '<p class="dash-error">Failed to load data</p>'; });
     }
   }
 
@@ -1182,62 +1076,6 @@ window.WeatherApp = (() => {
     });
   }
 
-  function getDatesForCategory() {
-    if (!manifest) return [];
-    var cat = browseState.category;
-    if (cat === 'readings') {
-      return manifest.readings ? Object.keys(manifest.readings).sort().reverse() : [];
-    } else if (cat === 'predictions') {
-      var pd = manifest.predictions;
-      if (!pd) return [];
-      if (pd.dates) return Object.keys(pd.dates).sort().reverse();
-      return Object.keys(pd).sort().reverse();
-    } else if (cat === 'public-stations') {
-      return manifest.public_stations ? Object.keys(manifest.public_stations).sort().reverse() : [];
-    } else if (cat === 'validation') {
-      return Array.isArray(manifest.validation) ? manifest.validation.slice() : [];
-    }
-    return [];
-  }
-
-  function getHoursForDate(date) {
-    if (!manifest) return [];
-    var cat = browseState.category;
-    if (cat === 'readings') {
-      return manifest.readings && manifest.readings[date] ? manifest.readings[date].slice().sort() : [];
-    } else if (cat === 'predictions') {
-      var pd = manifest.predictions;
-      if (!pd) return [];
-      if (pd.dates && pd.dates[date]) {
-        var hours = Object.keys(pd.dates[date]).sort();
-        var model = browseState.selectedModel;
-        if (model) {
-          return hours.filter(function(h) {
-            return pd.dates[date][h].indexOf(model) !== -1;
-          });
-        }
-        return hours;
-      }
-      if (pd[date]) return pd[date].slice().sort();
-      return [];
-    } else if (cat === 'public-stations') {
-      return manifest.public_stations && manifest.public_stations[date] ? manifest.public_stations[date].slice().sort() : [];
-    }
-    return [];
-  }
-
-  function getModelsForHour(date, hour) {
-    if (!manifest || !manifest.predictions || !manifest.predictions.dates) return [];
-    var dateObj = manifest.predictions.dates[date];
-    if (!dateObj || !dateObj[hour]) return [];
-    return dateObj[hour];
-  }
-
-  function getAvailableModels() {
-    if (!manifest || !manifest.predictions || !manifest.predictions.models) return [];
-    return manifest.predictions.models;
-  }
-
   function formatHourLabel(h) {
     if (!h || h.length < 4) return h;
     var hh = parseInt(h.substring(0, 2), 10);
@@ -1257,130 +1095,6 @@ window.WeatherApp = (() => {
     { key: 'validation', label: 'Prediction History' }
   ];
 
-  function renderBrowse() {
-    var browseEl = document.getElementById('subtab-browse');
-    if (!browseEl || !manifest) return;
-
-    var cat = browseState.category;
-    var dates = getDatesForCategory();
-    if (!browseState.selectedDate || dates.indexOf(browseState.selectedDate) === -1) {
-      browseState.selectedDate = dates[0] || null;
-    }
-
-    var html = '';
-    if (_dbFailed) {
-      html += '<div class="db-fallback-banner">Database unavailable \u2014 browsing via cached data</div>';
-    }
-    html += '<div class="browse-category-bar">';
-    for (var i = 0; i < CATEGORIES.length; i++) {
-      var c = CATEGORIES[i];
-      html += '<button class="browse-btn browse-cat-btn' + (cat === c.key ? ' active' : '') + '" data-cat="' + c.key + '">' + c.label + '</button>';
-    }
-    html += '</div>';
-
-    html += '<div class="browse-controls">';
-
-    var dateOptions = dates.map(function(d) {
-      var sel = d === browseState.selectedDate ? ' selected' : '';
-      return '<option value="' + d + '"' + sel + '>' + d + '</option>';
-    }).join('');
-    if (dates.length > 0) {
-      html += '<select class="browse-date-select">' + dateOptions + '</select>';
-    }
-
-    html += '<button class="browse-btn' + (browseState.viewMode === 'formatted' ? ' active' : '') + '" data-vmode="formatted">Formatted</button>' +
-      '<button class="browse-btn' + (browseState.viewMode === 'raw' ? ' active' : '') + '" data-vmode="raw">Raw JSON</button>';
-    html += '</div>';
-
-    if (cat === 'predictions' && getAvailableModels().length > 0) {
-      var models = getAvailableModels();
-      html += '<div class="model-filter-bar">' +
-        '<button class="browse-btn model-filter-pill' + (!browseState.selectedModel ? ' active' : '') + '" data-model="">All Models</button>';
-      for (var m = 0; m < models.length; m++) {
-        html += '<button class="browse-btn model-filter-pill' + (browseState.selectedModel === models[m] ? ' active' : '') + '" data-model="' + models[m] + '">' + escapeHtml(models[m]) + '</button>';
-      }
-      html += '</div>';
-    }
-
-    if (cat !== 'validation') {
-      var hours = browseState.selectedDate ? getHoursForDate(browseState.selectedDate) : [];
-      var hourBtns = hours.map(function(h) {
-        var label = formatHourLabel(h);
-        var cls = h === browseState.selectedHour ? ' active' : '';
-        return '<button class="hour-btn' + cls + '" data-hour="' + h + '">' + label + '</button>';
-      }).join('');
-      html += '<div class="hour-grid">' + (hourBtns || '<span class="browse-loading">No data for this date</span>') + '</div>';
-    }
-
-    html += '<div class="browse-display"></div>';
-    browseEl.innerHTML = html;
-
-    wireBrowseHandlers();
-
-    if (cat === 'validation' && browseState.selectedDate) {
-      loadRawData();
-    } else if (browseState.currentData && browseState.selectedHour) {
-      renderBrowseDisplay();
-    }
-  }
-
-  function wireBrowseHandlers() {
-    var browseEl = document.getElementById('subtab-browse');
-    if (!browseEl) return;
-
-    var catBtns = browseEl.querySelectorAll('[data-cat]');
-    catBtns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        browseState.category = btn.dataset.cat;
-        browseState.selectedHour = null;
-        browseState.currentData = null;
-        browseState.selectedDate = null;
-        browseState.selectedModel = null;
-        browseState.validationModelFilter = null;
-        renderBrowse();
-      });
-    });
-
-    var dateSelect = browseEl.querySelector('.browse-date-select');
-    if (dateSelect) {
-      dateSelect.addEventListener('change', function() {
-        browseState.selectedDate = dateSelect.value;
-        browseState.selectedHour = null;
-        browseState.currentData = null;
-        renderBrowse();
-      });
-    }
-
-    var vmodeBtns = browseEl.querySelectorAll('[data-vmode]');
-    vmodeBtns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        browseState.viewMode = btn.dataset.vmode;
-        vmodeBtns.forEach(function(b) { b.classList.toggle('active', b === btn); });
-        renderBrowseDisplay();
-      });
-    });
-
-    var modelBtns = browseEl.querySelectorAll('[data-model]');
-    modelBtns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        browseState.selectedModel = btn.dataset.model || null;
-        browseState.selectedHour = null;
-        browseState.currentData = null;
-        renderBrowse();
-      });
-    });
-
-    var hourBtns = browseEl.querySelectorAll('.hour-btn');
-    hourBtns.forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        browseState.selectedHour = btn.dataset.hour;
-        hourBtns.forEach(function(b) { b.classList.toggle('active', b === btn); });
-        loadRawData();
-      });
-    });
-  }
-
-  var manifestLoaded = false;
   var activeSubtab = 'dashboard';
 
   var workflowLoaded = false;
@@ -2647,7 +2361,6 @@ window.WeatherApp = (() => {
   }
 
   function stop() {
-    manifestLoaded = false;
     browseState.selectedHour = null;
     browseState.currentData = null;
     workflowLoaded = false;
