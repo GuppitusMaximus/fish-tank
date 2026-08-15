@@ -17,19 +17,26 @@ Public Netatmo API → public-stations/ CSV/JSON  → weather-public.json (publi
 5. `validate_prediction.py` compares predictions against actual readings
 6. `export_weather.py` assembles current readings, predictions, and history into `weather.json` for the frontend, generates a `data-index.json` manifest, exports `frontend.db.gz`, and uploads protected files to Cloudflare R2
 
-`app_ml.py` (FastAPI, systemd unit `fishtank-ml`) wraps steps 1–6 behind `POST /ml/trigger`. Step 3 (training) runs on every invocation but tolerates failure. The frontend Workflow tab reads live pipeline status from `GET /ml/status`.
+`app_ml.py` (FastAPI, systemd unit `fishtank-ml`) wraps steps 1–6 behind `POST /ml/trigger`. Step 3 (training) runs on a cadence rather than every cycle: it is skipped unless the newest model metadata is older than `TRAIN_INTERVAL_HOURS` (3 hours) or any expected metadata file is missing (so the first run after a model wipe always trains). Skipped runs appear as `"status": "skipped"` in `GET /ml/status`, which the frontend Workflow tab reads for live pipeline status. Off-cadence cycles complete in under a minute; training cycles take several minutes.
 
 ## Project Structure
 
 ```
 the-snake-tank/
+├── app_ml.py               # FastAPI pipeline service (systemd unit fishtank-ml, port 8001)
+├── app_pvp.py              # FastAPI PvP service for Fathom Fall (systemd unit fishtank-pvp, port 8002)
 ├── fetch_weather.py        # Fetches data from Netatmo API, scrubs PII; also fetches public station data
-├── build_dataset.py        # Loads raw JSON into Postgres
+├── build_dataset.py        # Loads raw JSON into Postgres; syncs public_stations incrementally from CSVs
 ├── public_features.py      # Spatial feature engineering from public Netatmo station data
-├── train_model.py          # Trains all models (3hrRaw, 24hrRaw, 6hrRC, 24hr_pubRA_RC3_GB)
+├── train_model.py          # Trains all models (3hrRaw, 24hrRaw, 6hrRC, 24hr_pubRA_RC3_GB, multiHorizon_*)
 ├── predict.py              # Runs predictions for one or all models
 ├── validate_prediction.py  # Validates predictions against actual readings (multi-model)
 ├── export_weather.py       # Exports weather.json + weather-public.json + data-index.json + frontend.db.gz; uploads to R2
+├── migrate.py              # Idempotent Postgres schema migration; --cleanup runs retention deletes
+├── db.py                   # Postgres connection helper
+├── config.py               # Loads .env; paths and environment settings
+├── systemd/                # fishtank-ml and fishtank-pvp unit files (run from .venv)
+├── ci/deploy-vps.yml       # Source of .github/workflows/deploy-vps.yml
 ├── requirements.txt        # Python dependencies (pandas, scikit-learn, lightgbm, boto3)
 ├── data/
 │   ├── YYYY-MM-DD/         # Raw JSON files, one per collection
@@ -50,16 +57,18 @@ the-snake-tank/
 │   │   └── YYYY-MM-DD.json
 │   └── prediction-history.json  # Validated prediction accuracy history (JSON + DB)
 │                                # (all of data/ is gitignored, regenerated every 20 min)
-├── models/
-│   ├── temp_predictor.joblib        # 24hrRaw model (gitignored)
-│   ├── temp_predictor_simple.joblib # 3hrRaw fallback model (gitignored)
-│   ├── temp_predictor_6hr_rc.joblib # 6hrRC residual correction model (gitignored)
-│   ├── temp_predictor_gb.joblib     # 24hr_pubRA_RC3_GB gradient-boosted model (gitignored)
-│   ├── temp_predictor_prev.joblib   # Previous 24hrRaw backup (gitignored)
+├── models/                          # (everything here is gitignored; survives deploys on the VPS)
+│   ├── temp_predictor.joblib        # 24hrRaw model
+│   ├── temp_predictor_simple.joblib # 3hrRaw fallback model
+│   ├── temp_predictor_6hr_rc.joblib # 6hrRC residual correction model
+│   ├── temp_predictor_gb.joblib     # 24hr_pubRA_RC3_GB gradient-boosted model
+│   ├── temp_predictor_mh_*.joblib   # Multi-horizon models (1h, 3h, 6h, 12h, 24h)
+│   ├── temp_predictor_prev.joblib   # Previous 24hrRaw backup
 │   ├── model_meta.json              # 24hrRaw model version metadata
 │   ├── simple_meta.json             # 3hrRaw model version metadata
 │   ├── 6hr_rc_meta.json             # 6hrRC model version metadata
-│   └── gb_meta.json                 # 24hr_pubRA_RC3_GB model version metadata (appears after first GB train)
+│   ├── gb_meta.json                 # 24hr_pubRA_RC3_GB model version metadata
+│   └── mh_*_meta.json               # Multi-horizon model version metadata
 └── tests/                           # QA tests (in BackEnds/tests/)
 ```
 
@@ -97,7 +106,9 @@ If the bounding box environment variables are configured (`NETATMO_PUBLIC_LAT_NE
 
 Public station data is stored in two places:
 - **Postgres** (`public_stations` table) — for ML feature engineering, pruned to 30 days
-- **CSV files** (`data/public-stations/YYYY-MM-DD/HHMMSS.csv`) — persisted for browsing, pruned to 30 days
+- **CSV files** (`data/public-stations/YYYY-MM-DD/HHMMSS.csv`) — persisted for browsing and as the durable record, pruned to 30 days
+
+`fetch_weather.py` writes each cycle's rows directly to the table; `build_dataset.py` then reconciles incrementally, bulk-inserting only CSV rows newer than the table's `MAX(fetched_at)` with `ON CONFLICT (fetched_at, station_id) DO NOTHING`. If the table is ever truncated, rebuild it from the CSVs with `python build_dataset.py --rebuild-public-stations` (or `PUBLIC_STATIONS_FULL_REBUILD=1`).
 
 The CSV files are converted to JSON by `export_weather.py` for use by the frontend data browser.
 
@@ -115,7 +126,7 @@ Because nothing under `data/` is committed any more, the frontend Browse Data ta
 
 ## Data Pipeline
 
-`build_dataset.py` scans all `data/*/*.json` files, extracts sensor readings, and writes them to the `readings` table in Postgres. The table is rebuilt from scratch on each run. When multiple files exist for the same timestamp (due to the 20-minute collection interval), the last write wins (upsert on the timestamp key).
+`build_dataset.py` scans all `data/*/*.json` files, extracts sensor readings, and upserts them into the `readings` table in Postgres (last write wins on the timestamp key). It then syncs the `public_stations` table incrementally from the CSVs as described above.
 
 The database also includes `predictions` and `prediction_history` tables, which are written incrementally by `predict.py` and `validate_prediction.py`. These tables provide DB-first reads for downstream scripts, with JSON files as fallback.
 
@@ -152,7 +163,7 @@ The database also includes `predictions` and `prediction_history` tables, which 
 
 ## Model Architecture
 
-The system trains four models. All run on every training invocation but skip gracefully if data requirements aren't met.
+The system trains four next-hour models plus five multi-horizon models. All run on every training invocation but skip gracefully if data requirements aren't met.
 
 ### 3hrRaw Model (3h lookback, simple fallback)
 
@@ -186,7 +197,16 @@ The system trains four models. All run on every training invocation but skip gra
 - Includes a Lasso feature-selection diagnostic pass (results saved to `models/lasso_rankings_24hr_pubRA_RC3_GB.json`)
 - Also incorporates residual correction errors from all three RC model types
 
-All models use `MultiOutputRegressor` to predict next-hour indoor and outdoor temperatures simultaneously.
+### Multi-Horizon Models (multiHorizon_1h/3h/6h/12h/24h)
+
+- Five LightGBM models predicting indoor and outdoor temperature 1, 3, 6, 12, and 24 hours ahead (in 20-minute steps)
+- Same base feature layout as the GB model (all enriched features per lookback hour)
+- Requires 336+ readings (2 weeks) to train; each horizon skips independently otherwise
+- Saved as `models/temp_predictor_mh_{horizon}.joblib` with metadata in `models/mh_{horizon}_meta.json` and per-horizon Lasso rankings in `models/lasso_rankings_mh_{horizon}.json`
+
+All models use `MultiOutputRegressor` to predict indoor and outdoor temperatures simultaneously.
+
+Training loads the `readings` table once per run and hands each train function its own copy of the dataframe; each function still loads the table itself when run standalone.
 
 ### Spatial Features (`public_features.py`)
 
@@ -200,6 +220,9 @@ Each model tracks its version and training metrics in a metadata JSON file:
 - `models/simple_meta.json` — 3hrRaw model metadata
 - `models/6hr_rc_meta.json` — 6hrRC model metadata
 - `models/gb_meta.json` — 24hr_pubRA_RC3_GB model metadata
+- `models/mh_{1h,3h,6h,12h,24h}_meta.json` — multi-horizon model metadata
+
+The `trained_at` fields of these files also drive the training cadence gate in `app_ml.py` (train only when the newest is older than 3 hours, or when any file is missing).
 
 Metadata fields:
 
@@ -353,6 +376,24 @@ Protected data files are no longer committed to git. They are generated locally,
 
 `weather-public.json` (current temperatures only) is still committed to the frontend repo and served publicly.
 
+## Deployment
+
+Pushing to `main` with changes under `BackEnds/the-snake-tank/**` triggers `.github/workflows/deploy-vps.yml` (source copy: `ci/deploy-vps.yml`), which SSHes to the VPS and runs:
+
+```bash
+set -e
+cd /opt/fishtank && git pull origin main
+cd BackEnds/the-snake-tank
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python migrate.py
+sudo systemctl restart fishtank-ml fishtank-pvp
+```
+
+Notes:
+- The services run from `/opt/fishtank/BackEnds/the-snake-tank/.venv` (see `systemd/`). Bare `pip`/`python` do not work on the VPS (PEP 668 externally-managed environment), so the workflow must use the venv binaries.
+- `migrate.py` runs on every deploy and is idempotent — schema changes belong there, including constraint retrofits for tables that predate the current `CREATE TABLE` definitions.
+- Each deploy restarts both services, so batch related changes and push between pipeline cycles when possible. `data/` and `models/` are gitignored and survive deploys.
+
 ## Setup
 
 ```bash
@@ -364,8 +405,8 @@ Run scripts individually:
 ```bash
 python fetch_weather.py      # Requires NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET, NETATMO_REFRESH_TOKEN
                              # Optional: NETATMO_PUBLIC_LAT_NE/LON_NE/LAT_SW/LON_SW for public station data
-python build_dataset.py      # Loads data/*/*.json into Postgres
-python train_model.py        # Trains all four models → models/*.joblib
+python build_dataset.py      # Loads data/*/*.json into Postgres; add --rebuild-public-stations to rebuild that table from CSVs
+python train_model.py        # Trains all models → models/*.joblib
 python predict.py --model-type all  # Run all models, print predicted temperatures
 python validate_prediction.py --predictions-dir data/predictions --history data/prediction-history.json
 python export_weather.py --output path/to/weather.json --history data/prediction-history.json
