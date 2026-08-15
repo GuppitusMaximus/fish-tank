@@ -109,7 +109,7 @@ var FishTankAuth = (function() {
     });
 
     // If on a gated view, navigate to home
-    if (window.location.hash === '#weather' || window.location.hash === '#fathomfall') {
+    if (window.location.hash === '#weather' || window.location.hash === '#fathomfall' || window.location.hash === '#mocks') {
       window.location.hash = '';
     }
   }

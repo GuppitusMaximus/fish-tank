@@ -7,6 +7,7 @@
     <title>The Fish Tank</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/mocks.css">
 </head>
 <body class="theme-ocean">
     <header>
@@ -23,6 +24,7 @@
                     <a href="https://www.fathomfall.com" target="_blank" rel="noopener">Fathom Fall</a>
                 </div>
             </div>
+            <a data-view="mocks" class="auth-gated auth-hidden">Design Mocks</a>
         </nav>
         <div class="account-dropdown">
             <button class="account-toggle" aria-label="Account menu">
@@ -108,6 +110,7 @@
         </div>
     </div>
 
+    <div id="mocks"></div>
     <p class="hint" id="hint"></p>
     <div id="signin-modal">
       <div class="signin-card">
@@ -130,6 +133,7 @@
 
     <script src="js/weather.js"></script>
     <script src="js/fathomfall-admin.js"></script>
+    <script src="js/mocks.js"></script>
     <script>
     (() => {
         const views = {
@@ -172,6 +176,13 @@
                 el: document.getElementById('fathomfall'),
                 app: window.FathomFallAdmin,
                 title: 'Fathom Fall — Admin',
+                hint: '',
+                theme: 'theme-ocean'
+            },
+            mocks: {
+                el: document.getElementById('mocks'),
+                app: window.MocksApp,
+                title: 'Hub Redesign Mocks',
                 hint: '',
                 theme: 'theme-ocean'
             },
