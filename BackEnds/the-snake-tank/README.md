@@ -1,6 +1,6 @@
 # the-snake-tank
 
-Weather data collection and ML temperature prediction pipeline for a Netatmo weather station. Collects readings every 20 minutes via a Cloudflare Cron Worker that calls the pipeline service on the VPS, stores them in Postgres, and trains RandomForest and gradient-boosted models to predict next-hour indoor and outdoor temperatures.
+Weather data collection and ML temperature prediction pipeline for a Netatmo weather station. Collects readings every 20 minutes via a Cloudflare Cron Worker that calls the pipeline service on the VPS, stores them in Postgres, and trains RandomForest and gradient-boosted models to predict indoor and outdoor temperatures — four models predict the next hour, and five multi-horizon models predict 1, 3, 6, 12, and 24 hours ahead.
 
 ## Architecture
 
@@ -164,6 +164,8 @@ The database also includes `predictions` and `prediction_history` tables, which 
 ## Model Architecture
 
 The system trains four next-hour models plus five multi-horizon models. All run on every training invocation but skip gracefully if data requirements aren't met.
+
+**Naming note:** the hours in the next-hour models' names (3hrRaw, 6hrRC, 24hrRaw, 24hr_pubRA_RC3_GB) are **lookback windows** — how much history each model consumes as input — not how far ahead they predict. All four predict the next hour. Only the `multiHorizon_*` models predict further ahead (1h–24h).
 
 ### 3hrRaw Model (3h lookback, simple fallback)
 
