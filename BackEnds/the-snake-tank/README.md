@@ -17,9 +17,7 @@ Public Netatmo API → public-stations/ CSV/JSON  → weather-public.json (publi
 5. `validate_prediction.py` compares predictions against actual readings
 6. `export_weather.py` assembles current readings, predictions, and history into `weather.json` for the frontend, generates a `data-index.json` manifest, exports `frontend.db.gz`, and uploads protected files to Cloudflare R2
 
-`app_ml.py` (FastAPI, systemd unit `fishtank-ml`) wraps steps 1–6 behind `POST /ml/trigger`. Step 3 (training) runs on every invocation but tolerates failure.
-
-`export_workflow.py` is legacy — it summarised GitHub Actions run history for the frontend Workflow tab, which no longer reflects how the pipeline runs.
+`app_ml.py` (FastAPI, systemd unit `fishtank-ml`) wraps steps 1–6 behind `POST /ml/trigger`. Step 3 (training) runs on every invocation but tolerates failure. The frontend Workflow tab reads live pipeline status from `GET /ml/status`.
 
 ## Project Structure
 
@@ -32,7 +30,6 @@ the-snake-tank/
 ├── predict.py              # Runs predictions for one or all models
 ├── validate_prediction.py  # Validates predictions against actual readings (multi-model)
 ├── export_weather.py       # Exports weather.json + weather-public.json + data-index.json + frontend.db.gz; uploads to R2
-├── export_workflow.py      # Exports workflow.json for frontend
 ├── requirements.txt        # Python dependencies (pandas, scikit-learn, lightgbm, boto3)
 ├── data/
 │   ├── YYYY-MM-DD/         # Raw JSON files, one per collection
@@ -67,7 +64,7 @@ the-snake-tank/
 ```
 
 **Protected files** (not committed to git, uploaded to R2 instead):
-- `weather.json`, `workflow.json`, `frontend.db.gz` — contain detailed sensor data and are served via authenticated access from Cloudflare R2
+- `weather.json`, `frontend.db.gz` — contain detailed sensor data and are served via authenticated access from Cloudflare R2
 
 ## Pipeline Trigger
 
@@ -347,20 +344,11 @@ Also generates:
 python export_weather.py --output ../FrontEnds/the-fish-tank/data/weather.json --history data/prediction-history.json
 ```
 
-### `export_workflow.py`
-
-Legacy. Fetches recent GitHub Actions workflow runs from the API and exports a summary as `workflow.json` for the frontend Workflow tab. It used to run from `workflow-status.yml` on completion of `netatmo.yml`; both workflows are retired, so nothing invokes this on a schedule any more and the data it reports no longer describes the live pipeline.
-
-```
-GH_TOKEN=$(gh auth token) python export_workflow.py --output ../FrontEnds/the-fish-tank/data/workflow.json
-```
-
 ## Auth Lockdown
 
 Protected data files are no longer committed to git. They are generated locally, then uploaded to Cloudflare R2 and served through an authenticated Cloudflare Worker:
 
 - `weather.json` — full dashboard data (uploaded to R2 as `weather.json`)
-- `workflow.json` — workflow run history (uploaded to R2 as `workflow.json`)
 - `frontend.db.gz` — SQLite export for data browsing (uploaded to R2 as `frontend.db.gz`)
 
 `weather-public.json` (current temperatures only) is still committed to the frontend repo and served publicly.
@@ -382,7 +370,6 @@ python predict.py --model-type all  # Run all models, print predicted temperatur
 python validate_prediction.py --predictions-dir data/predictions --history data/prediction-history.json
 python export_weather.py --output path/to/weather.json --history data/prediction-history.json
                              # Also requires R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME for upload
-python export_workflow.py --output path/to/workflow.json   # Requires GH_TOKEN
 ```
 
 <!-- Deploy flow test: 2026-02-16T13:27:00Z -->
