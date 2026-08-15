@@ -20,9 +20,10 @@ jobs:
           username: fishtank
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
             cd /opt/fishtank
             git pull origin main
             cd BackEnds/the-snake-tank
-            pip install -r requirements.txt
-            python migrate.py
+            .venv/bin/pip install -r requirements.txt
+            .venv/bin/python migrate.py
             sudo systemctl restart fishtank-ml fishtank-pvp
