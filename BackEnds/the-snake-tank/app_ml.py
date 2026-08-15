@@ -80,6 +80,8 @@ META_FILES = {
     "24hr_pubRA_RC3_GB": os.path.join(MODEL_DIR, "gb_meta.json"),
 }
 
+TRAIN_INTERVAL_HOURS = 3
+
 
 # --- Helpers ---
 
@@ -157,6 +159,28 @@ def _read_model_meta():
     return models
 
 
+def _should_train():
+    import train_model
+
+    meta_paths = list(META_FILES.values())
+    for name in train_model.MULTI_HORIZONS:
+        meta_paths.append(os.path.join(MODEL_DIR, f"mh_{name}_meta.json"))
+
+    newest = None
+    for path in meta_paths:
+        try:
+            with open(path) as f:
+                meta = json.load(f)
+            trained_at = datetime.strptime(
+                meta["trained_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            return True
+        if newest is None or trained_at > newest:
+            newest = trained_at
+
+    return datetime.now(timezone.utc) - newest > timedelta(hours=TRAIN_INTERVAL_HOURS)
+
+
 def _get_last_prediction():
     from db import get_connection
     try:
@@ -217,7 +241,10 @@ def _execute_pipeline():
             ("predict", lambda: predict_mod.predict(
                 predictions_dir=PREDICTIONS_DIR, model_type_filter="all")),
         ]:
-            result = _run_step(sname, func)
+            if sname == "train_model" and not _should_train():
+                result = {"name": "train_model", "status": "skipped", "duration_ms": 0}
+            else:
+                result = _run_step(sname, func)
             steps.append(result)
             _log_step(sname, result)
             if result["status"] == "error":

@@ -366,8 +366,9 @@ def read_6hr_rc_meta():
         return {"version": 0}
 
 
-def train():
-    df = load_readings()
+def train(df=None):
+    if df is None:
+        df = load_readings()
     print(f"Loaded {len(df)} readings from database")
 
     df = encode_trends(df)
@@ -452,11 +453,12 @@ def train():
     print(f"Model metadata written (version {new_version})")
 
 
-def train_simple():
+def train_simple(df=None):
     """Train the simple 3-hour fallback model."""
     print("\n--- Simple Model (3h fallback) ---")
 
-    df = load_readings()
+    if df is None:
+        df = load_readings()
     df = encode_trends(df)
 
     # Add spatial features from public stations
@@ -511,11 +513,12 @@ def train_simple():
     print(f"Simple model metadata written (version {new_version})")
 
 
-def train_6hr_rc():
+def train_6hr_rc(df=None):
     """Train the 6hrRC residual correction model."""
     print("\n--- 6hrRC Model (6h + residual correction) ---")
 
-    df = load_readings()
+    if df is None:
+        df = load_readings()
     df = encode_trends(df)
 
     # Add spatial features from public stations
@@ -582,11 +585,12 @@ def read_gb_meta():
         return {"version": 0}
 
 
-def train_gb():
+def train_gb(df=None):
     """Train the 24hr_pubRA_RC3_GB gradient-boosted model with Lasso diagnostic."""
     print("\n--- 24hr_pubRA_RC3_GB Model (LightGBM + multi-model RC) ---")
 
-    df = load_readings()
+    if df is None:
+        df = load_readings()
     if len(df) < GB_MIN_READINGS:
         print(f"Not enough data: {len(df)} readings (need {GB_MIN_READINGS}). Skipping GB model.")
         return
@@ -764,11 +768,12 @@ def build_multi_horizon_windows(df, horizon_steps, feature_cols=None):
     return np.array(X) if X else np.array([]), np.array(y) if y else np.array([])
 
 
-def train_multi_horizon():
+def train_multi_horizon(df=None):
     """Train multi-horizon prediction models (1h, 3h, 6h, 12h, 24h)."""
     print("\n--- Multi-Horizon Models ---")
 
-    df = load_readings()
+    if df is None:
+        df = load_readings()
     if len(df) < GB_MIN_READINGS:
         print(f"Not enough data: {len(df)} readings (need {GB_MIN_READINGS}). Skipping multi-horizon.")
         return
@@ -919,11 +924,12 @@ def _build_mh_feature_names():
 
 
 def main():
-    train()
-    train_simple()
-    train_6hr_rc()
-    train_gb()
-    train_multi_horizon()
+    df = load_readings()
+    train(df.copy())
+    train_simple(df.copy())
+    train_6hr_rc(df.copy())
+    train_gb(df.copy())
+    train_multi_horizon(df.copy())
 
 
 if __name__ == "__main__":
