@@ -376,7 +376,7 @@ def leaderboard(limit: int = Query(20, ge=1, le=100), season: str = Query(None))
                 LEFT JOIN players p ON p.id::text = ps.player_id
                 {where_clause}
                 GROUP BY ps.player_id, ps.character, p.display_name
-                ORDER BY highest_floor DESC
+                ORDER BY highest_floor DESC, peak_power DESC
                 LIMIT %s
             """, params + [limit])
             rows = cur.fetchall()
