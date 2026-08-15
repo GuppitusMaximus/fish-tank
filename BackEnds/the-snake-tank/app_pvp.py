@@ -342,15 +342,31 @@ def get_opponent(
 
 
 @app.get("/pvp/leaderboard")
-def leaderboard(limit: int = Query(20, ge=1, le=100)):
+def leaderboard(limit: int = Query(20, ge=1, le=100), season: str = Query(None)):
     from db import get_connection
     now = datetime.now(timezone.utc)
-    season = now.strftime("%Y-%m")
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    if season is None:
+        season = now.strftime("%Y-%m")
+
+    if season == "all":
+        where_clause = ""
+        params = []
+    elif re.match(r"^\d{4}-(0[1-9]|1[0-2])$", season):
+        year, month = int(season[:4]), int(season[5:])
+        month_start = datetime(year, month, 1, tzinfo=timezone.utc)
+        if month == 12:
+            next_month_start = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        else:
+            next_month_start = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+        where_clause = "WHERE ps.created_at >= %s AND ps.created_at < %s"
+        params = [month_start, next_month_start]
+    else:
+        raise HTTPException(status_code=400, detail="invalid season")
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(f"""
                 SELECT ps.player_id, ps.character,
                        MAX(ps.floor) as highest_floor,
                        COUNT(*) as snapshots,
@@ -358,12 +374,19 @@ def leaderboard(limit: int = Query(20, ge=1, le=100)):
                        COALESCE(p.display_name, 'Angler') as display_name
                 FROM party_snapshots ps
                 LEFT JOIN players p ON p.id::text = ps.player_id
-                WHERE ps.created_at >= %s
+                {where_clause}
                 GROUP BY ps.player_id, ps.character, p.display_name
                 ORDER BY highest_floor DESC
                 LIMIT %s
-            """, (month_start, limit))
+            """, params + [limit])
             rows = cur.fetchall()
+
+            cur.execute("""
+                SELECT DISTINCT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM')
+                FROM party_snapshots
+                ORDER BY 1 DESC
+            """)
+            seasons = [r[0] for r in cur.fetchall()]
 
     entries = [
         {
@@ -377,7 +400,7 @@ def leaderboard(limit: int = Query(20, ge=1, le=100)):
         for row in rows
     ]
 
-    return {"season": season, "entries": entries}
+    return {"season": season, "seasons": seasons, "entries": entries}
 
 
 class SetNameRequest(BaseModel):
