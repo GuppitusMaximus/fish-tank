@@ -132,11 +132,34 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_leaderboard ON party_snapshots (floor D
 CREATE INDEX IF NOT EXISTS idx_snapshots_retention ON party_snapshots (created_at);
 """
 
+# Retrofit UNIQUE(fetched_at, station_id) on public_stations tables created
+# before the constraint existed. Dedups first; skips if any unique index
+# on (fetched_at, station_id) already exists.
+PUBLIC_STATIONS_UNIQUE_SQL = """
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE tablename = 'public_stations'
+          AND indexdef LIKE '%UNIQUE%'
+          AND indexdef LIKE '%(fetched_at, station_id)%'
+    ) THEN
+        DELETE FROM public_stations a USING public_stations b
+        WHERE a.id > b.id
+          AND a.fetched_at = b.fetched_at
+          AND a.station_id = b.station_id;
+        CREATE UNIQUE INDEX idx_public_stations_station_time
+            ON public_stations (fetched_at, station_id);
+    END IF;
+END $$;
+"""
+
 
 def migrate():
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(SCHEMA_SQL)
+            cur.execute(PUBLIC_STATIONS_UNIQUE_SQL)
         conn.commit()
     print("Migration complete — all tables and indexes created.")
 

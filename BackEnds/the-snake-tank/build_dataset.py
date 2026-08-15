@@ -15,6 +15,7 @@ import os
 import sys
 
 import psycopg2
+import psycopg2.extras
 
 from config import DATA_DIR, DATABASE_URL
 
@@ -96,6 +97,29 @@ def _connect():
     return conn
 
 
+def _csv_fetched_at(csv_path):
+    """Reconstruct the fetched_at timestamp from a CSV path: YYYY-MM-DD/HHMMSS.csv."""
+    parts = csv_path.replace("\\", "/").split("/")
+    date_str = parts[-2]
+    t = parts[-1][:6]
+    return f"{date_str}T{t[:2]}:{t[2:4]}:{t[4:6]}Z"
+
+
+def load_public_csv(csv_path):
+    """Load one public-stations CSV and return its rows as tuples."""
+    rows = []
+    with open(csv_path, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            rows.append((row["fetched_at"], row["station_id"],
+                         _num(row["lat"]), _num(row["lon"]),
+                         _num(row["temperature"]), _int(row["humidity"]), _num(row["pressure"]),
+                         _num(row["rain_60min"]), _num(row["rain_24h"]),
+                         _int(row["wind_strength"]), _int(row["wind_angle"]),
+                         _int(row["gust_strength"]), _int(row["gust_angle"])))
+    return rows
+
+
 def main():
     """Scan all JSON files and upsert readings into Postgres."""
     json_files = sorted(glob.glob(os.path.join(DATA_DIR, "*", "*.json")))
@@ -108,7 +132,6 @@ def main():
     print(f"Found {total_files} data files")
 
     BATCH_SIZE = 50
-    PS_BATCH_SIZE = 500
 
     conn = _connect()
     cur = conn.cursor()
@@ -203,35 +226,40 @@ def main():
     if batch_count > 0:
         conn.commit()
 
-    # --- Rebuild public_stations from CSVs ---
-    cur.execute("DELETE FROM public_stations")
-    conn.commit()
+    # --- Sync public_stations from CSVs ---
+    ps_insert_sql = """INSERT INTO public_stations
+        (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
+         rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
+        VALUES %s ON CONFLICT (fetched_at, station_id) DO NOTHING"""
 
     public_csvs = sorted(glob.glob(os.path.join(DATA_DIR, "public-stations", "*", "*.csv")))
+    full_rebuild = ("--rebuild-public-stations" in sys.argv
+                    or os.environ.get("PUBLIC_STATIONS_FULL_REBUILD") == "1")
+
+    if full_rebuild:
+        print("Public stations: full rebuild")
+        cur.execute("DELETE FROM public_stations")
+        conn.commit()
+    else:
+        cur.execute("SELECT MAX(fetched_at) FROM public_stations")
+        max_fetched = cur.fetchone()[0]
+        if max_fetched is not None:
+            # >= so a partially-committed boundary cycle self-heals;
+            # ON CONFLICT makes re-inserts free.
+            public_csvs = [p for p in public_csvs if _csv_fetched_at(p) >= max_fetched]
+
     ps_count = 0
-    ps_batch = 0
-    for csv_path in public_csvs:
+    ps_files = 0
+    ps_buffer = []
+    PS_FLUSH_SIZE = 5000
+
+    def flush_public_rows():
+        nonlocal conn, cur
+        if not ps_buffer:
+            return
         try:
-            with open(csv_path, "r") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    cur.execute(
-                        """INSERT INTO public_stations
-                        (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
-                         rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                        (row["fetched_at"], row["station_id"],
-                         _num(row["lat"]), _num(row["lon"]),
-                         _num(row["temperature"]), _int(row["humidity"]), _num(row["pressure"]),
-                         _num(row["rain_60min"]), _num(row["rain_24h"]),
-                         _int(row["wind_strength"]), _int(row["wind_angle"]),
-                         _int(row["gust_strength"]), _int(row["gust_angle"])))
-                    ps_count += 1
-                    ps_batch += 1
-                    if ps_batch >= PS_BATCH_SIZE:
-                        conn.commit()
-                        print(f"Public stations: {ps_count} rows inserted...")
-                        ps_batch = 0
+            psycopg2.extras.execute_values(cur, ps_insert_sql, ps_buffer, page_size=1000)
+            conn.commit()
         except psycopg2.OperationalError as e:
             print(f"  Connection error during public_stations: {e}")
             print("  Reconnecting...")
@@ -241,11 +269,24 @@ def main():
                 pass
             conn = _connect()
             cur = conn.cursor()
-            ps_batch = 0
+            psycopg2.extras.execute_values(cur, ps_insert_sql, ps_buffer, page_size=1000)
+            conn.commit()
+        ps_buffer.clear()
 
-    if ps_batch > 0:
-        conn.commit()
-    print(f"Public stations: {ps_count} readings from {len(public_csvs)} files")
+    for csv_path in public_csvs:
+        try:
+            rows = load_public_csv(csv_path)
+        except (KeyError, ValueError) as e:
+            print(f"  SKIP (error): {csv_path} — {e}")
+            continue
+        ps_buffer.extend(rows)
+        ps_count += len(rows)
+        ps_files += 1
+        if len(ps_buffer) >= PS_FLUSH_SIZE:
+            flush_public_rows()
+
+    flush_public_rows()
+    print(f"Public stations: {ps_count} rows inserted from {ps_files} files")
 
     conn.close()
     print(f"\nDone: {inserted} readings inserted, {skipped} skipped")

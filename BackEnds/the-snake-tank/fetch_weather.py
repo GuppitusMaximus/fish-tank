@@ -147,7 +147,8 @@ def store_public_stations(data, fetched_at):
                 """INSERT INTO public_stations
                 (fetched_at, station_id, lat, lon, temperature, humidity, pressure,
                  rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (fetched_at, station_id) DO NOTHING""",
                 (fetched_at, station_id, lat, lon, temp, humidity, pressure,
                  rain_60min, rain_24h, wind_strength, wind_angle, gust_strength, gust_angle))
             rows_written.append((fetched_at, station_id, lat, lon, temp, humidity, pressure,
