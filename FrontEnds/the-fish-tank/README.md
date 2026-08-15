@@ -12,7 +12,7 @@ Single-page app with five views managed by a view controller in `index.html`. Ea
 
 ### Views
 
-- **Home** — Landing page with public weather summary and navigation
+- **Home** — Bento-grid project hub: hero/status tile, live weather tile + station compass, Fathom Fall, homelab and GitHub tiles, and a blur-gated TankCore teaser (sample data; sign-in lifts the veil)
 - **Potter Weather Predictions** — Live weather readings, ML-powered forecasts, data browser, and workflow monitor (requires sign-in)
 - **Fish Tank** — Click-to-spawn swimming fish with physics and wobble animation
 - **Tank Battle** — Autonomous combat vehicles with turret AI, health bars, and explosions
