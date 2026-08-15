@@ -17,6 +17,7 @@ Single-page app with five views managed by a view controller in `index.html`. Ea
 - **Fish Tank** — Click-to-spawn swimming fish with physics and wobble animation
 - **Tank Battle** — Autonomous combat vehicles with turret AI, health bars, and explosions
 - **Fighter Fish** — Aerial dogfight with flight physics, missiles, and crash sequences
+- **Design Mocks** — Hub redesign exploration with interactive homepage mockups (requires sign-in)
 
 ### Theme System
 
