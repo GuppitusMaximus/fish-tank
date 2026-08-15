@@ -1278,34 +1278,78 @@ window.WeatherApp = (() => {
     });
   }
 
+  function timeAgoText(date) {
+    var mins = Math.round((Date.now() - date.getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    var hrs = Math.round(mins / 60);
+    if (hrs < 48) return hrs + 'h ago';
+    return Math.round(hrs / 24) + 'd ago';
+  }
+
+  function homeForecastHtml(data, pm) {
+    if (!Array.isArray(data.predictions)) return '';
+    var now = Date.now();
+    var best = null;
+    data.predictions.forEach(function(p) {
+      var t = parseTimestamp(p.prediction_for);
+      if (!t || t.getTime() < now || !p.values) return;
+      if (!best || t.getTime() < best.t.getTime()) best = { t: t, p: p };
+    });
+    if (!best) return '';
+    var key = null;
+    Object.keys(best.p.values).forEach(function(k) {
+      if (key) return;
+      var isTemp = (pm && pm[k] && pm[k].format === 'temperature') || k.indexOf('temp') !== -1;
+      if (isTemp) key = k;
+    });
+    if (!key) return '';
+    var models = {};
+    data.predictions.forEach(function(p) { if (p.model_type) models[p.model_type] = true; });
+    var modelCount = Object.keys(models).length;
+    return '<div class="hub-sub">Forecast ' + formatTime(best.t) + ': ' +
+      formatProperty(key, best.p.values[key], pm) +
+      (modelCount ? ' · ' + modelCount + ' models' : '') + '</div>';
+  }
+
+  // Renders the compact weather tile on the home hub and updates the hero
+  // status strip. The full dashboard (toolbar, prediction cards) lives behind
+  // sign-in in the weather view.
   function renderHomeSummary(data) {
-    var el = document.getElementById('home-weather');
+    var el = document.getElementById('home-weather-tile');
     if (!el) return;
 
-    var isV2 = data.schema_version && data.schema_version >= 2 &&
-      data.current && data.current.readings &&
-      typeof data.current.readings === 'object' &&
-      Array.isArray(data.predictions);
-
     var pm = data.property_meta || null;
-
-    var currentHtml, predictionsHtml;
-    if (isV2) {
-      currentHtml = renderCurrentV2(data.current, pm);
-      predictionsHtml = renderPredictionsV2(data.predictions, pm);
-    } else {
-      currentHtml = renderCurrent(data.current);
-      predictionsHtml = renderPrediction(data.next_prediction);
-    }
+    var readings = (data.current && data.current.readings) || {};
+    var order = ['temp_outdoor', 'temp_indoor'];
+    var keys = Object.keys(readings).sort(function(a, b) {
+      var ia = order.indexOf(a), ib = order.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+    var blocks = keys.slice(0, 2).map(function(key) {
+      return '<div>' +
+        '<div class="hub-big">' + formatProperty(key, readings[key], pm) + '</div>' +
+        '<div class="hub-sub">' + getPropertyLabel(key, pm).toLowerCase() + '</div>' +
+      '</div>';
+    }).join('');
 
     el.innerHTML =
-      buildToolbarHtml() +
       staleNoticeHtml(data.generated_at) +
-      currentHtml +
-      (isV2 ? predictionsHtml : '<div class="dash-cards">' + predictionsHtml + '</div>');
+      (blocks ? '<div class="hub-metric-row">' + blocks + '</div>'
+              : '<div class="hub-sub">No current reading</div>') +
+      homeForecastHtml(data, pm);
 
-    wireToolbarHandlers(el, function() { renderHomeSummary(latestData); if (latestCompassData) renderCompass(latestCompassData, 'home-compass'); });
-    if (isV2) wirePredictionHandlers();
+    var d = parseTimestamp(data.generated_at);
+    var statusEl = document.getElementById('hub-weather-status');
+    if (statusEl && d) {
+      statusEl.textContent = 'weather ' + (isStale(d) ? 'stale' : 'live') +
+        ' · updated ' + timeAgoText(d);
+    }
+    var dotState = isStale(d) ? 'stale' : 'success';
+    ['hub-weather-dot', 'hub-tile-dot'].forEach(function(id) {
+      var dot = document.getElementById(id);
+      if (dot && d) dot.className = 'status-dot ' + dotState;
+    });
   }
 
   function render(data) {

@@ -37,8 +37,70 @@
         </div>
     </header>
     <main id="home" class="active">
-        <div id="home-weather" class="home-weather-summary"></div>
-        <div id="home-compass" class="home-compass-container"></div>
+        <div class="hub-grid">
+            <div class="hub-tile hub-span4 hub-rows2 hub-hero">
+                <div class="hub-label">guppitus &middot; project hub</div>
+                <div class="hub-hero-h">Games, weather models &amp; a trading engine &mdash; <b>running live</b> from a homelab and a VPS.</div>
+                <div class="hub-status">
+                    <span><span id="hub-weather-dot" class="status-dot cancelled"></span><span id="hub-weather-status">Potter weather</span></span>
+                    <span>vanilla JS &middot; no frameworks</span>
+                </div>
+            </div>
+            <a class="hub-tile hub-span2 hub-rows2" href="https://www.fathomfall.com" target="_blank" rel="noopener">
+                <div>
+                    <div class="hub-label"><span class="status-dot success"></span> Featured game</div>
+                    <div class="hub-title">Fathom Fall</div>
+                    <div class="hub-desc">Descend, fish, survive. A roguelite about going too deep.</div>
+                </div>
+                <div class="hub-tags"><span class="hub-tag">Play free</span></div>
+            </a>
+            <div class="hub-tile hub-span3">
+                <div class="hub-label"><span class="status-dot cancelled" id="hub-tile-dot"></span> Potter weather</div>
+                <div id="home-weather-tile"></div>
+                <a class="hub-more auth-gated auth-hidden" data-view="weather">Full dashboard &rarr;</a>
+            </div>
+            <div class="hub-tile hub-span3 hub-gated" id="tankcore-tile">
+                <div class="hub-locked">
+                    <div class="hub-label"><span class="status-dot market"></span> TankCore &middot; paper trading</div>
+                    <div class="hub-metric-row">
+                        <div><div class="hub-big">+2.4<small>%</small></div><div class="hub-sub">30-day P&amp;L</div></div>
+                        <div><div class="hub-big">17</div><div class="hub-sub">signals today</div></div>
+                    </div>
+                    <svg class="hub-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+                        <path d="M0,18 L15,19 L30,14 L45,17 L60,12 L75,13 L90,7 L105,10 L120,6" fill="none" stroke="#3ddc97" stroke-width="1.5"/>
+                        <circle cx="120" cy="6" r="2" fill="#3ddc97"/>
+                    </svg>
+                    <div class="hub-sub">SPY &middot; QQQ &middot; momentum + mean-reversion <span class="hub-tag auth-gated auth-hidden">sample &middot; live metrics soon</span></div>
+                </div>
+                <div class="hub-gate-veil auth-public-only">
+                    <div class="hub-gate-lock">&#x1F512;</div>
+                    <div class="hub-gate-msg">Sign in for market predictions</div>
+                    <button class="hub-gate-btn" type="button">Sign in</button>
+                </div>
+            </div>
+            <div class="hub-tile hub-span2">
+                <div class="hub-label">Homelab</div>
+                <div class="hub-title-sm">Proxmox &middot; Grafana</div>
+                <div class="hub-desc">Ryzen 7 &middot; 64GB &middot; ZFS mirror. <span class="auth-public-only">Metrics gated.</span></div>
+                <div class="hub-tags auth-gated auth-hidden">
+                    <a class="hub-tag" href="https://proxmox.the-fish-tank.com" target="_blank" rel="noopener">Proxmox</a>
+                    <a class="hub-tag" href="https://grafana.the-fish-tank.com" target="_blank" rel="noopener">Grafana</a>
+                </div>
+            </div>
+            <a class="hub-tile hub-span2" href="https://github.com/GuppitusMaximus" target="_blank" rel="noopener">
+                <div>
+                    <div class="hub-label">Open source</div>
+                    <div class="hub-title-sm">github/GuppitusMaximus</div>
+                    <div class="hub-desc">fish-tank &middot; showcase repos</div>
+                </div>
+            </a>
+            <div class="hub-tile hub-span2">
+                <div class="hub-label">Under the hood</div>
+                <div class="hub-title-sm">Built simple</div>
+                <div class="hub-desc">Vanilla JS &middot; Python ML &middot; Ansible &middot; Cloudflare Workers</div>
+            </div>
+            <div id="home-compass" class="hub-span6"></div>
+        </div>
     </main>
     <div id="weather">
     </div>
@@ -257,6 +319,11 @@
                 e.preventDefault();
                 menu.classList.toggle('open');
                 if (acctMenu) acctMenu.classList.remove('open');
+                return;
+            }
+            if (e.target.closest('.hub-gate-btn')) {
+                e.preventDefault();
+                FishTankAuth.openSignInModal();
                 return;
             }
             const link = e.target.closest('[data-view]');
