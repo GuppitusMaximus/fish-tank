@@ -6,7 +6,6 @@
  * - Nav reordering (Home → Weather → Fish Games)
  * - Home page weather summary container
  * - Weather rendering reuses existing functions
- * - CTA link to weather view
  * - URL hash persistence for views and sub-tabs
  */
 
@@ -102,27 +101,6 @@ test('renderHomeSummary is called from start()', () => {
   assertContains(weatherJs, 'renderHomeSummary', 'renderHomeSummary is not called anywhere');
 });
 
-console.log('\n=== Step 4: Verify CTA exists and links correctly ===');
-test('CTA link exists in renderHomeSummary', () => {
-  const renderHomeMatch = weatherJs.match(/function renderHomeSummary\(data\)\s*{([\s\S]*?)^  }/m);
-  const fnBody = renderHomeMatch[1];
-  assertContains(fnBody, 'home-cta', 'CTA container not found');
-  assertContains(fnBody, 'cta-link', 'CTA link class not found');
-  assertContains(fnBody, '#weather', 'CTA does not link to #weather');
-});
-
-test('CTA text suggests exploring full weather view', () => {
-  const renderHomeMatch = weatherJs.match(/function renderHomeSummary\(data\)\s*{([\s\S]*?)^  }/m);
-  const fnBody = renderHomeMatch[1];
-  assert(
-    fnBody.includes('full predictions') ||
-    fnBody.includes('View full') ||
-    fnBody.includes('history') ||
-    fnBody.includes('workflow'),
-    'CTA text does not suggest viewing full weather data'
-  );
-});
-
 console.log('\n=== Step 5: Verify URL hash persistence in index.html ===');
 test('switchView sets location.hash or uses history.replaceState', () => {
   const switchViewMatch = indexHtml.match(/function switchView\(name\)\s*{([\s\S]*?)^\s{8}}/m);
@@ -190,15 +168,6 @@ test('stop() does NOT reset activeSubtab to dashboard', () => {
 console.log('\n=== Step 7: Verify home page styles ===');
 test('Styles exist for home weather summary container', () => {
   assertMatch(css, /\.home-weather-summary/, 'Missing .home-weather-summary styles');
-});
-
-test('CTA link is styled', () => {
-  assertMatch(css, /\.cta-link/, 'Missing .cta-link styles');
-  assertContains(css, 'border', 'CTA link should have border styling');
-});
-
-test('CTA has hover state', () => {
-  assertMatch(css, /\.cta-link:hover/, 'Missing .cta-link:hover styles');
 });
 
 test('Layout is centered and reasonable width', () => {

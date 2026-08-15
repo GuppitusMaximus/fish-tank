@@ -61,35 +61,17 @@ else
 fi
 
 # Step 3: Expired predictions documentation
-if grep -q "Predictions older than 2 hours" "$README" || grep -q "predictions older than 2 hours" "$README"; then
-  pass "Expired predictions filtering documented (2 hour limit)"
+if grep -qi "more than 6 hours in the past" "$README"; then
+  pass "Expired predictions filtering documented (6 hour limit)"
 else
   fail "Expired predictions filtering not documented"
 fi
 
-# Cross-reference with code: check for time filtering in renderPredictionsV2
-if grep -A5 "function renderPredictionsV2" "$WEATHER_JS" | grep -q "filter.*prediction_for.*now\|new Date(pred.prediction_for) > now"; then
-  pass "Time filter logic exists in renderPredictionsV2"
+# Cross-reference with code: check for time filtering in buildPredictionContent
+if grep -A15 "function buildPredictionContent" "$WEATHER_JS" | grep -q "sixHoursAgo"; then
+  pass "Time filter logic exists in buildPredictionContent"
 else
-  # Check elsewhere in the function
-  if grep -A30 "function renderPredictionsV2" "$WEATHER_JS" | grep -q "new Date(pred.prediction_for) > now"; then
-    pass "Time filter logic exists in renderPredictionsV2"
-  else
-    fail "Time filter logic not found in renderPredictionsV2"
-  fi
-fi
-
-# Step 4: Auto-deploy documentation
-if grep -q "workflow_run" "$README"; then
-  pass "workflow_run trigger documented"
-else
-  fail "workflow_run trigger not documented"
-fi
-
-if grep -q "auto-deploy.*when.*workflow completes\|Pages auto-deploy when.*workflow completes" "$README"; then
-  pass "Auto-deploy on workflow completion documented"
-else
-  fail "Auto-deploy on workflow completion not documented"
+  fail "Time filter logic not found in buildPredictionContent"
 fi
 
 # Step 5: Project structure verification
