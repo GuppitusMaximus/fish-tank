@@ -1,1 +1,11 @@
 *.db
+
+# Live pipeline artifacts. Since the 2026-03-10 VPS cutover the pipeline writes
+# to Postgres + R2 and no longer commits these, but it still regenerates them on
+# disk every 20 minutes, which left the production checkout permanently dirty.
+data/
+models/*_meta.json
+
+# data/predictions/.gitkeep and models/.gitkeep stay committed so the directories
+# survive a fresh clone. .gitignore never untracks a file already in the index,
+# so they are unaffected by the rules above.
