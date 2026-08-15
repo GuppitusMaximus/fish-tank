@@ -3,7 +3,7 @@
 
 Verifies that backend README documentation matches actual implementation:
 - 6hrRC model is documented with correct feature dimensions
-- SQLite dual-write is documented (predictions + prediction_history tables)
+- Prediction tables are documented (predictions + prediction_history)
 - Model type names are current (3hrRaw, 24hrRaw, 6hrRC)
 - Project structure matches actual files
 - Data retention changes are mentioned
@@ -93,8 +93,8 @@ def test_model_type_names_current():
     print("✓ Model type names are current (3hrRaw, 24hrRaw, 6hrRC)")
 
 
-def test_sqlite_dual_write_documented():
-    """SQLite dual-write must be documented."""
+def test_prediction_tables_documented():
+    """Postgres prediction tables must be documented."""
     content = read_readme()
 
     # Check for predictions table mention
@@ -105,16 +105,11 @@ def test_sqlite_dual_write_documented():
     assert "prediction_history" in content.lower() and "table" in content.lower(), \
         "prediction_history table not mentioned"
 
-    # Check for dual-write explanation
-    assert "weather.db" in content, "weather.db not mentioned"
-    assert "dual-write" in content.lower() or "both json and sqlite" in content.lower(), \
-        "Dual-write approach not explained"
-
     # Verify table schemas are documented
     assert "generated_at" in content, "predictions table schema not documented"
     assert "model_type" in content, "model_type column not documented"
 
-    print("✓ SQLite dual-write documented (predictions + prediction_history tables)")
+    print("✓ Prediction tables documented (predictions + prediction_history)")
 
 
 def test_data_retention_documented():
@@ -163,12 +158,10 @@ def test_project_structure_accuracy():
         "predict.py",
         "validate_prediction.py",
         "export_weather.py",
-        "export_workflow.py",
         "requirements.txt",
         "6hr_rc_meta.json",
         "model_meta.json",
         "simple_meta.json",
-        "weather.db",
         "prediction-history.json",
     ]
 
@@ -237,7 +230,7 @@ if __name__ == "__main__":
         test_markdown_valid,
         test_6hr_rc_model_documented,
         test_model_type_names_current,
-        test_sqlite_dual_write_documented,
+        test_prediction_tables_documented,
         test_data_retention_documented,
         test_gitignore_joblib_documented,
         test_project_structure_accuracy,

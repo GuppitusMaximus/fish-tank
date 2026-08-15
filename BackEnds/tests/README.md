@@ -79,15 +79,13 @@ Verifies `the-snake-tank/README.md` is accurate against source code (18 tests):
 
 **Plan:** `qa-wire-prediction-validation`
 
-Tests for prediction validation wiring into the hourly pipeline (11 tests):
+Tests for prediction validation wiring into the pipeline (9 tests):
 
 - `validate_prediction.py` accepts `--predictions-dir` and finds latest prediction
 - `MAX_HISTORY` constant is 168 and history is trimmed
 - Model metadata (`model_version`, `model_type`) passed through in comparison records
 - `export_weather.py` accepts `--history` flag and produces correct output
 - `export_weather.py` fallback works without `--history`
-- GitHub Actions workflow has validation step in correct position (after Rebuild, before Train)
-- Validation step has `|| true` for graceful failure
 - `find_best_prediction` handles edge cases (nonexistent dir, empty dir, picks closest to 60 min)
 
 ### `test_multi_model_export.py`
@@ -169,15 +167,12 @@ Verifies GitHub Pages workflow auto-deploys after Netatmo weather updates (6 tes
 
 **Plan:** `qa-data-storage-quick-wins`
 
-Verifies git repo bloat reduction improvements (6 tests):
+Verifies generated artifacts stay out of git (4 tests):
 
-- `.gitignore` includes `BackEnds/the-snake-tank/models/*.joblib` pattern
+- Root `.gitignore` includes `BackEnds/the-snake-tank/models/*.joblib` pattern
+- `the-snake-tank/.gitignore` blocks `data/` and `models/*_meta.json`
 - No `.joblib` files are tracked by git
-- Model meta JSON files (`model_meta.json`, `simple_meta.json`, `6hr_rc_meta.json`) are still tracked
-- `netatmo.yml` workflow includes "Clean up old data files" step with correct retention periods (48h for predictions, 7d for raw readings)
-- All cleanup `find` commands include `|| true` or `2>/dev/null` for safety
-- `git add` line uses `models/*.json` pattern (excludes binaries)
-- Workflow YAML is syntactically valid
+- No pipeline-generated data files or model meta JSONs are tracked
 
 ### `test_sqlite_export.py`
 
@@ -409,7 +404,6 @@ Verifies public Netatmo station data fetching implementation (10 tests):
 - Public fetch runs only when all 4 env vars are set (`if all([lat_ne, lon_ne, lat_sw, lon_sw])`)
 - Public fetch wrapped in try/except for error handling
 - Skipped message printed when env vars not configured
-- GitHub Actions workflow includes all 4 new env vars (NETATMO_PUBLIC_LAT_NE, LON_NE, LAT_SW, LON_SW)
 - Python syntax is valid
 - public_stations table can be created in SQLite with correct schema
 
@@ -454,7 +448,7 @@ Verifies CSV dual-write and rebuild functionality for public station data (4 tes
 
 **Plan:** `qa-browse-data-backend`
 
-Comprehensive verification of browse data backend export enhancements (6 test functions):
+Comprehensive verification of browse data backend export enhancements (6 test functions). The data-dependent tests skip when pipeline-generated files are absent (they only exist where the pipeline runs, i.e. the VPS, or after a manual export):
 
 - **Manifest schema**: `data-index.json` has all 4 categories (readings, predictions, public_stations, validation) with correct structure
 - **Prediction model auto-discovery**: `predictions.models` array populated with actual model types from prediction files; `predictions.dates` maps date → hour → model array; files match manifest entries
@@ -462,8 +456,6 @@ Comprehensive verification of browse data backend export enhancements (6 test fu
 - **Validation history export**: `prediction-history.json` split into per-date files (`validation/YYYY-MM-DD.json`); each file has `date`, `entry_count`, `models`, and `entries` array; entries sorted by `for_hour` descending; total entries match original file
 - **Dashboard unchanged**: `weather.json` retains expected schema (current, predictions, history, next_prediction) after export changes
 - **Code quality**: `export_public_stations()`, `export_validation_history()`, and `generate_manifest()` handle missing directories and files gracefully; functions called in correct order (data exports before manifest generation)
-
-All tests pass, confirming the implementation meets the `browse-data-backend` plan requirements.
 
 ### `test_frontend_db_export.py`
 
@@ -683,19 +675,6 @@ AST-level tests verifying R2 upload calls in the `export()` function (3 tests):
 
 Shell script verifying `requirements.txt` includes `boto3`.
 
-### `test_workflow_r2.sh`
-
-**Plan:** `qa-website-auth-backend`
-
-Shell script verifying the `netatmo.yml` workflow has proper R2 configuration (10 checks):
-
-- All four R2 secret names referenced (`R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`)
-- `boto3` included in pip install step
-- `FrontEnds/the-fish-tank/data/` in git add (covers `weather-public.json`)
-- All R2 credentials assigned via `${{ secrets.* }}` syntax (no hardcoded values)
-
-Note: The git add lockdown (excluding `weather.json` and `frontend.db.gz` from commits) is deferred to a separate lockdown plan. This test verifies the current intentional transitional state.
-
 ### `test_worker_review.sh`
 
 **Plan:** `qa-website-auth-backend`
@@ -720,7 +699,6 @@ Round 2 progress tracking test (1 test):
 
 ### Not Yet Covered
 
-- `export_workflow.py` — interval logic, cron string generation, workflow status output
 - `rebuild_dataset.py` — database rebuild from raw JSON files
 - Database schema and data integrity
 - API authentication / Netatmo token refresh

@@ -1,13 +1,43 @@
 #!/usr/bin/env python3
-"""Test browse data export: manifest, public stations, validation history."""
+"""Test browse data export: manifest, public stations, validation history.
+
+The exports under test are pipeline-generated and untracked; they only
+exist where the pipeline runs (the VPS) or after a manual export. Data-
+dependent tests skip when the generated files are absent.
+"""
 
 import json
 import os
 import sys
 
+import pytest
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SNAKE_DIR = os.path.join(SCRIPT_DIR, "..", "the-snake-tank")
 DATA_DIR = os.path.join(SNAKE_DIR, "data")
+
+def _fresh_data_available():
+    """True when a manifest generated within the last 48h is present.
+
+    Stale leftovers from before the VPS cutover don't reflect what the
+    current export code produces, so they are treated as absent.
+    """
+    manifest_path = os.path.join(DATA_DIR, "data-index.json")
+    try:
+        with open(manifest_path) as f:
+            generated_at = json.load(f).get("generated_at", "")
+        from datetime import datetime, timezone
+        gen = datetime.strptime(generated_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - gen).total_seconds() < 48 * 3600
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+
+
+DATA_AVAILABLE = _fresh_data_available()
+requires_data = pytest.mark.skipif(
+    not DATA_AVAILABLE,
+    reason="fresh pipeline-generated data not present on this machine"
+)
 
 
 def read_json(path):
@@ -16,6 +46,7 @@ def read_json(path):
         return json.load(f)
 
 
+@requires_data
 def test_manifest_schema():
     """Step 1: Verify manifest schema."""
     manifest = read_json(os.path.join(DATA_DIR, "data-index.json"))
@@ -65,6 +96,7 @@ def test_manifest_schema():
     print("✓ Manifest schema is correct")
 
 
+@requires_data
 def test_prediction_model_discovery():
     """Step 2: Verify prediction model auto-discovery."""
     manifest = read_json(os.path.join(DATA_DIR, "data-index.json"))
@@ -110,6 +142,7 @@ def test_prediction_model_discovery():
     print(f"✓ Model auto-discovery is correct (verified {date_str} {hour} with {len(models_list)} models)")
 
 
+@requires_data
 def test_public_station_json_export():
     """Step 3: Verify public station JSON export."""
     manifest = read_json(os.path.join(DATA_DIR, "data-index.json"))
@@ -175,6 +208,7 @@ def test_public_station_json_export():
     print(f"✓ Public station JSON export is correct (verified {date_str} {hour} with {data['station_count']} stations)")
 
 
+@requires_data
 def test_validation_history_export():
     """Step 4: Verify validation history export."""
     manifest = read_json(os.path.join(DATA_DIR, "data-index.json"))
@@ -227,6 +261,7 @@ def test_validation_history_export():
     print(f"✓ Validation history export is correct ({total_entries} entries split across {len(val_dates)} dates)")
 
 
+@requires_data
 def test_dashboard_unchanged():
     """Step 5: Verify weather.json dashboard is unaffected."""
     weather_path = os.path.join(DATA_DIR, "weather.json")
@@ -304,12 +339,15 @@ def test_export_code_quality():
 
 
 if __name__ == "__main__":
+    if not DATA_AVAILABLE:
+        print("SKIP: pipeline-generated data not present; running code-quality checks only")
     try:
-        test_manifest_schema()
-        test_prediction_model_discovery()
-        test_public_station_json_export()
-        test_validation_history_export()
-        test_dashboard_unchanged()
+        if DATA_AVAILABLE:
+            test_manifest_schema()
+            test_prediction_model_discovery()
+            test_public_station_json_export()
+            test_validation_history_export()
+            test_dashboard_unchanged()
         test_export_code_quality()
         print("\n✅ ALL TESTS PASSED")
         sys.exit(0)

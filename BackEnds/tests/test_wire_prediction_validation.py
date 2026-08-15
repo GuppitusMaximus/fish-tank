@@ -22,7 +22,6 @@ SCRIPT_DIR = os.path.join(os.path.dirname(__file__), "..", "the-snake-tank")
 VALIDATE_SCRIPT = os.path.join(SCRIPT_DIR, "validate_prediction.py")
 EXPORT_SCRIPT = os.path.join(SCRIPT_DIR, "export_weather.py")
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
-WORKFLOW_PATH = os.path.join(os.path.dirname(__file__), "..", "..", ".github", "workflows", "netatmo.yml")
 
 
 # --- Test 1: validate_prediction.py accepts --predictions-dir ---
@@ -79,6 +78,7 @@ def test_model_metadata_in_comparison():
 
 # --- Test 4: export_weather.py accepts --history ---
 
+@pytest.mark.skip(reason="runs export_weather.py, which now requires live Postgres/R2 (production services) — VPS pipeline covers this path")
 def test_export_accepts_history_flag():
     """export_weather.py should accept --history and produce output with history array."""
     history_path = os.path.join(DATA_DIR, "prediction-history.json")
@@ -117,6 +117,7 @@ def test_export_accepts_history_flag():
 
 # --- Test 5: export_weather.py fallback without --history ---
 
+@pytest.mark.skip(reason="runs export_weather.py, which now requires live Postgres/R2 (production services) — VPS pipeline covers this path")
 def test_export_fallback_without_history():
     """export_weather.py should work without --history using file-matching logic."""
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
@@ -139,64 +140,6 @@ def test_export_fallback_without_history():
         assert isinstance(data["history"], list)
     finally:
         os.unlink(output_path)
-
-
-# --- Test 6: Workflow updated ---
-
-def test_workflow_has_validation_step():
-    """netatmo.yml should have validation step in correct position."""
-    if not os.path.exists(WORKFLOW_PATH):
-        pytest.skip("Workflow file not found")
-
-    with open(WORKFLOW_PATH) as f:
-        content = f.read()
-
-    assert "Validate previous prediction" in content
-    assert "--predictions-dir" in content
-    assert "--history" in content
-
-    lines = content.split("\n")
-    rebuild_line = None
-    validate_line = None
-    train_line = None
-    export_line = None
-
-    for i, line in enumerate(lines):
-        if "Rebuild dataset" in line:
-            rebuild_line = i
-        if "Validate previous prediction" in line:
-            validate_line = i
-        if "Train prediction model" in line:
-            train_line = i
-        if "Export weather dashboard" in line:
-            export_line = i
-
-    assert rebuild_line is not None, "Missing 'Rebuild dataset' step"
-    assert validate_line is not None, "Missing 'Validate previous prediction' step"
-    assert train_line is not None, "Missing 'Train prediction model' step"
-    assert export_line is not None, "Missing 'Export weather dashboard' step"
-
-    assert rebuild_line < validate_line < train_line, \
-        "Validation step should be after Rebuild and before Train"
-
-    # Export step should include --history
-    export_section = "\n".join(lines[export_line:export_line + 3])
-    assert "--history" in export_section, "Export step should include --history flag"
-
-
-def test_workflow_graceful_failure():
-    """Validation and export steps should have || true for graceful failure."""
-    if not os.path.exists(WORKFLOW_PATH):
-        pytest.skip("Workflow file not found")
-
-    with open(WORKFLOW_PATH) as f:
-        content = f.read()
-
-    # Find the validate line and check it has || true
-    lines = content.split("\n")
-    for i, line in enumerate(lines):
-        if "validate_prediction.py" in line:
-            assert "|| true" in line, "Validation step should have || true"
 
 
 # --- Test 7: find_best_prediction edge cases ---
@@ -254,6 +197,6 @@ def test_find_best_predictions_picks_closest_to_60_min():
 
             results = find_best_predictions(tmpdir)
             assert len(results) == 1
-            assert results[0] == os.path.join(date_dir, "good.json")
+            assert results[0]["generated_at"] == good_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     finally:
         sys.path.pop(0)

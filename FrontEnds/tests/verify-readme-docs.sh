@@ -105,9 +105,7 @@ declare -a EXPECTED_FILES=(
   "the-fish-tank/js/battle.js"
   "the-fish-tank/js/fighter.js"
   "the-fish-tank/js/weather.js"
-  "the-fish-tank/data/weather.json"
-  "the-fish-tank/data/workflow.json"
-  "the-fish-tank/data/data-index.json"
+  "the-fish-tank/data/weather-public.json"
 )
 
 STRUCTURE_PASS=0

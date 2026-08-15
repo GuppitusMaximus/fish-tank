@@ -204,9 +204,6 @@ def test_auth_lockdown_documented():
     # weather.json listed as protected
     assert "weather.json" in content, "weather.json not mentioned"
 
-    # workflow.json listed as protected
-    assert "workflow.json" in content, "workflow.json not mentioned"
-
     # weather-public.json listed as public
     assert "weather-public.json" in content, "weather-public.json not mentioned"
 
