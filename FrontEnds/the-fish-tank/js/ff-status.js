@@ -12,9 +12,8 @@
     });
     var status = document.getElementById('hub-ff-status');
     if (status) {
-      status.textContent = live
-        ? ('Fathom Fall live' + (version ? ' · v' + version : ''))
-        : 'Fathom Fall offline';
+      // Dot color (green/red) conveys live/offline; text is just name + version.
+      status.textContent = 'Fathom Fall' + (version ? ' · v' + version : '');
     }
     var tileVer = document.getElementById('ff-tile-version');
     if (tileVer) tileVer.textContent = version ? 'v' + version : '';
