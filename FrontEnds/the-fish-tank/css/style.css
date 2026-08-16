@@ -1290,7 +1290,14 @@ a.hub-tile {
 
 .hub-status > span { display: inline-flex; align-items: center; gap: 0.4rem; }
 
-.hub-title { font-size: 1.05rem; font-weight: 600; color: #fff; margin-bottom: 0.2rem; }
+.hub-title {
+    font-family: "Nosferatu", system-ui, sans-serif;
+    font-size: 1.45rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: #fff;
+    margin-bottom: 0.25rem;
+}
 .hub-title-sm { font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.2rem; }
 .hub-desc { font-size: 0.75rem; color: var(--ink-dim); line-height: 1.45; }
 
@@ -1336,6 +1343,36 @@ a.hub-tag:hover { background: var(--surface-mid); }
 
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
+
+/* Fathom Fall game display font (for the tile title) */
+@font-face {
+    font-family: "Nosferatu";
+    src: url("../assets/fonts/nosferatu.woff") format("woff");
+    font-display: swap;
+}
+
+/* Floating damage numbers on hits */
+.ff-dmg {
+    position: absolute;
+    z-index: 3;
+    font-family: system-ui, sans-serif;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #ff7a4a;
+    pointer-events: none;
+    white-space: nowrap;
+    transform: translate(-50%, 0);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+    animation: ff-dmg-float 0.85s ease-out forwards;
+}
+.ff-dmg-crit { color: #ffd24a; font-size: 0.8rem; }
+@keyframes ff-dmg-float {
+    0%   { opacity: 0; transform: translate(-50%, 6px) scale(0.7); }
+    18%  { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+    35%  { transform: translate(-50%, -3px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -24px) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .ff-dmg { display: none; } }
 
 /* Fathom Fall battle scene. Frame size (--fw) and column count (--cols) are
    per-sprite so mixed sheets/sizes share one set of keyframes:

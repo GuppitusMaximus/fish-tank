@@ -8,7 +8,7 @@
   if (!scene) return;
 
   var BASE = 'assets/ff/';
-  var VER = '?v=8';
+  var VER = '?v=9';
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var party = [].slice.call(scene.querySelectorAll('.ff-party .ff-sprite'));
   var enemy = [].slice.call(scene.querySelectorAll('.ff-enemy .ff-sprite'));
@@ -21,12 +21,26 @@
     });
   }
 
+  function spawnDamage(tgt) {
+    var sceneRect = scene.getBoundingClientRect();
+    var r = tgt.getBoundingClientRect();
+    var crit = Math.random() < 0.22;
+    var dmg = Math.floor(8 + Math.random() * (crit ? 60 : 28));
+    var el = document.createElement('div');
+    el.className = 'ff-dmg' + (crit ? ' ff-dmg-crit' : '');
+    el.textContent = '-' + dmg;
+    el.style.left = (r.left - sceneRect.left + r.width / 2) + 'px';
+    el.style.top = (r.top - sceneRect.top) + 'px';
+    scene.appendChild(el);
+    setTimeout(function() { el.remove(); }, 900);
+  }
+
   function strike(from, toList) {
     if (!from.length || !toList.length) return;
     var a = from[t % from.length];
     var tgt = toList[Math.floor(Math.random() * toList.length)];
     a.classList.add('attacking', 'lunge');
-    setTimeout(function() { tgt.classList.add('hit'); }, 250);
+    setTimeout(function() { tgt.classList.add('hit'); spawnDamage(tgt); }, 250);
     setTimeout(function() { a.classList.remove('lunge'); }, 320);
     setTimeout(function() { a.classList.remove('attacking'); }, 500);
     setTimeout(function() { tgt.classList.remove('hit'); }, 450);
