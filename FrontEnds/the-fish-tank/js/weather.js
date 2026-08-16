@@ -1377,8 +1377,7 @@ window.WeatherApp = (() => {
     var d = parseTimestamp(data.generated_at);
     var statusEl = document.getElementById('hub-weather-status');
     if (statusEl && d) {
-      statusEl.textContent = 'weather ' + (isStale(d) ? 'stale' : 'live') +
-        ' · updated ' + timeAgoText(d);
+      statusEl.textContent = 'Potter weather · updated ' + timeAgoText(d);
     }
     var dotState = isStale(d) ? 'stale' : 'success';
     ['hub-weather-dot', 'hub-tile-dot'].forEach(function(id) {
