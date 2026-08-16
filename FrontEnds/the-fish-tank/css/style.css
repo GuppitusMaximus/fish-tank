@@ -1336,26 +1336,30 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
-/* Open source repo links */
-.hub-oss-profile {
-    display: inline-block;
-    color: var(--accent);
+/* Open source repo list — titled items like the other tiles */
+.hub-repos { display: grid; gap: 0.7rem; margin: 0.15rem 0 0.2rem; }
+.hub-repo {
+    display: block;
     text-decoration: none;
-    margin-bottom: 0.6rem;
+    color: inherit;
 }
-.hub-oss-profile:hover { text-decoration: underline; }
-.hub-oss-repos { display: grid; gap: 0.3rem; }
-.hub-oss-repos a {
-    font-size: 0.76rem;
-    color: var(--ink-dim);
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+.hub-repo-name {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
     transition: color 0.15s;
 }
-.hub-oss-repos a::before { content: "\2197"; color: var(--accent-soft); font-size: 0.85em; }
-.hub-oss-repos a:hover { color: #fff; }
+.hub-repo-name::after { content: " \2197"; color: var(--ink-faint); font-weight: 400; }
+.hub-repo:hover .hub-repo-name { color: var(--accent-soft); }
+.hub-repo:hover .hub-repo-name::after { color: var(--accent-soft); }
+.hub-repo-desc {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--ink-dim);
+    line-height: 1.35;
+    margin-top: 0.05rem;
+}
 
 /* Homelab quick-glance stats */
 .hl-stats {
