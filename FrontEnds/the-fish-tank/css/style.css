@@ -1347,6 +1347,13 @@ a.hub-tile {
     margin-bottom: 0.25rem;
 }
 .hub-title-sm { font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.2rem; }
+.ff-version {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    color: var(--accent-soft);
+    margin-left: 0.15rem;
+}
 .hub-desc { font-size: 0.75rem; color: var(--ink-dim); line-height: 1.45; }
 
 .hub-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
