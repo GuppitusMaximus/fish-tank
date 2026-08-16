@@ -2913,25 +2913,63 @@ window.WeatherApp = (() => {
       });
   }
 
+  // Compact nearby-stations summary for the home hub tile: how the neighborhood's
+  // readings spread around home. The full radar compass lives on the weather
+  // dashboard (#dash-compass-container).
+  function renderNearby(ps) {
+    var el = document.getElementById('nearby-body');
+    if (!el) return;
+    var stations = (ps && ps.stations) || [];
+    var withTemp = stations.filter(function(s) { return typeof s.temperature === 'number'; });
+    if (!withTemp.length) { el.innerHTML = '<div class="hub-sub">No nearby station data</div>'; return; }
+
+    var temps = withTemp.map(function(s) { return s.temperature; });
+    var maxMi = 0;
+    stations.forEach(function(s) {
+      var mi = s.distance_mi != null ? s.distance_mi : (s.distance_km != null ? s.distance_km * 0.621371 : 0);
+      if (mi > maxMi) maxMi = mi;
+    });
+    var home = (latestData && latestData.current && latestData.current.readings &&
+      typeof latestData.current.readings.temp_outdoor === 'number') ? latestData.current.readings.temp_outdoor : null;
+    var all = home != null ? temps.concat([home]) : temps;
+    var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+    var span = (hi - lo) || 1;
+    function pct(t) { return Math.max(0, Math.min(100, (t - lo) / span * 100)); }
+
+    var ticks = withTemp.map(function(s) {
+      return '<span class="nearby-tick" style="left:' + pct(s.temperature).toFixed(1) +
+        '%;background:' + tempColor(s.temperature) + '"></span>';
+    }).join('');
+    var homeMarker = home != null ? '<span class="nearby-home" style="left:' + pct(home).toFixed(1) + '%"></span>' : '';
+
+    el.innerHTML =
+      '<div class="nearby-inner">' +
+        '<div class="nearby-head">' +
+          '<div class="hub-label">Nearby stations</div>' +
+          '<div><span class="hub-big">' + withTemp.length + '</span> ' +
+          '<span class="hub-sub">reporting' + (maxMi ? ' · within ' + Math.round(maxMi) + ' mi' : '') + '</span></div>' +
+        '</div>' +
+        '<div class="nearby-range">' +
+          '<div class="nearby-bar">' + ticks + homeMarker + '</div>' +
+          '<div class="nearby-scale">' +
+            '<span>coolest ' + formatCompassTemp(lo) + '</span>' +
+            (home != null ? '<span class="nearby-mid">◉ home ' + formatCompassTemp(home) + '</span>' : '') +
+            '<span>warmest ' + formatCompassTemp(hi) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
   function loadCompassData() {
     var homeEl = document.getElementById('home');
     if (!homeEl || !homeEl.classList.contains('active')) return;
 
-    // Use public_stations from the weather-public.json data (already fetched by loadHomeSummary)
     if (latestData && latestData.public_stations) {
-      latestCompassData = latestData.public_stations;
-      renderCompass(latestData.public_stations, 'home-compass');
+      renderNearby(latestData.public_stations);
     } else {
-      // Data not yet loaded or no public_stations field — try again after a short delay
-      // (loadHomeSummary fetches async and may not have completed yet)
       setTimeout(function() {
-        if (latestData && latestData.public_stations) {
-          latestCompassData = latestData.public_stations;
-          renderCompass(latestData.public_stations, 'home-compass');
-        } else {
-          var el = document.getElementById('home-compass');
-          if (el) el.innerHTML = '';
-        }
+        if (latestData && latestData.public_stations) renderNearby(latestData.public_stations);
+        else { var el = document.getElementById('nearby-body'); if (el) el.innerHTML = ''; }
       }, 3000);
     }
   }
