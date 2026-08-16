@@ -1336,6 +1336,64 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
+/* Fathom Fall battle scene (sprite sheets: 6-frame idle row 0, attack row 1) */
+.ff-scene {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    height: 88px;
+    margin: 0.6rem 0;
+}
+.ff-scene::after {
+    content: "";
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    bottom: 2px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line-mid), transparent);
+}
+.ff-side { display: flex; align-items: flex-end; }
+.ff-side .ff-sprite:not(:first-child) { margin-left: -16px; }
+
+.ff-sprite {
+    width: 60px;
+    height: 60px;
+    background-repeat: no-repeat;
+    background-size: 360px 120px; /* 6 frames x 60, 2 rows x 60 */
+    background-position: 0 0;
+    animation: ff-idle 1s steps(6) infinite;
+    transition: transform 0.15s ease, filter 0.12s ease;
+    will-change: background-position;
+}
+.ff-enemy .ff-sprite { transform: scaleX(-1); }
+
+.ff-sprite.attacking { animation: ff-attack 0.5s steps(6) 1; }
+
+.ff-party .ff-sprite.lunge { transform: translateX(11px); }
+.ff-enemy .ff-sprite.lunge { transform: scaleX(-1) translateX(11px); }
+
+.ff-sprite.hit { filter: brightness(1.8) drop-shadow(0 0 5px rgba(255, 107, 74, 0.9)); }
+
+@keyframes ff-idle {
+    from { background-position: 0 0; }
+    to   { background-position: -360px 0; }
+}
+@keyframes ff-attack {
+    from { background-position: 0 -60px; }
+    to   { background-position: -360px -60px; }
+}
+
+@media (max-width: 600px) {
+    .ff-sprite { width: 52px; height: 52px; background-size: 312px 104px; }
+    @keyframes ff-idle { from { background-position: 0 0; } to { background-position: -312px 0; } }
+    @keyframes ff-attack { from { background-position: 0 -52px; } to { background-position: -312px -52px; } }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ff-sprite { animation: none !important; background-position: 0 0 !important; transition: none; }
+}
+
 /* Open source repo list — titled items like the other tiles */
 .hub-repos { display: grid; gap: 0.7rem; margin: 0.15rem 0 0.2rem; }
 .hub-repo {

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>The Fish Tank</title>
-    <link rel="stylesheet" href="css/style.css?v=2">
-    <link rel="stylesheet" href="css/auth.css?v=2">
-    <link rel="stylesheet" href="css/mocks.css?v=2">
+    <link rel="stylesheet" href="css/style.css?v=3">
+    <link rel="stylesheet" href="css/auth.css?v=3">
+    <link rel="stylesheet" href="css/mocks.css?v=3">
 </head>
 <body class="theme-ocean">
     <header>
@@ -51,6 +51,16 @@
                     <div class="hub-label"><span class="status-dot success"></span> Featured game</div>
                     <div class="hub-title">Fathom Fall</div>
                     <div class="hub-desc">Descend, fish, survive. A roguelite about going too deep.</div>
+                </div>
+                <div class="ff-scene" id="ff-scene" aria-hidden="true">
+                    <div class="ff-side ff-party">
+                        <div class="ff-sprite" data-ff="dog"></div>
+                        <div class="ff-sprite" data-ff="sword"></div>
+                    </div>
+                    <div class="ff-side ff-enemy">
+                        <div class="ff-sprite" data-ff="rat"></div>
+                        <div class="ff-sprite" data-ff="slime"></div>
+                    </div>
                 </div>
                 <div class="hub-tags"><span class="hub-tag">Play free</span></div>
             </a>
@@ -216,16 +226,17 @@
         </form>
       </div>
     </div>
-    <script src="js/auth-config.js?v=2"></script>
-    <script src="js/auth.js?v=2"></script>
-    <script src="js/tank.js?v=2"></script>
-    <script src="js/battle.js?v=2"></script>
-    <script src="js/fighter.js?v=2"></script>
+    <script src="js/auth-config.js?v=3"></script>
+    <script src="js/auth.js?v=3"></script>
+    <script src="js/tank.js?v=3"></script>
+    <script src="js/battle.js?v=3"></script>
+    <script src="js/fighter.js?v=3"></script>
 
-    <script src="js/weather.js?v=2"></script>
-    <script src="js/fathomfall-admin.js?v=2"></script>
-    <script src="js/homelab.js?v=2"></script>
-    <script src="js/mocks.js?v=2"></script>
+    <script src="js/weather.js?v=3"></script>
+    <script src="js/fathomfall-admin.js?v=3"></script>
+    <script src="js/homelab.js?v=3"></script>
+    <script src="js/ff-scene.js?v=3"></script>
+    <script src="js/mocks.js?v=3"></script>
     <script>
     (() => {
         const views = {
