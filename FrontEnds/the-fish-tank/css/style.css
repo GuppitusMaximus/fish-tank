@@ -1337,13 +1337,14 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
-/* Fathom Fall battle scene (sprite sheets: 6-frame idle row 0, attack row 1) */
+/* Fathom Fall battle scene (sprite sheets: idle row 0, attack row 1).
+   Default = 6-frame tidekin/256px monsters; .ff-frames4 = 4-frame 128px bosses. */
 .ff-scene {
     position: relative;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    height: 88px;
+    height: 52px;
     margin: 0.6rem 0;
 }
 .ff-scene::after {
@@ -1356,13 +1357,13 @@ a.hub-tag:hover { background: var(--surface-mid); }
     background: linear-gradient(90deg, transparent, var(--line-mid), transparent);
 }
 .ff-side { display: flex; align-items: flex-end; }
-.ff-side .ff-sprite:not(:first-child) { margin-left: -16px; }
+.ff-side .ff-sprite:not(:first-child) { margin-left: -8px; }
 
 .ff-sprite {
-    width: 60px;
-    height: 60px;
+    width: 30px;
+    height: 30px;
     background-repeat: no-repeat;
-    background-size: 360px 120px; /* 6 frames x 60, 2 rows x 60 */
+    background-size: 180px 60px; /* 6 frames x 30, 2 rows x 30 */
     background-position: 0 0;
     animation: ff-idle 1s steps(6) infinite;
     transition: transform 0.15s ease, filter 0.12s ease;
@@ -1372,25 +1373,35 @@ a.hub-tag:hover { background: var(--surface-mid); }
 
 .ff-sprite.attacking { animation: ff-attack 0.5s steps(6) 1; }
 
-.ff-party .ff-sprite.lunge { transform: translateX(11px); }
-.ff-enemy .ff-sprite.lunge { transform: scaleX(-1) translateX(11px); }
+.ff-party .ff-sprite.lunge { transform: translateX(6px); }
+.ff-enemy .ff-sprite.lunge { transform: scaleX(-1) translateX(6px); }
 
-.ff-sprite.hit { filter: brightness(1.8) drop-shadow(0 0 5px rgba(255, 107, 74, 0.9)); }
+.ff-sprite.hit { filter: brightness(1.8) drop-shadow(0 0 4px rgba(255, 107, 74, 0.9)); }
 
 @keyframes ff-idle {
     from { background-position: 0 0; }
-    to   { background-position: -360px 0; }
+    to   { background-position: -180px 0; }
 }
 @keyframes ff-attack {
-    from { background-position: 0 -60px; }
-    to   { background-position: -360px -60px; }
+    from { background-position: 0 -30px; }
+    to   { background-position: -180px -30px; }
 }
 
-@media (max-width: 600px) {
-    .ff-sprite { width: 52px; height: 52px; background-size: 312px 104px; }
-    @keyframes ff-idle { from { background-position: 0 0; } to { background-position: -312px 0; } }
-    @keyframes ff-attack { from { background-position: 0 -52px; } to { background-position: -312px -52px; } }
+/* 4-column game sheets (128px bosses, e.g. sewer_king): idle 0-3, attack 4-7 */
+.ff-sprite.ff-frames4 {
+    background-size: 120px 60px; /* 4 frames x 30 */
+    animation: ff-idle4 1s steps(4) infinite;
 }
+.ff-sprite.ff-frames4.attacking { animation: ff-attack4 0.5s steps(4) 1; }
+@keyframes ff-idle4 {
+    from { background-position: 0 0; }
+    to   { background-position: -120px 0; }
+}
+@keyframes ff-attack4 {
+    from { background-position: 0 -30px; }
+    to   { background-position: -120px -30px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .ff-sprite { animation: none !important; background-position: 0 0 !important; transition: none; }
 }

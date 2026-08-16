@@ -8,7 +8,7 @@
   if (!scene) return;
 
   var BASE = 'assets/ff/';
-  var VER = '?v=3';
+  var VER = '?v=7';
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var party = [].slice.call(scene.querySelectorAll('.ff-party .ff-sprite'));
   var enemy = [].slice.call(scene.querySelectorAll('.ff-enemy .ff-sprite'));
