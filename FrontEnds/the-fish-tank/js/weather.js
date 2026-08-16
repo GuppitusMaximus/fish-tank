@@ -2968,7 +2968,10 @@ window.WeatherApp = (() => {
     } else {
       setTimeout(function() {
         if (latestData && latestData.public_stations) renderNearby(latestData.public_stations);
-        else { var el = document.getElementById('nearby-body'); if (el) el.innerHTML = ''; }
+        else {
+          var el = document.getElementById('nearby-body');
+          if (el) el.innerHTML = '<div class="hub-label">Nearby stations</div><div class="hub-sub">Unavailable right now</div>';
+        }
       }, 3000);
     }
   }

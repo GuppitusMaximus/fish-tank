@@ -1715,6 +1715,17 @@ a.hub-tag:hover { background: var(--surface-mid); }
 .hub-gate-btn:focus-visible { outline: 2px solid var(--market); outline-offset: 2px; }
 
 /* Nearby stations — compact temperature-spread summary */
+#nearby-tile { min-height: 86px; }
+.nearby-skeleton { display: flex; align-items: center; gap: 2rem; padding: 0.3rem 0; }
+.nearby-skeleton span {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--surface), var(--surface-mid), var(--surface));
+    background-size: 200% 100%;
+    animation: wx-shimmer 1.3s ease-in-out infinite;
+}
+.nearby-skeleton .ns-a { width: 6rem; height: 2rem; flex: 0 0 auto; }
+.nearby-skeleton .ns-b { flex: 1; height: 0.6rem; }
 .nearby-inner { display: flex; align-items: center; gap: 2rem; }
 .nearby-head { flex: 0 0 auto; }
 .nearby-head .hub-big { font-size: 1.7rem; }
