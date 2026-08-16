@@ -1300,6 +1300,19 @@ window.WeatherApp = (() => {
     return key || Object.keys(values)[0] || null;
   }
 
+  // Turns an internal model_type into a short readable {horizon, family} label.
+  function modelLabel(mt) {
+    if (!mt) return { h: '', fam: '' };
+    var hm = mt.match(/(\d+)\s*h/i);
+    var h = hm ? hm[1] + 'h' : '';
+    var fam;
+    if (/multiHorizon/i.test(mt)) fam = 'multi-horizon';
+    else if (/raw/i.test(mt)) fam = 'raw';
+    else if (/RC|GB|pub/i.test(mt)) fam = 'ensemble';
+    else fam = mt;
+    return { h: h || '•', fam: fam };
+  }
+
   // Picks a random handful of the most-recent forecast per model so the tile
   // shows a rotating sample of the live model ensemble on each load.
   function homeModelChipsHtml(data, pm) {
@@ -1320,15 +1333,17 @@ window.WeatherApp = (() => {
     var rows = list.slice(0, 3).map(function(e) {
       var key = outdoorKey(e.p.values, pm);
       if (!key) return '';
+      var lbl = modelLabel(e.p.model_type);
       return '<div class="wx-model">' +
-        '<span class="wx-model-name">' + escapeHtml(e.p.model_type) + '</span>' +
+        '<span class="wx-model-h">' + escapeHtml(lbl.h) + '</span>' +
+        '<span class="wx-model-fam">' + escapeHtml(lbl.fam) + '</span>' +
         '<span class="wx-model-val">' + formatProperty(key, e.p.values[key], pm) + '</span>' +
         '<span class="wx-model-for">' + formatTime(e.t) + '</span>' +
       '</div>';
     }).join('');
     if (!rows) return '';
     var total = Object.keys(byModel).length;
-    return '<div class="wx-models-head">forecast sample · ' + total + ' models live</div>' +
+    return '<div class="wx-models-head">Recent model forecasts · ' + total + ' live</div>' +
       '<div class="wx-models">' + rows + '</div>';
   }
 
@@ -2460,7 +2475,10 @@ window.WeatherApp = (() => {
             latestData = data;
             renderHomeSummary(data);
           })
-          .catch(function() {});
+          .catch(function() {
+            var el = document.getElementById('home-weather-tile');
+            if (el) el.innerHTML = '<div class="hub-sub">Live conditions unavailable</div>';
+          });
       });
   }
 
