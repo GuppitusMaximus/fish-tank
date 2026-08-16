@@ -178,6 +178,14 @@
 @media (prefers-reduced-motion: reduce) {
     #mocks .mx-shine, #mocks .mx-aqua { animation: none; }
 }
+
+/* candidate wordmark fonts (comparison) */
+#mocks .mx-f-sora { font-family: "Sora", system-ui, sans-serif; font-weight: 300; letter-spacing: 0.08em; }
+#mocks .mx-f-space { font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.04em; }
+#mocks .mx-f-syne { font-family: "Syne", system-ui, sans-serif; font-weight: 700; letter-spacing: 0.02em; }
+#mocks .mx-f-chakra { font-family: "Chakra Petch", system-ui, sans-serif; font-weight: 500; letter-spacing: 0.03em; }
+#mocks .mx-f-michroma { font-family: "Michroma", system-ui, sans-serif; font-weight: 400; font-size: 1.35rem; letter-spacing: 0.02em; }
+#mocks .mx-f-outfit { font-family: "Outfit", system-ui, sans-serif; font-weight: 300; letter-spacing: 0.06em; }
 #mocks .verdict {
     display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
     margin: 1rem 0 0.5rem; max-width: 68ch;

@@ -49,6 +49,45 @@ var MocksApp = (function() {
     <li><strong>B (aquatic flow)</strong> cycles a teal&rarr;blue&rarr;green gradient through the text &mdash; more overtly "fish tank," slightly more colorful/playful.</li>
     <li><strong>One decision to make:</strong> the header <code>&lt;h1&gt;</code> currently swaps to the active view's name (e.g. "Potter Weather Predictions"). A persistent logo lockup usually stays constant, so we'd either keep "The Fish Tank" fixed and surface the view name elsewhere, or drop the per-view title swap.</li>
   </ul>
+
+  <h3>Wordmark font</h3>
+  <p>You picked <strong>A (light sweep)</strong>, so here it is across a few open-source faces (all free + self-hostable, no build step). Loaded here just for comparison; production ships only the winner. Current site title is plain <code>system-ui</code> at the bottom for reference.</p>
+  <div class="frame">
+    <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">the-fish-tank.com &mdash; wordmark fonts</span></div>
+    <div class="frame-body">
+      <div class="mx-title-demos">
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-sora">The Fish Tank</span></a>
+          <div class="mx-title-label">Sora <span class="mx-pick">my pick</span> &middot; clean geometric, quietly techy</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-space">The Fish Tank</span></a>
+          <div class="mx-title-label">Space Grotesk &middot; distinctive dev-portfolio character</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-syne">The Fish Tank</span></a>
+          <div class="mx-title-label">Syne &middot; wide, artsy, bold statement</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-chakra">The Fish Tank</span></a>
+          <div class="mx-title-label">Chakra Petch &middot; semi-industrial, engineering feel</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-michroma">The Fish Tank</span></a>
+          <div class="mx-title-label">Michroma &middot; squarish sci-fi / "machine"</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-outfit">The Fish Tank</span></a>
+          <div class="mx-title-label">Outfit &middot; clean neutral, safe modern</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine">The Fish Tank</span></a>
+          <div class="mx-title-label">system-ui &middot; current (for reference)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">All shown with the light-sweep shimmer. Sora/Outfit read clean and premium; Space Grotesk &amp; Chakra Petch lean "engineer"; Syne &amp; Michroma are bolder brand statements.</p>
 </section>
 
 <section id="mx-brief">
@@ -357,12 +396,26 @@ var MocksApp = (function() {
     });
   }
 
+  // Candidate wordmark fonts, loaded only on this (signed-in) design page for
+  // comparison. The production title self-hosts just the chosen one.
+  function loadFonts() {
+    if (document.getElementById('mx-fontlink')) return;
+    var link = document.createElement('link');
+    link.id = 'mx-fontlink';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Sora:wght@300;400' +
+      '&family=Space+Grotesk:wght@400;500&family=Syne:wght@600;700' +
+      '&family=Chakra+Petch:wght@400;500&family=Michroma&family=Outfit:wght@300;400&display=swap';
+    document.head.appendChild(link);
+  }
+
   function start() {
     if (!FishTankAuth.isAuthenticated()) {
       window.location.hash = '';
       return;
     }
     if (rendered) return;
+    loadFonts();
     var container = document.getElementById('mocks');
     container.innerHTML = CONTENT;
     wireHandlers(container);
