@@ -1326,11 +1326,8 @@ window.WeatherApp = (() => {
       if (!cur || t.getTime() > cur.t.getTime()) byModel[p.model_type] = { t: t, p: p };
     });
     var list = Object.keys(byModel).map(function(k) { return byModel[k]; });
-    for (var i = list.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = list[i]; list[i] = list[j]; list[j] = tmp;
-    }
-    var rows = list.slice(0, 3).map(function(e) {
+    list.sort(function(a, b) { return b.t.getTime() - a.t.getTime(); });
+    var rows = list.map(function(e) {
       var key = outdoorKey(e.p.values, pm);
       if (!key) return '';
       var lbl = modelLabel(e.p.model_type);

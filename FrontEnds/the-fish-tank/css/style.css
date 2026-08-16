@@ -1570,7 +1570,22 @@ a.hub-tag:hover { background: var(--surface-mid); }
     color: var(--ink-faint);
     margin: 0.8rem 0 0.4rem;
 }
-.wx-models { display: grid; gap: 0.34rem; }
+.wx-models {
+    display: grid;
+    gap: 0.34rem;
+    max-height: 7.4rem;
+    overflow-y: auto;
+    padding-right: 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+    -webkit-overflow-scrolling: touch;
+}
+.wx-models::-webkit-scrollbar { width: 6px; }
+.wx-models::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 99px;
+}
+.wx-models::-webkit-scrollbar-track { background: transparent; }
 .wx-model {
     display: grid;
     grid-template-columns: 2.1rem 1fr auto auto;
