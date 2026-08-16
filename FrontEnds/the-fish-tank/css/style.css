@@ -1522,8 +1522,10 @@ a.hub-tag:hover { background: var(--surface-mid); }
 .hub-lock-mini { opacity: 0.9; }
 
 /* Gated tile (TankCore) — veil is .auth-public-only, so sign-in hides it;
-   the :has() rule lifts the blur in the same moment. */
+   the :has() rule lifts the blur in the same moment. The label stays outside
+   .tankcore-body so it reads clearly while the body below is masked. */
 .hub-gated { overflow: hidden; }
+.tankcore-body { position: relative; margin-top: 0.2rem; }
 .hub-locked { transition: filter 0.4s ease, opacity 0.4s ease; }
 
 .hub-gated:has(.hub-gate-veil:not(.auth-hidden)) .hub-locked {

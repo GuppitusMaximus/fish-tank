@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>The Fish Tank</title>
-    <link rel="stylesheet" href="css/style.css?v=3">
-    <link rel="stylesheet" href="css/auth.css?v=3">
-    <link rel="stylesheet" href="css/mocks.css?v=3">
+    <link rel="stylesheet" href="css/style.css?v=4">
+    <link rel="stylesheet" href="css/auth.css?v=4">
+    <link rel="stylesheet" href="css/mocks.css?v=4">
 </head>
 <body class="theme-ocean">
     <header>
@@ -65,29 +65,28 @@
                         <div class="wx-rank-row"><span>pressure_trend</span><i style="width:63%"></i></div>
                     </div>
                     <div class="hub-gate-veil">
-                        <div class="hub-gate-msg"><span class="hub-lock-mini">&#x1F512;</span> View full prediction history, model comparisons &amp; feature rankings</div>
                         <button class="hub-gate-btn" type="button">Sign in</button>
                     </div>
                 </div>
                 <a class="hub-more auth-gated auth-hidden" data-view="weather">Full dashboard &rarr;</a>
             </div>
             <div class="hub-tile hub-span3 hub-gated" id="tankcore-tile">
-                <div class="hub-locked">
-                    <div class="hub-label"><span class="status-dot market"></span> TankCore &middot; paper trading</div>
-                    <div class="hub-metric-row">
-                        <div><div class="hub-big">+2.4<small>%</small></div><div class="hub-sub">30-day P&amp;L</div></div>
-                        <div><div class="hub-big">17</div><div class="hub-sub">signals today</div></div>
+                <div class="hub-label"><span class="status-dot market"></span> TankCore &middot; Market Predictions</div>
+                <div class="tankcore-body">
+                    <div class="hub-locked">
+                        <div class="hub-metric-row">
+                            <div><div class="hub-big">+2.4<small>%</small></div><div class="hub-sub">30-day P&amp;L</div></div>
+                            <div><div class="hub-big">17</div><div class="hub-sub">signals today</div></div>
+                        </div>
+                        <svg class="hub-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
+                            <path d="M0,18 L15,19 L30,14 L45,17 L60,12 L75,13 L90,7 L105,10 L120,6" fill="none" stroke="#3ddc97" stroke-width="1.5"/>
+                            <circle cx="120" cy="6" r="2" fill="#3ddc97"/>
+                        </svg>
+                        <div class="hub-sub">SPY &middot; QQQ &middot; momentum + mean-reversion <span class="hub-tag auth-gated auth-hidden">sample &middot; live metrics soon</span></div>
                     </div>
-                    <svg class="hub-spark" viewBox="0 0 120 30" preserveAspectRatio="none" aria-hidden="true">
-                        <path d="M0,18 L15,19 L30,14 L45,17 L60,12 L75,13 L90,7 L105,10 L120,6" fill="none" stroke="#3ddc97" stroke-width="1.5"/>
-                        <circle cx="120" cy="6" r="2" fill="#3ddc97"/>
-                    </svg>
-                    <div class="hub-sub">SPY &middot; QQQ &middot; momentum + mean-reversion <span class="hub-tag auth-gated auth-hidden">sample &middot; live metrics soon</span></div>
-                </div>
-                <div class="hub-gate-veil auth-public-only">
-                    <div class="hub-gate-lock">&#x1F512;</div>
-                    <div class="hub-gate-msg">View live market predictions</div>
-                    <button class="hub-gate-btn" type="button">Sign in</button>
+                    <div class="hub-gate-veil auth-public-only">
+                        <button class="hub-gate-btn" type="button">Sign in</button>
+                    </div>
                 </div>
             </div>
             <div class="hub-tile hub-span4" id="homelab-tile">
@@ -101,7 +100,6 @@
                         <div class="wx-rank-row"><span>net_io</span><i style="width:52%"></i></div>
                     </div>
                     <div class="hub-gate-veil">
-                        <div class="hub-gate-msg"><span class="hub-lock-mini">&#x1F512;</span> View the full Grafana dashboard &amp; live metrics</div>
                         <button class="hub-gate-btn" type="button">Sign in</button>
                     </div>
                 </div>
@@ -216,16 +214,16 @@
         </form>
       </div>
     </div>
-    <script src="js/auth-config.js?v=3"></script>
-    <script src="js/auth.js?v=3"></script>
-    <script src="js/tank.js?v=3"></script>
-    <script src="js/battle.js?v=3"></script>
-    <script src="js/fighter.js?v=3"></script>
+    <script src="js/auth-config.js?v=4"></script>
+    <script src="js/auth.js?v=4"></script>
+    <script src="js/tank.js?v=4"></script>
+    <script src="js/battle.js?v=4"></script>
+    <script src="js/fighter.js?v=4"></script>
 
-    <script src="js/weather.js?v=3"></script>
-    <script src="js/fathomfall-admin.js?v=3"></script>
-    <script src="js/homelab.js?v=3"></script>
-    <script src="js/mocks.js?v=3"></script>
+    <script src="js/weather.js?v=4"></script>
+    <script src="js/fathomfall-admin.js?v=4"></script>
+    <script src="js/homelab.js?v=4"></script>
+    <script src="js/mocks.js?v=4"></script>
     <script>
     (() => {
         const views = {
