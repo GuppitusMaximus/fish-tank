@@ -1287,29 +1287,49 @@ window.WeatherApp = (() => {
     return Math.round(hrs / 24) + 'd ago';
   }
 
-  function homeForecastHtml(data, pm) {
-    if (!Array.isArray(data.predictions)) return '';
-    var now = Date.now();
-    var best = null;
-    data.predictions.forEach(function(p) {
-      var t = parseTimestamp(p.prediction_for);
-      if (!t || t.getTime() < now || !p.values) return;
-      if (!best || t.getTime() < best.t.getTime()) best = { t: t, p: p };
-    });
-    if (!best) return '';
+  function outdoorKey(values, pm) {
     var key = null;
-    Object.keys(best.p.values).forEach(function(k) {
+    Object.keys(values).forEach(function(k) {
       if (key) return;
       var isTemp = (pm && pm[k] && pm[k].format === 'temperature') || k.indexOf('temp') !== -1;
-      if (isTemp) key = k;
+      if (isTemp && k.indexOf('outdoor') !== -1) key = k;
     });
-    if (!key) return '';
-    var models = {};
-    data.predictions.forEach(function(p) { if (p.model_type) models[p.model_type] = true; });
-    var modelCount = Object.keys(models).length;
-    return '<div class="hub-sub">Forecast ' + formatTime(best.t) + ': ' +
-      formatProperty(key, best.p.values[key], pm) +
-      (modelCount ? ' · ' + modelCount + ' models' : '') + '</div>';
+    if (!key) Object.keys(values).forEach(function(k) {
+      if (!key && ((pm && pm[k] && pm[k].format === 'temperature') || k.indexOf('temp') !== -1)) key = k;
+    });
+    return key || Object.keys(values)[0] || null;
+  }
+
+  // Picks a random handful of the most-recent forecast per model so the tile
+  // shows a rotating sample of the live model ensemble on each load.
+  function homeModelChipsHtml(data, pm) {
+    if (!Array.isArray(data.predictions) || !data.predictions.length) return '';
+    var byModel = {};
+    data.predictions.forEach(function(p) {
+      if (!p.model_type || !p.values) return;
+      var t = parseTimestamp(p.prediction_for);
+      if (!t) return;
+      var cur = byModel[p.model_type];
+      if (!cur || t.getTime() > cur.t.getTime()) byModel[p.model_type] = { t: t, p: p };
+    });
+    var list = Object.keys(byModel).map(function(k) { return byModel[k]; });
+    for (var i = list.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = list[i]; list[i] = list[j]; list[j] = tmp;
+    }
+    var rows = list.slice(0, 3).map(function(e) {
+      var key = outdoorKey(e.p.values, pm);
+      if (!key) return '';
+      return '<div class="wx-model">' +
+        '<span class="wx-model-name">' + escapeHtml(e.p.model_type) + '</span>' +
+        '<span class="wx-model-val">' + formatProperty(key, e.p.values[key], pm) + '</span>' +
+        '<span class="wx-model-for">' + formatTime(e.t) + '</span>' +
+      '</div>';
+    }).join('');
+    if (!rows) return '';
+    var total = Object.keys(byModel).length;
+    return '<div class="wx-models-head">forecast sample · ' + total + ' models live</div>' +
+      '<div class="wx-models">' + rows + '</div>';
   }
 
   // Renders the compact weather tile on the home hub and updates the hero
@@ -1337,7 +1357,7 @@ window.WeatherApp = (() => {
       staleNoticeHtml(data.generated_at) +
       (blocks ? '<div class="hub-metric-row">' + blocks + '</div>'
               : '<div class="hub-sub">No current reading</div>') +
-      homeForecastHtml(data, pm);
+      homeModelChipsHtml(data, pm);
 
     var d = parseTimestamp(data.generated_at);
     var statusEl = document.getElementById('hub-weather-status');

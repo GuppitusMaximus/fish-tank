@@ -1336,6 +1336,78 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
+/* Random model-forecast sample */
+.wx-models-head {
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0.75rem 0 0.35rem;
+}
+.wx-models { display: grid; gap: 0.28rem; }
+.wx-model {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.6rem;
+    align-items: baseline;
+    font-size: 0.74rem;
+}
+.wx-model-name {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.66rem;
+    color: var(--accent-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wx-model-val { color: #fff; font-variant-numeric: tabular-nums; }
+.wx-model-for { color: var(--ink-faint); font-size: 0.66rem; }
+
+/* Partial gate: public content above, this teaser below (signed-out only) */
+.hub-subgate {
+    position: relative;
+    margin-top: 0.85rem;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.hub-subgate .hub-locked {
+    filter: blur(5px) saturate(0.7);
+    opacity: 0.7;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+    padding: 0.15rem 0.1rem;
+}
+.wx-rank-head {
+    font-size: 0.58rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 0.4rem;
+}
+.wx-rank-row {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.32rem;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.62rem;
+    color: var(--ink-dim);
+}
+.wx-rank-row i {
+    display: block;
+    height: 6px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+}
+.hub-subgate .hub-gate-veil {
+    background: rgba(6, 14, 26, 0.4);
+    gap: 0.5rem;
+    padding: 0.6rem;
+}
+.hub-subgate .hub-gate-msg { font-size: 0.74rem; line-height: 1.35; }
+
 /* Gated tile (TankCore) — veil is .auth-public-only, so sign-in hides it;
    the :has() rule lifts the blur in the same moment. */
 .hub-gated { overflow: hidden; }
