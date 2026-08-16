@@ -1714,18 +1714,17 @@ a.hub-tag:hover { background: var(--surface-mid); }
 .hub-gate-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(61, 220, 151, 0.35); }
 .hub-gate-btn:focus-visible { outline: 2px solid var(--market); outline-offset: 2px; }
 
-/* Nearby stations — compact temperature-spread summary */
-#nearby-tile { min-height: 86px; }
-.nearby-skeleton { display: flex; align-items: center; gap: 2rem; padding: 0.3rem 0; }
-.nearby-skeleton span {
-    display: block;
-    border-radius: 6px;
-    background: linear-gradient(90deg, var(--surface), var(--surface-mid), var(--surface));
-    background-size: 200% 100%;
-    animation: wx-shimmer 1.3s ease-in-out infinite;
+/* Nearby stations — compact temperature-spread summary.
+   Hidden until data arrives, then pops in and pushes the tiles below down. */
+#nearby-tile { display: none; }
+#nearby-tile.is-loaded { display: block; animation: nearby-pop 0.4s ease both; }
+@keyframes nearby-pop {
+    from { opacity: 0; transform: translateY(-10px) scale(0.99); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.nearby-skeleton .ns-a { width: 6rem; height: 2rem; flex: 0 0 auto; }
-.nearby-skeleton .ns-b { flex: 1; height: 0.6rem; }
+@media (prefers-reduced-motion: reduce) {
+    #nearby-tile.is-loaded { animation: none; }
+}
 .nearby-inner { display: flex; align-items: center; gap: 2rem; }
 .nearby-head { flex: 0 0 auto; }
 .nearby-head .hub-big { font-size: 1.7rem; }

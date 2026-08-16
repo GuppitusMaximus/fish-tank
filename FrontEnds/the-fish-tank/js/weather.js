@@ -2463,6 +2463,7 @@ window.WeatherApp = (() => {
       .then(function(data) {
         latestData = data;
         renderHomeSummary(data);
+        renderNearby(data.public_stations);
       })
       .catch(function() {
         fetch('data/weather-public.json')
@@ -2473,6 +2474,7 @@ window.WeatherApp = (() => {
           .then(function(data) {
             latestData = data;
             renderHomeSummary(data);
+            renderNearby(data.public_stations);
           })
           .catch(function() {
             var el = document.getElementById('home-weather-tile');
@@ -2957,6 +2959,11 @@ window.WeatherApp = (() => {
           '</div>' +
         '</div>' +
       '</div>';
+
+    // Reveal the tile now that it has real data — it pops in and pushes the
+    // homelab/open-source tiles below it down.
+    var tile = document.getElementById('nearby-tile');
+    if (tile) tile.classList.add('is-loaded');
   }
 
   function loadCompassData() {
