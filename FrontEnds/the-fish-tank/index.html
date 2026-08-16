@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>The Fish Tank</title>
-    <link rel="stylesheet" href="css/style.css?v=13">
-    <link rel="stylesheet" href="css/auth.css?v=13">
-    <link rel="stylesheet" href="css/mocks.css?v=13">
+    <link rel="stylesheet" href="css/style.css?v=14">
+    <link rel="stylesheet" href="css/auth.css?v=14">
+    <link rel="stylesheet" href="css/mocks.css?v=14">
 </head>
 <body class="theme-ocean">
     <header>
-        <h1 id="page-title">The Fish Tank</h1>
+        <h1 id="page-title" class="site-title">
+            <a class="site-logo" data-view="home" href="#" aria-label="The Fish Tank — home">
+                <img src="assets/guppitus-emblem.png?v=14" alt="" width="34" height="34">
+                <span class="site-wordmark">The Fish Tank</span>
+            </a>
+        </h1>
         <nav>
             <a data-view="home" class="auth-gated auth-hidden">Home</a>
             <a data-view="weather" class="auth-gated auth-hidden">Potter Weather Predictions</a>
@@ -220,18 +225,18 @@
         </form>
       </div>
     </div>
-    <script src="js/auth-config.js?v=13"></script>
-    <script src="js/auth.js?v=13"></script>
-    <script src="js/tank.js?v=13"></script>
-    <script src="js/battle.js?v=13"></script>
-    <script src="js/fighter.js?v=13"></script>
+    <script src="js/auth-config.js?v=14"></script>
+    <script src="js/auth.js?v=14"></script>
+    <script src="js/tank.js?v=14"></script>
+    <script src="js/battle.js?v=14"></script>
+    <script src="js/fighter.js?v=14"></script>
 
-    <script src="js/weather.js?v=13"></script>
-    <script src="js/fathomfall-admin.js?v=13"></script>
-    <script src="js/homelab.js?v=13"></script>
-    <script src="js/market.js?v=13"></script>
-    <script src="js/ff-scene.js?v=13"></script>
-    <script src="js/mocks.js?v=13"></script>
+    <script src="js/weather.js?v=14"></script>
+    <script src="js/fathomfall-admin.js?v=14"></script>
+    <script src="js/homelab.js?v=14"></script>
+    <script src="js/market.js?v=14"></script>
+    <script src="js/ff-scene.js?v=14"></script>
+    <script src="js/mocks.js?v=14"></script>
     <script>
     (() => {
         const views = {
@@ -308,7 +313,6 @@
             const view = views[name];
             document.body.className = view.theme;
             view.el.classList.add('active');
-            h1.textContent = view.title;
             document.title = view.title;
             hint.textContent = view.hint;
             if (view.app) view.app.start();

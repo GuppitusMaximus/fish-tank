@@ -61,6 +61,54 @@ h1 {
     opacity: 0.6;
 }
 
+/* Site title: emblem + wordmark logo lockup (clicks home), Sora with a
+   light-sweep shimmer. Overrides the plain-h1 defaults above. */
+@font-face {
+    font-family: "Sora";
+    src: url("../assets/fonts/sora.woff2") format("woff2");
+    font-weight: 300;
+    font-display: swap;
+}
+.site-title {
+    margin: 0;
+    opacity: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    line-height: 1;
+}
+.site-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+.site-logo img {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--line-mid);
+    transition: transform 0.18s ease;
+}
+.site-logo:hover img { transform: translateY(-2px) scale(1.03); }
+.site-logo:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+.site-wordmark {
+    font-family: "Sora", system-ui, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    text-transform: none;
+    background: linear-gradient(100deg, #bcdcff 0%, #bcdcff 42%, #ffffff 50%, #bcdcff 58%, #bcdcff 100%);
+    background-size: 250% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: site-shine 4.5s linear infinite;
+}
+@keyframes site-shine { to { background-position: -250% center; } }
+@media (prefers-reduced-motion: reduce) { .site-wordmark { animation: none; } }
+
 nav {
     margin-top: 0.3rem;
 }
