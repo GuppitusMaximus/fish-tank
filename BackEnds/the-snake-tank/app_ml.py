@@ -5,6 +5,7 @@ Triggered by Cloudflare Cron Worker every 20 minutes via POST /ml/trigger.
 Run with: uvicorn app_ml:app --host 127.0.0.1 --port 8001
 """
 
+import hmac
 import json
 import logging
 import os
@@ -111,7 +112,7 @@ def _run_step(step_name, func):
     except Exception as e:
         duration_ms = int((time.time() - start) * 1000)
         logger.error(f"Step {step_name} failed: {e}")
-        return {"name": step_name, "status": "error", "duration_ms": duration_ms, "error": str(e)}
+        return {"name": step_name, "status": "error", "duration_ms": duration_ms, "error": "step failed"}
 
 
 def _log_step(step_name, result):
@@ -301,11 +302,12 @@ def health():
 
 @app.post("/ml/trigger")
 def trigger(authorization: str = Header(default=None)):
-    if ML_TRIGGER_TOKEN:
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing or invalid authorization")
-        if authorization[7:] != ML_TRIGGER_TOKEN:
-            raise HTTPException(status_code=403, detail="Invalid token")
+    if not ML_TRIGGER_TOKEN:
+        raise HTTPException(status_code=503, detail="Trigger endpoint not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
+    if not hmac.compare_digest(authorization[7:].encode("utf-8", "ignore"), ML_TRIGGER_TOKEN.encode("utf-8", "ignore")):
+        raise HTTPException(status_code=401, detail="Missing or invalid authorization")
 
     if not _pipeline_lock.acquire(blocking=False):
         raise HTTPException(status_code=409, detail="Pipeline already running")

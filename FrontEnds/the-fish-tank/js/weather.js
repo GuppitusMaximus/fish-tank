@@ -2468,24 +2468,33 @@ window.WeatherApp = (() => {
 
   function computeStationPositions(stations, homeLocation) {
     if (!stations || !stations.length) return [];
+    var hasServerBearing = stations[0].bearing != null;
     var cLat, cLon;
-    if (homeLocation && homeLocation.lat != null && homeLocation.lon != null) {
-      cLat = homeLocation.lat;
-      cLon = homeLocation.lon;
-    } else {
-      var sumLat = 0, sumLon = 0;
-      stations.forEach(function(s) { sumLat += s.lat; sumLon += s.lon; });
-      cLat = sumLat / stations.length;
-      cLon = sumLon / stations.length;
+    if (!hasServerBearing) {
+      if (homeLocation && homeLocation.lat != null && homeLocation.lon != null) {
+        cLat = homeLocation.lat;
+        cLon = homeLocation.lon;
+      } else {
+        var sumLat = 0, sumLon = 0;
+        stations.forEach(function(s) { sumLat += s.lat; sumLon += s.lon; });
+        cLat = sumLat / stations.length;
+        cLon = sumLon / stations.length;
+      }
     }
 
     var maxDist = 0;
     var positions = stations.map(function(s) {
-      var b = compassBearing(cLat, cLon, s.lat, s.lon);
-      var d = compassDistance(cLat, cLon, s.lat, s.lon);
+      var b, d;
+      if (hasServerBearing) {
+        b = s.bearing;
+        d = s.distance_km != null ? s.distance_km : 0;
+      } else {
+        b = compassBearing(cLat, cLon, s.lat, s.lon);
+        d = compassDistance(cLat, cLon, s.lat, s.lon);
+      }
       var distMi = s.distance_mi != null ? s.distance_mi : Math.round(d * 0.621371 * 10) / 10;
       if (d > maxDist) maxDist = d;
-      return { station_id: s.station_id, lat: s.lat, lon: s.lon,
+      return { id: s.id,
                temperature: s.temperature, humidity: s.humidity, pressure: s.pressure,
                rain_60min: s.rain_60min, wind_strength: s.wind_strength, wind_angle: s.wind_angle,
                bearing: b, distance: d, distance_mi: distMi };

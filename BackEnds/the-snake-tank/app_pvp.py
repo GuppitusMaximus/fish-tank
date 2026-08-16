@@ -12,15 +12,16 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import Depends, FastAPI, Query, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Any, List, Optional
 
 from psycopg2.extras import Json
@@ -28,6 +29,10 @@ from psycopg2.extras import Json
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
+
+from auth import verify_jwt
+
+JWT_SECRET = os.environ.get("JWT_SECRET", "")
 
 
 # --- Constants ---
@@ -44,8 +49,9 @@ app = FastAPI(title="FishTank PvP Service", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=["https://the-fish-tank.com", "http://localhost:5173"],
+    allow_origin_regex=r"https://([a-z0-9-]+\.)?fathomfall\.com|https://([a-z0-9-]+\.)?fathomfall\.pages\.dev",
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -98,12 +104,63 @@ _metrics = {
 }
 
 
+# --- Auth ---
+
+def require_admin(request: Request):
+    if not JWT_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    payload = verify_jwt(request.headers.get("Authorization"), JWT_SECRET)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return payload
+
+
+# --- Rate Limiting ---
+
+_rate_lock = threading.Lock()
+_rate_buckets = {}
+
+
+def _client_ip(request: Request):
+    forwarded = request.headers.get("CF-Connecting-IP")
+    if forwarded:
+        return forwarded
+    return request.client.host if request.client else "unknown"
+
+
+_rate_sweep_counter = 0
+
+
+def _sweep_rate_buckets(now, window):
+    stale = [k for k, ts in _rate_buckets.items() if not ts or now - ts[-1] >= window]
+    for k in stale:
+        _rate_buckets.pop(k, None)
+
+
+def rate_limit(request: Request, key: str, limit: int, window: int = 60):
+    global _rate_sweep_counter
+    now = time.time()
+    ip = _client_ip(request)
+    bucket_key = (key, ip)
+    with _rate_lock:
+        _rate_sweep_counter += 1
+        if _rate_sweep_counter >= 1000:
+            _rate_sweep_counter = 0
+            _sweep_rate_buckets(now, window)
+        timestamps = [t for t in _rate_buckets.get(bucket_key, []) if now - t < window]
+        if len(timestamps) >= limit:
+            _rate_buckets[bucket_key] = timestamps
+            raise HTTPException(status_code=429, detail="Too many requests")
+        timestamps.append(now)
+        _rate_buckets[bucket_key] = timestamps
+
+
 # --- Validation Models ---
 
 class FishSnapshot(BaseModel):
     speciesId: str
     level: int
-    moves: List[str]
+    moves: List[str] = Field(max_length=8)
     name: Optional[str] = None
     hp: Optional[int] = None
     maxHp: Optional[int] = None
@@ -119,6 +176,12 @@ class FishSnapshot(BaseModel):
     isCompanion: Optional[bool] = None
 
     model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="after")
+    def _cap_size(self):
+        if len(json.dumps(self.model_dump())) > 8192:
+            raise ValueError("fish snapshot too large")
+        return self
 
     @field_validator("speciesId")
     @classmethod
@@ -141,7 +204,7 @@ class SnapshotUpload(BaseModel):
     floor: int = Field(ge=1, le=999)
     fish: List[FishSnapshot] = Field(min_length=1, max_length=3)
     powerLevel: float = Field(ge=0, le=5000)
-    equipment: Optional[List] = None
+    equipment: Optional[List] = Field(None, max_length=50)
     companion: Optional[dict] = None
     companionLevel: Optional[int] = None
 
@@ -152,6 +215,23 @@ class SnapshotUpload(BaseModel):
             uuid.UUID(v)
         except ValueError:
             raise ValueError(f"playerId must be UUID format, got {v}")
+        return v
+
+    @field_validator("equipment")
+    @classmethod
+    def valid_equipment(cls, v):
+        if v is not None and len(json.dumps(v)) > 16384:
+            raise ValueError("equipment payload too large")
+        return v
+
+    @field_validator("companion")
+    @classmethod
+    def valid_companion(cls, v):
+        if v is not None:
+            if len(v) > 50:
+                raise ValueError("companion has too many fields")
+            if len(json.dumps(v)) > 16384:
+                raise ValueError("companion payload too large")
         return v
 
     @field_validator("character")
@@ -254,7 +334,8 @@ def health():
 
 
 @app.post("/pvp/snapshot")
-def upload_snapshot(snapshot: SnapshotUpload):
+def upload_snapshot(snapshot: SnapshotUpload, request: Request):
+    rate_limit(request, "snapshot", 30)
     start = time.time()
     from db import get_connection
 
@@ -291,10 +372,12 @@ def upload_snapshot(snapshot: SnapshotUpload):
 
 @app.get("/pvp/opponent")
 def get_opponent(
+    request: Request,
     floor: int = Query(..., ge=1),
     powerLevel: float = Query(..., ge=0),
     playerId: Optional[str] = Query(None),
 ):
+    rate_limit(request, "opponent", 60)
     start = time.time()
     _metrics["matchmaking_requests"] += 1
 
@@ -342,7 +425,8 @@ def get_opponent(
 
 
 @app.get("/pvp/leaderboard")
-def leaderboard(limit: int = Query(20, ge=1, le=100), season: str = Query(None)):
+def leaderboard(request: Request, limit: int = Query(20, ge=1, le=100), season: str = Query(None)):
+    rate_limit(request, "leaderboard", 60)
     from db import get_connection
     now = datetime.now(timezone.utc)
 
@@ -425,11 +509,26 @@ class SetNameRequest(BaseModel):
         return v
 
 
+def _is_default_name(name, player_id):
+    if not name:
+        return True
+    if name == "Angler":
+        return True
+    if name == f"Angler#{player_id[:4]}":
+        return True
+    return False
+
+
 @app.post("/pvp/set-name")
-def set_name(req: SetNameRequest):
+def set_name(req: SetNameRequest, request: Request):
+    rate_limit(request, "set_name", 10)
     from db import get_connection
     with get_connection() as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT display_name FROM players WHERE id = %s", (req.playerId,))
+            row = cur.fetchone()
+            if row and not _is_default_name(row[0], req.playerId):
+                raise HTTPException(status_code=403, detail="This player already has a custom name")
             cur.execute("""
                 INSERT INTO players (id, display_name, platform)
                 VALUES (%s, %s, 'web')
@@ -455,7 +554,7 @@ def player_name(playerId: str = Query(...)):
 
 
 @app.get("/pvp/admin/stats")
-def admin_stats():
+def admin_stats(_admin=Depends(require_admin)):
     from db import get_connection
     now = datetime.now(timezone.utc)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -509,6 +608,7 @@ def admin_players(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     search: str = Query(None),
+    _admin=Depends(require_admin),
 ):
     from db import get_connection
     offset = (page - 1) * per_page
@@ -557,7 +657,11 @@ def admin_players(
 
 
 @app.get("/pvp/admin/player/{player_id}")
-def admin_player_detail(player_id: str):
+def admin_player_detail(player_id: str, _admin=Depends(require_admin)):
+    try:
+        uuid.UUID(player_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="player_id must be UUID format")
     from db import get_connection
 
     with get_connection() as conn:
@@ -608,6 +712,7 @@ def admin_player_detail(player_id: str):
 def admin_snapshots(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
+    _admin=Depends(require_admin),
 ):
     from db import get_connection
     offset = (page - 1) * per_page

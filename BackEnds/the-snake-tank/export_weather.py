@@ -377,6 +377,43 @@ def filter_nearest_stations(stations, home, count=20):
     return stations[:count]
 
 
+def bearing_deg(lat1, lon1, lat2, lon2):
+    """Initial compass bearing (0-359) from point 1 to point 2."""
+    dlon = math.radians(lon2 - lon1)
+    y = math.sin(dlon) * math.cos(math.radians(lat2))
+    x = (math.cos(math.radians(lat1)) * math.sin(math.radians(lat2)) -
+         math.sin(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.cos(dlon))
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def scrub_public_stations(ps_data, home):
+    """Build a coordinate-free public station payload.
+
+    Emits only server-computed bearing and a coarse (whole-km) distance plus
+    the weather fields, dropping the MAC (station_id) and absolute lat/lon so
+    the home location can't be trilaterated from the unauthenticated payload.
+    """
+    weather_fields = ("temperature", "humidity", "pressure", "rain_60min",
+                      "rain_24h", "wind_strength", "wind_angle",
+                      "gust_strength", "gust_angle")
+    stations = []
+    for idx, s in enumerate(ps_data.get("stations", []), start=1):
+        bearing = int(round(bearing_deg(home["lat"], home["lon"], s["lat"], s["lon"]))) % 360
+        dist_km = s.get("distance_km")
+        if dist_km is None:
+            dist_km = haversine_km(home["lat"], home["lon"], s["lat"], s["lon"])
+        out = {"id": "s%d" % idx, "bearing": bearing, "distance_km": int(round(dist_km))}
+        for field in weather_fields:
+            if field in s:
+                out[field] = s[field]
+        stations.append(out)
+    return {
+        "fetched_at": ps_data.get("fetched_at"),
+        "station_count": len(stations),
+        "stations": stations,
+    }
+
+
 def export_public_stations():
     """Convert public station CSV files to JSON for frontend consumption."""
     import csv as csv_mod
@@ -928,13 +965,11 @@ def export(output_path, hours, history_path=None):
             )
             if json_files:
                 ps_data = read_json(os.path.join(day_dir, json_files[0]))
-                if ps_data:
-                    if home and ps_data.get("stations"):
-                        ps_data["stations"] = filter_nearest_stations(
-                            ps_data["stations"], home)
-                        ps_data["station_count"] = len(ps_data["stations"])
-                        ps_data["home_location"] = home
-                    public_data['public_stations'] = ps_data
+                if ps_data and home and ps_data.get("stations"):
+                    ps_data["stations"] = filter_nearest_stations(
+                        ps_data["stations"], home)
+                    public_data['public_stations'] = scrub_public_stations(
+                        ps_data, home)
                 break
 
     public_path = os.path.join(os.path.dirname(output_path), 'weather-public.json')
