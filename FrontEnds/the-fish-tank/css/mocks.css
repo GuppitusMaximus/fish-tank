@@ -113,6 +113,71 @@
     font-size: 0.85rem; color: var(--mx-ink-faint); max-width: 68ch;
     margin: 0.3rem 0 0.5rem;
 }
+
+/* ---------- site title treatment prototype ---------- */
+#mocks .mx-title-demos { display: flex; flex-direction: column; gap: 1.7rem; padding: 0.4rem 0; }
+#mocks .mx-title-demo { display: flex; flex-direction: column; gap: 0.45rem; }
+#mocks .mx-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    text-decoration: none;
+    width: max-content;
+}
+#mocks .mx-lockup img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--mx-line-hot);
+    transition: transform 0.18s ease;
+}
+#mocks .mx-lockup:hover img { transform: translateY(-2px) scale(1.03); }
+#mocks .mx-wordmark {
+    font-size: 1.9rem;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    color: #eaf6ff;
+    white-space: nowrap;
+}
+#mocks .mx-title-label {
+    font-family: var(--mx-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mx-ink-faint);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+#mocks .mx-pick {
+    color: var(--mx-good);
+    border: 1px solid rgba(80, 200, 120, 0.4);
+    background: rgba(80, 200, 120, 0.08);
+    border-radius: 99px;
+    padding: 0.1rem 0.5rem;
+    letter-spacing: 0.1em;
+}
+#mocks .mx-shine {
+    background: linear-gradient(100deg, #bcdcff 0%, #bcdcff 42%, #ffffff 50%, #bcdcff 58%, #bcdcff 100%);
+    background-size: 250% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: mx-shine 4.5s linear infinite;
+}
+@keyframes mx-shine { to { background-position: -250% center; } }
+#mocks .mx-aqua {
+    background: linear-gradient(90deg, #7fdbff, #4fc3f7, #3ddc97, #4fc3f7, #7fdbff);
+    background-size: 220% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: mx-aqua 6s linear infinite;
+}
+@keyframes mx-aqua { to { background-position: 220% center; } }
+@media (prefers-reduced-motion: reduce) {
+    #mocks .mx-shine, #mocks .mx-aqua { animation: none; }
+}
 #mocks .verdict {
     display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
     margin: 1rem 0 0.5rem; max-width: 68ch;

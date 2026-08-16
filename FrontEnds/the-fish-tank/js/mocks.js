@@ -11,6 +11,46 @@ var MocksApp = (function() {
   <p class="lede">Three directions for turning the homepage into a project hub, built in the site's own palette. Plus the gated-widget pattern for TankCore, a 2026 trend briefing, and a build plan mapped to the codebase.</p>
 </div>
 
+<section id="mx-title">
+  <h2>Site title — logo lockup + underwater shimmer</h2>
+  <p>Recommended header treatment: pair the Guppitus Maximus emblem with the wordmark as a brand lockup that <strong>clicks back home</strong> — which also restores the signed-in "back to the hub" path we lost when the nav Home link was gated. A subtle underwater shimmer keeps it alive without tipping into gimmick. Three styles below; all freeze under <code>prefers-reduced-motion</code>.</p>
+
+  <div class="frame">
+    <div class="frame-bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">the-fish-tank.com &mdash; header</span></div>
+    <div class="frame-body">
+      <div class="mx-title-demos">
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false">
+            <img src="assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
+            <span class="mx-wordmark mx-shine">The Fish Tank</span>
+          </a>
+          <div class="mx-title-label">A &middot; light sweep <span class="mx-pick">recommended</span></div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false">
+            <img src="assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
+            <span class="mx-wordmark mx-aqua">The Fish Tank</span>
+          </a>
+          <div class="mx-title-label">B &middot; aquatic gradient flow</div>
+        </div>
+        <div class="mx-title-demo">
+          <a class="mx-lockup" href="#mocks" onclick="return false">
+            <img src="assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
+            <span class="mx-wordmark">The Fish Tank</span>
+          </a>
+          <div class="mx-title-label">static (reduced-motion / baseline)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="mock-caption">Hover a lockup &mdash; the emblem lifts slightly, signalling it's a clickable logo. The wordmark keeps the site's light-on-navy palette; the shimmer only adds motion, not new brand colors.</p>
+  <ul class="notes">
+    <li><strong>A (light sweep)</strong> is my pick &mdash; a bright band drifts across the letters like caustic light on water. Reads premium, stays legible.</li>
+    <li><strong>B (aquatic flow)</strong> cycles a teal&rarr;blue&rarr;green gradient through the text &mdash; more overtly "fish tank," slightly more colorful/playful.</li>
+    <li><strong>One decision to make:</strong> the header <code>&lt;h1&gt;</code> currently swaps to the active view's name (e.g. "Potter Weather Predictions"). A persistent logo lockup usually stays constant, so we'd either keep "The Fish Tank" fixed and surface the view name elsewhere, or drop the per-view title swap.</li>
+  </ul>
+</section>
+
 <section id="mx-brief">
   <h2>The brief, restated</h2>
   <p>Today an anonymous visitor lands on what is effectively a weather app: current-reading card, prediction cards, station compass — full width, full attention. The hub inverts that hierarchy. <strong>The homepage's job becomes "here's what gets built and run here, live"</strong> — weather demotes to one proof-of-life tile among several, Fathom Fall gets real shelf space instead of a dropdown entry, and TankCore joins as a teaser: visible enough to intrigue, blurred enough to make signing in mean something.</p>
