@@ -36,8 +36,13 @@ var HomelabApp = (function() {
         statBlock(d.uptime_days, 'd', 'uptime') +
       '</div>';
 
+    var fresh = d.live;
+    if (fresh && d.generated_at) {
+      var age = Date.now() - new Date(d.generated_at).getTime();
+      if (isNaN(age) || age > 15 * 60 * 1000) fresh = false; // stale after 15 min
+    }
     var dot = document.getElementById('homelab-dot');
-    if (dot) dot.className = 'status-dot ' + (d.live ? 'success' : 'cancelled');
+    if (dot) dot.className = 'status-dot ' + (fresh ? 'success' : 'cancelled');
   }
 
   function load() {
