@@ -90,13 +90,24 @@
                     <button class="hub-gate-btn" type="button">Sign in</button>
                 </div>
             </div>
-            <div class="hub-tile hub-span2">
-                <div class="hub-label">Homelab</div>
-                <div class="hub-title-sm">Proxmox &middot; Grafana</div>
-                <div class="hub-desc">Ryzen 7 &middot; 64GB &middot; ZFS mirror. <span class="auth-public-only">Metrics gated.</span></div>
+            <div class="hub-tile hub-span4" id="homelab-tile">
+                <div class="hub-label"><span class="status-dot cancelled" id="homelab-dot"></span> Homelab &middot; Proxmox</div>
+                <div id="homelab-stats">
+                    <div class="wx-skeleton"><span></span><span></span><span></span></div>
+                </div>
+                <div class="hub-subgate auth-public-only">
+                    <div class="hub-locked">
+                        <div class="wx-rank-row"><span>node_cpu</span><i style="width:71%"></i></div>
+                        <div class="wx-rank-row"><span>net_io</span><i style="width:52%"></i></div>
+                    </div>
+                    <div class="hub-gate-veil">
+                        <div class="hub-gate-msg"><span class="hub-lock-mini">&#x1F512;</span> Sign in for the full Grafana dashboard &amp; live metrics</div>
+                        <button class="hub-gate-btn" type="button">Sign in</button>
+                    </div>
+                </div>
                 <div class="hub-tags auth-gated auth-hidden">
+                    <a class="hub-tag" href="https://grafana.the-fish-tank.com" target="_blank" rel="noopener">Grafana dashboard</a>
                     <a class="hub-tag" href="https://proxmox.the-fish-tank.com" target="_blank" rel="noopener">Proxmox</a>
-                    <a class="hub-tag" href="https://grafana.the-fish-tank.com" target="_blank" rel="noopener">Grafana</a>
                 </div>
             </div>
             <a class="hub-tile hub-span2" href="https://github.com/GuppitusMaximus" target="_blank" rel="noopener">
@@ -106,11 +117,6 @@
                     <div class="hub-desc">fish-tank &middot; showcase repos</div>
                 </div>
             </a>
-            <div class="hub-tile hub-span2">
-                <div class="hub-label">Under the hood</div>
-                <div class="hub-title-sm">Built simple</div>
-                <div class="hub-desc">Vanilla JS &middot; Python ML &middot; Ansible &middot; Cloudflare Workers</div>
-            </div>
             <div id="home-compass" class="hub-span6"></div>
         </div>
     </main>
@@ -207,6 +213,7 @@
 
     <script src="js/weather.js"></script>
     <script src="js/fathomfall-admin.js"></script>
+    <script src="js/homelab.js"></script>
     <script src="js/mocks.js"></script>
     <script>
     (() => {
@@ -385,6 +392,7 @@
     <script>
     FishTankAuth.initAuthState();
     FishTankAuth.bindEvents();
+    if (window.HomelabApp) HomelabApp.load();
     </script>
 </body>
 </html>

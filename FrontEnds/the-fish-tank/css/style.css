@@ -1336,6 +1336,18 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
+/* Homelab quick-glance stats */
+.hl-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.9rem;
+    margin-top: 0.2rem;
+}
+.hl-stat .hub-big { font-size: 1.5rem; }
+@media (max-width: 600px) {
+    .hl-stats { grid-template-columns: repeat(2, 1fr); gap: 0.7rem 1rem; }
+}
+
 /* Loading skeleton — keeps the public section from ever being empty */
 .wx-skeleton { display: flex; gap: 1.5rem; padding: 0.2rem 0; }
 .wx-skeleton span {
