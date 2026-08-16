@@ -1259,6 +1259,7 @@ a.hub-tile {
 .hub-label .status-dot, .hub-status .status-dot { width: 7px; height: 7px; }
 .status-dot.stale { background: var(--warn); }
 .status-dot.market { background: var(--market); box-shadow: 0 0 6px rgba(61, 220, 151, 0.7); }
+.status-dot.market-closed { background: var(--bad); box-shadow: 0 0 6px rgba(224, 80, 128, 0.7); }
 
 .hub-hero {
     display: flex;
@@ -1525,7 +1526,17 @@ a.hub-tag:hover { background: var(--surface-mid); }
    the :has() rule lifts the blur in the same moment. The label stays outside
    .tankcore-body so it reads clearly while the body below is masked. */
 .hub-gated { overflow: hidden; }
-.tankcore-body { position: relative; margin-top: 0.2rem; }
+/* TankCore: title stays outside the mask; body flexes to fill the tile so the
+   masked area has no empty gap below it. */
+#tankcore-tile { display: flex; flex-direction: column; }
+#tankcore-tile .tankcore-body { position: relative; flex: 1; display: flex; margin-top: 0.4rem; }
+#tankcore-tile .hub-locked {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
 .hub-locked { transition: filter 0.4s ease, opacity 0.4s ease; }
 
 .hub-gated:has(.hub-gate-veil:not(.auth-hidden)) .hub-locked {

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>The Fish Tank</title>
-    <link rel="stylesheet" href="css/style.css?v=4">
-    <link rel="stylesheet" href="css/auth.css?v=4">
-    <link rel="stylesheet" href="css/mocks.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=5">
+    <link rel="stylesheet" href="css/auth.css?v=5">
+    <link rel="stylesheet" href="css/mocks.css?v=5">
 </head>
 <body class="theme-ocean">
     <header>
@@ -43,7 +43,7 @@
                 <div class="hub-hero-h">Games, weather models &amp; a trading engine &mdash; <b>running live</b> from a homelab and a VPS.</div>
                 <div class="hub-status">
                     <span><span id="hub-weather-dot" class="status-dot cancelled"></span><span id="hub-weather-status">Potter weather</span></span>
-                    <span>vanilla JS &middot; no frameworks</span>
+                    <span><span id="hub-market-dot" class="status-dot market-closed"></span><span id="hub-market-status">Market opens in &hellip;</span></span>
                 </div>
             </div>
             <a class="hub-tile hub-span2 hub-rows2" href="https://www.fathomfall.com" target="_blank" rel="noopener">
@@ -71,7 +71,7 @@
                 <a class="hub-more auth-gated auth-hidden" data-view="weather">Full dashboard &rarr;</a>
             </div>
             <div class="hub-tile hub-span3 hub-gated" id="tankcore-tile">
-                <div class="hub-label"><span class="status-dot market"></span> TankCore &middot; Market Predictions</div>
+                <div class="hub-label"><span class="status-dot market-closed" id="tankcore-dot"></span> TankCore &middot; Market Predictions</div>
                 <div class="tankcore-body">
                     <div class="hub-locked">
                         <div class="hub-metric-row">
@@ -214,16 +214,17 @@
         </form>
       </div>
     </div>
-    <script src="js/auth-config.js?v=4"></script>
-    <script src="js/auth.js?v=4"></script>
-    <script src="js/tank.js?v=4"></script>
-    <script src="js/battle.js?v=4"></script>
-    <script src="js/fighter.js?v=4"></script>
+    <script src="js/auth-config.js?v=5"></script>
+    <script src="js/auth.js?v=5"></script>
+    <script src="js/tank.js?v=5"></script>
+    <script src="js/battle.js?v=5"></script>
+    <script src="js/fighter.js?v=5"></script>
 
-    <script src="js/weather.js?v=4"></script>
-    <script src="js/fathomfall-admin.js?v=4"></script>
-    <script src="js/homelab.js?v=4"></script>
-    <script src="js/mocks.js?v=4"></script>
+    <script src="js/weather.js?v=5"></script>
+    <script src="js/fathomfall-admin.js?v=5"></script>
+    <script src="js/homelab.js?v=5"></script>
+    <script src="js/market.js?v=5"></script>
+    <script src="js/mocks.js?v=5"></script>
     <script>
     (() => {
         const views = {
