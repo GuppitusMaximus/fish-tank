@@ -1336,6 +1336,27 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
+/* Open source repo links */
+.hub-oss-profile {
+    display: inline-block;
+    color: var(--accent);
+    text-decoration: none;
+    margin-bottom: 0.6rem;
+}
+.hub-oss-profile:hover { text-decoration: underline; }
+.hub-oss-repos { display: grid; gap: 0.3rem; }
+.hub-oss-repos a {
+    font-size: 0.76rem;
+    color: var(--ink-dim);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: color 0.15s;
+}
+.hub-oss-repos a::before { content: "\2197"; color: var(--accent-soft); font-size: 0.85em; }
+.hub-oss-repos a:hover { color: #fff; }
+
 /* Homelab quick-glance stats */
 .hl-stats {
     display: grid;
