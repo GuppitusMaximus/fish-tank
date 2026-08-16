@@ -1353,9 +1353,9 @@ a.hub-tag:hover { background: var(--surface-mid); }
     position: absolute;
     inset: 0;
     background: url("../assets/ff/bg.jpg") center bottom / cover no-repeat;
-    opacity: 0.22;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 45%, #000 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 45%, #000 100%);
+    opacity: 0.5;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.28) 42%, #000 78%);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.28) 42%, #000 78%);
     pointer-events: none;
     z-index: 0;
 }
