@@ -1344,6 +1344,23 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #home-weather-tile { min-height: 92px; }
 #home-weather-tile .stale-notice { margin: 0 0 0.5rem; }
 
+/* Fathom Fall tile: game battle backdrop, faded so it dissolves into the tile.
+   Strongest at the bottom (behind the sprites), masked to nothing up top so the
+   title/description stay readable. */
+.ff-tile { overflow: hidden; }
+.ff-tile::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("../assets/ff/bg.jpg") center bottom / cover no-repeat;
+    opacity: 0.22;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 45%, #000 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 45%, #000 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+.ff-tile > * { position: relative; z-index: 1; }
+
 /* Fathom Fall game display font (for the tile title) */
 @font-face {
     font-family: "Nosferatu";
