@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>The Fish Tank</title>
-    <link rel="stylesheet" href="css/style.css?v=20">
-    <link rel="stylesheet" href="css/auth.css?v=20">
-    <link rel="stylesheet" href="css/mocks.css?v=20">
+    <link rel="stylesheet" href="css/style.css?v=21">
+    <link rel="stylesheet" href="css/auth.css?v=21">
+    <link rel="stylesheet" href="css/mocks.css?v=21">
 </head>
 <body class="theme-ocean">
     <header>
@@ -67,7 +67,12 @@
                 </div>
             </a>
             <div class="hub-tile hub-span3">
-                <div class="hub-label"><span class="status-dot cancelled" id="hub-tile-dot"></span> Potter weather</div>
+                <div class="hub-label wx-label-row">
+                    <span><span class="status-dot cancelled" id="hub-tile-dot"></span> Potter weather</span>
+                    <span class="unit-toggle" id="home-unit-toggle">
+                        <button type="button" data-unit="C" class="active">&deg;C</button><button type="button" data-unit="F">&deg;F</button>
+                    </span>
+                </div>
                 <div id="home-weather-tile">
                     <div class="wx-skeleton"><span></span><span></span></div>
                 </div>
@@ -228,19 +233,19 @@
         </form>
       </div>
     </div>
-    <script src="js/auth-config.js?v=20"></script>
-    <script src="js/auth.js?v=20"></script>
-    <script src="js/tank.js?v=20"></script>
-    <script src="js/battle.js?v=20"></script>
-    <script src="js/fighter.js?v=20"></script>
+    <script src="js/auth-config.js?v=21"></script>
+    <script src="js/auth.js?v=21"></script>
+    <script src="js/tank.js?v=21"></script>
+    <script src="js/battle.js?v=21"></script>
+    <script src="js/fighter.js?v=21"></script>
 
-    <script src="js/weather.js?v=20"></script>
-    <script src="js/fathomfall-admin.js?v=20"></script>
-    <script src="js/homelab.js?v=20"></script>
-    <script src="js/market.js?v=20"></script>
-    <script src="js/ff-status.js?v=20"></script>
-    <script src="js/ff-scene.js?v=20"></script>
-    <script src="js/mocks.js?v=20"></script>
+    <script src="js/weather.js?v=21"></script>
+    <script src="js/fathomfall-admin.js?v=21"></script>
+    <script src="js/homelab.js?v=21"></script>
+    <script src="js/market.js?v=21"></script>
+    <script src="js/ff-status.js?v=21"></script>
+    <script src="js/ff-scene.js?v=21"></script>
+    <script src="js/mocks.js?v=21"></script>
     <script>
     (() => {
         const views = {

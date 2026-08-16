@@ -1716,6 +1716,41 @@ a.hub-tag:hover { background: var(--surface-mid); }
 
 /* Nearby stations — compact temperature-spread summary.
    Hidden until data arrives, then pops in and pushes the tiles below down. */
+.wx-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.unit-toggle {
+    display: inline-flex;
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    overflow: hidden;
+}
+.unit-toggle button {
+    font-family: inherit;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1;
+    padding: 0.16rem 0.42rem;
+    background: none;
+    border: none;
+    color: var(--ink-faint);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.unit-toggle button.active {
+    background: var(--surface-mid);
+    color: var(--accent-soft);
+}
+.unit-toggle button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
 #nearby-tile { display: none; }
 #nearby-tile.is-loaded { display: block; animation: nearby-pop 0.4s ease both; }
 @keyframes nearby-pop {

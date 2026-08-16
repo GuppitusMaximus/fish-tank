@@ -2983,5 +2983,30 @@ window.WeatherApp = (() => {
     }
   }
 
+  function updateHomeUnitToggle() {
+    var t = document.getElementById('home-unit-toggle');
+    if (!t) return;
+    [].forEach.call(t.querySelectorAll('button[data-unit]'), function(b) {
+      b.classList.toggle('active', b.getAttribute('data-unit') === currentUnit);
+    });
+  }
+
+  function setHomeUnit(u) {
+    if (u === currentUnit) return;
+    currentUnit = u;
+    try { localStorage.setItem('tempUnit', u); } catch (e) {}
+    updateHomeUnitToggle();
+    if (latestData) {
+      renderHomeSummary(latestData);
+      if (latestData.public_stations) renderNearby(latestData.public_stations);
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest ? e.target.closest('#home-unit-toggle button[data-unit]') : null;
+    if (btn) setHomeUnit(btn.getAttribute('data-unit'));
+  });
+  updateHomeUnitToggle();
+
   return { start: start, stop: stop, loadHomeSummary: loadHomeSummary, loadCompassData: loadCompassData };
 })();
