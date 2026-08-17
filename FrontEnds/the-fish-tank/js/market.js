@@ -85,11 +85,12 @@
 
   function fmt(ms) {
     if (ms < 0) ms = 0;
-    var s = Math.floor(ms / 1000);
-    var h = Math.floor(s / 3600); s -= h * 3600;
-    var m = Math.floor(s / 60); s -= m * 60;
+    // Round minutes up so the badge never shows 0h 00m while time remains.
+    var mins = Math.ceil(ms / 60000);
+    var h = Math.floor(mins / 60);
+    var m = mins - h * 60;
     var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
-    return h + 'h ' + pad(m) + 'm ' + pad(s) + 's';
+    return h + 'h ' + pad(m) + 'm';
   }
 
   function update() {
@@ -107,5 +108,5 @@
   }
 
   update();
-  setInterval(update, 1000);
+  setInterval(update, 15000);
 })();
