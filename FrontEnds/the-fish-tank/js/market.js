@@ -43,6 +43,12 @@
     return guess - etOffsetMs(new Date(guess));
   }
 
+  // Real timestamp for a given ET wall-clock date at CLOSE_MIN.
+  function etCloseTs(y, mo, d) {
+    var guess = Date.UTC(y, mo - 1, d, 16, 0, 0);
+    return guess - etOffsetMs(new Date(guess));
+  }
+
   function isOpen(p) {
     return p.dow >= 1 && p.dow <= 5 && p.mins >= OPEN_MIN && p.mins < CLOSE_MIN;
   }
@@ -68,13 +74,14 @@
 
   function update() {
     var now = new Date();
-    var open = isOpen(etParts(now));
+    var p = etParts(now);
+    var open = isOpen(p);
     dots.forEach(function(dot) {
       dot.className = 'status-dot ' + (open ? 'market' : 'market-closed');
     });
     if (statusEl) {
       statusEl.textContent = open
-        ? 'Market open'
+        ? 'Market open · closes in ' + fmt(etCloseTs(p.y, p.mo, p.d) - now.getTime())
         : 'Market opens in ' + fmt(nextOpenTs(now) - now.getTime());
     }
   }
