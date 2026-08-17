@@ -12,8 +12,15 @@
     });
     var status = document.getElementById('hub-ff-status');
     if (status) {
-      // Dot color (green/red) conveys live/offline; text is just name + version.
-      status.textContent = 'Fathom Fall' + (version ? ' · v' + version : '');
+      // Dot color (green/red) conveys live/offline; version gets the badge blue.
+      // Setting textContent first clears any span from a previous apply().
+      status.textContent = 'Fathom Fall';
+      if (version) {
+        var ver = document.createElement('span');
+        ver.className = 'ff-version';
+        ver.textContent = '· v' + version;
+        status.appendChild(ver);
+      }
     }
     var tileVer = document.getElementById('ff-tile-version');
     if (tileVer) tileVer.textContent = version ? 'v' + version : '';
