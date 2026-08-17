@@ -1,7 +1,8 @@
 // US market clock for the hub. TankCore only trades regular hours
 // (NYSE/Nasdaq: Mon-Fri 09:30-16:00 America/New_York). Drives the hero
 // countdown and the market status dots (green = open, red = closed).
-// Note: does not account for market holidays.
+// Full-day NYSE holidays are handled through 2028 (see HOLIDAYS);
+// early closes (half-days) are not.
 
 (function() {
   var statusEl = document.getElementById('hub-market-status');
@@ -13,6 +14,25 @@
   var OPEN_MIN = 9 * 60 + 30;   // 09:30 ET
   var CLOSE_MIN = 16 * 60;      // 16:00 ET
   var DOW = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  // NYSE full-day closures through 2028 (per NYSE Group calendar).
+  // Extend before 2029. Early closes (half-days) intentionally not handled.
+  var HOLIDAYS = {
+    '2026-01-01': 1, '2026-01-19': 1, '2026-02-16': 1, '2026-04-03': 1,
+    '2026-05-25': 1, '2026-06-19': 1, '2026-07-03': 1, '2026-09-07': 1,
+    '2026-11-26': 1, '2026-12-25': 1,
+    '2027-01-01': 1, '2027-01-18': 1, '2027-02-15': 1, '2027-03-26': 1,
+    '2027-05-31': 1, '2027-06-18': 1, '2027-07-05': 1, '2027-09-06': 1,
+    '2027-11-25': 1, '2027-12-24': 1,
+    '2028-01-17': 1, '2028-02-21': 1, '2028-04-14': 1, '2028-05-29': 1,
+    '2028-06-19': 1, '2028-07-04': 1, '2028-09-04': 1, '2028-11-23': 1,
+    '2028-12-25': 1
+  };
+
+  function isHoliday(p) {
+    var pad = function(n) { return n < 10 ? '0' + n : '' + n; };
+    return !!HOLIDAYS[p.y + '-' + pad(p.mo) + '-' + pad(p.d)];
+  }
 
   var partsFmt = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', hour12: false, weekday: 'short',
@@ -50,13 +70,13 @@
   }
 
   function isOpen(p) {
-    return p.dow >= 1 && p.dow <= 5 && p.mins >= OPEN_MIN && p.mins < CLOSE_MIN;
+    return p.dow >= 1 && p.dow <= 5 && !isHoliday(p) && p.mins >= OPEN_MIN && p.mins < CLOSE_MIN;
   }
 
   function nextOpenTs(now) {
-    for (var add = 0; add < 8; add++) {
+    for (var add = 0; add < 12; add++) {
       var p = etParts(new Date(now.getTime() + add * 86400000));
-      if (p.dow >= 1 && p.dow <= 5 && (add > 0 || p.mins < OPEN_MIN)) {
+      if (p.dow >= 1 && p.dow <= 5 && !isHoliday(p) && (add > 0 || p.mins < OPEN_MIN)) {
         return etOpenTs(p.y, p.mo, p.d);
       }
     }
