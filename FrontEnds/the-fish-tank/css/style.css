@@ -1339,7 +1339,7 @@ a.hub-tile {
 .hub-status > span { display: inline-flex; align-items: center; gap: 0.4rem; }
 
 .hub-title {
-    font-family: "Nosferatu", system-ui, sans-serif;
+    font-family: Georgia, serif;
     font-size: 1.45rem;
     font-weight: 400;
     letter-spacing: 0.02em;
@@ -1415,13 +1415,6 @@ a.hub-tag:hover { background: var(--surface-mid); }
     z-index: 0;
 }
 .ff-tile > * { position: relative; z-index: 1; }
-
-/* Fathom Fall game display font (for the tile title) */
-@font-face {
-    font-family: "Nosferatu";
-    src: url("../assets/fonts/nosferatu.woff") format("woff");
-    font-display: swap;
-}
 
 /* Floating damage numbers on hits */
 .ff-dmg {
