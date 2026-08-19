@@ -1,6 +1,6 @@
 // Homelab quick-glance stats for the home hub tile.
 // Fetches an aggregate public stats feed and renders CPU / memory / guests /
-// uptime. Falls back to a static snapshot (no "live" claim) when the feed is
+// agents / uptime. Falls back to a static snapshot (no "live" claim) when the feed is
 // unavailable. Full dashboards (Grafana/Proxmox) stay behind sign-in.
 
 var HomelabApp = (function() {
@@ -11,7 +11,8 @@ var HomelabApp = (function() {
   var SNAPSHOT = {
     cpu_pct: 1, cores: 16,
     mem_used_gb: 46, mem_total_gb: 66,
-    guests_running: 6, guests_total: 8,
+    guests_running: 6, guests_total: 6,
+    agents_running: 0,
     uptime_days: 135,
     live: false
   };
@@ -27,14 +28,18 @@ var HomelabApp = (function() {
     var el = document.getElementById('homelab-stats');
     if (!el) return;
     var memPct = d.mem_total_gb ? Math.round(d.mem_used_gb / d.mem_total_gb * 100) : null;
-    el.innerHTML =
-      '<div class="hl-stats">' +
-        statBlock(Math.round(d.cpu_pct), '%', 'CPU · ' + d.cores + 'c') +
-        statBlock(Math.round(d.mem_used_gb), '/' + Math.round(d.mem_total_gb) + ' GB',
-                  'memory' + (memPct != null ? ' · ' + memPct + '%' : '')) +
-        statBlock(d.guests_running, '/' + d.guests_total, 'guests up') +
-        statBlock(d.uptime_days, 'd', 'uptime') +
-      '</div>';
+    var blocks = [
+      statBlock(Math.round(d.cpu_pct), '%', 'CPU · ' + d.cores + 'c'),
+      statBlock(Math.round(d.mem_used_gb), '/' + Math.round(d.mem_total_gb) + ' GB',
+                'memory' + (memPct != null ? ' · ' + memPct + '%' : '')),
+      statBlock(d.guests_running, '/' + d.guests_total, 'guests up')
+    ];
+    // Older feeds lack agents_running; skip the block so the row stays full.
+    if (d.agents_running != null) {
+      blocks.push(statBlock(d.agents_running, '', 'agents'));
+    }
+    blocks.push(statBlock(d.uptime_days, 'd', 'uptime'));
+    el.innerHTML = '<div class="hl-stats">' + blocks.join('') + '</div>';
 
     var fresh = d.live;
     if (fresh && d.generated_at) {
