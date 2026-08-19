@@ -1,7 +1,8 @@
 // Homelab quick-glance stats for the home hub tile.
-// Fetches an aggregate public stats feed and renders CPU / memory / guests /
-// agents / uptime. Falls back to a static snapshot (no "live" claim) when the feed is
-// unavailable. Full dashboards (Grafana/Proxmox) stay behind sign-in.
+// Fetches an aggregate public stats feed and renders CPU / memory / services /
+// agents (live + today) / uptime. Falls back to a static snapshot (no "live"
+// claim) when the feed is unavailable. Full dashboards (Grafana/Proxmox) stay
+// behind sign-in.
 
 var HomelabApp = (function() {
   var FEED_URL = (typeof AUTH_API_URL !== 'undefined' && AUTH_API_URL)
@@ -11,8 +12,9 @@ var HomelabApp = (function() {
   var SNAPSHOT = {
     cpu_pct: 1, cores: 16,
     mem_used_gb: 46, mem_total_gb: 66,
-    guests_running: 6, guests_total: 6,
+    services_running: 6, services_total: 6,
     agents_running: 0,
+    agents_24h: 0,
     uptime_days: 135,
     live: false
   };
@@ -32,11 +34,17 @@ var HomelabApp = (function() {
       statBlock(Math.round(d.cpu_pct), '%', 'CPU · ' + d.cores + 'c'),
       statBlock(Math.round(d.mem_used_gb), '/' + Math.round(d.mem_total_gb) + ' GB',
                 'memory' + (memPct != null ? ' · ' + memPct + '%' : '')),
-      statBlock(d.guests_running, '/' + d.guests_total, 'guests up')
+      // Older feeds lack services_*; fall back to the guest counts (which
+      // then include agent workers) so rollout order can't break the tile.
+      d.services_running != null
+        ? statBlock(d.services_running, '/' + d.services_total, 'services')
+        : statBlock(d.guests_running, '/' + d.guests_total, 'guests up')
     ];
     // Older feeds lack agents_running; skip the block so the row stays full.
     if (d.agents_running != null) {
-      blocks.push(statBlock(d.agents_running, '', 'agents'));
+      var agentsLabel = 'agents' +
+        (d.agents_24h != null ? ' · ' + d.agents_24h + ' today' : '');
+      blocks.push(statBlock(d.agents_running, '', agentsLabel));
     }
     blocks.push(statBlock(d.uptime_days, 'd', 'uptime'));
     el.innerHTML = '<div class="hl-stats">' + blocks.join('') + '</div>';
