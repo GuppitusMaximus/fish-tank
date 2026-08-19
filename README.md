@@ -2,9 +2,9 @@
 
 An AI-agent software delivery platform, and the live projects it builds and maintains.
 
-**4,900+ commits · 1,375 plans written · 1,319 completed autonomously · 0 lines of human-written code in the target projects.**
+**5,000+ commits · 1,732 plans written · 1,562 completed autonomously · 0 lines of human-written code in the target projects.**
 
-FishTank is a one-person experiment taken to its logical end: what does software engineering look like when the engineer never writes the code? Over six months in 2026 I built a multi-agent orchestration system on top of Claude Code that takes a feature from an idea, through requirements and planning, to implementation, QA, code review, and deploy — with me participating at exactly two points: the requirements interview and the approval gate. Everything else runs autonomously on homelab infrastructure.
+FishTank is a one-person experiment taken to its logical end: what does software engineering look like when the engineer never writes the code? Over the course of 2026 I built a multi-agent orchestration system on top of Claude Code that takes a feature from an idea, through requirements and planning, to implementation, QA, code review, and deploy — with me participating at exactly two points: the requirements interview and the approval gate. Everything else runs autonomously on homelab infrastructure.
 
 > **The platform's source is private** (planning repo, orchestrator, MCP server, agent definitions).
 > This repo documents the architecture and hosts the public projects the platform maintains —
@@ -28,29 +28,30 @@ FishTank is a one-person experiment taken to its logical end: what does software
 ```mermaid
 flowchart TD
     U["👤 Me — two touchpoints:\nrequirements interview · approval gate"] --> P["Planning repo (private)\nPRDs → plans → status"]
-    P -->|git push| W["GitHub webhook"]
-    W --> O["Orchestrator\ndependency DAG · retries · failure cascade"]
-    O -->|"Proxmox API — ZFS linked clone, sub-second"| L["Ephemeral LXC workers\none container per plan, destroyed after"]
-    L -->|"branch + pull request"| T["Target repos\nwebsite · game · backend"]
-    T --> QA["QA / BDD / code-review agents"]
+    P -->|"one MCP call: activate_feature()"| B["Redis control bus"]
+    B --> O["Orchestrator — its own container\ndependency DAG · retries · failure cascade"]
+    O -->|"Proxmox API — fresh container per plan"| L["Ephemeral LXC workers\nAppArmor · seccomp · egress firewall\nper-role write scope"]
+    L -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
+    T --> QA["tester + reviewer agents"]
     QA -->|"bug reports · status"| P
-    O <--> M["MCP server — 52 tools\nplans · exploration cache · knowledge graph"]
-    M <--> DB[("PostgreSQL 16\n17 tables")]
-    O <--> PR["Prometheus + Grafana\ncapacity gating · agent telemetry"]
+    O <--> M["MCP server — 57 tools\nplans · exploration cache · knowledge graph"]
+    M <--> DB[("PostgreSQL 16")]
+    L --> OT["OpenTelemetry → Prometheus · Loki\nGrafana dashboards · mobile alerts"]
 ```
 
-Plans are markdown files with metadata headers (`Status`, `Depends-on`, `Project`, `Review`). The orchestrator resolves them into a dependency DAG, deploys independent plans in parallel, retries failures twice with cooldown, and cascades permanent failures to dependent plans so nothing runs against a broken foundation. Capacity checks query Prometheus before every deploy cycle — the system throttles itself when the host is under load.
+Plans are markdown files with metadata headers (`Status`, `Profile`, `Depends-on`, `Review`). The orchestrator is event-driven: a single MCP call activates approved plans, commits the state change, and signals it over a Redis control bus — there is no webhook and no deploy script, so there is exactly one way work enters the system. It resolves plans into a dependency DAG, deploys independent plans in parallel under a concurrency cap (plans touching overlapping files are sequenced instead), retries failures — except security violations, which are never retried — and cascades permanent failures to dependent plans so nothing runs against a broken foundation.
 
-Each plan executes in an **ephemeral LXC container**: cloned from a template via ZFS linked clone in under a second, runs one agent with a hard timeout, pushes a branch, opens a PR, and is destroyed. If the hypervisor is unreachable, the orchestrator falls back to local execution.
+Each plan executes in an **ephemeral LXC container**, cloned fresh from a hardened template, with its own IP and credentials injected before first boot. The agent inside runs as one of four roles — implementer, tester, researcher, reviewer — under an AppArmor profile matched to that role, behind an egress firewall and a seccomp filter, with a bounded turn budget. It commits its work, a supervisor process reports terminal status, the container powers itself off, and the orchestrator archives the logs and destroys it. Plans flagged for review get a compliance + quality reviewer pair whose approval gates the merge.
 
 ## The part that answers "but do you trust the code?"
 
-The interesting engineering problem isn't getting agents to write code — it's building the system that makes their output trustworthy. FishTank's answer is layered verification, all of it enforced, none of it honor-system:
+The interesting engineering problem isn't getting agents to write code — it's building the system that makes their output trustworthy. FishTank's answer is layered enforcement — and, as of this month, **measured** enforcement. A dedicated probe plan ran eight times inside live worker containers, deliberately writing where it shouldn't, to establish what each layer actually does rather than what the design says it does. The honest version turned out to be the stronger claim:
 
-- **Write permissions are enforced by a pre-tool-use hook**, not documentation. An implementation agent that tries to write outside its assigned project — or into the test directory it's supposed to be verified by — is hard-blocked at the tool-call level.
-- **Separation of duties.** Implementation agents cannot touch tests. QA agents cannot touch production code. BDD agents write failing specs *before* the implementation agent starts. The agent that reviews and merges a PR is read-only.
+- **Write scope is enforced at three layers with different mechanisms.** A pre-tool-use hook refuses out-of-scope writes at the tool-call level with a readable reason; a per-role AppArmor profile enforces the same scope at the kernel, catching anything that bypasses the tooling; and a permissions pass makes existing files read-only. The probes verified the agent process is genuinely confined (its kernel security label reads `enforce`), and mapped each layer's *real* coverage: the hook sees only tool-mediated writes, the file-permissions layer does nothing against *creating* a new file — so an out-of-scope new file is stopped by two layers, not three — and AppArmor's deny path has never fired in a probe, because the hook always refuses first; its behavior is verified by inspection of the loaded profile, not by observation. Claiming exactly that, and no more, is the point.
+- **The measurement mattered.** For the pipeline's entire prior history, the AppArmor profiles were loaded in enforce mode and attached to no process — confining nothing. Three probe runs reported false passes before the probe's own instrumentation bug was found (a check that discarded stderr, so "permission denied" was indistinguishable from "not loaded"). Nearly every defect the probes surfaced was one mistake in different costumes: a rule written against the path a human would name while the kernel, git, or the tooling evaluated a different one — resolved symlinks, atomic temp-file writes, directory nodes versus their contents. *Loaded ≠ applied* is now a regression test, not an assumption.
+- **Separation of duties.** The implementer cannot touch tests (measured: refused). The tester can write test files and bug reports and nothing else (measured: six probes, expected outcome on all six, four consecutive runs). The reviewer that gates a merge is read-only at the kernel level. And no agent can rewrite its own rules — agent behavior definitions and repo-root config files are protected paths for every role.
 - **A QA plan is paired with every implementation plan** — QA verifies against the plan's acceptance criteria and files structured bug reports, which flow back into new fix plans.
-- **Everything is observable.** A custom Prometheus exporter tracks every agent's status, token velocity, step progress, and error counts; Grafana dashboards and mobile alerts surface stalls and failures in real time.
+- **Everything is observable.** Agents stream OpenTelemetry — token velocity, tool calls, step progress, errors — through a collector into Prometheus and Loki; Grafana dashboards and mobile alerts surface stalls and failures in real time.
 
 ## Institutional memory
 
@@ -72,8 +73,8 @@ Agents are stateless — whatever one learns about the codebase dies with its se
 
 Runs on a single-node Proxmox homelab (Ryzen 7 7700, 64 GB DDR5, 2 TB NVMe on ZFS), fully managed as code:
 
-- **12 Ansible roles across 5 hosts** — with Molecule tests, encrypted secrets, and daily automated drift detection that alerts if reality diverges from the code
-- **Push-to-deploy** — a GitHub webhook wakes the orchestrator on push; it shuts itself down when the work queue is empty
+- **18 Ansible roles across 9 hosts** — with Molecule tests, encrypted secrets, and daily automated drift detection that alerts if reality diverges from the code
+- **One deploy path** — a single MCP call activates approved plans and signals the orchestrator over a Redis control bus; worker containers power themselves off when done and are destroyed after their logs are archived
 - **Nightly ZFS snapshots** and PostgreSQL backups with automated restore tests
 - **Cloudflare Tunnel + Access** for zero-open-ports remote entry; Tailscale for administration
 
@@ -110,4 +111,4 @@ How the platform evolved — from a single Claude session to the orchestrated sy
 
 **Did agents really write all of it?** All application code in the target projects, yes — the numbers at the top are live counts from the planning repo. My contributions are requirements, plan approval, and the platform/infrastructure design itself.
 
-**What's it built with?** Claude Code (agents), Python (orchestrator, MCP server, exporters), PostgreSQL 16, Prometheus/Grafana, Proxmox VE, LXC/ZFS, Ansible, Cloudflare.
+**What's it built with?** Claude Code (agents), Python (orchestrator, MCP server, supervisor), PostgreSQL 16, Redis, OpenTelemetry + Prometheus/Loki/Grafana, Proxmox VE, LXC/ZFS, AppArmor/seccomp, Ansible, Packer, Cloudflare.
