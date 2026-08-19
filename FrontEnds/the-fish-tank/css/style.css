@@ -1539,6 +1539,13 @@ a.hub-tag:hover { background: var(--surface-mid); }
     margin-top: 0.2rem;
 }
 .hl-stat .hub-big { font-size: 1.5rem; }
+.hl-group-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0.85rem 0 0.1rem;
+}
 @media (max-width: 600px) {
     .hl-stats { grid-template-columns: repeat(3, 1fr); gap: 0.7rem 1rem; }
 }
