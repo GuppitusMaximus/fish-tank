@@ -83,7 +83,8 @@ window.WeatherApp = (() => {
   }
 
   function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function getPropertyLabel(key, propertyMeta) {
@@ -292,10 +293,10 @@ window.WeatherApp = (() => {
     if (SQL) return Promise.resolve(SQL);
     return new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js';
+      script.src = 'vendor/sqljs/sql-wasm.js';
       script.onload = function() {
         initSqlJs({ locateFile: function(file) {
-          return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/' + file;
+          return 'vendor/sqljs/' + file;
         }}).then(function(sqlModule) {
           SQL = sqlModule;
           resolve(SQL);

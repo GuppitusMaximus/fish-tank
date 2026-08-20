@@ -32,6 +32,14 @@ var HomelabApp = (function() {
     return '' + Math.round(n);
   }
 
+  // Defence-in-depth: the Worker clamps these to numbers today, but a
+  // misbehaving feed must not be able to inject markup through innerHTML.
+  function esc(v) {
+    return String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function statBlock(value, unit, label) {
     return '<div class="hl-stat">' +
       '<div class="hub-big">' + value + (unit ? '<small>' + unit + '</small>' : '') + '</div>' +
@@ -44,22 +52,22 @@ var HomelabApp = (function() {
     if (!el) return;
     var memPct = d.mem_total_gb ? Math.round(d.mem_used_gb / d.mem_total_gb * 100) : null;
     var blocks = [
-      statBlock(Math.round(d.cpu_pct), '%', 'CPU · ' + d.cores + 'c'),
-      statBlock(Math.round(d.mem_used_gb), '/' + Math.round(d.mem_total_gb) + ' GB',
-                'memory' + (memPct != null ? ' · ' + memPct + '%' : '')),
+      statBlock(esc(Math.round(d.cpu_pct)), '%', 'CPU · ' + esc(d.cores) + 'c'),
+      statBlock(esc(Math.round(d.mem_used_gb)), '/' + esc(Math.round(d.mem_total_gb)) + ' GB',
+                'memory' + (memPct != null ? ' · ' + esc(memPct) + '%' : '')),
       // Older feeds lack services_*; fall back to the guest counts (which
       // then include agent workers) so rollout order can't break the tile.
       d.services_running != null
-        ? statBlock(d.services_running, '/' + d.services_total, 'services')
-        : statBlock(d.guests_running, '/' + d.guests_total, 'guests up')
+        ? statBlock(esc(d.services_running), '/' + esc(d.services_total), 'services')
+        : statBlock(esc(d.guests_running), '/' + esc(d.guests_total), 'guests up')
     ];
     // Older feeds lack agents_running; skip the block so the row stays full.
     if (d.agents_running != null) {
       var agentsLabel = 'agents' +
-        (d.agents_24h != null ? ' · ' + d.agents_24h + ' today' : '');
-      blocks.push(statBlock(d.agents_running, '', agentsLabel));
+        (d.agents_24h != null ? ' · ' + esc(d.agents_24h) + ' today' : '');
+      blocks.push(statBlock(esc(d.agents_running), '', agentsLabel));
     }
-    blocks.push(statBlock(d.uptime_days, 'd', 'uptime'));
+    blocks.push(statBlock(esc(d.uptime_days), 'd', 'uptime'));
     var html = '<div class="hl-stats">' + blocks.join('') + '</div>';
 
     // Token-maxing group — skipped entirely on older feeds without the field.
@@ -67,10 +75,10 @@ var HomelabApp = (function() {
       var runsTotal = (d.runs_ok_24h || 0) + (d.runs_failed_24h || 0);
       html += '<div class="hl-group-label">token maxing · 24h</div>' +
         '<div class="hl-stats">' +
-          statBlock(fmtCompact(d.tokens_out_24h), '', 'tokens') +
-          statBlock(d.runs_ok_24h, '/' + runsTotal, 'runs ok') +
-          statBlock(fmtCompact(d.loc_24h), '', 'lines written') +
-          statBlock(d.memory_entries, '+' + d.memory_insights, 'memory') +
+          statBlock(esc(fmtCompact(d.tokens_out_24h)), '', 'tokens') +
+          statBlock(esc(d.runs_ok_24h), '/' + esc(runsTotal), 'runs ok') +
+          statBlock(esc(fmtCompact(d.loc_24h)), '', 'lines written') +
+          statBlock(esc(d.memory_entries), '+' + esc(d.memory_insights), 'memory') +
         '</div>';
     }
     el.innerHTML = html;
