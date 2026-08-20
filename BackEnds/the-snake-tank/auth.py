@@ -37,7 +37,9 @@ def verify_jwt(auth_header, secret):
             return None
 
         payload = json.loads(_b64url_decode(parts[1]))
-        if "exp" in payload and payload["exp"] < int(time.time()):
+        if "exp" not in payload:
+            return None
+        if payload["exp"] < int(time.time()):
             return None
         return payload
     except Exception:
