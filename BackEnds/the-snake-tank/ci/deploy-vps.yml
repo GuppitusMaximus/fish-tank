@@ -24,6 +24,6 @@ jobs:
             cd /opt/fishtank
             git pull origin main
             cd BackEnds/the-snake-tank
-            .venv/bin/pip install -r requirements.txt
+            .venv/bin/pip install --require-hashes -r requirements.txt
             .venv/bin/python migrate.py
             sudo systemctl restart fishtank-ml fishtank-pvp

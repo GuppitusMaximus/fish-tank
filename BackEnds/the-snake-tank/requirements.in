@@ -1,4 +1,4 @@
-# Direct deps only, pinned to prod's 2026-08-20 pip freeze (see docs/security/prod-pip-freeze-2026-08-20.txt).
+# Direct deps only, pinned == to prod fishtank-01's 2026-08-20 pip freeze (captured from /opt/fishtank/BackEnds/the-snake-tank/.venv on the VPS).
 # requirements.txt is generated from this — never hand-edit it. Upgrades are deliberate edits here + recompile.
 pandas==3.0.1
 scikit-learn==1.8.0

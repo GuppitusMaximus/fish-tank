@@ -65,6 +65,6 @@ def test_deploy_script_commands(workflow):
     steps = workflow["jobs"]["deploy"]["steps"]
     script = steps[0]["with"]["script"]
     assert "git pull" in script
-    assert "pip install -r requirements.txt" in script
+    assert "pip install --require-hashes -r requirements.txt" in script
     assert "python migrate.py" in script
     assert "systemctl restart" in script

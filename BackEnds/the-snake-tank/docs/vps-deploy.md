@@ -25,7 +25,7 @@ git clone https://github.com/GuppitusMaximus/fish-tank.git /opt/fishtank
 
 ```bash
 cd /opt/fishtank/BackEnds/the-snake-tank
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 ```
 
 ### 3. Run migrations
@@ -88,7 +88,7 @@ On every push to `main` that touches `BackEnds/the-snake-tank/**`:
 
 1. SSH into the VPS as `fishtank`
 2. `git pull origin main`
-3. `pip install -r requirements.txt`
+3. `pip install --require-hashes -r requirements.txt`
 4. `python migrate.py`
 5. `sudo systemctl restart fishtank-ml fishtank-pvp`
 
@@ -101,7 +101,7 @@ ssh fishtank@<VPS_HOST>
 cd /opt/fishtank
 git pull origin main
 cd BackEnds/the-snake-tank
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 python migrate.py
 sudo systemctl restart fishtank-ml fishtank-pvp
 ```

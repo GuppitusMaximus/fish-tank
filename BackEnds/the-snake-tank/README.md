@@ -386,7 +386,7 @@ Pushing to `main` with changes under `BackEnds/the-snake-tank/**` triggers `.git
 set -e
 cd /opt/fishtank && git pull origin main
 cd BackEnds/the-snake-tank
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python migrate.py
 sudo systemctl restart fishtank-ml fishtank-pvp
 ```
@@ -399,7 +399,7 @@ Notes:
 ## Setup
 
 ```bash
-pip install -r requirements.txt   # pandas, scikit-learn, lightgbm, boto3
+pip install --require-hashes -r requirements.txt   # pandas, scikit-learn, lightgbm, boto3
 ```
 
 Run scripts individually:
