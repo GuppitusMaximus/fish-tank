@@ -30,11 +30,12 @@ flowchart TD
     U["👤 Me — two touchpoints:\nrequirements interview · approval gate"] --> P["Planning repo (private)\nPRDs → plans → status"]
     U -->|"one MCP call: activate_feature()"| M["MCP server — 57 tools\nplans · exploration cache · knowledge graph"]
     M -->|"status flip · git push"| P
-    M -->|"signal"| B["Redis control bus"]
-    B --> O["Orchestrator — its own container\ndependency DAG · retries · failure cascade"]
+    M -->|"activation signals · git lock · pipeline state"| B["Redis control bus\nplan signals · live status streams · command queues"]
+    B <-->|"reads signals + worker status · sends commands"| O["Orchestrator — its own container\ndependency DAG · retries · failure cascade"]
     O <--> DB[("PostgreSQL 16")]
     M <--> DB
     O -->|"Proxmox API — fresh container per plan"| L["Ephemeral LXC workers\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall · per-role write scope"]
+    L -->|"supervisor heartbeats · step progress · terminal status"| B
     L <-->|"plans · context · status · bug reports"| M
     L -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
     L --> OT["OpenTelemetry → Prometheus · Loki\nGrafana dashboards · mobile alerts"]
