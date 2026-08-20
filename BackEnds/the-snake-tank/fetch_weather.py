@@ -200,7 +200,9 @@ def main():
     print("Token refreshed successfully.")
 
     # Persist the new refresh token so the workflow can update the secret.
-    with open("new_refresh_token.txt", "w") as f:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    token_path = os.path.join(DATA_DIR, "new_refresh_token.txt")
+    with open(token_path, "w") as f:
         f.write(new_refresh_token)
 
     # --- Fetch weather data ---
