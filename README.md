@@ -34,16 +34,23 @@ flowchart TD
     B <-->|"reads signals + worker status · sends commands"| O["Orchestrator — its own container\ndependency DAG · retries · failure cascade"]
     O <--> DB[("PostgreSQL 16")]
     M <--> DB
-    O -->|"Proxmox API — fresh container per plan"| L["Ephemeral LXC workers\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall · per-role write scope"]
-    L -->|"supervisor heartbeats · step progress · terminal status"| B
-    L <-->|"plans · context · status · bug reports"| M
-    L -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
-    L --> OT["OpenTelemetry → Prometheus · Loki\nGrafana dashboards · mobile alerts"]
+    subgraph W["Ephemeral LXC worker — one per plan"]
+        A["Agent\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall · per-role write scope"]
+        S["Supervisor sidecar\nobserves every tool call · salvages unpushed work\npowers the container off when done"]
+        A -.->|"tool-call events\n(localhost hook)"| S
+    end
+    O -->|"Proxmox API — fresh container per plan"| W
+    S <-->|"heartbeats · step progress · terminal status ⇡ · commands ⇣"| B
+    A <-->|"plans · context · status · bug reports"| M
+    A -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
+    A --> OT["OpenTelemetry → Prometheus · Loki\nGrafana dashboards · mobile alerts"]
 ```
 
 Plans are markdown files with metadata headers (`Status`, `Profile`, `Depends-on`, `Review`). The orchestrator is event-driven: a single MCP call activates approved plans, commits the state change, and signals it over a Redis control bus — there is no webhook and no deploy script, so there is exactly one way work enters the system. It resolves plans into a dependency DAG, deploys independent plans in parallel under a concurrency cap (plans touching overlapping files are sequenced instead), retries failures — except security violations, which are never retried — and cascades permanent failures to dependent plans so nothing runs against a broken foundation.
 
-Each plan executes in an **ephemeral LXC container**, cloned fresh from a hardened template, with its own IP and credentials injected before first boot. The agent inside runs as one of four roles — implementer, tester, researcher, reviewer — under an AppArmor profile matched to that role, behind an egress firewall and a seccomp filter, with a bounded turn budget. It commits its work, a supervisor process reports terminal status, the container powers itself off, and the orchestrator archives the logs and destroys it. Plans flagged for review get a compliance + quality reviewer pair whose approval gates the merge.
+Each plan executes in an **ephemeral LXC container**, cloned fresh from a hardened template, with its own IP and credentials injected before first boot. The agent inside runs as one of four roles — implementer, tester, researcher, reviewer — under an AppArmor profile matched to that role, behind an egress firewall and a seccomp filter, with a bounded turn budget.
+
+The agent doesn't run alone. A **supervisor sidecar** in the same container is its black box and exit handler: a hook posts every tool call to it over localhost, so liveness tracking is involuntary — it never depends on the agent remembering to report — and the supervisor streams heartbeats, step progress, and terminal status onto a per-plan Redis stream while taking orchestrator commands back over the same bus (degrading to local status files if Redis is unreachable). If the agent dies with committed-but-unpushed work, the supervisor runs a time-boxed git salvage ladder — plain push, rebase-and-push, then a salvage branch nothing can race — so finished work survives a crashed container. When the run ends it reports terminal status and powers the container off; the orchestrator archives the logs and destroys it. Plans flagged for review get a compliance + quality reviewer pair whose approval gates the merge.
 
 ## The part that answers "but do you trust the code?"
 
