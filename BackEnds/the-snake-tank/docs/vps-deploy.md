@@ -105,3 +105,34 @@ pip install --require-hashes -r requirements.txt
 python migrate.py
 sudo systemctl restart fishtank-ml fishtank-pvp
 ```
+
+## Upgrading dependencies
+
+`requirements.txt` is a generated lockfile: every package is pinned `==` with sha256 hashes, transitive ones included. **Never hand-edit it.** Direct dependencies live in `requirements.in`, and the lock is compiled from that.
+
+To upgrade or add a dependency:
+
+1. Edit `requirements.in` — change the `==` pin, or add the package.
+2. Re-compile the lock on **linux/x86_64 with Python 3.12**, so the resolved wheels match prod (Ubuntu 24.04, Python 3.12.3):
+
+   ```bash
+   cd BackEnds/the-snake-tank
+   uv pip compile requirements.in --generate-hashes --python-version 3.12 -o requirements.txt
+   ```
+
+   Install `uv` into a throwaway venv, never into the repo. If you have to compile on a different platform, add `--universal`.
+3. Commit **both** files together. Editing `requirements.in` alone changes nothing — the deploy installs from `requirements.txt`.
+
+> **Before bumping `scikit-learn` or `lightgbm` across a major version:** `predict.py` `joblib.load`s five `.joblib` models that exist only on the VPS and that nothing regenerates. The deploy restarts the services in the same run that installs the new versions, so a major bump loads those pickles under a library that may not read them. Stage that change; do not ship it as a routine pin bump.
+
+## If `pip install` fails during deploy
+
+The deploy script runs under `set -e` in the order `git pull` → `pip install` → `migrate.py` → `systemctl restart`. A lock that fails to install therefore aborts **after** the checkout has already been updated: the working tree on the VPS is new, but the running services still hold the old code in memory.
+
+That is a working-but-inconsistent state, not an outage. Keep it that way:
+
+1. **Do not restart the services to "clear it."** A restart loads the new tree against the old dependency set, which converts a recoverable state into a real one.
+2. Fix the cause — usually a `requirements.txt` missing hashes, or out of sync with `requirements.in`. Re-compile it (see *Upgrading dependencies* above) or revert it to the last known-good commit.
+3. Re-run the deploy and let it finish. The services restart on their own once `pip install` succeeds.
+
+`--require-hashes` is what makes this fail closed: if someone regenerates or hand-edits `requirements.txt` and strips the hashes out, an unflagged `pip install` would install it anyway. With the flag, the deploy stops here instead.
