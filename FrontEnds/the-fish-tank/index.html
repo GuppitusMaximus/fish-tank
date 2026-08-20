@@ -3,6 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- No frame-src on purpose: frames fall back to default-src 'self'.
+         js/dungeon-fisher.js frames dungeon-fisher/index.html, which is a
+         meta-refresh to https://www.fathomfall.com -- a cross-origin frame
+         navigation this policy would block. That file is dead code today
+         (referenced from nowhere); if you revive it, add frame-src
+         https://www.fathomfall.com rather than debugging a silent failure. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fishtank-auth.guppitus.workers.dev https://auth.the-fish-tank.com https://api.the-fish-tank.com https://www.fathomfall.com; object-src 'none'; base-uri 'self';">
     <link rel="icon" type="image/png" href="favicon.png">
     <title>The Fish Tank</title>
     <meta name="description" content="Games, weather models and a trading engine — running live from a self-hosted homelab and a VPS. Nine ML models forecast a real backyard weather station, next to a browser roguelike.">
@@ -252,9 +259,9 @@
     <script src="js/battle.js?v=22"></script>
     <script src="js/fighter.js?v=22"></script>
 
-    <script src="js/weather.js?v=22"></script>
+    <script src="js/weather.js?v=23"></script>
     <script src="js/fathomfall-admin.js?v=22"></script>
-    <script src="js/homelab.js?v=25"></script>
+    <script src="js/homelab.js?v=26"></script>
     <script src="js/market.js?v=25"></script>
     <script src="js/ff-status.js?v=23"></script>
     <script src="js/ff-scene.js?v=22"></script>
