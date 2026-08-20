@@ -28,14 +28,15 @@ FishTank is a one-person experiment taken to its logical end: what does software
 ```mermaid
 flowchart TD
     U["👤 Me — two touchpoints:\nrequirements interview · approval gate"] --> P["Planning repo (private)\nPRDs → plans → status"]
-    P -->|"one MCP call: activate_feature()"| B["Redis control bus"]
+    U -->|"one MCP call: activate_feature()"| M["MCP server — 57 tools\nplans · exploration cache · knowledge graph"]
+    M -->|"status flip · git push"| P
+    M -->|"signal"| B["Redis control bus"]
     B --> O["Orchestrator — its own container\ndependency DAG · retries · failure cascade"]
-    O -->|"Proxmox API — fresh container per plan"| L["Ephemeral LXC workers\nAppArmor · seccomp · egress firewall\nper-role write scope"]
+    O <--> DB[("PostgreSQL 16")]
+    M <--> DB
+    O -->|"Proxmox API — fresh container per plan"| L["Ephemeral LXC workers\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall · per-role write scope"]
+    L <-->|"plans · context · status · bug reports"| M
     L -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
-    T --> QA["tester + reviewer agents"]
-    QA -->|"bug reports · status"| P
-    O <--> M["MCP server — 57 tools\nplans · exploration cache · knowledge graph"]
-    M <--> DB[("PostgreSQL 16")]
     L --> OT["OpenTelemetry → Prometheus · Loki\nGrafana dashboards · mobile alerts"]
 ```
 
