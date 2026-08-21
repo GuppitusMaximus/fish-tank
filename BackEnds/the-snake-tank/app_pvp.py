@@ -121,11 +121,27 @@ _rate_lock = threading.Lock()
 _rate_buckets = {}
 
 
+# Only a request that actually arrived through the local cloudflared tunnel
+# can be trusted to carry a CF-Connecting-IP that Cloudflare set. The service
+# binds to 127.0.0.1 so that is the only ingress today, but trusting the header
+# unconditionally means that if it is ever bound to 0.0.0.0, or fronted by
+# something that does not sanitise it, a client can set the header itself and
+# mint a fresh rate-limit bucket on every request — bypassing the limits
+# entirely on endpoints that take unauthenticated writes.
+_TRUSTED_PROXY_PEERS = frozenset({"127.0.0.1", "::1", "::ffff:127.0.0.1"})
+_MAX_IP_LEN = 45  # longest valid IPv6 presentation form
+
+
 def _client_ip(request: Request):
-    forwarded = request.headers.get("CF-Connecting-IP")
-    if forwarded:
-        return forwarded
-    return request.client.host if request.client else "unknown"
+    peer = request.client.host if request.client else None
+    if peer in _TRUSTED_PROXY_PEERS:
+        forwarded = request.headers.get("CF-Connecting-IP")
+        if forwarded:
+            # Cloudflare sends a single address, but never trust that blindly:
+            # this value becomes a dict key, so cap it rather than let a
+            # malformed header grow the bucket table.
+            return forwarded.split(",")[0].strip()[:_MAX_IP_LEN]
+    return peer or "unknown"
 
 
 _rate_sweep_counter = 0
