@@ -14,7 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Hetzner VPS
-        uses: appleboy/ssh-action@v1
+        # Pinned to a commit SHA, not a tag. This step receives VPS_SSH_KEY —
+        # the private key to the production VPS — so a mutable tag means the
+        # action's maintainer (or anyone who compromises that account) can
+        # repoint it and exfiltrate the key on our next deploy. That is not
+        # hypothetical: tj-actions/changed-files was compromised exactly this
+        # way in March 2025. Bump deliberately by resolving the new tag to its
+        # SHA, never by moving back to a floating ref.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.VPS_HOST }}
           username: fishtank
