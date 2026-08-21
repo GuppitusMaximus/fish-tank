@@ -367,6 +367,33 @@ def get_home_location():
         return None
 
 
+def get_reference_location():
+    """Public reference point the unauthenticated station feed is centred on.
+
+    Deliberately separate from get_home_location(): publishing bearing and
+    distance measured from the house lets anyone match the set against
+    Netatmo's public station map and trilaterate the address. Measuring from
+    a published landmark instead means solving the constraints only yields
+    that landmark.
+
+    Returns None when unconfigured, and never falls back to the home
+    location — callers must omit the public station block entirely rather
+    than emit house-relative geometry.
+    """
+    lat = os.environ.get("WEATHER_REF_LAT")
+    lon = os.environ.get("WEATHER_REF_LON")
+    if not lat or not lon:
+        return None
+    try:
+        return {
+            "lat": float(lat),
+            "lon": float(lon),
+            "label": os.environ.get("WEATHER_REF_LABEL") or "reference point",
+        }
+    except (ValueError, TypeError):
+        return None
+
+
 def filter_nearest_stations(stations, home, count=20):
     """Add distance fields and return the nearest `count` stations."""
     for s in stations:
@@ -386,32 +413,41 @@ def bearing_deg(lat1, lon1, lat2, lon2):
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
-def scrub_public_stations(ps_data, home):
+def scrub_public_stations(ps_data, origin):
     """Build a coordinate-free public station payload.
 
     Emits only server-computed bearing and a coarse (whole-km) distance plus
-    the weather fields, dropping the MAC (station_id) and absolute lat/lon so
-    the home location can't be trilaterated from the unauthenticated payload.
+    the weather fields, dropping the MAC (station_id) and absolute lat/lon.
+
+    `origin` must be the public reference point from get_reference_location(),
+    never the home location. Dropping the coordinates is not sufficient on its
+    own: bearing and distance to ~20 stations that are themselves listed on
+    Netatmo's public map is a solvable constraint set, so measuring from the
+    house would still disclose the address. Measuring from a published
+    landmark makes the solution that landmark.
     """
     weather_fields = ("temperature", "humidity", "pressure", "rain_60min",
                       "rain_24h", "wind_strength", "wind_angle",
                       "gust_strength", "gust_angle")
     stations = []
     for idx, s in enumerate(ps_data.get("stations", []), start=1):
-        bearing = int(round(bearing_deg(home["lat"], home["lon"], s["lat"], s["lon"]))) % 360
+        bearing = int(round(bearing_deg(origin["lat"], origin["lon"], s["lat"], s["lon"]))) % 360
         dist_km = s.get("distance_km")
         if dist_km is None:
-            dist_km = haversine_km(home["lat"], home["lon"], s["lat"], s["lon"])
+            dist_km = haversine_km(origin["lat"], origin["lon"], s["lat"], s["lon"])
         out = {"id": "s%d" % idx, "bearing": bearing, "distance_km": int(round(dist_km))}
         for field in weather_fields:
             if field in s:
                 out[field] = s[field]
         stations.append(out)
-    return {
+    payload = {
         "fetched_at": ps_data.get("fetched_at"),
         "station_count": len(stations),
         "stations": stations,
     }
+    if origin.get("label"):
+        payload["reference_label"] = origin["label"]
+    return payload
 
 
 def export_public_stations():
@@ -951,8 +987,12 @@ def export(output_path, hours, history_path=None):
     }
 
     # Add latest public station snapshot so the compass view has data
-    # without needing a separate fetch to the manifest/data-index.json
-    home = get_home_location()
+    # without needing a separate fetch to the manifest/data-index.json.
+    # Centred on the public reference point, not the home location — both the
+    # geometry and the station *selection* must use it, since "the 20 nearest
+    # stations to my house" fingerprints the house on its own. Unconfigured
+    # means no station block at all; never fall back to home coordinates.
+    ref = get_reference_location()
     if os.path.isdir(PUBLIC_STATIONS_DIR):
         ps_dates = sorted(os.listdir(PUBLIC_STATIONS_DIR), reverse=True)
         for d in ps_dates:
@@ -965,11 +1005,11 @@ def export(output_path, hours, history_path=None):
             )
             if json_files:
                 ps_data = read_json(os.path.join(day_dir, json_files[0]))
-                if ps_data and home and ps_data.get("stations"):
+                if ps_data and ref and ps_data.get("stations"):
                     ps_data["stations"] = filter_nearest_stations(
-                        ps_data["stations"], home)
+                        ps_data["stations"], ref)
                     public_data['public_stations'] = scrub_public_stations(
-                        ps_data, home)
+                        ps_data, ref)
                 break
 
     public_path = os.path.join(os.path.dirname(output_path), 'weather-public.json')

@@ -34,6 +34,36 @@ pip install --require-hashes -r requirements.txt
 python migrate.py
 ```
 
+### 3a. Configure the public weather reference point
+
+`weather-public.json` is unauthenticated and world-readable. Its `public_stations` block
+publishes a bearing and distance for each of the ~20 nearest Netatmo stations.
+
+Those stations are themselves listed on Netatmo's **public** weathermap, so bearing and
+distance measured from the house form a solvable constraint set — enough to trilaterate the
+address. Rounding does not fix this; only moving the origin does. Geometry is therefore
+measured from a published landmark, and the station *selection* uses that same origin, since
+"the 20 nearest stations to my house" fingerprints the house by itself.
+
+Set these in `/opt/fishtank/BackEnds/the-snake-tank/.env`:
+
+```
+WEATHER_REF_LAT=<latitude of a published landmark near the station cluster>
+WEATHER_REF_LON=<longitude of that landmark>
+WEATHER_REF_LABEL=<human-readable name, e.g. a town — surfaced in the UI>
+```
+
+Pick somewhere genuinely public — a town centre works well — and far enough from the house
+that the solved origin is the landmark rather than the property.
+
+**Never commit the actual values,** including in this file. They belong only in the VPS `.env`.
+
+If `WEATHER_REF_LAT` or `WEATHER_REF_LON` is unset or unparseable, the export **omits the
+`public_stations` block entirely** rather than falling back to home coordinates. That is
+deliberate: a missing compass is a visible bug, whereas a silent fallback would republish the
+address. Moving the reference point later needs no code change — edit `.env` and the next
+pipeline run (every 20 min) picks it up.
+
 ### 4. Install systemd units
 
 ```bash

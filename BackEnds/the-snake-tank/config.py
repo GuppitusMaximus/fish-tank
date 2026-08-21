@@ -20,5 +20,13 @@ NETATMO_PUBLIC_LON_NE = os.environ.get("NETATMO_PUBLIC_LON_NE")
 NETATMO_PUBLIC_LAT_SW = os.environ.get("NETATMO_PUBLIC_LAT_SW")
 NETATMO_PUBLIC_LON_SW = os.environ.get("NETATMO_PUBLIC_LON_SW")
 
+# Public reference point for the unauthenticated station feed. Station
+# geometry is measured from here, never from the home location, so the
+# published bearing/distance set cannot be trilaterated back to the house.
+# Unset means the public station block is omitted entirely (fail closed).
+WEATHER_REF_LAT = os.environ.get("WEATHER_REF_LAT")
+WEATHER_REF_LON = os.environ.get("WEATHER_REF_LON")
+WEATHER_REF_LABEL = os.environ.get("WEATHER_REF_LABEL")
+
 MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
