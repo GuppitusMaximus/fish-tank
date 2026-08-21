@@ -31,7 +31,7 @@ app = FastAPI(title="FishTank ML Pipeline", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://the-fish-tank.com", "http://localhost:5173"],
+    allow_origins=["https://the-fish-tank.com"],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

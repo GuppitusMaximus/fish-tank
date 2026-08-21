@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, Query, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -49,7 +50,7 @@ app = FastAPI(title="FishTank PvP Service", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://the-fish-tank.com", "http://localhost:5173"],
+    allow_origins=["https://the-fish-tank.com"],
     allow_origin_regex=r"https://([a-z0-9-]+\.)?fathomfall\.com|https://([a-z0-9-]+\.)?fathomfall\.pages\.dev",
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -89,7 +90,11 @@ async def validation_exception_handler(request, exc):
         "path": request.url.path,
         "error": str(exc.errors())[:500]
     })
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # exc.errors() carries the original ValueError under ctx for any custom
+    # @field_validator failure, and that is not JSON-serialisable — so building
+    # the response raised, and every custom validation error surfaced as a 500
+    # with a traceback instead of a 422. jsonable_encoder coerces it safely.
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
 
 # --- State & Metrics ---
@@ -776,7 +781,7 @@ def admin_snapshots(
 
 
 @app.get("/pvp/metrics")
-def metrics():
+def metrics(_admin=Depends(require_admin)):
     return _metrics
 
 

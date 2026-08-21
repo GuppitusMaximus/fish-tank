@@ -273,12 +273,11 @@ class TestLeaderboard:
 
 class TestMetrics:
 
-    def test_metrics_returns_counters(self, client):
+    def test_metrics_requires_admin(self, client):
+        # /pvp/metrics is admin-gated: it exposed upload and matchmaking
+        # counters to anyone who asked.
         resp = client.get("/pvp/metrics")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "snapshot_upload_count" in data
-        assert "matchmaking_requests" in data
+        assert resp.status_code == 401
 
     def test_snapshot_upload_increments_counter(self, client, mock_db):
         before = _metrics["snapshot_upload_count"]
