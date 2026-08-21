@@ -1664,7 +1664,13 @@ a.hub-tag:hover { background: var(--surface-mid); }
 /* TankCore: the label sits above the body, which flexes to fill the tile so
    whichever pane is showing has no empty gap below it. */
 #tankcore-tile { display: flex; flex-direction: column; }
-#tankcore-tile .tankcore-body { position: relative; flex: 1; display: flex; margin-top: 0.4rem; }
+#tankcore-tile .tankcore-body {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.4rem;
+}
 #tankcore-tile .hub-locked {
     flex: 1;
     display: flex;
@@ -1673,6 +1679,9 @@ a.hub-tag:hover { background: var(--surface-mid); }
     gap: 0.6rem;
 }
 .hub-locked { transition: filter 0.4s ease, opacity 0.4s ease; }
+/* The sub-gate's decoy rows are not a pane wrapper — they stack on their own
+   margins, like the homelab tile's. */
+#tankcore-tile .hub-subgate .hub-locked { display: block; flex: none; }
 /* Two panes in the body: the delayed public feed and the signed-in renderer.
    The auth class sweep shows exactly one of them, and .hub-locked collapses
    with its pane so the visible one always gets the tile's full width. */
@@ -1694,13 +1703,13 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #tankcore-tile .tc-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
 #tankcore-tile .tc-chips .hub-tag.tc-warn { border-color: var(--warn); color: var(--warn); }
 #tankcore-tile .tc-chips .hub-tag.tc-alert { border-color: var(--bad); color: var(--bad); }
+#tankcore-tile .tc-chips .hub-tag.tc-mode-paper { border-color: var(--warn); color: var(--warn); }
+#tankcore-tile .tc-chips .hub-tag.tc-mode-live { border-color: var(--bad); color: var(--bad); }
 #tankcore-tile .tc-reject { margin-top: 0.3rem; opacity: 0.85; }
 /* Public pane: the spark travels with its caption so the pane's space-between
-   cannot separate them, and the CTA sits inline where the veil used to be. */
+   cannot separate them. The call to action is the sub-gate's veil below. */
 #tankcore-tile .tc-spark .hub-spark { margin-top: 0; }
 #tankcore-tile .tc-history { margin-top: 0.3rem; opacity: 0.85; }
-#tankcore-tile .tc-gate { display: flex; flex-direction: column; }
-#tankcore-tile .tc-cta { margin-top: 0.5rem; align-self: flex-start; }
 
 .hub-gated:has(.hub-gate-veil:not(.auth-hidden)) .hub-locked {
     filter: blur(7px) saturate(0.7);

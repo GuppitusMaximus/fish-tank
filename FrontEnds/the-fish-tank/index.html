@@ -107,11 +107,22 @@
                 </div>
                 <a class="hub-more auth-gated auth-hidden" data-view="weather">Full dashboard &rarr;</a>
             </div>
-            <div class="hub-tile hub-span3 hub-gated" id="tankcore-tile">
-                <div class="hub-label"><span class="status-dot market-closed" id="tankcore-dot"></span> TankCore &middot; Shadow Trader</div>
+            <div class="hub-tile hub-span3" id="tankcore-tile">
+                <div class="hub-label"><span class="status-dot market-closed" id="tankcore-dot"></span> TankCore &middot; Quant Trader</div>
                 <div class="tankcore-body">
                     <div class="tankcore-pane auth-public-only" id="tankcore-public">
                         <div class="wx-skeleton"><span></span><span></span><span></span></div>
+                    </div>
+                    <div class="hub-subgate auth-public-only" id="tankcore-subgate">
+                        <div class="hub-locked" aria-hidden="true">
+                            <div class="wx-rank-row"><span>positions</span><i style="width:38%"></i></div>
+                            <div class="wx-rank-row"><span>exposure</span><i style="width:24%"></i></div>
+                            <div class="wx-rank-row"><span>30-day P&amp;L</span><i style="width:55%"></i></div>
+                        </div>
+                        <div class="hub-gate-veil">
+                            <button class="hub-gate-btn" type="button">Sign in</button>
+                            <span class="hub-gate-msg">positions &middot; risk posture &middot; P&amp;L</span>
+                        </div>
                     </div>
                     <div class="hub-locked">
                       <div class="tankcore-pane auth-gated auth-hidden" id="tankcore-live">
@@ -239,7 +250,7 @@
         <button id="signin-close" class="signin-close">&times;</button>
         <div class="signin-fish"><img src="assets/guppitus-emblem.png?v=6" alt="Guppitus Maximus" width="96" height="96"></div>
         <h2>FishTank</h2>
-        <p class="signin-subtitle">Sign in to unlock the TankCore shadow trader, weather predictions, live homelab metrics, admin controls, and full dashboards</p>
+        <p class="signin-subtitle">Sign in to unlock the TankCore quant trader, weather predictions, live homelab metrics, admin controls, and full dashboards</p>
         <form id="signin-form">
           <input type="text" id="signin-username" placeholder="Username" autocomplete="username" required>
           <input type="password" id="signin-password" placeholder="Password" autocomplete="current-password" required>
@@ -257,7 +268,7 @@
     <script src="js/fathomfall-admin.js?v=22"></script>
     <script src="js/homelab.js?v=26"></script>
     <script src="js/market.js?v=25"></script>
-    <script src="js/tankcore.js?v=29"></script>
+    <script src="js/tankcore.js?v=30"></script>
     <script src="js/ff-status.js?v=23"></script>
     <script src="js/ff-scene.js?v=22"></script>
     <script src="js/mocks.js?v=22"></script>

@@ -21,6 +21,15 @@ var TankCoreApp = (function () {
     closed: 'closed'
   };
 
+  // The feed's mode is going tri-state (shadow | paper | live). An unrecognised
+  // value reads as shadow: claiming real money is at risk is the one thing a
+  // stale or unknown code must never do on the feed's behalf.
+  var MODE_TAGS = {
+    shadow: { label: 'shadow mode', cls: 'tc-mode-shadow' },
+    paper: { label: 'paper trading', cls: 'tc-mode-paper' },
+    live: { label: 'live trading', cls: 'tc-mode-live' }
+  };
+
   // Codes the decision engine emits today; anything new falls through to the
   // lower-cased code so an unseen reason still reads as words.
   var REJECT_LABELS = {
@@ -44,6 +53,10 @@ var TankCoreApp = (function () {
   function lookup(map, key) {
     var k = String(key == null ? '' : key);
     return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null;
+  }
+
+  function modeTag(mode) {
+    return lookup(MODE_TAGS, mode) || MODE_TAGS.shadow;
   }
 
   function fmtPct(p) {
@@ -118,7 +131,7 @@ var TankCoreApp = (function () {
     if (!el) return;
     var hasTrades = (d.trades_30d || 0) > 0;
     var pnlColor = (d.pnl_30d_pct || 0) >= 0 ? '#3ddc97' : '#ff7a7a';
-    var modeLabel = d.mode === 'live' ? 'live' : 'shadow';
+    var mode = modeTag(d.mode);
 
     // In shadow mode the 30-day P&L is structurally zero, so the hero leads
     // with how long the trader has been watching instead; the P&L hero comes
@@ -127,7 +140,7 @@ var TankCoreApp = (function () {
     if (hasTrades) {
       heroBlock = '<div><div class="hub-big" style="color:' + pnlColor + '">' +
         esc(fmtPct(d.pnl_30d_pct)) + '<small>%</small></div>' +
-        '<div class="hub-sub">30-day P&amp;L · ' + esc(modeLabel) +
+        '<div class="hub-sub">30-day P&amp;L · ' + esc(mode.label) +
         ' · ' + esc(d.wins_30d) + '/' + esc(d.trades_30d) + ' wins' +
         '</div></div>';
     } else {
@@ -138,7 +151,7 @@ var TankCoreApp = (function () {
       var scope = (d.trading_days_total == null && since === null)
         ? 'sessions (30d)' : 'sessions observed';
       heroBlock = '<div><div class="hub-big">' + esc(fmtNum(days)) + '</div>' +
-        '<div class="hub-sub">' + scope + ' · ' + esc(modeLabel) +
+        '<div class="hub-sub">' + scope + ' · ' + esc(mode.label) +
         (since ? ' since ' + esc(since) : '') + '</div></div>';
     }
 
@@ -152,7 +165,7 @@ var TankCoreApp = (function () {
       esc(fmtNum(d.decisions_today)) + ' decisions &rarr; ' +
       esc(fmtNum(d.approved_today)) + ' approved</div>';
 
-    var chips = [];
+    var chips = [chip(esc(mode.label), mode.cls)];
     var phase = lookup(PHASE_LABELS, d.session_phase);
     if (phase) chips.push(chip(esc(phase)));
 
@@ -244,9 +257,12 @@ var TankCoreApp = (function () {
     var chips = [];
     var phase = lookup(PHASE_LABELS, d.session_phase);
     if (phase) chips.push(chip(esc(phase)));
-    // Omitted rather than defaulted to shadow: whether real money is at risk is
-    // the one claim this pane must not make on the feed's behalf.
-    if (d.mode != null) chips.push(chip(esc(d.mode === 'live' ? 'live' : 'shadow')));
+    // Still omitted outright when the feed sends no mode: whether real money is
+    // at risk is the one claim this pane must not make on the feed's behalf.
+    if (d.mode != null) {
+      var mode = modeTag(d.mode);
+      chips.push(chip(esc(mode.label), mode.cls));
+    }
     // True by construction, and it explains a last-bar age that reads 15–20m
     // during the regular session.
     chips.push(chip('15-min delayed'));
@@ -269,11 +285,7 @@ var TankCoreApp = (function () {
         '<div class="hub-sub">decisions per day, 14d</div></div>' +
       '<div class="tc-chips">' + chips.join('') + '</div>' +
       (history.length
-        ? '<div class="hub-sub tc-history">' + history.join(' &middot; ') + '</div>' : '') +
-      '<div class="tc-gate">' +
-        '<button class="hub-gate-btn tc-cta" type="button">Sign in for the full book &rarr;</button>' +
-        '<div class="hub-sub">positions &middot; risk posture &middot; P&amp;L</div>' +
-      '</div>';
+        ? '<div class="hub-sub tc-history">' + history.join(' &middot; ') + '</div>' : '');
   }
 
   function renderPublicMessage(msg) {
