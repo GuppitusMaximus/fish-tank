@@ -1684,6 +1684,13 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #tankcore-tile .tc-foot { display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
 #tankcore-tile .tc-meta { opacity: 0.8; text-align: right; }
 #tankcore-tile .tc-msg { margin: auto 0; }
+/* Shadow-trader rows below the hero: the daily funnel, the posture chips
+   (session, opening range, risk) and the rejection tally. */
+#tankcore-tile .tc-funnel { margin-top: 0.35rem; opacity: 0.85; }
+#tankcore-tile .tc-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+#tankcore-tile .tc-chips .hub-tag.tc-warn { border-color: var(--warn); color: var(--warn); }
+#tankcore-tile .tc-chips .hub-tag.tc-alert { border-color: var(--bad); color: var(--bad); }
+#tankcore-tile .tc-reject { margin-top: 0.3rem; opacity: 0.85; }
 
 .hub-gated:has(.hub-gate-veil:not(.auth-hidden)) .hub-locked {
     filter: blur(7px) saturate(0.7);
