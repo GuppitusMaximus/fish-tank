@@ -2627,6 +2627,13 @@ window.WeatherApp = (() => {
     return dirs[Math.round(bearing / 45) % 8];
   }
 
+  // The public feed is centred on a configured reference point rather than the
+  // operator's home, so name it when the feed supplies one.
+  function nearbyHeading(ps, fallback) {
+    var label = ps && typeof ps.reference_label === 'string' ? ps.reference_label.trim() : '';
+    return label ? 'Stations near ' + label : fallback;
+  }
+
   function renderCompassList(stations) {
     var sorted = stations.slice().sort(function(a, b) { return a.distance_mi - b.distance_mi; });
     var list = document.createElement('div');
@@ -2683,7 +2690,7 @@ window.WeatherApp = (() => {
     var header = document.createElement('div');
     header.className = 'compass-header';
     var heading = document.createElement('h2');
-    heading.textContent = 'Nearby Stations';
+    heading.textContent = nearbyHeading(data, 'Nearby Stations');
     header.appendChild(heading);
     var toggle = document.createElement('button');
     toggle.className = 'compass-toggle';
@@ -2944,7 +2951,7 @@ window.WeatherApp = (() => {
     el.innerHTML =
       '<div class="nearby-inner">' +
         '<div class="nearby-head">' +
-          '<div class="hub-label">Nearby stations</div>' +
+          '<div class="hub-label">' + escapeHtml(nearbyHeading(ps, 'Nearby stations')) + '</div>' +
           '<div><span class="hub-big">' + withTemp.length + '</span> ' +
           '<span class="hub-sub">reporting' + (maxMi ? ' · within ' + Math.round(maxMi) + ' mi' : '') + '</span></div>' +
         '</div>' +
