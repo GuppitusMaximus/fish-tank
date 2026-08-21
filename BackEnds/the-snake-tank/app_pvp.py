@@ -404,8 +404,10 @@ def get_opponent(
 
     _metrics["matchmaking_hits"] += 1
 
+    # The opponent's UUID is deliberately NOT returned. Snapshot upload and
+    # set-name accept a client-supplied playerId with no auth, so handing out
+    # other players' UUIDs is what turns those into an impersonation primitive.
     snapshot = {
-        "playerId": row[0],
         "character": row[1],
         "floor": row[2],
         "fish": row[3],
@@ -425,7 +427,8 @@ def get_opponent(
 
 
 @app.get("/pvp/leaderboard")
-def leaderboard(request: Request, limit: int = Query(20, ge=1, le=100), season: str = Query(None)):
+def leaderboard(request: Request, limit: int = Query(20, ge=1, le=100), season: str = Query(None),
+                playerId: Optional[str] = Query(None)):
     rate_limit(request, "leaderboard", 60)
     from db import get_connection
     now = datetime.now(timezone.utc)
@@ -472,14 +475,19 @@ def leaderboard(request: Request, limit: int = Query(20, ge=1, le=100), season: 
             """)
             seasons = [r[0] for r in cur.fetchall()]
 
+    # Publishing every player's UUID let anyone harvest ids from this endpoint
+    # and then forge snapshots or claim display names as those players, since
+    # the write endpoints trust a client-supplied playerId. Callers pass their
+    # own id and get isYou back instead, so the client can still highlight its
+    # own row without any player's id being disclosed.
     entries = [
         {
-            "playerId": row[0],
             "character": row[1],
             "highestFloor": row[2],
             "snapshots": row[3],
             "peakPower": row[4],
             "displayName": row[5],
+            "isYou": bool(playerId) and row[0] == playerId,
         }
         for row in rows
     ]
