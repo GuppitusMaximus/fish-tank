@@ -1671,6 +1671,19 @@ a.hub-tag:hover { background: var(--surface-mid); }
     gap: 0.6rem;
 }
 .hub-locked { transition: filter 0.4s ease, opacity 0.4s ease; }
+/* Two panes inside the masked body: the static sample (public) and the live
+   renderer (signed-in). The auth class sweep shows exactly one of them. */
+#tankcore-tile .tankcore-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+#tankcore-tile .tankcore-pane.auth-hidden { display: none; }
+#tankcore-tile .tc-foot { display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+#tankcore-tile .tc-meta { opacity: 0.8; text-align: right; }
+#tankcore-tile .tc-msg { margin: auto 0; }
 
 .hub-gated:has(.hub-gate-veil:not(.auth-hidden)) .hub-locked {
     filter: blur(7px) saturate(0.7);

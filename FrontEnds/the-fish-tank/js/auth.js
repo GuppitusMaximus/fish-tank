@@ -88,6 +88,9 @@ var FishTankAuth = (function() {
       el.classList.add('auth-hidden');
     });
 
+    // Gated live renderers fetch only once a token exists
+    if (window.TankCoreApp) TankCoreApp.load();
+
     // Play success animation on modal
     var modal = document.getElementById('signin-modal');
     if (modal) {
@@ -107,6 +110,9 @@ var FishTankAuth = (function() {
     document.querySelectorAll('.auth-public-only').forEach(function(el) {
       el.classList.remove('auth-hidden');
     });
+
+    // Drop live data so nothing real sits behind the blur for the next visitor
+    if (window.TankCoreApp) TankCoreApp.clear();
 
     // If on a gated view, navigate to home
     if (window.location.hash === '#weather' || window.location.hash === '#fathomfall' || window.location.hash === '#mocks') {
