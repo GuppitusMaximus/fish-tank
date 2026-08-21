@@ -1655,12 +1655,14 @@ a.hub-tag:hover { background: var(--surface-mid); }
 .hub-subgate .hub-gate-msg { font-size: 0.72rem; line-height: 1.35; max-width: 24ch; }
 .hub-lock-mini { opacity: 0.9; }
 
-/* Gated tile (TankCore) — veil is .auth-public-only, so sign-in hides it;
-   the :has() rule lifts the blur in the same moment. The label stays outside
-   .tankcore-body so it reads clearly while the body below is masked. */
+/* Gated tile (TankCore) — no veil and no blur here any more: the pane an
+   anonymous visitor sees carries real (delayed) numbers, and real numbers are
+   never masked, since the mask is cosmetic and the data one inspect away.
+   The :has() blur rule below is left for any .hub-gated tile that still pairs
+   a veil with decoy content. */
 .hub-gated { overflow: hidden; }
-/* TankCore: title stays outside the mask; body flexes to fill the tile so the
-   masked area has no empty gap below it. */
+/* TankCore: the label sits above the body, which flexes to fill the tile so
+   whichever pane is showing has no empty gap below it. */
 #tankcore-tile { display: flex; flex-direction: column; }
 #tankcore-tile .tankcore-body { position: relative; flex: 1; display: flex; margin-top: 0.4rem; }
 #tankcore-tile .hub-locked {
@@ -1671,8 +1673,10 @@ a.hub-tag:hover { background: var(--surface-mid); }
     gap: 0.6rem;
 }
 .hub-locked { transition: filter 0.4s ease, opacity 0.4s ease; }
-/* Two panes inside the masked body: the static sample (public) and the live
-   renderer (signed-in). The auth class sweep shows exactly one of them. */
+/* Two panes in the body: the delayed public feed and the signed-in renderer.
+   The auth class sweep shows exactly one of them, and .hub-locked collapses
+   with its pane so the visible one always gets the tile's full width. */
+#tankcore-tile .hub-locked:has(> .tankcore-pane.auth-hidden) { display: none; }
 #tankcore-tile .tankcore-pane {
     flex: 1;
     display: flex;
@@ -1691,6 +1695,12 @@ a.hub-tag:hover { background: var(--surface-mid); }
 #tankcore-tile .tc-chips .hub-tag.tc-warn { border-color: var(--warn); color: var(--warn); }
 #tankcore-tile .tc-chips .hub-tag.tc-alert { border-color: var(--bad); color: var(--bad); }
 #tankcore-tile .tc-reject { margin-top: 0.3rem; opacity: 0.85; }
+/* Public pane: the spark travels with its caption so the pane's space-between
+   cannot separate them, and the CTA sits inline where the veil used to be. */
+#tankcore-tile .tc-spark .hub-spark { margin-top: 0; }
+#tankcore-tile .tc-history { margin-top: 0.3rem; opacity: 0.85; }
+#tankcore-tile .tc-gate { display: flex; flex-direction: column; }
+#tankcore-tile .tc-cta { margin-top: 0.5rem; align-self: flex-start; }
 
 .hub-gated:has(.hub-gate-veil:not(.auth-hidden)) .hub-locked {
     filter: blur(7px) saturate(0.7);

@@ -1,12 +1,17 @@
-// TankCore tile — live QTP aggregates for signed-in visitors.
-// Anonymous visitors see the static sample pane (blurred behind the veil);
-// signing in swaps to this renderer, fed by the auth Worker's /data/tankcore
-// (JWT-gated, KV-backed, pushed from the trader every few minutes).
+// TankCore tile — live QTP aggregates for the hub tile.
+// Anonymous visitors get the unblurred public pane, fed by the delayed and
+// unauthenticated /data/tankcore-public; signing in swaps to the full
+// renderer, fed by the auth Worker's /data/tankcore (JWT-gated, KV-backed,
+// pushed from the trader every few minutes).
 var TankCoreApp = (function () {
   'use strict';
 
   var FEED_URL = (typeof AUTH_API_URL !== 'undefined' && AUTH_API_URL)
     ? AUTH_API_URL + '/data/tankcore' : null;
+  // Unauthenticated 15-minute-delayed proof-of-life: activity counts only,
+  // nothing tradable. Rendered unblurred — real numbers never sit behind a veil.
+  var PUBLIC_URL = (typeof AUTH_API_URL !== 'undefined' && AUTH_API_URL)
+    ? AUTH_API_URL + '/data/tankcore-public' : null;
   var SKELETON = '<div class="wx-skeleton"><span></span><span></span><span></span></div>';
 
   var PHASE_LABELS = {
@@ -223,15 +228,100 @@ var TankCoreApp = (function () {
     if (el) el.innerHTML = '<div class="hub-sub tc-msg">' + esc(msg) + '</div>';
   }
 
+  // The public pane renders only what the delayed feed carries, and never the
+  // whole of it: symbols, approvals, positions, risk and P&L stay behind the
+  // CTA even if a later payload starts shipping them.
+  function renderPublic(d) {
+    var el = document.getElementById('tankcore-public');
+    if (!el) return;
+
+    var barsBlock = '<div><div class="hub-big">' + esc(fmtNum(d.bars_today)) + '</div>' +
+      '<div class="hub-sub">bars today</div></div>';
+    // "evaluations", not "decisions" — nothing out here was acted on.
+    var evalBlock = '<div><div class="hub-big">' + esc(fmtNum(d.decisions_today)) + '</div>' +
+      '<div class="hub-sub">evaluations today</div></div>';
+
+    var chips = [];
+    var phase = lookup(PHASE_LABELS, d.session_phase);
+    if (phase) chips.push(chip(esc(phase)));
+    // Omitted rather than defaulted to shadow: whether real money is at risk is
+    // the one claim this pane must not make on the feed's behalf.
+    if (d.mode != null) chips.push(chip(esc(d.mode === 'live' ? 'live' : 'shadow')));
+    // True by construction, and it explains a last-bar age that reads 15–20m
+    // during the regular session.
+    chips.push(chip('15-min delayed'));
+
+    // Each segment drops out on its own so a partial payload still reads as a
+    // sentence rather than a row of gaps.
+    var history = [];
+    var since = shortDate(d.first_event_at);
+    if (d.trading_days_total != null) {
+      history.push(esc(fmtNum(d.trading_days_total)) + ' sessions' +
+        (since ? ' since ' + esc(since) : ''));
+    }
+    if (d.symbols_count != null) history.push(esc(fmtNum(d.symbols_count)) + ' symbols');
+    var barAge = ago(d.last_bar_at);
+    if (barAge) history.push('last bar ' + esc(barAge));
+
+    el.innerHTML =
+      '<div class="hub-metric-row">' + barsBlock + evalBlock + '</div>' +
+      '<div class="tc-spark">' + spark(d.decisions_14d, '#3ddc97') +
+        '<div class="hub-sub">decisions per day, 14d</div></div>' +
+      '<div class="tc-chips">' + chips.join('') + '</div>' +
+      (history.length
+        ? '<div class="hub-sub tc-history">' + history.join(' &middot; ') + '</div>' : '') +
+      '<div class="tc-gate">' +
+        '<button class="hub-gate-btn tc-cta" type="button">Sign in for the full book &rarr;</button>' +
+        '<div class="hub-sub">positions &middot; risk posture &middot; P&amp;L</div>' +
+      '</div>';
+  }
+
+  function renderPublicMessage(msg) {
+    var el = document.getElementById('tankcore-public');
+    if (el) el.innerHTML = '<div class="hub-sub tc-msg">' + esc(msg) + '</div>';
+  }
+
+  // initAuthState() -> onSignedOut() -> clear() and init.js's own load() both
+  // reach loadPublic() in the same tick at boot, so the flag holds it to the
+  // one fetch per state the tile is meant to make.
+  var publicPending = false;
+
+  function loadPublic() {
+    var el = document.getElementById('tankcore-public');
+    if (!el || publicPending) return;
+    if (!PUBLIC_URL) { renderPublicMessage('Live feed not configured'); return; }
+    publicPending = true;
+    el.innerHTML = SKELETON;
+    fetch(PUBLIC_URL)
+      .then(function (res) {
+        if (res.status === 404) throw new Error('nodata');
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      })
+      .then(function (d) { publicPending = false; renderPublic(d); })
+      .catch(function (err) {
+        publicPending = false;
+        renderPublicMessage(err && err.message === 'nodata'
+          ? 'Trader reports after its first session.'
+          : 'Live feed unavailable right now.');
+      });
+  }
+
+  // Sign-out drops the gated numbers, then refills the public pane so the tile
+  // falls back to proof-of-life rather than an idle skeleton.
   function clear() {
     var el = document.getElementById('tankcore-live');
     if (el) el.innerHTML = SKELETON;
+    loadPublic();
   }
 
   function load() {
+    if (typeof FishTankAuth === 'undefined' || !FishTankAuth.isAuthenticated()) {
+      loadPublic();
+      return;
+    }
     var el = document.getElementById('tankcore-live');
     if (!el) return;
-    if (typeof FishTankAuth === 'undefined' || !FishTankAuth.isAuthenticated()) return;
     if (!FEED_URL) { renderMessage('Live feed not configured'); return; }
     el.innerHTML = SKELETON;
     fetch(FEED_URL, { headers: FishTankAuth.authHeaders() })
@@ -248,5 +338,5 @@ var TankCoreApp = (function () {
       });
   }
 
-  return { load: load, clear: clear };
+  return { load: load, loadPublic: loadPublic, clear: clear };
 })();
