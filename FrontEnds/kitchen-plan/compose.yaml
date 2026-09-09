@@ -1,0 +1,7 @@
+services:
+  kitchen-plan:
+    build: .
+    container_name: kitchen-plan
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
