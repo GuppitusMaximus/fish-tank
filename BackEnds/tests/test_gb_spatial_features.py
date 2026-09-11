@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'the-snake-tank'))
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from public_features import (
     SPATIAL_COLS_ENRICHED,
     SPATIAL_COLS_FULL,
@@ -44,84 +44,33 @@ def test_spatial_cols_enriched_exists():
         assert col in SPATIAL_COLS_ENRICHED, f"Missing enriched column: {col}"
 
 
-def test_get_features_for_timestamp_returns_enriched_columns():
+def test_get_features_for_timestamp_returns_enriched_columns(public_station_db):
     """Test _get_features_for_timestamp returns enriched columns."""
-    import sqlite3
-    import tempfile
-
-    # _get_features_for_timestamp requires a connection and temp_outdoor
-    # Create a temporary database for testing
-    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp:
-        db_path = tmp.name
-
-    try:
-        conn = sqlite3.connect(db_path)
-        # Create empty public_stations table
-        conn.execute("""
-            CREATE TABLE public_stations (
-                temperature REAL, humidity REAL, pressure REAL,
-                rain_60min REAL, rain_24h REAL, wind_strength REAL, gust_strength REAL,
-                fetched_at TEXT
-            )
-        """)
-        conn.commit()
-
-        # Test with no data (should return defaults)
-        timestamp = datetime(2020, 1, 1, 12, 0, 0).timestamp()
-        result = _get_features_for_timestamp(conn, timestamp, 20.0)
-
-        assert isinstance(result, dict)
-
-        # Verify all enriched column keys are present
-        assert "regional_avg_rain_60min" in result
-        assert "regional_avg_rain_24h" in result
-        assert "regional_avg_wind_strength" in result
-        assert "regional_avg_gust_strength" in result
-
-        # Verify original columns are still present
-        assert "regional_avg_temp" in result
-        assert "regional_avg_humidity" in result
-        assert "regional_avg_pressure" in result
-
-        conn.close()
-    finally:
-        import os
-        os.unlink(db_path)
+    timestamp = datetime(2020, 1, 1, 12, tzinfo=timezone.utc).timestamp()
+    with public_station_db.cursor() as cur:
+        result = _get_features_for_timestamp(cur, timestamp, 20.0)
+    assert result == {col: 0.0 for col in SPATIAL_COLS_ENRICHED}
 
 
-def test_add_spatial_columns_adds_enriched_columns():
+@pytest.mark.parametrize("has_table", [True, False])
+def test_add_spatial_columns_adds_enriched_columns(public_station_db, has_table):
     """Test add_spatial_columns adds enriched columns."""
     import pandas as pd
-    import tempfile
-    import sqlite3
 
     # Create minimal DataFrame
     df = pd.DataFrame({
-        'timestamp': [datetime(2020, 1, 1, 12, 0, 0).timestamp()],
+        'timestamp': [datetime(2020, 1, 1, 12, tzinfo=timezone.utc).timestamp()],
         'temp_outdoor': [20.0]
     })
 
-    # Create a temporary database
-    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp:
-        db_path = tmp.name
+    if not has_table:
+        with public_station_db.cursor() as cur:
+            cur.execute("DROP TABLE public_stations")
 
-    try:
-        # Create empty database (no public_stations table)
-        conn = sqlite3.connect(db_path)
-        conn.close()
-
-        # Add spatial columns
-        result = add_spatial_columns(db_path, df)
-
-        # Verify all SPATIAL_COLS_ENRICHED columns are present
-        for col in SPATIAL_COLS_ENRICHED:
-            assert col in result.columns, f"Missing column: {col}"
-
-        # Verify values are present (even if zeros when no public station data)
-        assert not result[SPATIAL_COLS_ENRICHED].isnull().all().all()
-    finally:
-        import os
-        os.unlink(db_path)
+    result = add_spatial_columns(df)
+    for col in SPATIAL_COLS_ENRICHED:
+        assert col in result.columns, f"Missing column: {col}"
+        assert (result[col] == 0.0).all()
 
 
 def test_existing_spatial_column_lists_unchanged():

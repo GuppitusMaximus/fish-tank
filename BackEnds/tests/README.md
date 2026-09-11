@@ -17,6 +17,24 @@ python3 -m pytest tests/ -v
 
 Note: Some tests train ML models in isolated tmp directories and take a few seconds each.
 
+### Spatial lookup PostgreSQL tests
+
+The spatial-feature tests use `SPATIAL_TEST_DATABASE_URL`, never the application's
+`DATABASE_URL`. Point it at a disposable PostgreSQL database on a loopback host
+whose name starts with `test_`. The fixture rolls back each test's schema and data.
+Database-dependent cases skip when this variable is absent.
+
+```bash
+SPATIAL_TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55439/test_public_features \
+  python3 -m pytest tests/test_public_station_indexed_lookup.py \
+  tests/test_gb_spatial_features.py tests/test_public_station_spatial_features.py \
+  tests/the-snake-tank/test_vps_pipeline_postgres.py -q
+```
+
+These tests cover the exclusive 30-minute boundaries, UTC timestamps across
+calendar and daylight-saving transitions, missing data, feature values, and
+index usage under the normal PostgreSQL planner settings.
+
 ## Test Files
 
 ### `test_code_quality.py`

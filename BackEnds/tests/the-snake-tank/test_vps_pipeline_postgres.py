@@ -70,12 +70,13 @@ class TestSqliteImports:
                 assert "sqlite3" not in imports, \
                     f"{script} should not import sqlite3"
 
-    def test_all_scripts_import_db_module(self):
+    def test_all_scripts_use_shared_database_config(self):
         for script in PIPELINE_SCRIPTS:
             source = _read(script)
             imports = _parse_imports(source)
-            assert "db" in imports, \
-                f"{script} should import from db module"
+            # build_dataset manages reconnects itself using config.DATABASE_URL.
+            assert {"db", "config"} & imports, \
+                f"{script} should use shared database configuration"
 
 
 # =============================================================================
@@ -286,11 +287,6 @@ class TestPublicFeaturesPostgres:
         source = _read("public_features.py")
         assert "sqlite_master" not in source
 
-    def test_uses_extract_epoch(self):
-        """Uses EXTRACT(EPOCH FROM ...) for timestamp math, not strftime."""
-        source = _read("public_features.py")
-        assert "EXTRACT(EPOCH FROM" in source
-
     def test_no_strftime_in_sql(self):
         """No SQLite strftime() in SQL queries."""
         source = _read("public_features.py")
@@ -299,10 +295,6 @@ class TestPublicFeaturesPostgres:
         sql_sections += re.findall(r"'''(.*?)'''", source, re.DOTALL)
         for sql in sql_sections:
             assert "strftime" not in sql
-
-    def test_uses_timestamptz_cast(self):
-        source = _read("public_features.py")
-        assert "::TIMESTAMPTZ" in source
 
     def test_queries_public_stations_table(self):
         source = _read("public_features.py")

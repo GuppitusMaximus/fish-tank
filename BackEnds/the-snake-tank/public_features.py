@@ -5,6 +5,8 @@ statistics for each reading timestamp in a lookback window. Used by
 both predict.py and train_model.py to ensure feature consistency.
 """
 
+from datetime import datetime, timedelta, timezone
+
 from db import get_connection
 
 # Full spatial features (used by 24hrRaw model)
@@ -40,8 +42,8 @@ def _has_public_stations(cur):
     )
     if not cur.fetchone():
         return False
-    cur.execute("SELECT COUNT(*) FROM public_stations")
-    return cur.fetchone()[0] > 0
+    cur.execute("SELECT EXISTS (SELECT 1 FROM public_stations)")
+    return cur.fetchone()[0]
 
 
 def _get_features_for_timestamp(cur, timestamp, temp_outdoor):
@@ -50,13 +52,20 @@ def _get_features_for_timestamp(cur, timestamp, temp_outdoor):
     Queries public stations within +/-30 minutes of the timestamp.
     Returns a dict with all SPATIAL_COLS_ENRICHED keys.
     """
+    # fetch_weather and the CSV importer store fixed-width UTC timestamps as
+    # YYYY-MM-DDTHH:MM:SSZ. Compare those strings directly so the existing
+    # fetched_at index can restrict the scan to this one-hour window.
+    # Keep both bounds exclusive, matching the original ABS(delta) < 1800.
+    target = datetime.fromtimestamp(int(timestamp), timezone.utc)
+    lower = (target - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    upper = (target + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
     cur.execute("""
         SELECT temperature, humidity, pressure,
                rain_60min, rain_24h, wind_strength, gust_strength
         FROM public_stations
-        WHERE ABS(EXTRACT(EPOCH FROM fetched_at::TIMESTAMPTZ) - %s) < 1800
+        WHERE fetched_at > %s AND fetched_at < %s
           AND temperature IS NOT NULL
-    """, (int(timestamp),))
+    """, (lower, upper))
     rows = cur.fetchall()
 
     if not rows:

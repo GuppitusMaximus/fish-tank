@@ -61,17 +61,15 @@ class TestPublicFeatureConstants:
 class TestGracefulFallback:
     """Test graceful fallback when no public data exists."""
 
-    def test_fallback_with_empty_data(self):
+    def test_fallback_with_empty_data(self, public_station_db):
         """When no public data exists, all spatial columns should be 0.0."""
-        DB_PATH = os.path.join(SNAKE_TANK_DIR, "data", "weather.db")
-
         # Create a small test dataframe
         df = pd.DataFrame({
             'timestamp': [1000000, 1003600],
             'temp_outdoor': [10.0, 11.0],
         })
 
-        result = add_spatial_columns(DB_PATH, df)
+        result = add_spatial_columns(df)
 
         # All spatial columns should exist and be 0.0
         for col in SPATIAL_COLS_FULL:
