@@ -2,9 +2,7 @@
 
 An AI-agent software delivery platform, and the live projects it builds and maintains.
 
-**5,000+ commits · 1,732 plans written · 1,562 completed autonomously · 0 lines of human-written code in the target projects.**
-
-FishTank is a one-person experiment taken to its logical end: what does software engineering look like when the engineer never writes the code? Over the course of 2026 I built a multi-agent orchestration system on top of Claude Code that takes a feature from an idea, through requirements and planning, to implementation, QA, code review, and deploy — with me participating at exactly two points: the requirements interview and the approval gate. Everything else runs autonomously on homelab infrastructure.
+FishTank is a one-person experiment taken to its logical end: what does software engineering look like when the engineer never writes the application code? I built a multi-agent orchestration system around Claude Code and OpenAI Codex that takes a feature from an idea, through requirements and planning, to implementation, QA, code review, and deploy — with me participating at exactly two points: the requirements interview and the approval gate. Everything else runs autonomously on homelab infrastructure.
 
 > **The platform's source is private** (planning repo, orchestrator, MCP server, agent definitions).
 > This repo documents the architecture and hosts the public projects the platform maintains —
@@ -28,64 +26,71 @@ FishTank is a one-person experiment taken to its logical end: what does software
 ```mermaid
 flowchart TD
     U["👤 Me — two touchpoints:\nrequirements interview · approval gate"] --> P["Planning repo (private)\nPRDs → plans → status"]
-    U -->|"one MCP call: activate_feature()"| M["MCP server — 57 tools\nplans · exploration cache · knowledge graph"]
-    M -->|"status flip · git push"| P
-    M -->|"activation signals · git lock · pipeline state"| B["Redis control bus\nplan signals · live status streams · command queues"]
-    B <-->|"reads signals + worker status · sends commands"| O["Orchestrator — its own container\ndependency DAG · retries · failure cascade"]
-    O <--> DB[("PostgreSQL 16")]
+    U -->|"one MCP call: activate_feature()"| M["MCP server\nplans · curated memory · knowledge graph"]
+    M -->|"status change · git push"| P
+    M -->|"activation signals · pipeline state"| B["Redis control bus\nplan signals · status streams · commands"]
+    B <-->|"signals · worker status · commands"| O["Orchestrator\ndependency DAG · retries · failure cascade"]
+    O <--> DB[("PostgreSQL")]
     M <--> DB
-    subgraph W["Ephemeral LXC worker — one per plan"]
-        A["Agent\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall · per-role write scope"]
-        S["Supervisor sidecar\nobserves every tool call · salvages unpushed work\npowers the container off when done"]
-        A -.->|"tool-call events\n(localhost hook)"| S
+    subgraph C["Ephemeral LXC worker — one per plan"]
+        R["Selected runtime\nClaude Code or OpenAI Codex"]
+        A["Role\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall"]
+        S["Supervisor sidecar\nevent observation · progress · salvage · shutdown"]
+        R --> A
+        A -.->|"hooks or decoded JSONL events"| S
     end
-    O -->|"Proxmox API — fresh container per plan"| W
-    S <-->|"heartbeats · step progress · terminal status ⇡ · commands ⇣"| B
+    O -->|"clone selected vendor's hardened template"| C
+    S <-->|"heartbeats · progress · terminal status · commands"| B
     A <-->|"plans · context · status · bug reports"| M
     A -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
-    A --> OT["OpenTelemetry → Prometheus · Loki\nGrafana dashboards · mobile alerts"]
 ```
 
-Plans are markdown files with metadata headers (`Status`, `Profile`, `Depends-on`, `Review`). The orchestrator is event-driven: a single MCP call activates approved plans, commits the state change, and signals it over a Redis control bus — there is no webhook and no deploy script, so there is exactly one way work enters the system. It resolves plans into a dependency DAG, deploys independent plans in parallel under a concurrency cap (plans touching overlapping files are sequenced instead), retries failures — except security violations, which are never retried — and cascades permanent failures to dependent plans so nothing runs against a broken foundation.
+Plans are markdown files with metadata headers. A plan's `Profile` selects its role and write permissions; `Vendor` and `Model` select either a Claude Code or OpenAI Codex worker, including OpenAI/Sol (`gpt-5.6-sol`). The two runtimes use separate worker images and credentials but enter the same orchestration, dependency, review, and role-confinement pipeline. Vendor and model selections persist across retries and generated follow-up plans.
 
-Each plan executes in an **ephemeral LXC container**, cloned fresh from a hardened template, with its own IP and credentials injected before first boot. The agent inside runs as one of four roles — implementer, tester, researcher, reviewer — under an AppArmor profile matched to that role, behind an egress firewall and a seccomp filter, with a bounded turn budget.
+The orchestrator is event-driven. A single MCP call activates approved plans and signals them over a Redis control bus. It resolves a dependency DAG, deploys independent non-overlapping work in parallel, retries eligible failures, and stops dependants from running against a failed foundation.
 
-The agent doesn't run alone. A **supervisor sidecar** in the same container is its black box and exit handler: a hook posts every tool call to it over localhost, so liveness tracking is involuntary — it never depends on the agent remembering to report — and the supervisor streams heartbeats, step progress, and terminal status onto a per-plan Redis stream while taking orchestrator commands back over the same bus (degrading to local status files if Redis is unreachable). If the agent dies with committed-but-unpushed work, the supervisor runs a time-boxed git salvage ladder — plain push, rebase-and-push, then a salvage branch nothing can race — so finished work survives a crashed container. When the run ends it reports terminal status and powers the container off; the orchestrator archives the logs and destroys it. Plans flagged for review get a compliance + quality reviewer pair whose approval gates the merge.
+Each plan executes in a fresh LXC container as one of four roles — implementer, tester, researcher, or reviewer — with role-specific filesystem permissions and external confinement. Claude workers expose tool activity through hooks; Codex workers emit JSONL events that the supervisor decodes into the same liveness and progress stream. Codex has a wall-clock execution limit and controlled access to its model service through a dedicated forward proxy. Claude's turn-budget and telemetry behavior are not assumed to apply to Codex.
 
-## The part that answers "but do you trust the code?"
+The supervisor sidecar is the worker's black box and exit handler. It reports heartbeats, inferred progress, and terminal status; preserves recoverable committed work after crashes; and participates in orderly worker shutdown. Plans flagged for review receive independent review before merge.
 
-The interesting engineering problem isn't getting agents to write code — it's building the system that makes their output trustworthy. FishTank's answer is layered enforcement — and, as of this month, **measured** enforcement. A dedicated probe plan ran eight times inside live worker containers, deliberately writing where it shouldn't, to establish what each layer actually does rather than what the design says it does. The honest version turned out to be the stronger claim:
+## The part that answers “but do you trust the code?”
 
-- **Write scope is enforced at three layers with different mechanisms.** A pre-tool-use hook refuses out-of-scope writes at the tool-call level with a readable reason; a per-role AppArmor profile enforces the same scope at the kernel, catching anything that bypasses the tooling; and a permissions pass makes existing files read-only. The probes verified the agent process is genuinely confined (its kernel security label reads `enforce`), and mapped each layer's *real* coverage: the hook sees only tool-mediated writes, the file-permissions layer does nothing against *creating* a new file — so an out-of-scope new file is stopped by two layers, not three — and AppArmor's deny path has never fired in a probe, because the hook always refuses first; its behavior is verified by inspection of the loaded profile, not by observation. Claiming exactly that, and no more, is the point.
-- **The measurement mattered.** For the pipeline's entire prior history, the AppArmor profiles were loaded in enforce mode and attached to no process — confining nothing. Three probe runs reported false passes before the probe's own instrumentation bug was found (a check that discarded stderr, so "permission denied" was indistinguishable from "not loaded"). Nearly every defect the probes surfaced was one mistake in different costumes: a rule written against the path a human would name while the kernel, git, or the tooling evaluated a different one — resolved symlinks, atomic temp-file writes, directory nodes versus their contents. *Loaded ≠ applied* is now a regression test, not an assumption.
-- **Separation of duties.** The implementer cannot touch tests (measured: refused). The tester can write test files and bug reports and nothing else (measured: six probes, expected outcome on all six, four consecutive runs). The reviewer that gates a merge is read-only at the kernel level. And no agent can rewrite its own rules — agent behavior definitions and repo-root config files are protected paths for every role.
-- **A QA plan is paired with every implementation plan** — QA verifies against the plan's acceptance criteria and files structured bug reports, which flow back into new fix plans.
-- **Everything is observable.** Agents stream OpenTelemetry — token velocity, tool calls, step progress, errors — through a collector into Prometheus and Loki; Grafana dashboards and mobile alerts surface stalls and failures in real time.
+The interesting engineering problem is not getting agents to write code — it is building a system that makes their output trustworthy. FishTank's answer is layered enforcement backed by live-container probes:
+
+- **Write scope is enforced in layers.** Claude's pre-tool-use hook provides readable refusals for tool-mediated writes. Both runtimes use role-specific AppArmor policies at the kernel and filesystem permissions on protected existing files. The permissions pass cannot prevent creation of a new file in a writable directory, and Claude's hook does not extend to Codex. Those boundaries matter when interpreting the probe results.
+- **Loaded is not the same as applied.** Early probes found AppArmor profiles loaded in enforce mode but attached to no agent process. A second bug in the probe itself hid the discrepancy. Checking the running process's actual confinement is now part of verification; a loaded policy alone is not evidence that a worker is confined.
+- **Separation of duties.** Implementers cannot modify tests, testers can change tests and report defects but not application source, and reviewers are read-only. Agents cannot rewrite their own role definitions or protected repository policy.
+- **Implementation and QA are paired.** QA checks acceptance criteria and produces structured findings that feed correction work.
+- **Review gates are explicit.** Plans that require review do not merge merely because their worker finished.
+- **Execution remains observable.** The supervisor records activity and status even when an agent forgets to narrate its own progress. Claude telemetry flows through OpenTelemetry into Prometheus and Loki, with Grafana dashboards. Codex JSONL activity and raw usage are captured by the supervisor; full budget and OpenTelemetry parity remain follow-up work.
 
 ## Institutional memory
 
-Agents are stateless — whatever one learns about the codebase dies with its session, and the next agent pays to rediscover it. At fleet scale that's the dominant cost: the same heavily-touched files get re-read by scoping, planning, implementation, and QA agents, feature after feature. The platform's answer is a shared memory layer (PostgreSQL-backed) with three tiers:
+Agents are stateless, so FishTank maintains a PostgreSQL-backed memory layer that lets one worker transfer useful context to the next:
 
 | Layer | What it holds | The question it answers |
 |---|---|---|
-| **Exploration cache** | Per-file summaries: what the file does, what it exports, which agent wrote the entry, staleness state | "What's in this file?" — without reading it |
-| **Insight store** | One "landmine" per topic — gotchas that look correct but fail in non-obvious ways (`"NineSlice panels don't reposition on scale — setPosition after setScale"`) | "What will waste the next agent's hour?" |
-| **Knowledge graph** | Components, directed dependency edges, traced request flows, data-shape catalogs | "What breaks if I change this?" — before editing |
+| **Exploration cache** | Agent-written per-file summaries, searchable patterns, provenance, and staleness | “What did the last careful reader learn about this file?” |
+| **Insight store** | Curated, topic-keyed conventions and non-obvious landmines | “What mistake will look reasonable and waste the next hour?” |
+| **Knowledge graph** | Components and file ownership, dependency links, and traced flows with verification timestamps | “What calls this, what does it call, and which flows cross it?” |
 
-**How it stays trustworthy** is the interesting part. Three population paths with different authority: rich summaries from dedicated scoping agents, lightweight auto-capture whenever any agent reads an uncached file (which never overwrites a rich entry), and automatic refresh of modified files when a plan completes. When a file changes underneath an entry, the entry is **marked stale rather than deleted** — a stale summary with a warning still gives directional context, which beats a blank. Daily drift detection compares the cache against the working tree and flags what diverged.
+The cache is deliberately curated. Reading a file does not manufacture a summary, and routine refresh does not rewrite agent-authored prose. When a tracked file changes or disappears, its summary remains available but is marked stale until an agent re-reads and deliberately replaces it. Project identities are normalized so aliases do not split one codebase's memory. Lookup can target an exact file or use ranked full-text search across insight topics, insight text, file summaries, and patterns, with substring fallback. Unfiltered queries return counts, and a separate file index shows coverage and staleness without dumping the whole cache into context.
 
-**Delivery is proactive, not reactive.** The planning agent embeds relevant gotchas directly into each plan at write time, and file reads arrive with cached context attached — the implementing agent gets warnings as part of its instructions, not as queries it might forget to make. Reactive lookup exists as a fallback for surprises. This follows the design principle underneath the whole system: **context discipline** — a narrow, relevant context produces measurably more reliable agent output than a big one.
+The knowledge graph is file-oriented. A worker uses `query_graph` to look up the file it already has, a component, or a flow. Plan file retrieval injects matching ownership, callers, callees, and flow context automatically. Agents record observed dependencies through `map_link`, which resolves the endpoints and upserts the relationship. Components can own several files or claim a directory, and explicit symbols allow several components to share a module. Verification timestamps record when components and links were mapped or rechecked; a filesystem timestamp alone does not make them fresh.
 
-**Measured, not vibes** (614 agent runs): cached summaries compress a file read ~48× (≈80 tokens vs ≈3,800), which across 985 plan-file touches saved **~5.5M tokens** on context injection alone; 185 cached insights help hold the autonomous success rate at ~92%; and the cache compounds — by the twentieth feature in a project, scoping finds 90%+ of relevant files already summarized, so each feature makes the next one cheaper.
+Graph rebuilds run beside a real checkout, not on the database host. A client-side walker derives components and direct import links, then submits them through the same component and link primitives used for incremental mapping. Reconciliation removes missing machine-built entries while preserving missing agent-authored knowledge as stale unless an explicit prune is requested. The walker is intentionally structural: higher-level HTTP, event, gRPC, and database relationships still require evidence-based mapping by an agent.
+
+Memory arrives where it is useful: cached file context and graph neighbourhoods are attached to plan files, while focused search remains available for surprises. The aim is not maximum context. It is the smallest trustworthy context that prevents rediscovery and exposes change impact before editing.
 
 ## The infrastructure
 
-Runs on a single-node Proxmox homelab (Ryzen 7 7700, 64 GB DDR5, 2 TB NVMe on ZFS), fully managed as code:
+FishTank runs on a single-node Proxmox homelab (Ryzen 7 7700, 64 GB DDR5, 2 TB NVMe, and a 2 × 12 TB ZFS mirror), fully managed as code:
 
-- **18 Ansible roles across 9 hosts** — with Molecule tests, encrypted secrets, and daily automated drift detection that alerts if reality diverges from the code
-- **One deploy path** — a single MCP call activates approved plans and signals the orchestrator over a Redis control bus; worker containers power themselves off when done and are destroyed after their logs are archived
-- **Nightly ZFS snapshots** and PostgreSQL backups with automated restore tests
-- **Cloudflare Tunnel + Access** for zero-open-ports remote entry; Tailscale for administration
+- **Infrastructure as code** — Ansible roles, automated checks, encrypted secrets, and drift detection
+- **One deploy path** — approved plans enter through the MCP activation path and the orchestrator owns worker lifecycle
+- **Recoverability** — ZFS snapshots, database backups, and restore checks
+- **Remote access** — Cloudflare Tunnel and Access for remote entry, with Tailscale for administration
+- **Two isolated agent runtimes** — separate Claude and Codex worker images, shared role boundaries, and runtime-appropriate supervision
 
 ---
 
@@ -112,12 +117,14 @@ Interactive web experiences in vanilla HTML/CSS/JS, no frameworks:
 
 ## Build log
 
-How the platform evolved — from a single Claude session to the orchestrated system above, one wall at a time — in [BUILDLOG.md](BUILDLOG.md).
+How the platform evolved — from a single agent session to the orchestrated system above, one wall at a time — in [BUILDLOG.md](BUILDLOG.md).
 
 ## FAQ
 
-**Why is the platform private?** Parts of it are directly monetizable, and the agent definitions and planning corpus are the product of months of iteration. The architecture is documented here precisely because the ideas are worth sharing even where the implementation isn't.
+**Why is the platform private?** Parts of it are directly monetizable, and the agent definitions and planning corpus are the product of months of iteration. The architecture is documented here precisely because the ideas are worth sharing even where the implementation is not.
 
-**Did agents really write all of it?** All application code in the target projects, yes — the numbers at the top are live counts from the planning repo. My contributions are requirements, plan approval, and the platform/infrastructure design itself.
+**Did agents really write all of it?** Agents write the application code in the target projects. My contributions are requirements, plan approval, and the platform and infrastructure design.
 
-**What's it built with?** Claude Code (agents), Python (orchestrator, MCP server, supervisor), PostgreSQL 16, Redis, OpenTelemetry + Prometheus/Loki/Grafana, Proxmox VE, LXC/ZFS, AppArmor/seccomp, Ansible, Packer, Cloudflare.
+**Can it use more than one coding agent?** Yes. A plan selects Claude Code or OpenAI Codex, plus a compatible model. Both run through the same orchestrator and role model, while their worker images, credentials, event capture, limits, and network paths remain runtime-specific.
+
+**What's it built with?** Claude Code and OpenAI Codex, Python, PostgreSQL, Redis, Proxmox VE, LXC/ZFS, AppArmor/seccomp, Ansible, Packer, Cloudflare, and an observability stack built around supervisor events, OpenTelemetry, Prometheus, Loki, and Grafana.
