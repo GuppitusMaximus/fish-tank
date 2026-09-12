@@ -32,7 +32,7 @@ flowchart TD
     B <-->|"signals · worker status · commands"| O["Orchestrator\ndependency DAG · retries · failure cascade"]
     O <--> DB[("PostgreSQL")]
     M <--> DB
-    subgraph C["Ephemeral LXC worker — one per plan"]
+    subgraph C["Ephemeral LXC worker — one per run"]
         R["Selected runtime\nClaude Code or OpenAI Codex"]
         A["Role\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall"]
         S["Supervisor sidecar\nevent observation · progress · salvage · shutdown"]
@@ -49,7 +49,7 @@ Plans are markdown files with metadata headers. A plan's `Profile` selects its r
 
 The orchestrator is event-driven. A single MCP call activates approved plans and signals them over a Redis control bus. It resolves a dependency DAG, deploys independent non-overlapping work in parallel, retries eligible failures, and stops dependants from running against a failed foundation.
 
-Each plan executes in a fresh LXC container as one of four roles — implementer, tester, researcher, or reviewer — with role-specific filesystem permissions and external confinement. Claude workers expose tool activity through hooks; Codex workers emit JSONL events that the supervisor decodes into the same liveness and progress stream. Codex has a wall-clock execution limit and controlled access to its model service through a dedicated forward proxy. Claude's turn-budget and telemetry behavior are not assumed to apply to Codex.
+Each worker run executes in a fresh LXC container as one of four roles — implementer, tester, researcher, or reviewer — with role-specific filesystem permissions and external confinement. Claude workers expose tool activity through hooks; Codex workers emit JSONL events that the supervisor decodes into the same liveness and progress stream. Codex has a wall-clock execution limit and controlled access to its model service through a dedicated forward proxy. Claude's turn-budget and telemetry behavior are not assumed to apply to Codex.
 
 The supervisor sidecar is the worker's black box and exit handler. It reports heartbeats, inferred progress, and terminal status; preserves recoverable committed work after crashes; and participates in orderly worker shutdown. Plans flagged for review receive independent review before merge.
 
@@ -73,6 +73,7 @@ Agents are stateless, so FishTank maintains a PostgreSQL-backed memory layer tha
 | **Exploration cache** | Agent-written per-file summaries, searchable patterns, provenance, and staleness | “What did the last careful reader learn about this file?” |
 | **Insight store** | Curated, topic-keyed conventions and non-obvious landmines | “What mistake will look reasonable and waste the next hour?” |
 | **Knowledge graph** | Components and file ownership, dependency links, and traced flows with verification timestamps | “What calls this, what does it call, and which flows cross it?” |
+| **[Plan handoffs and journals](#replicants)** | Completed work, remaining steps, decisions, gotchas, and references to saved code | “Where did the previous worker stop, and how do I carry on?” |
 
 The cache is deliberately curated. Reading a file does not manufacture a summary, and routine refresh does not rewrite agent-authored prose. When a tracked file changes or disappears, its summary remains available but is marked stale until an agent re-reads and deliberately replaces it. Project identities are normalized so aliases do not split one codebase's memory. Lookup can target an exact file or use ranked full-text search across insight topics, insight text, file summaries, and patterns, with substring fallback. Unfiltered queries return counts, and a separate file index shows coverage and staleness without dumping the whole cache into context.
 
@@ -81,6 +82,16 @@ The knowledge graph is file-oriented. A worker uses `query_graph` to look up the
 Graph rebuilds run beside a real checkout, not on the database host. A client-side walker derives components and direct import links, then submits them through the same component and link primitives used for incremental mapping. Reconciliation removes missing machine-built entries while preserving missing agent-authored knowledge as stale unless an explicit prune is requested. The walker is intentionally structural: higher-level HTTP, event, gRPC, and database relationships still require evidence-based mapping by an agent.
 
 Memory arrives where it is useful: cached file context and graph neighbourhoods are attached to plan files, while focused search remains available for surprises. The aim is not maximum context. It is the smallest trustworthy context that prevents rediscovery and exposes change impact before editing.
+
+### Replicants
+
+**A plan can outlive the worker executing it.** When an agent stops at a checkpoint or reaches an execution limit, the orchestrator can deploy a fresh worker — a **replicant** — to continue the same plan with a fresh context window. The handoff store and run journal provide the institutional memory for that unfinished work.
+
+At a deliberate checkpoint, the agent commits and pushes its work, then calls `save_handoff` with what it completed, what remains, and the decisions or gotchas its successor needs. PostgreSQL stores that handoff and the run journal; Git stores the actual code. The supervisor independently records the exit, observed progress, and Git state, and attempts to preserve recoverable work if the agent exits before completing its own handoff.
+
+The replicant calls `get_previous_attempt()` at startup to retrieve the agent and supervisor handoffs, step progress, recent journal entries, and recovery references. It checks the saved commits, recovers any available salvage branch, skips completed steps, and resumes at the first unfinished one. The predecessor's decisions and warnings arrive with the work, so its successor can continue without rediscovering them.
+
+Replication keeps the same plan attempt and is capped at three replacements per attempt. A guard stops further replication when successive records show the same step and commit; the ordinary retry policy then applies. Eligible exits are checkpoints, turn-budget exhaustion, and Codex wall-clock timeouts. Explicit cancellation and security violations do not trigger replication, and Claude's advance budget warnings remain specific to its hook-based runtime.
 
 ## The infrastructure
 
