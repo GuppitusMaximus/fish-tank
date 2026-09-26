@@ -11,7 +11,13 @@ from psycopg_pool import ConnectionPool
 class Database:
     def __init__(self, dsn: str):
         self.pool = ConnectionPool(
-            dsn, min_size=1, max_size=10, kwargs={"row_factory": dict_row}, open=False
+            dsn,
+            min_size=1,
+            max_size=10,
+            # Supabase's transaction pool can switch server sessions between
+            # transactions. Named prepared statements are session-local.
+            kwargs={"row_factory": dict_row, "prepare_threshold": None},
+            open=False,
         )
 
     def open(self) -> None:
