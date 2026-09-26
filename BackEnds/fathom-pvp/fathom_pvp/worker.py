@@ -40,10 +40,12 @@ class _Process:
     def _restart(self)->None:
         if self.process and self.process.poll() is None: self.process.kill(); self.process.wait()
         self._start()
-    def call(self,op:str,ruleset_id:str,**fields:Any)->dict[str,Any]:
+    def call(self,op:str,ruleset_id:str|None=None,**fields:Any)->dict[str,Any]:
         with self.lock:
             if self.process is None or self.process.poll() is not None:self._start()
-            rid=str(uuid4()); output=json.dumps({"requestId":rid,"op":op,"rulesetId":ruleset_id,**fields},separators=(",",":")).encode()+b"\n"
+            rid=str(uuid4()); message={"requestId":rid,"op":op,**fields}
+            if ruleset_id is not None:message["rulesetId"]=ruleset_id
+            output=json.dumps(message,separators=(",",":")).encode()+b"\n"
             deadline=time.monotonic()+self.timeout; offset=0; received=bytearray(); sel=selectors.DefaultSelector(); sel.register(self.process.stdin,selectors.EVENT_WRITE)
             try:
                 while offset<len(output):
@@ -73,7 +75,7 @@ class WorkerPool:
     def __init__(self,node:str,_worker:Path,artifact:Path,expected:str,timeout:float,size:int):
         verify_artifact(artifact,expected); self.timeout=timeout; self.workers=queue.Queue(size)
         for _ in range(size):self.workers.put(_Process(node,artifact,timeout))
-    def call(self,op:str,ruleset_id:str,**fields:Any)->dict[str,Any]:
+    def call(self,op:str,ruleset_id:str|None=None,**fields:Any)->dict[str,Any]:
         try:worker=self.workers.get(timeout=self.timeout)
         except queue.Empty:raise WorkerUnavailable("worker queue is full") from None
         try:return worker.call(op,ruleset_id,**fields)

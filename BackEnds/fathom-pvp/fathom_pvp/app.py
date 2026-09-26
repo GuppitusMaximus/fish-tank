@@ -109,11 +109,12 @@ def create_app(settings: Settings | None = None, *, worker_factory: Callable[[Se
         app.state.worker = factory(settings)
         try:
             with app.state.db.pool.connection() as conn:
-                release=conn.execute(_q(settings.db_schema,"SELECT ruleset_id FROM {s}.release_manifests WHERE dataset_id=%s AND acceptance_state='accepted' ORDER BY created_at DESC LIMIT 1"),(settings.dataset_id,)).fetchone()
+                release=conn.execute(_q(settings.db_schema,"SELECT ruleset_id,content_hash,rating_version,start_health_policy FROM {s}.release_manifests WHERE dataset_id=%s AND acceptance_state='accepted' ORDER BY created_at DESC LIMIT 1"),(settings.dataset_id,)).fetchone()
             if not release:raise RuntimeError("no accepted release is registered for this dataset")
-            probe=app.state.worker.call("generate",release["ruleset_id"],seed=0,context={"floor":1})
-            if "battleInput" not in probe:raise RuntimeError("rules worker readiness probe was incomplete")
-            app.state.worker_health={"status":"ok","rulesetId":release["ruleset_id"]}
+            probe=app.state.worker.call("health");loaded=probe.get("loaded") or {}
+            expected={"workerProtocolVersion":1,"rulesetId":release["ruleset_id"],"contentHash":release["content_hash"],"ratingVersion":release["rating_version"],"startHealthPolicy":release["start_health_policy"]}
+            if probe.get("status")!="ready" or any(loaded.get(k)!=v for k,v in expected.items()):raise RuntimeError("rules worker readiness identity does not match the accepted release")
+            app.state.worker_health={"status":"ready","loaded":loaded}
         except Exception:
             app.state.worker.close();app.state.db.close();raise
         yield
