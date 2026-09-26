@@ -10,7 +10,9 @@ from psycopg_pool import ConnectionPool
 
 class Database:
     def __init__(self, dsn: str):
-        self.pool = ConnectionPool(dsn, min_size=1, max_size=10, kwargs={"row_factory": dict_row}, open=False)
+        self.pool = ConnectionPool(
+            dsn, min_size=1, max_size=10, kwargs={"row_factory": dict_row}, open=False
+        )
 
     def open(self) -> None:
         self.pool.open(wait=True)

@@ -34,7 +34,15 @@ def bootstrap_hash(key: str, pepper: str) -> str:
 
 
 def bootstrap_credential(key: str, pepper: str) -> str:
-    return base64.urlsafe_b64encode(hmac.new(pepper.encode(), ("session:" + key).encode(), hashlib.sha256).digest()).decode().rstrip("=")
+    return (
+        base64.urlsafe_b64encode(
+            hmac.new(
+                pepper.encode(), ("session:" + key).encode(), hashlib.sha256
+            ).digest()
+        )
+        .decode()
+        .rstrip("=")
+    )
 
 
 @dataclass(frozen=True)
@@ -52,17 +60,31 @@ def authenticate(request: Request) -> Principal:
         raw_id, secret = token.split(".", 1)
         session_id = UUID(raw_id)
     except (ValueError, AttributeError):
-        raise ApiError(401, "SESSION_EXPIRED", "The session credential is malformed") from None
+        raise ApiError(
+            401, "SESSION_EXPIRED", "The session credential is malformed"
+        ) from None
     schema = request.app.state.settings.db_schema
     with request.app.state.db.pool.connection() as conn:
         row = conn.execute(
-            sql.SQL("SELECT s.account_id, s.credential_hash, s.expires_at, s.revoked_at, a.state FROM {}.account_sessions s JOIN {}.accounts a USING(account_id) WHERE s.session_id=%s").format(sql.Identifier(schema), sql.Identifier(schema)),
+            sql.SQL(
+                "SELECT s.account_id, s.credential_hash, s.expires_at, s.revoked_at, a.state FROM {}.account_sessions s JOIN {}.accounts a USING(account_id) WHERE s.session_id=%s"
+            ).format(sql.Identifier(schema), sql.Identifier(schema)),
             (session_id,),
         ).fetchone()
-    if not row or row["revoked_at"] is not None or row["expires_at"] <= datetime.now(row["expires_at"].tzinfo) or row["state"] == "deleted":
+    if (
+        not row
+        or row["revoked_at"] is not None
+        or row["expires_at"] <= datetime.now(row["expires_at"].tzinfo)
+        or row["state"] == "deleted"
+    ):
         raise ApiError(401, "SESSION_EXPIRED", "The session has expired or was revoked")
     try:
-        _hasher.verify(row["credential_hash"], f"{secret}:{request.app.state.settings.session_pepper}")
+        _hasher.verify(
+            row["credential_hash"],
+            f"{secret}:{request.app.state.settings.session_pepper}",
+        )
     except VerifyMismatchError:
-        raise ApiError(401, "SESSION_EXPIRED", "The session credential is invalid") from None
+        raise ApiError(
+            401, "SESSION_EXPIRED", "The session credential is invalid"
+        ) from None
     return Principal(row["account_id"], session_id)

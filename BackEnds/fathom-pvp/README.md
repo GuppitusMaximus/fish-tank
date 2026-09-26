@@ -20,8 +20,8 @@ Required environment:
 - `PVP_RULES_WORKER_PATH`: retained for deployment compatibility; point to `<artifact>/scripts/pvp-worker.mjs`.
 - `PVP_RULES_ARTIFACT_PATH`: immutable artifact directory.
 - `PVP_RULES_ARTIFACT_SHA256`: `sha256:<hex>` closure digest from `artifact.json`.
-- `PVP_DATASET_ID`, `PVP_SERVICE_RELEASE`, and `PVP_CORS_ORIGINS`.
-- `PVP_TRUSTED_PROXY_IPS`: comma-separated direct peers allowed to supply `CF-Connecting-IP`; defaults to loopback for the local Cloudflare tunnel. Arbitrary remote peers cannot select their rate-limit identity.
+- `PVP_DATASET_ID`, `PVP_SERVICE_RELEASE`, and `PVP_CORS_ORIGINS`. List-valued settings use JSON arrays, for example `PVP_CORS_ORIGINS='["https://fathomfall.com"]'`.
+- `PVP_TRUSTED_PROXY_IPS`: JSON array of direct peers allowed to supply `CF-Connecting-IP`, for example `'["127.0.0.1", "::1"]'`. It defaults to loopback for the local Cloudflare tunnel. Arbitrary remote peers cannot select their rate-limit identity.
 
 `PVP_WRITES_ENABLED=false` returns `503 WRITES_DISABLED` for every v2 mutation. The public capabilities endpoint reports the switch. Maximum request size is 1 MiB, including requests without a truthful `Content-Length`; knot history is provisionally capped at 10,000 records.
 
@@ -32,7 +32,7 @@ Migration and runtime credentials are separate. Ordered migrations record and en
 ```sh
 PVP_MIGRATION_DATABASE_URL='postgresql://...' python -m fathom_pvp.migrate --schema game_pvp_staging
 PVP_MIGRATION_DATABASE_URL='postgresql://...' python -m fathom_pvp.provision --schema game_pvp_staging --role fathom_pvp_staging_runtime
-PVP_MIGRATION_DATABASE_URL='postgresql://...' python -m fathom_pvp.register_release /opt/fathom-pvp/rules/artifact.json --schema game_pvp_staging --dataset staging-v2 --artifact-sha256 sha256:...
+PVP_MIGRATION_DATABASE_URL='postgresql://...' python -m fathom_pvp.register_release /opt/fathom-pvp/rules/src/pvp/release-manifest.json --schema game_pvp_staging --dataset staging-v2 --artifact-sha256 sha256:...
 ```
 
 Create each runtime login separately with an environment-specific secret, `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`. Provisioning grants catalog/release/grant reads and only the operational writes the API needs. It cannot create release manifests or unlock grants, and cannot update/delete immutable snapshots or results. Startup refuses superuser/BYPASSRLS roles, missing schema access, or schemas exposed to PUBLIC.
@@ -41,7 +41,7 @@ The schema separates immutable profile revisions, class loadout revisions, indep
 
 ## API contract
 
-The base is `/pvp/v2`. Durable mutations require `Idempotency-Key`; changing the normalized request under one key yields `409 IDEMPOTENCY_CONFLICT`. Authentication is `Authorization: Bearer <opaque session token>`. Only Argon2id hashes are stored. Bootstrap uses a persistent high-entropy `bootstrapKey` equal to its idempotency key, safely replays the same account/session, rotates an expired session, and is rate limited.
+The base is `/pvp/v2`. Durable mutations require `Idempotency-Key`; changing the normalized request under one key yields `409 IDEMPOTENCY_CONFLICT`. Authentication is `Authorization: Bearer <opaque session token>`. Session secrets are hashed with argon2-cffi's `PasswordHasher`, whose configured/default algorithm is Argon2id; plaintext bearer secrets are never stored. Bootstrap uses a persistent high-entropy `bootstrapKey` equal to its idempotency key, safely replays the same account/session, rotates an expired session, and is rate limited.
 
 Routes: `GET /capabilities`, `POST /guest-sessions`, `GET /me`, `PATCH /me/profile`, `PUT /me/classes/{classId}/portrait`, `POST /runs`, `POST /ghosts`, own ghost list/detail, `POST /matches`, `POST /matches/{id}/start`, `PUT /matches/{id}/result`, `POST /offline-encounters`, and `GET /leaderboard`.
 
@@ -56,7 +56,11 @@ Errors use `{ "error": { "code", "message", "fields"?, "retryable", "requestId" 
 Real integration tests require PostgreSQL and a built rules artifact; they skip rather than substitute SQLite:
 
 ```sh
-TEST_DATABASE_URL='postgresql://...' PVP_TEST_ARTIFACT_DIR=/tmp/fathom-pvp-artifact pytest -q
+TEST_DATABASE_URL='postgresql://...' \
+PVP_TEST_ARTIFACT_DIR=/tmp/fathom-pvp-artifact \
+PVP_TEST_ARTIFACT=/tmp/fathom-pvp-artifact \
+PVP_TEST_FIXTURE=/path/to/tests/fixtures/pvp-v2-rich-ghost.json \
+pytest -q
 ```
 
 The suite migrates a fresh schema, provisions a non-superuser role, starts the actual Node worker, then exercises bootstrap replay, two accounts, rich capture validation, JSONB persistence, private opponent projection, matching, start/result, and historical reads.

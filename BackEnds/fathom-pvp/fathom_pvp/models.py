@@ -27,14 +27,16 @@ class Provenance(StrictModel):
     ratingVersion: str = Field(min_length=1, max_length=128)
     matchmakingPoolId: str = Field(min_length=1, max_length=128)
     datasetId: str = Field(min_length=1, max_length=64)
-    capturedAt: str = Field(min_length=20,max_length=40)
+    capturedAt: str = Field(min_length=20, max_length=40)
     capturePhase: Literal["pre_combat"]
 
     @field_validator("capturedAt")
     @classmethod
-    def valid_timestamp(cls,value:str)->str:
-        try:datetime.fromisoformat(value.replace("Z","+00:00"))
-        except ValueError:raise ValueError("capturedAt must be ISO-8601") from None
+    def valid_timestamp(cls, value: str) -> str:
+        try:
+            datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("capturedAt must be ISO-8601") from None
         return value
 
 
@@ -88,8 +90,8 @@ class Medallion(StrictModel):
     soulsToEscape: int = Field(ge=1)
     lossesToWake: int = Field(ge=1)
     eyeStage: int = Field(ge=0)
-    displayEyeFrame: int = Field(ge=0,le=10)
-    eyeOpenness: float = Field(ge=0,le=1)
+    displayEyeFrame: int = Field(ge=0, le=10)
+    eyeOpenness: float = Field(ge=0, le=1)
 
 
 class GhostUpload(StrictModel):
@@ -116,10 +118,17 @@ class GhostUpload(StrictModel):
             elif isinstance(value, list):
                 for child in value:
                     walk(child)
+
         walk(self.model_dump(mode="python"))
         units = self.combat.get("units")
-        if self.combat.get("startHealthPolicy") != "living_full_resolved_v1" or not isinstance(units, list) or len(units) > 3:
-            raise ValueError("combat must use living_full_resolved_v1 with at most three units")
+        if (
+            self.combat.get("startHealthPolicy") != "living_full_resolved_v1"
+            or not isinstance(units, list)
+            or len(units) > 3
+        ):
+            raise ValueError(
+                "combat must use living_full_resolved_v1 with at most three units"
+            )
         return self
 
 
@@ -129,7 +138,9 @@ class GuestSessionRequest(StrictModel):
 
 
 class ProfilePatch(StrictModel):
-    gamerTag: str = Field(min_length=3, max_length=24, pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]*$")
+    gamerTag: str = Field(
+        min_length=3, max_length=24, pattern=r"^[A-Za-z0-9][A-Za-z0-9 _-]*$"
+    )
     expectedRevision: int = Field(ge=1)
 
 
@@ -146,8 +157,12 @@ class RunRegistration(StrictModel):
     @field_validator("originBuild")
     @classmethod
     def exact_build(cls, value: dict[str, str]) -> dict[str, str]:
-        if set(value) != {"gameVersion", "buildCommit", "buildId"} or not re.fullmatch(r"[a-f0-9]{40}", value["buildCommit"]):
-            raise ValueError("originBuild requires gameVersion, buildCommit, and buildId")
+        if set(value) != {"gameVersion", "buildCommit", "buildId"} or not re.fullmatch(
+            r"[a-f0-9]{40}", value["buildCommit"]
+        ):
+            raise ValueError(
+                "originBuild requires gameVersion, buildCommit, and buildId"
+            )
         return value
 
 

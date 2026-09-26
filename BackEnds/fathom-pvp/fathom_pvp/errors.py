@@ -8,7 +8,15 @@ from fastapi.responses import JSONResponse
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str, *, fields: dict[str, Any] | None = None, retryable: bool = False):
+    def __init__(
+        self,
+        status: int,
+        code: str,
+        message: str,
+        *,
+        fields: dict[str, Any] | None = None,
+        retryable: bool = False,
+    ):
         self.status = status
         self.code = code
         self.message = message
