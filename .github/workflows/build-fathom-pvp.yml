@@ -1,0 +1,74 @@
+name: Build Fathom PvP release
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_commit:
+        description: Full reviewed fathom-fall commit (does not promote the game)
+        type: string
+        required: true
+      dataset:
+        description: Target dataset
+        type: choice
+        options: [staging-v2, demo-v2]
+        default: staging-v2
+      pool:
+        description: Approved compatibility pool identifier
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: backend
+          persist-credentials: false
+      - name: Validate requested build
+        env:
+          GAME_COMMIT: ${{ inputs.game_commit }}
+          POOL_ID: ${{ inputs.pool }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          assert re.fullmatch(r'[a-f0-9]{40}', os.environ['GAME_COMMIT']), 'Full game commit required'
+          assert re.fullmatch(r'[a-zA-Z0-9._:-]{1,100}', os.environ['POOL_ID']), 'Invalid pool ID'
+          PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: GuppitusMaximus/fathom-fall
+          ref: ${{ inputs.game_commit }}
+          token: ${{ secrets.FATHOM_FALL_READ_TOKEN }}
+          path: game
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.3
+      - name: Build pinned game rules
+        working-directory: game
+        env:
+          FATHOM_DATASET_ID: ${{ inputs.dataset }}
+          FATHOM_POOL_ID: ${{ inputs.pool }}
+          FATHOM_PVP_ARTIFACT_DIR: ../rules
+        run: node scripts/pvp-build-artifact.mjs
+      - name: Build backend and rules bundle
+        env:
+          BACKEND_COMMIT: ${{ github.sha }}
+          RELEASE_ID: pvp-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          python3 backend/BackEnds/fathom-pvp/deploy/bundle.py build \
+            --backend backend/BackEnds/fathom-pvp --rules rules \
+            --output pvp-release.tar.gz --release "$RELEASE_ID" \
+            --backend-commit "$BACKEND_COMMIT" > pvp-release.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fathom-pvp-release
+          path: |
+            pvp-release.tar.gz
+            pvp-release.sha256
+          if-no-files-found: error
+          retention-days: 30

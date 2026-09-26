@@ -1,0 +1,33 @@
+[Unit]
+Description=Fathom Fall versioned account and ghost API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fishtank
+Group=fishtank
+WorkingDirectory=/opt/fathom-pvp/current/backend
+EnvironmentFile=/etc/fathom-pvp/production.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/fathom-pvp/current/backend/.venv/bin/uvicorn fathom_pvp.entrypoint:app --host 127.0.0.1 --port 8002 --workers 1 --no-proxy-headers
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=768M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

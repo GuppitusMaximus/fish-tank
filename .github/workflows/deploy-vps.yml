@@ -1,7 +1,7 @@
 ## Install: copy to repo root .github/workflows/deploy-vps.yml
 #   cp BackEnds/the-snake-tank/ci/deploy-vps.yml .github/workflows/deploy-vps.yml
 
-name: Deploy to VPS
+name: Deploy weather to VPS
 
 on:
   push:
@@ -33,4 +33,4 @@ jobs:
             cd BackEnds/the-snake-tank
             .venv/bin/pip install --require-hashes -r requirements.txt
             .venv/bin/python migrate.py
-            sudo systemctl restart fishtank-ml fishtank-pvp
+            sudo systemctl restart fishtank-ml
