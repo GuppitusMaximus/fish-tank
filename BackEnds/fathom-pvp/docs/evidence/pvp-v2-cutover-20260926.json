@@ -1,0 +1,31 @@
+{
+  "release": "prod-71f93400-d620a362",
+  "publicReady": {
+    "status": "ready",
+    "serviceRelease": "prod-71f93400-d620a362",
+    "datasetId": "demo-v2",
+    "worker": {
+      "status": "ready",
+      "loaded": {
+        "workerProtocolVersion": 1,
+        "rulesetId": "sha256:40d07efaae02ffc6712375a9046db58963fc0626a2fd87628c0e2a9dc5e4fa03",
+        "contentHash": "sha256:0d630d6a4e6976425b443e12acc320fa6dbcb01ec349dce4bba688669fc35b6c",
+        "ratingVersion": "engine-damage-30s-v1",
+        "startHealthPolicy": "living_full_resolved_v1",
+        "gameVersion": "0.92.186",
+        "buildCommit": "71f93400c7323c9e839e65fbb0b075ddc8ab374a",
+        "buildId": "git-71f93400c732"
+      }
+    },
+    "database": "ok"
+  },
+  "legacyMatch": {
+    "found": false,
+    "upgradeRequired": true
+  },
+  "legacyWrites": 410,
+  "purge": "{\"applied\": true, \"legacyRows\": {\"ghosts\": 33, \"players\": 26}}",
+  "backupSha256": "1c36a0bea34406abfe7c11f94ed956671e963053ea8d5e69550757b3693ee1f8",
+  "weatherDatabase": "ok",
+  "weatherPidUnchanged": true
+}
