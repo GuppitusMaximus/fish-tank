@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import psycopg
 from psycopg import sql
+import pytest
 
 from test_real_round_trip import capture, guest, live_service, success  # noqa: F401
 
@@ -74,7 +75,8 @@ def test_concurrent_identical_capture_with_distinct_keys_returns_one_ghost(live_
             sql.Identifier(schema)), (body["run"]["encounterId"],)).fetchone()[0] == 1
 
 
-def test_concurrent_start_and_offline_reconciliation_choose_one_source(live_service):
+@pytest.mark.parametrize("_attempt", range(5))
+def test_concurrent_start_and_offline_reconciliation_choose_one_source(live_service, _attempt):
     client, manifest, template, schema, dsn = live_service
     me, headers = guest(client)
     body, accepted, _ = capture(client, manifest, template, me, headers)
