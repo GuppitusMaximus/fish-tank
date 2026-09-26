@@ -24,9 +24,9 @@ def render(source: str, schema: str) -> str:
 
 
 def migrate(dsn: str, schema: str = "game") -> None:
-    with psycopg.connect(dsn, autocommit=True) as conn:
-        conn.execute("SELECT pg_advisory_lock(hashtext(%s))", (f"fathom-pvp:{schema}",))
-        try:
+    with psycopg.connect(dsn) as conn:
+      with conn.transaction():
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"fathom-pvp:{schema}",))
             for path in migration_files():
                 version = path.name.split("_", 1)[0]
                 source = path.read_text(encoding="utf-8")
@@ -43,14 +43,11 @@ def migrate(dsn: str, schema: str = "game") -> None:
                         if row[0] != checksum:
                             raise RuntimeError(f"migration {version} checksum changed")
                         continue
-                with conn.transaction():
-                    conn.execute(render(source, schema))
-                    conn.execute(
-                        sql.SQL("INSERT INTO {}.schema_migrations(version, checksum_sha256) VALUES (%s, %s)").format(sql.Identifier(schema)),
-                        (version, checksum),
-                    )
-        finally:
-            conn.execute("SELECT pg_advisory_unlock(hashtext(%s))", (f"fathom-pvp:{schema}",))
+                conn.execute(render(source, schema))
+                conn.execute(
+                    sql.SQL("INSERT INTO {}.schema_migrations(version, checksum_sha256) VALUES (%s, %s)").format(sql.Identifier(schema)),
+                    (version, checksum),
+                )
 
 
 def main() -> None:

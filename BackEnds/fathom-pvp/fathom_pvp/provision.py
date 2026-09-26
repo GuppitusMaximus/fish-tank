@@ -10,10 +10,14 @@ WRITE_TABLES=("accounts","account_sessions","account_profile_revisions","class_l
 def provision(dsn:str,schema:str,role:str)->None:
     if not IDENTIFIER.fullmatch(schema) or not IDENTIFIER.fullmatch(role):raise ValueError("schema and role must be lowercase PostgreSQL identifiers")
     with psycopg.connect(dsn,autocommit=True) as conn:
-        flags=conn.execute("SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=%s",(role,)).fetchone()
+        flags=conn.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole FROM pg_roles WHERE rolname=%s",(role,)).fetchone()
         if not flags:raise RuntimeError("create the runtime role separately with an environment-specific password")
-        if flags[0] or flags[1]:raise RuntimeError("runtime role must not be superuser or BYPASSRLS")
+        if any(flags):raise RuntimeError("runtime role must not be superuser, BYPASSRLS, CREATEDB, or CREATEROLE")
         conn.execute(sql.SQL("REVOKE ALL ON SCHEMA {} FROM PUBLIC").format(sql.Identifier(schema)))
+        for browser_role in ("anon","authenticated"):
+            if conn.execute("SELECT 1 FROM pg_roles WHERE rolname=%s",(browser_role,)).fetchone():
+                conn.execute(sql.SQL("REVOKE ALL ON SCHEMA {} FROM {}").format(sql.Identifier(schema),sql.Identifier(browser_role)))
+                conn.execute(sql.SQL("REVOKE ALL ON ALL TABLES IN SCHEMA {} FROM {}").format(sql.Identifier(schema),sql.Identifier(browser_role)))
         conn.execute(sql.SQL("REVOKE ALL ON ALL TABLES IN SCHEMA {} FROM {}").format(sql.Identifier(schema),sql.Identifier(role)))
         conn.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(sql.Identifier(schema),sql.Identifier(role)))
         for table in READ_TABLES:conn.execute(sql.SQL("GRANT SELECT ON {}.{} TO {}").format(sql.Identifier(schema),sql.Identifier(table),sql.Identifier(role)))

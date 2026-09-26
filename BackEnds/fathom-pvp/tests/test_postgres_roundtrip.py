@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json, os, secrets
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
@@ -58,3 +59,10 @@ def test_bootstrap_replay_and_conflict(service):
     first=client.post("/pvp/v2/guest-sessions",headers=headers,json=body);second=client.post("/pvp/v2/guest-sessions",headers=headers,json=body)
     assert first.json()["account"]==second.json()["account"];assert first.json()["session"]["token"]==second.json()["session"]["token"]
     conflict=client.post("/pvp/v2/guest-sessions",headers=headers,json={**body,"deviceLabel":"other"});assert conflict.status_code==409
+
+def test_concurrent_bootstrap_creates_one_account(service):
+    client,_=service;key=secrets.token_urlsafe(24);headers={"Idempotency-Key":key};body={"bootstrapKey":key}
+    with ThreadPoolExecutor(max_workers=2) as pool:responses=list(pool.map(lambda _:client.post("/pvp/v2/guest-sessions",headers=headers,json=body),range(2)))
+    assert [response.status_code for response in responses]==[201,201]
+    assert responses[0].json()["account"]==responses[1].json()["account"]
+    assert responses[0].json()["session"]==responses[1].json()["session"]

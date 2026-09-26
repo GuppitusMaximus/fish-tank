@@ -81,6 +81,17 @@ class Tacklebox(FlexibleBlock):
     canonicalHash: str
 
 
+class Medallion(StrictModel):
+    soulCount: int = Field(ge=0)
+    lossCount: int = Field(ge=0)
+    litSoulSlots: int = Field(ge=0)
+    soulsToEscape: int = Field(ge=1)
+    lossesToWake: int = Field(ge=1)
+    eyeStage: int = Field(ge=0)
+    displayEyeFrame: int = Field(ge=0,le=10)
+    eyeOpenness: float = Field(ge=0,le=1)
+
+
 class GhostUpload(StrictModel):
     schemaVersion: Literal[4]
     provenance: Provenance
@@ -91,6 +102,7 @@ class GhostUpload(StrictModel):
     tacklebox: Tacklebox
     equipmentAttribution: dict[str, Any]
     resources: dict[str, Any]
+    medallion: Medallion
     meal: dict[str, Any] | None
 
     @model_validator(mode="after")
