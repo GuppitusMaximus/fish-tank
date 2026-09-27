@@ -24,7 +24,7 @@ Public Netatmo API → public-stations/ CSV/JSON  → weather-public.json (publi
 ```
 the-snake-tank/
 ├── app_ml.py               # FastAPI pipeline service (systemd unit fishtank-ml, port 8001)
-├── app_pvp.py              # FastAPI PvP service for Fathom Fall (systemd unit fishtank-pvp, port 8002)
+├── app_pvp.py              # Retired v1 Fathom Fall PvP service; the live one has moved (see "Fathom Fall PvP")
 ├── fetch_weather.py        # Fetches data from Netatmo API, scrubs PII; also fetches public station data
 ├── build_dataset.py        # Loads raw JSON into Postgres; syncs public_stations incrementally from CSVs
 ├── public_features.py      # Spatial feature engineering from public Netatmo station data
@@ -388,13 +388,17 @@ cd /opt/fishtank && git pull origin main
 cd BackEnds/the-snake-tank
 .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python migrate.py
-sudo systemctl restart fishtank-ml fishtank-pvp
+sudo systemctl restart fishtank-ml
 ```
 
 Notes:
 - The services run from `/opt/fishtank/BackEnds/the-snake-tank/.venv` (see `systemd/`). Bare `pip`/`python` do not work on the VPS (PEP 668 externally-managed environment), so the workflow must use the venv binaries.
 - `migrate.py` runs on every deploy and is idempotent — schema changes belong there, including constraint retrofits for tables that predate the current `CREATE TABLE` definitions.
-- Each deploy restarts both services, so batch related changes and push between pipeline cycles when possible. `data/` and `models/` are gitignored and survive deploys.
+- Each deploy restarts `fishtank-ml`, so batch related changes and push between pipeline cycles when possible. `data/` and `models/` are gitignored and survive deploys.
+
+## Fathom Fall PvP
+
+The Fathom Fall PvP service (`fishtank-pvp` on port 8002, API `/pvp/v2`) is no longer developed or deployed from this repository. It has moved to a private repository, `fathom-pvp`, which has its own release process, and the weather deploy does not restart it. `app_pvp.py`, `systemd/fishtank-pvp.service` and their tests here are the retired v1 proof of concept.
 
 ## Setup
 

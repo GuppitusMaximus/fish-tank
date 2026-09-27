@@ -2,14 +2,14 @@
 
 ## Overview
 
-The snake-tank services (ML pipeline + PvP ghost service) run on a Hetzner VPS as systemd units. A GitHub Actions workflow auto-deploys on push to `main` when files under `BackEnds/the-snake-tank/` change.
+The weather service runs on the Hetzner VPS as a systemd unit. The Fathom Fall PvP service that shares the VPS (`fishtank-pvp`) has moved to a private repository, `fathom-pvp`, with its own runtime and release process; this workflow must not restart it. A GitHub Actions workflow auto-deploys on push to `main` when files under `BackEnds/the-snake-tank/` change.
 
 ## Services
 
 | Service | Unit | App |
 |---|---|---|
 | ML pipeline | `fishtank-ml.service` | `app_ml.py` |
-| PvP ghost | `fishtank-pvp.service` | `app_pvp.py` |
+| Fathom Fall PvP (not deployed from here) | `fishtank-pvp.service` | Released from the private `fathom-pvp` repository; `app_pvp.py` here is the retired v1 service |
 
 ## Initial VPS Setup
 
@@ -68,10 +68,9 @@ pipeline run (every 20 min) picks it up.
 
 ```bash
 sudo cp systemd/fishtank-ml.service /etc/systemd/system/
-sudo cp systemd/fishtank-pvp.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable fishtank-ml fishtank-pvp
-sudo systemctl start fishtank-ml fishtank-pvp
+sudo systemctl enable fishtank-ml
+sudo systemctl start fishtank-ml
 ```
 
 ### 5. Configure passwordless sudo for service restarts
@@ -120,7 +119,7 @@ On every push to `main` that touches `BackEnds/the-snake-tank/**`:
 2. `git pull origin main`
 3. `pip install --require-hashes -r requirements.txt`
 4. `python migrate.py`
-5. `sudo systemctl restart fishtank-ml fishtank-pvp`
+5. `sudo systemctl restart fishtank-ml`
 
 ## Manual Deployment
 
@@ -133,7 +132,7 @@ git pull origin main
 cd BackEnds/the-snake-tank
 pip install --require-hashes -r requirements.txt
 python migrate.py
-sudo systemctl restart fishtank-ml fishtank-pvp
+sudo systemctl restart fishtank-ml
 ```
 
 ## Upgrading dependencies

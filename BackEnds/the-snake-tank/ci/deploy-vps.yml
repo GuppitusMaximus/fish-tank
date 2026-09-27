@@ -33,4 +33,4 @@ jobs:
             cd BackEnds/the-snake-tank
             .venv/bin/pip install --require-hashes -r requirements.txt
             .venv/bin/python migrate.py
-            sudo systemctl restart fishtank-ml fishtank-pvp
+            sudo systemctl restart fishtank-ml
