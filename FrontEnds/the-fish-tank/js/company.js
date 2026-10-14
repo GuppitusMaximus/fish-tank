@@ -12,6 +12,7 @@
 
 (function () {
     var video = document.getElementById('gameplay-video');
+    var cinematic = document.getElementById('intro-cinematic');
     var choices = document.getElementById('gameplay-choices');
     var caption = document.getElementById('gameplay-caption');
     if (!video || !choices || !caption) return;
@@ -21,7 +22,7 @@
     var resumeWhenVisible = document.hidden && !reducedMotion.matches;
 
     function playPreview() {
-        if (!reducedMotion.matches && !document.hidden) {
+        if (!reducedMotion.matches && !document.hidden && (!cinematic || cinematic.paused)) {
             video.play().catch(function () {});
         }
     }
@@ -41,6 +42,17 @@
             playPreview();
         });
     });
+
+    if (cinematic) {
+        cinematic.addEventListener('play', function () {
+            resumeWhenVisible = false;
+            video.pause();
+        });
+        video.addEventListener('play', function () { cinematic.pause(); });
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) cinematic.pause();
+        });
+    }
 
     choices.hidden = false;
     document.addEventListener('visibilitychange', function () {
