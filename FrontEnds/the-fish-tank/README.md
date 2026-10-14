@@ -14,7 +14,7 @@ The root `index.html` is a static company page styled by `css/company.css`. Its 
 
 The project hub remains a single-page app in `hub/index.html`, with views managed by `js/router.js`. Each module is an IIFE that exposes `start()` and `stop()` lifecycle methods. Shared assets, scripts, styles, data, and vendor libraries stay at the site root and use root-relative URLs so they work under `/hub/`. Authentication endpoints and localStorage keys are unchanged.
 
-The company homepage currently publishes no email address. Once `contact@the-fish-tank.com` has been provisioned and verified, add it as the company contact. Never substitute a personal email address. Apple enrollment also needs a working email on the organization’s domain.
+The company homepage publishes `contact@the-fish-tank.com` as its company contact in a footer mail link. Never substitute a personal email address. Mail provisioning and DNS verification are managed separately in Proton and Cloudflare; the website source alone does not verify delivery. Apple enrollment also needs a working email on the organization’s domain.
 
 ### Gameplay media
 
