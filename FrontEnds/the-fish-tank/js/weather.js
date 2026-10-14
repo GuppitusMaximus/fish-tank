@@ -293,10 +293,10 @@ window.WeatherApp = (() => {
     if (SQL) return Promise.resolve(SQL);
     return new Promise(function(resolve, reject) {
       var script = document.createElement('script');
-      script.src = 'vendor/sqljs/sql-wasm.js';
+      script.src = '/vendor/sqljs/sql-wasm.js';
       script.onload = function() {
         initSqlJs({ locateFile: function(file) {
-          return 'vendor/sqljs/' + file;
+          return '/vendor/sqljs/' + file;
         }}).then(function(sqlModule) {
           SQL = sqlModule;
           resolve(SQL);
@@ -2464,7 +2464,7 @@ window.WeatherApp = (() => {
         renderNearby(data.public_stations);
       })
       .catch(function() {
-        fetch('data/weather-public.json')
+        fetch('/data/weather-public.json')
           .then(function(res) {
             if (!res.ok) throw new Error(res.status);
             return res.json();
@@ -2906,7 +2906,7 @@ window.WeatherApp = (() => {
         }
       })
       .catch(function() {
-        fetch('data/weather-public.json')
+        fetch('/data/weather-public.json')
           .then(function(r) { return r.json(); })
           .then(function(d) {
             if (d && d.public_stations) {

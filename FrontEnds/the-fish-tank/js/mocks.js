@@ -21,21 +21,21 @@ var MocksApp = (function() {
       <div class="mx-title-demos">
         <div class="mx-title-demo">
           <a class="mx-lockup" href="#mocks" onclick="return false">
-            <img src="assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
+            <img src="/assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
             <span class="mx-wordmark mx-shine">The Fish Tank</span>
           </a>
           <div class="mx-title-label">A &middot; light sweep <span class="mx-pick">recommended</span></div>
         </div>
         <div class="mx-title-demo">
           <a class="mx-lockup" href="#mocks" onclick="return false">
-            <img src="assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
+            <img src="/assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
             <span class="mx-wordmark mx-aqua">The Fish Tank</span>
           </a>
           <div class="mx-title-label">B &middot; aquatic gradient flow</div>
         </div>
         <div class="mx-title-demo">
           <a class="mx-lockup" href="#mocks" onclick="return false">
-            <img src="assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
+            <img src="/assets/guppitus-emblem.png?v=12" alt="Guppitus Maximus">
             <span class="mx-wordmark">The Fish Tank</span>
           </a>
           <div class="mx-title-label">static (reduced-motion / baseline)</div>
@@ -57,31 +57,31 @@ var MocksApp = (function() {
     <div class="frame-body">
       <div class="mx-title-demos">
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-sora">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-sora">The Fish Tank</span></a>
           <div class="mx-title-label">Sora <span class="mx-pick">my pick</span> &middot; clean geometric, quietly techy</div>
         </div>
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-space">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-space">The Fish Tank</span></a>
           <div class="mx-title-label">Space Grotesk &middot; distinctive dev-portfolio character</div>
         </div>
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-syne">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-syne">The Fish Tank</span></a>
           <div class="mx-title-label">Syne &middot; wide, artsy, bold statement</div>
         </div>
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-chakra">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-chakra">The Fish Tank</span></a>
           <div class="mx-title-label">Chakra Petch &middot; semi-industrial, engineering feel</div>
         </div>
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-michroma">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-michroma">The Fish Tank</span></a>
           <div class="mx-title-label">Michroma &middot; squarish sci-fi / "machine"</div>
         </div>
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-outfit">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine mx-f-outfit">The Fish Tank</span></a>
           <div class="mx-title-label">Outfit &middot; clean neutral, safe modern</div>
         </div>
         <div class="mx-title-demo">
-          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine">The Fish Tank</span></a>
+          <a class="mx-lockup" href="#mocks" onclick="return false"><img src="/assets/guppitus-emblem.png?v=12" alt=""><span class="mx-wordmark mx-shine">The Fish Tank</span></a>
           <div class="mx-title-label">system-ui &middot; current (for reference)</div>
         </div>
       </div>
