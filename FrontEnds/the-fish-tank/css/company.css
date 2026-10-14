@@ -37,7 +37,13 @@ a:focus-visible { outline: 3px solid var(--gold); outline-offset: 6px; }
     transform: translateY(-160%);
 }
 .skip-link:focus { transform: none; }
-.company { padding-block: 80px 54px; }
+.company { padding-block: 80px 26px; }
+.mascot-strip { position: relative; margin-top: 14px; }
+.mascot-strip[hidden] { display: none; }
+#company-mascot { display: block; width: 100%; height: 126px; image-rendering: pixelated; }
+#mascot-toggle { position: absolute; top: 0; right: 0; padding: 6px 8px; min-height: 44px; border: 0; background: transparent; color: var(--muted); font: 400 10px/1.4 Sora, system-ui, sans-serif; cursor: pointer; }
+#mascot-toggle:hover { color: var(--mint); }
+#mascot-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .eyebrow {
     margin: 0 0 18px;
     color: var(--mint);

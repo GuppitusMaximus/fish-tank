@@ -16,6 +16,10 @@ The project hub remains a single-page app in `hub/index.html`, with views manage
 
 The company homepage publishes `contact@the-fish-tank.com` as its company contact in a footer mail link. Never substitute a personal email address. Mail provisioning and DNS verification are managed separately in Proton and Cloudflare; the website source alone does not verify delivery. Apple enrollment also needs a working email on the organization’s domain.
 
+### Company mascot
+
+The company description is followed by a silent decorative tank patrol using the original company intro’s hull, turret, and guppy driver sprites. The tank drives in both directions, stops to fire with recoil and smoke, then turns. A visible pause/play control is available, and reduced motion starts it as a still image. Animation suspends offscreen, in hidden tabs, and during cinematic playback. Sprite loading failures hide the strip. No game code, audio, or player data is loaded.
+
 ### Intro cinematic
 
 The company page features a 68-second landscape intro above the gameplay showcase. The 1280×720 H.264 MP4 is optimized for web delivery, with AAC sound, a JPEG poster, native playback/fullscreen controls, and English narration captions. It loads on demand and does not autoplay or loop. Starting either viewer pauses the other; the cinematic pauses when the page is hidden and resumes only on user input.
