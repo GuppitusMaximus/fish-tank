@@ -10,11 +10,17 @@ Vanilla HTML, CSS, and JavaScript. No frameworks, no build tools. Entities (fish
 
 ## Architecture
 
-The root `index.html` is a static company page styled by `css/company.css`. Its `js/company.js` script switches the gameplay clips and preserves old hub bookmarks such as `/#weather` by forwarding them to `/hub/#weather`. Company content and the first video remain usable without JavaScript or authentication.
+The root `index.html` is a static company page styled by `css/company.css`. Its `js/company.js` script switches the gameplay clips and preserves old hub bookmarks such as `/#weather` by forwarding them to `/hub/#weather`. Company content, the cinematic, and the first gameplay video remain usable without JavaScript or authentication.
 
 The project hub remains a single-page app in `hub/index.html`, with views managed by `js/router.js`. Each module is an IIFE that exposes `start()` and `stop()` lifecycle methods. Shared assets, scripts, styles, data, and vendor libraries stay at the site root and use root-relative URLs so they work under `/hub/`. Authentication endpoints and localStorage keys are unchanged.
 
 The company homepage publishes `contact@the-fish-tank.com` as its company contact in a footer mail link. Never substitute a personal email address. Mail provisioning and DNS verification are managed separately in Proton and Cloudflare; the website source alone does not verify delivery. Apple enrollment also needs a working email on the organization’s domain.
+
+### Intro cinematic
+
+The company page features a 68-second landscape intro above the gameplay showcase. The 1280×720 H.264 MP4 is optimized for web delivery, with AAC sound, a JPEG poster, native playback/fullscreen controls, and English narration captions. It loads on demand and does not autoplay or loop. Starting either viewer pauses the other; the cinematic pauses when the page is hidden and resumes only on user input.
+
+Picture source: the approved `finishing/full-68s-grain-v1` landscape master from the October 9 cinematic project. Audio source: the approved `audio-v1/narration-mix-v3/full-68s-final-mix.wav` with Treasure Hunter Voice 1. The later portrait-only camera-drift revision is not present in the retained landscape master. Original masters are preserved.
 
 ### Gameplay media
 
