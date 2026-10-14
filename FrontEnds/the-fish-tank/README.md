@@ -18,7 +18,7 @@ The company homepage publishes `contact@the-fish-tank.com` as its company contac
 
 ### Company mascot
 
-The company description is followed by a silent decorative tank patrol using the original company intro’s hull, turret, and guppy driver sprites. The tank drives in both directions, stops to fire with recoil and smoke, then turns. A visible pause/play control is available, and reduced motion starts it as a still image. Animation suspends offscreen, in hidden tabs, and during cinematic playback. Sprite loading failures hide the strip. No game code, audio, or player data is loaded.
+The company description is followed by a silent decorative tank patrol using the original company intro’s hull, turret, and guppy driver sprites. The tank drives in both directions, stops to fire with recoil and smoke, then turns. On occasional passes, the turret pivots through its angled and front poses so the guppy looks toward the viewer before returning to its travel direction. Glances finish before firing. A visible pause/play control is available, and reduced motion starts it as a still image. Animation suspends offscreen, in hidden tabs, and during cinematic playback. Sprite loading failures hide the strip. No game code, audio, or player data is loaded.
 
 ### Intro cinematic
 

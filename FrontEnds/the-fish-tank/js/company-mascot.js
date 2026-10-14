@@ -7,7 +7,7 @@
     if (!ctx) return;
     var sprites;
     try {
-        sprites = await Promise.all(['hull-side', 'turret-side', 'head-iso-v7'].map(async function (name) {
+        sprites = await Promise.all(['hull-side', 'turret-side', 'head-iso-v7', 'turret-iso', 'turret-front', 'head-front-v7'].map(async function (name) {
             var img = new Image();
             img.src = '/assets/company/' + name + '.png';
             await img.decode();
@@ -70,12 +70,20 @@
             ctx.fillStyle = '#111d25'; ctx.fillRect(px - 1, py - 1, 3, 3);
             ctx.fillStyle = '#87959a'; ctx.fillRect(px, py, 1, 2);
         }
-        var turretX = 34 - recoil;
-        var turretY = -40;
-        ctx.drawImage(sprites[1], turretX, turretY);
+        // Occasionally glance at the viewer while the hull keeps driving.
+        // Each pose pivots around the same hatch, independent of the tracks.
+        var glance = Math.floor(t / half) % 3 !== 2 && leg >= 2.3 && leg < 4.8;
+        var front = glance && leg >= 2.7 && leg < 4.4;
+        var turret = sprites[glance ? (front ? 4 : 3) : 1];
+        var head = sprites[front ? 5 : 2];
+        var hatch = glance ? (front ? 37 : 29) : 24;
+        var foreground = glance ? (front ? 39 : 34) : 23;
+        var turretX = 58 - hatch - recoil;
+        var turretY = glance ? (front ? -50 : -45) : -40;
+        ctx.drawImage(turret, turretX, turretY);
         var duck = firing ? 3 * Math.sin(clamp(age / .4) * Math.PI) : 0;
-        ctx.drawImage(sprites[2], 0, 0, 26, 22 - duck, turretX + 11, turretY + 1 + duck, 26, 22 - duck);
-        ctx.drawImage(sprites[1], 0, 23, 98, 23, turretX, turretY + 23, 98, 23);
+        ctx.drawImage(head, 0, 0, 26, 22 - duck, turretX + hatch - 13, turretY + foreground - 22 + duck, 26, 22 - duck);
+        ctx.drawImage(turret, 0, foreground, turret.width, turret.height - foreground, turretX, turretY + foreground, turret.width, turret.height - foreground);
         if (moving) {
             for (var i = 0; i < 6; i++) {
                 var dust = (t * 2 + i / 6) % 1;
