@@ -136,6 +136,6 @@ Test files cover: auth modal, content gating, auth theme, SQLite browse, view sw
 
 Cloudflare hosts this directory as static assets on the `fish-tank` Worker, serving `the-fish-tank.com` and `www.the-fish-tank.com`. Cloudflare Builds is connected to `GuppitusMaximus/fish-tank`, with production branch `main`, root directory `FrontEnds/the-fish-tank`, no build command, and deploy command `npx wrangler deploy`.
 
-`wrangler.jsonc` declares the static asset directory. Publish the full directory so `/hub/` and shared root assets stay available. `.assetsignore` excludes documentation, tests, and deployment configuration. Existing custom domains are managed in Cloudflare.
+`wrangler.jsonc` declares the static asset directory. The repository-root `wrangler.jsonc` points to this same directory so deployment also works when Cloudflare Builds runs from the repository root. Both configurations publish the same `fish-tank` Worker. Publish the full directory so `/hub/` and shared root assets stay available. `.assetsignore` excludes documentation, tests, and deployment configuration. Existing custom domains are managed in Cloudflare.
 
 **Data files are not deployed via git.** Protected data (`weather.json`, `frontend.db.gz`) is uploaded to Cloudflare R2 by the backend pipeline and served through the Cloudflare Worker. Only `data/weather-public.json` (the public home-summary fallback) is committed to the repo.
