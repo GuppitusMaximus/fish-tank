@@ -57,44 +57,33 @@ h1 span { color: var(--gold); font-weight: 350; }
 .company-description { max-width: 700px; margin: 0; color: var(--muted); }
 .game {
     display: grid;
-    grid-template-columns: 1fr 1.08fr;
+    grid-template-columns: 300px minmax(0, 1fr);
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 4px;
     overflow: hidden;
 }
-.game-scene {
-    position: relative;
-    min-height: 370px;
-    overflow: hidden;
-    background: linear-gradient(0deg, #0a1b23aa, transparent 70%), url('/assets/ff/bg.jpg') center/cover;
+.game-media { margin: 0; background: #071115; border-right: 1px solid var(--line); }
+.gameplay-video { display: block; width: 100%; max-width: 300px; height: auto; margin-inline: auto; aspect-ratio: 9 / 16; background: #071115; }
+.gameplay-choices { display: flex; gap: 5px; padding: 9px; border-top: 1px solid var(--line); }
+.gameplay-choices[hidden] { display: none; }
+.gameplay-choices button {
+    flex: 1;
+    min-height: 44px;
+    padding: 8px 5px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--muted);
+    font: 500 11px/1.3 Sora, system-ui, sans-serif;
+    cursor: pointer;
 }
-.scene-party { position: absolute; display: flex; align-items: end; left: 26px; bottom: 69px; }
-.character {
-    display: block;
-    width: 100px;
-    height: 100px;
-    flex-shrink: 0;
-    background-repeat: no-repeat;
-    background-size: 600px 200px;
-    margin-left: -18px;
-    filter: drop-shadow(0 12px 8px #0008);
-    image-rendering: pixelated;
-}
-.glimmer { background-image: url('/assets/ff/glimmergupp.png'); }
-.tideprancer { background-image: url('/assets/ff/tideprancer.png'); margin-bottom: 12px; }
-.sword { background-image: url('/assets/ff/sword.png'); }
-.scene-boss {
-    position: absolute;
-    right: -8px;
-    bottom: 58px;
-    width: 180px;
-    height: 180px;
-    background: url('/assets/ff/pipe_phantom.png') 0 0 / 720px 360px no-repeat;
-    filter: drop-shadow(0 12px 8px #0008);
-    image-rendering: pixelated;
-}
-.game-copy { padding: 35px; }
+.gameplay-choices button:hover { color: var(--ink); border-color: var(--mint); }
+.gameplay-choices button[aria-pressed="true"] { color: #132922; background: var(--mint); border-color: var(--mint); }
+.gameplay-choices button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.game-media figcaption { display: grid; gap: 3px; padding: 5px 14px 16px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.footage-label { color: var(--mint); font-size: 9px; letter-spacing: .8px; text-transform: uppercase; }
+.game-copy { padding: 40px; align-self: center; }
 .game-copy .eyebrow { margin-bottom: 10px; }
 h2 { margin: 0 0 18px; font: 400 40px/1.2 Georgia, serif; letter-spacing: -1px; }
 .game-copy p:not(.eyebrow) { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
@@ -119,18 +108,18 @@ h2 { margin: 0 0 18px; font: 400 40px/1.2 Georgia, serif; letter-spacing: -1px; 
 @media (max-width: 800px) {
     .wrap { width: calc(100% - 48px); }
     .company { padding-block: 55px 35px; }
-    .game { grid-template-columns: 1fr; }
-    .game-scene { min-height: 250px; }
-    .scene-party { left: 12%; bottom: 36px; }
-    .scene-boss { right: 10%; bottom: 25px; }
-    .game-copy { padding: 28px; }
+    .game { grid-template-columns: 280px minmax(0, 1fr); }
+    .game-copy { padding: 26px; }
+}
+@media (max-width: 680px) {
+    .game { display: flex; flex-direction: column; }
+    .game-copy { order: -1; align-self: stretch; }
+    .game-media { border-right: 0; border-top: 1px solid var(--line); }
+    .gameplay-choices, .game-media figcaption { max-width: 340px; margin-inline: auto; }
 }
 @media (max-width: 420px) {
     .wrap { width: calc(100% - 36px); }
     h1 { font-size: 35px; letter-spacing: -1.7px; }
     .company-description { font-size: 14px; }
-    .scene-party { left: 15px; }
-    .character { width: 80px; height: 80px; background-size: 480px 160px; margin-left: -20px; }
-    .scene-boss { right: -4px; width: 145px; height: 145px; background-size: 580px 290px; }
     .game-copy { padding: 24px; }
 }

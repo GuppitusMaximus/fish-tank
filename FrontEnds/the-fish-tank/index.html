@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';">
     <title>The Fish Tank LLC — Games &amp; Software</title>
-    <meta name="description" content="The Fish Tank LLC is an independent game and software development company. Developer and publisher of Fathom Fall, an aquatic dungeon-crawling RPG.">
+    <meta name="description" content="The Fish Tank LLC is an independent game and software development company. Developer and publisher of Fathom Fall, a run-based dungeon RPG with roguelike party building and asynchronous PvP.">
     <meta name="publisher" content="The Fish Tank LLC">
     <link rel="canonical" href="https://the-fish-tank.com/">
     <meta property="og:type" content="website">
@@ -13,11 +13,11 @@
     <meta property="og:title" content="The Fish Tank LLC — Games &amp; Software">
     <meta property="og:description" content="Independent game and software development. The company behind Fathom Fall.">
     <meta property="og:url" content="https://the-fish-tank.com/">
-    <meta property="og:image" content="https://the-fish-tank.com/assets/ff/bg.jpg">
+    <meta property="og:image" content="https://the-fish-tank.com/assets/gameplay/combat.jpg">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="/favicon.png" type="image/png">
-    <link rel="stylesheet" href="/css/company.css?v=2">
-    <script src="/js/company.js?v=1" defer></script>
+    <link rel="stylesheet" href="/css/company.css?v=3">
+    <script src="/js/company.js?v=2" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -25,19 +25,26 @@
         <section class="company" aria-labelledby="company-title">
             <p class="eyebrow">Independent games &amp; software</p>
             <h1 id="company-title">The Fish Tank <span>LLC</span></h1>
-            <p class="company-description">The Fish Tank LLC develops and publishes games and software. Our current project is Fathom Fall, an aquatic dungeon-crawling RPG built around exploration, party building, and discovery.</p>
+            <p class="company-description">The Fish Tank LLC develops and publishes games and software. Our current project is Fathom Fall, a run-based dungeon RPG with aquatic allies, roguelike party building, and asynchronous PvP.</p>
         </section>
         <section class="game" aria-labelledby="game-title">
-            <div class="game-scene" role="img" aria-label="Aquatic heroes face the Pipe Phantom in a dungeon from Fathom Fall.">
-                <div class="scene-party" aria-hidden="true"><span class="character glimmer"></span><span class="character tideprancer"></span><span class="character sword"></span></div>
-                <span class="scene-boss" aria-hidden="true"></span>
-            </div>
+            <figure class="game-media">
+                <video id="gameplay-video" class="gameplay-video" width="540" height="960" src="/assets/gameplay/combat.mp4" poster="/assets/gameplay/combat.jpg" controls loop muted playsinline preload="metadata" aria-label="Fathom Fall combat gameplay" aria-describedby="gameplay-caption">
+                    <a href="/assets/gameplay/combat.mp4">Watch Fathom Fall combat gameplay</a>
+                </video>
+                <div id="gameplay-choices" class="gameplay-choices" role="group" aria-label="Choose gameplay clip" hidden>
+                    <button type="button" aria-pressed="true" data-video="/assets/gameplay/combat.mp4" data-poster="/assets/gameplay/combat.jpg" data-title="Fathom Fall combat gameplay" data-caption="Party combat in the dungeon.">Combat</button>
+                    <button type="button" aria-pressed="false" data-video="/assets/gameplay/tacklebox.mp4" data-poster="/assets/gameplay/tacklebox.jpg" data-title="Fathom Fall tacklebox equipment gameplay" data-caption="Select, rotate, and rig gear into your tacklebox.">Tacklebox</button>
+                    <button type="button" aria-pressed="false" data-video="/assets/gameplay/pvp.mp4" data-poster="/assets/gameplay/pvp.jpg" data-title="Fathom Fall asynchronous PvP gameplay" data-caption="Preview of asynchronous PvP combat.">PvP</button>
+                </div>
+                <figcaption><span class="footage-label">Development gameplay</span><span id="gameplay-caption">Party combat in the dungeon.</span></figcaption>
+            </figure>
             <div class="game-copy">
                 <p class="eyebrow">Our game</p>
                 <h2 id="game-title">Fathom Fall</h2>
-                <p>Build a party of aquatic creatures, discover equipment, and explore increasingly perilous dungeon depths. Shape your party as you descend and take on the creatures waiting below.</p>
-                <p>Developed and published by The Fish Tank LLC. A browser demo is available on the official game website.</p>
-                <a class="button" href="https://fathomfall.com/">Explore Fathom Fall <span aria-hidden="true">↗</span></a>
+                <p>Choose your route, recruit aquatic allies, and adapt to randomized encounters and loot as you descend toward the Dungeon Heart.</p>
+                <p>Fit and rotate equipment in your tacklebox to shape your build. Battle monsters and challenge other players’ recorded parties in asynchronous PvP.</p>
+                <a class="button" href="https://fathomfall.com/">Play the browser demo <span aria-hidden="true">↗</span></a>
             </div>
         </section>
     </main>
