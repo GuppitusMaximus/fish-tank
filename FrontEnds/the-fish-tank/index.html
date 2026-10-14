@@ -3,275 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- No frame-src on purpose: frames fall back to default-src 'self'.
-         js/dungeon-fisher.js frames dungeon-fisher/index.html, which is a
-         meta-refresh to https://www.fathomfall.com -- a cross-origin frame
-         navigation this policy would block. That file is dead code today
-         (referenced from nowhere); if you revive it, add frame-src
-         https://www.fathomfall.com rather than debugging a silent failure. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://fishtank-auth.guppitus.workers.dev https://auth.the-fish-tank.com https://api.the-fish-tank.com https://www.fathomfall.com; object-src 'none'; base-uri 'self';">
-    <link rel="icon" type="image/png" href="favicon.png">
-    <title>The Fish Tank</title>
-    <meta name="description" content="Games, weather models and a trading engine — running live from a self-hosted homelab and a VPS. Nine ML models forecast a real backyard weather station, next to a browser roguelike.">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none';">
+    <title>The Fish Tank LLC — Games &amp; Software</title>
+    <meta name="description" content="The Fish Tank LLC is an independent game and software development company. Developer and publisher of Fathom Fall, a run-based dungeon RPG with roguelike party building and asynchronous PvP.">
+    <meta name="publisher" content="The Fish Tank LLC">
+    <link rel="canonical" href="https://the-fish-tank.com/">
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="The Fish Tank">
-    <meta property="og:title" content="The Fish Tank — personal engineering platform">
-    <meta property="og:description" content="Games, weather models and a trading engine — running live from a self-hosted homelab and a VPS. Nine ML models forecast a real backyard weather station, next to a browser roguelike.">
+    <meta property="og:site_name" content="The Fish Tank LLC">
+    <meta property="og:title" content="The Fish Tank LLC — Games &amp; Software">
+    <meta property="og:description" content="Independent game and software development. The company behind Fathom Fall.">
     <meta property="og:url" content="https://the-fish-tank.com/">
-    <meta property="og:image" content="https://the-fish-tank.com/assets/og-card.jpg">
-    <meta property="og:image:width" content="2400">
-    <meta property="og:image:height" content="1256">
+    <meta property="og:image" content="https://the-fish-tank.com/assets/gameplay/combat.jpg">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="The Fish Tank — personal engineering platform">
-    <meta name="twitter:description" content="Games, weather models and a trading engine — running live from a self-hosted homelab and a VPS. Nine ML models forecast a real backyard weather station, next to a browser roguelike.">
-    <meta name="twitter:image" content="https://the-fish-tank.com/assets/og-card.jpg">
-    <link rel="stylesheet" href="css/style.css?v=27">
-    <link rel="stylesheet" href="css/auth.css?v=22">
-    <link rel="stylesheet" href="css/mocks.css?v=22">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/css/company.css?v=5">
+    <script src="/js/company.js?v=2" defer></script>
 </head>
-<body class="theme-ocean">
-    <header>
-        <h1 id="page-title" class="site-title">
-            <a class="site-logo" data-view="home" href="#" aria-label="The Fish Tank — home">
-                <img src="assets/guppitus-emblem.png?v=14" alt="" width="34" height="34">
-                <span class="site-wordmark">The Fish Tank</span>
-            </a>
-        </h1>
-        <nav>
-            <a data-view="home" class="auth-gated auth-hidden">Home</a>
-            <a data-view="weather" class="auth-gated auth-hidden">Potter Weather Predictions</a>
-            <a data-view="fathomfall" class="auth-gated auth-hidden">Fathom Fall</a>
-            <a href="https://proxmox.the-fish-tank.com" target="_blank" rel="noopener" class="auth-gated auth-hidden">Proxmox</a>
-            <a href="https://grafana.the-fish-tank.com" target="_blank" rel="noopener" class="auth-gated auth-hidden">Grafana</a>
-            <a data-view="mocks" class="auth-gated auth-hidden">Design Mocks</a>
-        </nav>
-        <div class="account-dropdown">
-            <button class="account-toggle" aria-label="Account menu">
-                <span></span><span></span><span></span>
-            </button>
-            <div class="account-menu">
-                <a id="signin-link" class="auth-public-only">Sign In</a>
-                <a id="signout-link" class="auth-gated auth-hidden">Sign Out</a>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <main id="main" class="wrap">
+        <section class="company" aria-labelledby="company-title">
+            <p class="eyebrow">Independent games &amp; software</p>
+            <h1 id="company-title">The Fish Tank <span>LLC</span></h1>
+            <p class="company-description">The Fish Tank LLC develops and publishes games and software. Our current project is Fathom Fall, a run-based dungeon RPG with aquatic allies, roguelike party building, and asynchronous PvP.</p>
+        </section>
+        <section class="game" aria-labelledby="game-title">
+            <figure class="game-media">
+                <video id="gameplay-video" class="gameplay-video" width="540" height="960" src="/assets/gameplay/combat.mp4" poster="/assets/gameplay/combat.jpg" controls loop muted playsinline preload="metadata" aria-label="Fathom Fall combat gameplay" aria-describedby="gameplay-caption">
+                    <a href="/assets/gameplay/combat.mp4">Watch Fathom Fall combat gameplay</a>
+                </video>
+                <div id="gameplay-choices" class="gameplay-choices" role="group" aria-label="Choose gameplay clip" hidden>
+                    <button type="button" aria-pressed="true" data-video="/assets/gameplay/combat.mp4" data-poster="/assets/gameplay/combat.jpg" data-title="Fathom Fall combat gameplay" data-caption="Party combat in the dungeon.">Combat</button>
+                    <button type="button" aria-pressed="false" data-video="/assets/gameplay/tacklebox.mp4" data-poster="/assets/gameplay/tacklebox.jpg" data-title="Fathom Fall tacklebox equipment gameplay" data-caption="Select, rotate, and rig gear into your tacklebox.">Tacklebox</button>
+                    <button type="button" aria-pressed="false" data-video="/assets/gameplay/pvp.mp4" data-poster="/assets/gameplay/pvp.jpg" data-title="Fathom Fall asynchronous PvP gameplay" data-caption="Preview of asynchronous PvP combat.">PvP</button>
+                </div>
+                <figcaption><span id="gameplay-caption">Party combat in the dungeon.</span></figcaption>
+            </figure>
+            <div class="game-copy">
+                <p class="eyebrow">Our game</p>
+                <h2 id="game-title">Fathom Fall</h2>
+                <p>Choose your route, recruit aquatic allies, and adapt to randomized encounters and loot as you descend toward the Dungeon Heart.</p>
+                <p>Fit and rotate equipment in your tacklebox to shape your build. Battle monsters and challenge other players’ recorded parties in asynchronous PvP.</p>
+                <a class="button" href="https://fathomfall.com/">Play the browser demo <span aria-hidden="true">↗</span></a>
             </div>
-        </div>
-    </header>
-    <main id="home" class="active">
-        <div class="hub-grid">
-            <div class="hub-tile hub-span4 hub-rows2 hub-hero">
-                <div class="hub-label">guppitus &middot; project hub</div>
-                <div class="hub-hero-h">Games, weather models &amp; a trading engine &mdash; <b>running live</b> from a homelab and a VPS.</div>
-                <div class="hub-status">
-                    <span><span id="hub-weather-dot" class="status-dot cancelled"></span><span id="hub-weather-status">Potter weather</span></span>
-                    <span><span id="hub-market-dot" class="status-dot market-closed"></span><span id="hub-market-status">Market opens in &hellip;</span></span>
-                    <span><span id="hub-ff-dot" class="status-dot cancelled"></span><span id="hub-ff-status">Fathom Fall</span></span>
-                </div>
-            </div>
-            <a class="hub-tile hub-span2 hub-rows2 ff-tile" href="https://www.fathomfall.com" target="_blank" rel="noopener">
-                <div>
-                    <div class="hub-label"><span class="status-dot cancelled" id="ff-tile-dot"></span> Featured game</div>
-                    <div class="hub-title">Fathom Fall <span class="ff-version" id="ff-tile-version"></span></div>
-                    <div class="hub-desc">Descend, fish, survive. A roguelite about going too deep.</div>
-                </div>
-                <div class="ff-bottom">
-                    <span class="hub-tag">Play free</span>
-                    <div class="ff-scene" id="ff-scene" aria-hidden="true">
-                        <div class="ff-side ff-party">
-                            <div class="ff-sprite" data-ff="glimmergupp"></div>
-                            <div class="ff-sprite" data-ff="tideprancer"></div>
-                            <div class="ff-sprite" data-ff="sword"></div>
-                        </div>
-                        <div class="ff-side ff-enemy">
-                            <div class="ff-sprite ff-frames4 ff-boss" data-ff="pipe_phantom"></div>
-                        </div>
-                    </div>
-                </div>
-            </a>
-            <div class="hub-tile hub-span3">
-                <div class="hub-label wx-label-row">
-                    <span><span class="status-dot cancelled" id="hub-tile-dot"></span> SnakeTank &middot; Potter Weather</span>
-                    <span class="unit-toggle" id="home-unit-toggle">
-                        <button type="button" data-unit="C" class="active">&deg;C</button><button type="button" data-unit="F">&deg;F</button>
-                    </span>
-                </div>
-                <div id="home-weather-tile">
-                    <div class="wx-skeleton"><span></span><span></span></div>
-                </div>
-                <div class="hub-subgate auth-public-only">
-                    <div class="hub-locked">
-                        <div class="wx-rank-row"><span>temp_lag_3h</span><i style="width:88%"></i></div>
-                        <div class="wx-rank-row"><span>pressure_trend</span><i style="width:63%"></i></div>
-                    </div>
-                    <div class="hub-gate-veil">
-                        <button class="hub-gate-btn" type="button">Sign in</button>
-                    </div>
-                </div>
-                <a class="hub-more auth-gated auth-hidden" data-view="weather">Full dashboard &rarr;</a>
-            </div>
-            <div class="hub-tile hub-span3" id="tankcore-tile">
-                <div class="hub-label"><span class="status-dot market-closed" id="tankcore-dot"></span> TankCore &middot; Quant Trader</div>
-                <div class="tankcore-body">
-                    <div class="tankcore-pane auth-public-only" id="tankcore-public">
-                        <div class="wx-skeleton"><span></span><span></span><span></span></div>
-                    </div>
-                    <div class="hub-subgate auth-public-only" id="tankcore-subgate">
-                        <div class="hub-locked" aria-hidden="true">
-                            <div class="wx-rank-row"><span>positions</span><i style="width:38%"></i></div>
-                            <div class="wx-rank-row"><span>exposure</span><i style="width:24%"></i></div>
-                            <div class="wx-rank-row"><span>30-day P&amp;L</span><i style="width:55%"></i></div>
-                        </div>
-                        <div class="hub-gate-veil">
-                            <button class="hub-gate-btn" type="button">Sign in</button>
-                        </div>
-                    </div>
-                    <div class="hub-locked">
-                      <div class="tankcore-pane auth-gated auth-hidden" id="tankcore-live">
-                        <div class="wx-skeleton"><span></span><span></span><span></span></div>
-                      </div>
-                    </div>
-                </div>
-            </div>
-            <div class="hub-tile hub-span6" id="nearby-tile">
-                <div id="nearby-body"></div>
-            </div>
-            <div class="hub-tile hub-span4" id="homelab-tile">
-                <div class="hub-label"><span class="status-dot cancelled" id="homelab-dot"></span> Homelab &middot; Proxmox</div>
-                <div id="homelab-stats">
-                    <div class="wx-skeleton"><span></span><span></span><span></span></div>
-                </div>
-                <div class="hub-subgate auth-public-only">
-                    <div class="hub-locked">
-                        <div class="wx-rank-row"><span>node_cpu</span><i style="width:71%"></i></div>
-                        <div class="wx-rank-row"><span>net_io</span><i style="width:52%"></i></div>
-                    </div>
-                    <div class="hub-gate-veil">
-                        <button class="hub-gate-btn" type="button">Sign in</button>
-                    </div>
-                </div>
-                <div class="hub-tags auth-gated auth-hidden">
-                    <a class="hub-tag" href="https://grafana.the-fish-tank.com" target="_blank" rel="noopener">Grafana dashboard</a>
-                    <a class="hub-tag" href="https://proxmox.the-fish-tank.com" target="_blank" rel="noopener">Proxmox</a>
-                </div>
-            </div>
-            <div class="hub-tile hub-span2">
-                <div class="hub-label">Open source</div>
-                <div class="hub-repos">
-                    <a class="hub-repo" href="https://github.com/GuppitusMaximus/fish-tank" target="_blank" rel="noopener">
-                        <span class="hub-repo-name">fish-tank</span>
-                        <span class="hub-repo-desc">Agent delivery platform &amp; this site</span>
-                    </a>
-                    <a class="hub-repo" href="https://github.com/GuppitusMaximus/fathom-fall-showcase" target="_blank" rel="noopener">
-                        <span class="hub-repo-name">fathom-fall</span>
-                        <span class="hub-repo-desc">100-floor roguelike, AI-built</span>
-                    </a>
-                    <a class="hub-repo" href="https://github.com/GuppitusMaximus/tankcore-showcase" target="_blank" rel="noopener">
-                        <span class="hub-repo-name">tankcore</span>
-                        <span class="hub-repo-desc">Quant research platform</span>
-                    </a>
-                </div>
-                <a class="hub-more" href="https://github.com/GuppitusMaximus" target="_blank" rel="noopener">All repos on GitHub &rarr;</a>
-            </div>
-        </div>
+        </section>
     </main>
-    <div id="weather">
-    </div>
-    <div id="tank">
-        <div class="sandy-bottom"></div>
-        <div class="plant plant-1"></div>
-        <div class="plant plant-2"></div>
-        <div class="plant plant-3"></div>
-    </div>
-    <div id="arena">
-        <div class="muddy-ground"></div>
-        <div class="mound mound-1"></div>
-        <div class="mound mound-2"></div>
-        <div class="mound mound-3"></div>
-    </div>
-    <div id="sky">
-        <div class="cloud cloud-1"></div>
-        <div class="cloud cloud-2"></div>
-        <div class="cloud cloud-3"></div>
-    </div>
-
-    <div id="fathomfall">
-        <div class="ff-admin-wrap">
-            <div class="admin-header">
-                <h2>Fathom Fall — Admin</h2>
-            </div>
-
-            <div id="ff-stats" class="admin-stats-grid"></div>
-
-            <div class="admin-section" id="ff-main-tables">
-                <h3>Players</h3>
-                <div class="admin-controls">
-                    <input type="text" id="ff-player-search" placeholder="Search by name..." class="admin-search">
-                    <button id="ff-refresh-players" class="admin-btn">Refresh</button>
-                </div>
-                <table id="ff-players-table" class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Platform</th>
-                            <th>Highest Floor</th>
-                            <th>Snapshots</th>
-                            <th>Last Active</th>
-                            <th>Joined</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                <div id="ff-players-pagination" class="admin-pagination"></div>
-
-                <h3 style="margin-top:24px">Recent Snapshots</h3>
-                <table id="ff-snapshots-table" class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Player</th>
-                            <th>Character</th>
-                            <th>Floor</th>
-                            <th>Party</th>
-                            <th>Power</th>
-                            <th>Time</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                <div id="ff-snapshots-pagination" class="admin-pagination"></div>
-            </div>
-
-            <div id="ff-player-detail" class="admin-detail-panel" style="display:none;"></div>
-        </div>
-    </div>
-
-    <div id="mocks"></div>
-    <p class="hint" id="hint"></p>
-    <div id="signin-modal">
-      <div class="signin-card">
-        <button id="signin-close" class="signin-close">&times;</button>
-        <div class="signin-fish"><img src="assets/guppitus-emblem.png?v=6" alt="Guppitus Maximus" width="96" height="96"></div>
-        <h2>FishTank</h2>
-        <p class="signin-subtitle">Sign in to unlock the TankCore quant trader, weather predictions, live homelab metrics, admin controls, and full dashboards</p>
-        <form id="signin-form">
-          <input type="text" id="signin-username" placeholder="Username" autocomplete="username" required>
-          <input type="password" id="signin-password" placeholder="Password" autocomplete="current-password" required>
-          <button type="submit">Dive In</button>
-        </form>
-      </div>
-    </div>
-    <script src="js/auth-config.js?v=22"></script>
-    <script src="js/auth.js?v=23"></script>
-    <script src="js/tank.js?v=22"></script>
-    <script src="js/battle.js?v=22"></script>
-    <script src="js/fighter.js?v=22"></script>
-
-    <script src="js/weather.js?v=24"></script>
-    <script src="js/fathomfall-admin.js?v=22"></script>
-    <script src="js/homelab.js?v=26"></script>
-    <script src="js/market.js?v=25"></script>
-    <script src="js/tankcore.js?v=30"></script>
-    <script src="js/ff-status.js?v=23"></script>
-    <script src="js/ff-scene.js?v=22"></script>
-    <script src="js/mocks.js?v=22"></script>
-    <script src="js/router.js?v=28"></script>
-    <script src="js/init.js?v=28"></script>
+    <footer class="site-footer wrap">
+        <p>© 2026 The Fish Tank LLC</p>
+        <a href="mailto:contact@the-fish-tank.com">contact@the-fish-tank.com</a>
+    </footer>
 </body>
 </html>

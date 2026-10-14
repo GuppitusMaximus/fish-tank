@@ -1,6 +1,8 @@
 # The Fish Tank
 
-An interactive web experience at [the-fish-tank.com](https://the-fish-tank.com) featuring a live weather dashboard and three simulations: a swimming fish aquarium, autonomous tank combat, and aerial dogfighting.
+The public company website for The Fish Tank LLC at [the-fish-tank.com](https://the-fish-tank.com), with a concise company description and Fathom Fall showcase. The public company page omits personal names, location, personal email, and links to the personal hub.
+
+The existing personal project hub lives at [`/hub/`](https://the-fish-tank.com/hub/). Its dashboards, simulations, and authentication remain together in the original single-page application.
 
 ## Tech Stack
 
@@ -8,7 +10,29 @@ Vanilla HTML, CSS, and JavaScript. No frameworks, no build tools. Entities (fish
 
 ## Architecture
 
-Single-page app with five views managed by a view controller in `index.html`. Each module is an IIFE that exposes `start()` and `stop()` lifecycle methods. The controller switches views, swaps CSS themes, and manages module lifecycle.
+The root `index.html` is a static company page styled by `css/company.css`. Its `js/company.js` script switches the gameplay clips and preserves old hub bookmarks such as `/#weather` by forwarding them to `/hub/#weather`. Company content and the first video remain usable without JavaScript or authentication.
+
+The project hub remains a single-page app in `hub/index.html`, with views managed by `js/router.js`. Each module is an IIFE that exposes `start()` and `stop()` lifecycle methods. Shared assets, scripts, styles, data, and vendor libraries stay at the site root and use root-relative URLs so they work under `/hub/`. Authentication endpoints and localStorage keys are unchanged.
+
+The company homepage publishes `contact@the-fish-tank.com` as its company contact in a footer mail link. Never substitute a personal email address. Mail provisioning and DNS verification are managed separately in Proton and Cloudflare; the website source alone does not verify delivery. Apple enrollment also needs a working email on the organization’s domain.
+
+### Gameplay media
+
+The company page uses current development gameplay in `assets/gameplay/`, replacing the old promotional sprite composition. Capture source: Fathom Fall `origin/dev` commit `1baa97c8883ed3dfbc44d80df3b2c998f4746a47`, version **0.102.4**, fetched on October 14, 2026.
+
+Clips use real game scenes and rendering in isolated local fixtures with disposable parties and gear. Combat health was increased for capture; native engine behavior, attack timing, and effects were retained. The PvP opponent is a neutral demo party, not a recording of a live online match. The footage contains no personal account identity. Do not describe asynchronous ghost-party PvP as simultaneous online play.
+
+| Clip | Duration | What it shows |
+| --- | --- | --- |
+| `combat.mp4` | 7.97 seconds | Party attacks, damage, and status effects |
+| `tacklebox.mp4` | 11.50 seconds | Selecting, rotating, and rigging a charm through the actual game UI |
+| `pvp.mp4` | 9.93 seconds | Rival-party battle using the current PvP engine |
+
+Each clip is 540×960 at 30 fps with a matching JPEG poster. The excerpts loop with a visible reset to their opening state.
+
+The viewer loads one silent H.264 MP4 at a time, with a poster, native pause/fullscreen controls, and clip selectors. Muted looping autoplay is disabled when the visitor prefers reduced motion; native controls still allow intentional playback. Playback pauses when the page is hidden.
+
+The copy reflects current mechanics: run-based progression, randomized encounters and loot, route choices, gear rotation/placement, and asynchronous PvP. Ordinary defeat does not immediately end the run in this version, so avoid instant-permadeath claims or the outdated 100-floor description.
 
 ### Views
 
@@ -64,17 +88,20 @@ The site is mobile-responsive with touch-friendly 44px tap targets, scrollable t
 
 ```
 the-fish-tank/
-├── index.html              # Single-page app — views, nav, and view controller
-├── CNAME                   # GitHub Pages domain: the-fish-tank.com
+├── index.html              # Public company website
+├── hub/index.html          # Existing project hub, dashboards, and sign-in
+├── wrangler.jsonc          # Cloudflare Worker static asset configuration
 ├── favicon.png             # Site favicon
 ├── css/
-│   ├── style.css           # All styles, themes, and animations
+│   ├── company.css         # Company homepage
+│   ├── style.css           # Project hub styles, themes, and animations
 │   └── auth.css            # Auth modal and content gating styles
 ├── data/
 │   ├── weather-public.json # Committed fallback for the public home summary
 │   ├── weather.json        # (local dev only — production fetched from Worker)
 │   └── frontend.db.gz      # (local dev only — production fetched from Worker)
 ├── js/
+│   ├── company.js          # Legacy hub bookmark redirects
 │   ├── auth-config.js      # Worker URL configuration (AUTH_API_URL)
 │   ├── auth.js             # Authentication module (sign-in, JWT, content gating)
 │   ├── weather.js          # Weather dashboard module
@@ -89,7 +116,7 @@ Browser tests live at `FrontEnds/tests/browser/` (see Testing below).
 
 ## Development
 
-No build step. Open `index.html` in a browser to run locally. For authenticated features, the Worker URL in `js/auth-config.js` must point to a running Cloudflare Worker.
+No build step. Serve `the-fish-tank/` as the document root with a local HTTP server, for example `python3 -m http.server 8765 --bind 127.0.0.1`. Open `/` for the company page or `/hub/` for the dashboard. For authenticated features, the Worker URL in `js/auth-config.js` must point to a running Cloudflare Worker.
 
 ## Testing
 
@@ -107,6 +134,8 @@ Test files cover: auth modal, content gating, auth theme, SQLite browse, view sw
 
 ## Deployment
 
-GitHub Pages via GitHub Actions ([`pages.yml`](../../.github/workflows/pages.yml)). Deploys automatically on push to `main` when files in `FrontEnds/the-fish-tank/` change. Custom domain configured via `CNAME`.
+Cloudflare hosts this directory as static assets on the `fish-tank` Worker, serving `the-fish-tank.com` and `www.the-fish-tank.com`. Cloudflare Builds is connected to `GuppitusMaximus/fish-tank`, with production branch `main`, root directory `FrontEnds/the-fish-tank`, no build command, and deploy command `npx wrangler deploy`.
+
+`wrangler.jsonc` declares the static asset directory. The repository-root `wrangler.jsonc` points to this same directory so deployment also works when Cloudflare Builds runs from the repository root. Both configurations publish the same `fish-tank` Worker. Publish the full directory so `/hub/` and shared root assets stay available. `.assetsignore` excludes documentation, tests, and deployment configuration. Existing custom domains are managed in Cloudflare.
 
 **Data files are not deployed via git.** Protected data (`weather.json`, `frontend.db.gz`) is uploaded to Cloudflare R2 by the backend pipeline and served through the Cloudflare Worker. Only `data/weather-public.json` (the public home-summary fallback) is committed to the repo.

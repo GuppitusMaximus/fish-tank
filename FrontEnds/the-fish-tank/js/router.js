@@ -7,7 +7,7 @@
         home: {
             el: document.getElementById('home'),
             app: null,
-            title: 'The Fish Tank',
+            title: 'Project Hub — The Fish Tank',
             hint: '',
             theme: 'theme-ocean'
         },
