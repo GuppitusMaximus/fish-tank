@@ -28,6 +28,15 @@
     var clamp = function (n) { return Math.max(0, Math.min(1, n)); };
     var ease = function (n) { n = clamp(n); return n * n * (3 - 2 * n); };
 
+    function fireCloud(x, y, rx, ry, color) {
+        if (rx <= 0 || ry <= 0) return;
+        ctx.fillStyle = color;
+        for (var row = -ry; row <= ry; row += 2) {
+            var span = Math.sqrt(Math.max(0, 1 - row * row / (ry * ry))) * rx;
+            ctx.fillRect(Math.round(x - span), Math.round(y + row), Math.max(2, Math.round(span * 2)), 2);
+        }
+    }
+
     function render(t) {
         ctx.clearRect(0, 0, width, height);
         ctx.imageSmoothingEnabled = false;
@@ -37,11 +46,14 @@
         var leg = cycle % half;
         var moving = leg < 6.8;
         var travel = ease(leg / 6.8);
-        var margin = Math.min(130, width * .29);
+        var margin = Math.min(185, width * .4);
         var x = right ? margin + (width - 2 * margin) * travel : width - margin - (width - 2 * margin) * travel;
         var age = leg - 7.1;
         var firing = age >= 0 && age < 1.1;
-        var recoil = age >= 0 && age < .55 ? 6 * Math.exp(-age * 9) * Math.sin(clamp(age / .07) * Math.PI / 2) : 0;
+        var recoil = age >= 0 && age < .7 ? 11 * Math.exp(-age * 7) * Math.sin(clamp(age / .06) * Math.PI / 2) : 0;
+        var shudder = age >= 0 && age < .65 ? Math.exp(-age * 6) : 0;
+        var shudderX = Math.round(Math.sin(age * 88) * 3 * shudder);
+        var shudderY = -Math.round(Math.abs(Math.sin(age * 60)) * 3 * shudder);
         var phase = travel * (width - 2 * margin);
         var bump = moving ? Math.floor(phase / 6) % 2 : 0;
         ctx.fillStyle = '#2b4145';
@@ -51,7 +63,7 @@
         ctx.scale(right ? 1 : -1, 1);
         ctx.fillStyle = 'rgba(0,0,0,.28)';
         ctx.fillRect(-52, 97, 104, 3);
-        ctx.translate(-59 - recoil * .3, 51 + bump);
+        ctx.translate(-59 - recoil * .55 + shudderX, 51 + bump + shudderY);
         ctx.drawImage(sprites[0], 0, 0);
         // Track links follow the original side-view belt path.
         var points = [[7,24],[105,24],[113,29],[116,35],[112,42],[106,45],[15,45],[7,42],[2,35],[3,29],[7,24]];
@@ -94,16 +106,36 @@
         if (firing) {
             var muzzleX = turretX + 96;
             var muzzleY = turretY + 31;
-            if (age < .14) {
-                ctx.fillStyle = '#e8c78d'; ctx.fillRect(muzzleX, muzzleY - 4, 9, 8);
-                ctx.fillStyle = '#fff5d2'; ctx.fillRect(muzzleX, muzzleY - 2, 5, 4);
+            if (age < .32) {
+                var blast = clamp(age / .045) * clamp((.32 - age) / .2);
+                fireCloud(muzzleX + 20 * blast, muzzleY, 36 * blast, 24 * blast, '#a7421b');
+                fireCloud(muzzleX + 22 * blast, muzzleY, 30 * blast, 19 * blast, '#f07624');
+                fireCloud(muzzleX + 21 * blast, muzzleY, 23 * blast, 13 * blast, '#ffbc48');
+                fireCloud(muzzleX + 16 * blast, muzzleY, 17 * blast, 7 * blast, '#fff2af');
+                ctx.fillStyle = '#fffde6'; ctx.fillRect(muzzleX, muzzleY - 2, 27 * blast, 4);
             }
-            if (age < .65) {
-                ctx.fillStyle = '#e8c78d'; ctx.fillRect(muzzleX + age * 190, muzzleY - 1, 6, 3);
+            // A thin, expanding wall of muzzle gas follows the projectile.
+            if (age < .48) {
+                var wave = clamp(age / .48);
+                var gasX = muzzleX + 5 + wave * 42;
+                for (var g = 0; g < 22; g++) {
+                    var angle = g * Math.PI * 2 / 22;
+                    ctx.fillStyle = 'rgba(224,210,172,' + ((1 - wave) * .55) + ')';
+                    ctx.fillRect(Math.round(gasX + Math.cos(angle) * (5 + wave * 14)), Math.round(muzzleY + Math.sin(angle) * (7 + wave * 28)), 3 + wave * 3, 3 + wave * 3);
+                }
             }
-            for (var j = 0; j < 5; j++) {
-                ctx.fillStyle = 'rgba(168,190,188,' + ((1 - age / 1.1) * .26) + ')';
-                ctx.fillRect(muzzleX + age * (10 + j * 6), muzzleY - age * (8 + j * 4), 3 + age * 5, 3 + age * 5);
+            if (age < .7) {
+                var projectileX = muzzleX + age * 175;
+                fireCloud(projectileX - 10, muzzleY, 23, 7, '#a7421b');
+                fireCloud(projectileX - 3, muzzleY, 16, 10, '#f07624');
+                fireCloud(projectileX, muzzleY, 11, 8, '#ffbc48');
+                fireCloud(projectileX + 2, muzzleY, 6, 4, '#fff2af');
+            }
+            for (var j = 0; j < 8; j++) {
+                var smokeAge = age - .06 - j * .018;
+                if (smokeAge < 0) continue;
+                var smokeY = muzzleY + (j % 2 ? 1 : -1) * (5 + j * 2) - smokeAge * 15;
+                fireCloud(muzzleX + 8 + j * 4 + smokeAge * 18, smokeY, 5 + smokeAge * 10, 4 + smokeAge * 7, 'rgba(168,190,188,' + (clamp(1 - smokeAge / 1.04) * .22) + ')');
             }
         }
         ctx.restore();
