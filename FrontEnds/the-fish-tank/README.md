@@ -2,7 +2,7 @@
 
 The public company website for The Fish Tank LLC at [the-fish-tank.com](https://the-fish-tank.com), with a concise company description and Fathom Fall showcase. The public company page omits personal names, location, personal email, and links to the personal hub.
 
-Seth’s existing personal project hub lives at [`/hub/`](https://the-fish-tank.com/hub/). Its dashboards, simulations, and authentication remain together in the original single-page application.
+The existing personal project hub lives at [`/hub/`](https://the-fish-tank.com/hub/). Its dashboards, simulations, and authentication remain together in the original single-page application.
 
 ## Tech Stack
 
@@ -10,11 +10,29 @@ Vanilla HTML, CSS, and JavaScript. No frameworks, no build tools. Entities (fish
 
 ## Architecture
 
-The root `index.html` is a static company page styled by `css/company.css`. Its small `js/company.js` script preserves old hub bookmarks such as `/#weather` by forwarding them to `/hub/#weather`; company content is readable without JavaScript or authentication.
+The root `index.html` is a static company page styled by `css/company.css`. Its `js/company.js` script switches the gameplay clips and preserves old hub bookmarks such as `/#weather` by forwarding them to `/hub/#weather`. Company content and the first video remain usable without JavaScript or authentication.
 
 The project hub remains a single-page app in `hub/index.html`, with views managed by `js/router.js`. Each module is an IIFE that exposes `start()` and `stop()` lifecycle methods. Shared assets, scripts, styles, data, and vendor libraries stay at the site root and use root-relative URLs so they work under `/hub/`. Authentication endpoints and localStorage keys are unchanged.
 
 The company homepage currently publishes no email address. Once `contact@the-fish-tank.com` has been provisioned and verified, add it as the company contact. Never substitute a personal email address. Apple enrollment also needs a working email on the organization’s domain.
+
+### Gameplay media
+
+The company page uses current development gameplay in `assets/gameplay/`, replacing the old promotional sprite composition. Capture source: Fathom Fall `origin/dev` commit `1baa97c8883ed3dfbc44d80df3b2c998f4746a47`, version **0.102.4**, fetched on October 14, 2026.
+
+Clips use real game scenes and rendering in isolated local fixtures with disposable parties and gear. Combat health was increased for capture; native engine behavior, attack timing, and effects were retained. The PvP opponent is a neutral demo party, not a recording of a live online match. The footage contains no personal account identity. Do not describe asynchronous ghost-party PvP as simultaneous online play.
+
+| Clip | Duration | What it shows |
+| --- | --- | --- |
+| `combat.mp4` | 7.97 seconds | Party attacks, damage, and status effects |
+| `tacklebox.mp4` | 11.50 seconds | Selecting, rotating, and rigging a charm through the actual game UI |
+| `pvp.mp4` | 9.93 seconds | Rival-party battle using the current PvP engine |
+
+Each clip is 540×960 at 30 fps with a matching JPEG poster. The excerpts loop with a visible reset to their opening state.
+
+The viewer loads one silent H.264 MP4 at a time, with a poster, native pause/fullscreen controls, and clip selectors. Muted looping autoplay is disabled when the visitor prefers reduced motion; native controls still allow intentional playback. Playback pauses when the page is hidden.
+
+The copy reflects current mechanics: run-based progression, randomized encounters and loot, route choices, gear rotation/placement, and asynchronous PvP. Ordinary defeat does not immediately end the run in this version, so avoid instant-permadeath claims or the outdated 100-floor description.
 
 ### Views
 
