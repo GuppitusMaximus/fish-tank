@@ -1,6 +1,6 @@
 # The Fish Tank
 
-The public company website for The Fish Tank LLC at [the-fish-tank.com](https://the-fish-tank.com), with studio information, Fathom Fall, and business contact details.
+The public company website for The Fish Tank LLC at [the-fish-tank.com](https://the-fish-tank.com), with a concise company description and Fathom Fall showcase. The public company page omits personal names, location, personal email, and links to the personal hub.
 
 Seth’s existing personal project hub lives at [`/hub/`](https://the-fish-tank.com/hub/). Its dashboards, simulations, and authentication remain together in the original single-page application.
 
@@ -14,7 +14,7 @@ The root `index.html` is a static company page styled by `css/company.css`. Its 
 
 The project hub remains a single-page app in `hub/index.html`, with views managed by `js/router.js`. Each module is an IIFE that exposes `start()` and `stop()` lifecycle methods. Shared assets, scripts, styles, data, and vendor libraries stay at the site root and use root-relative URLs so they work under `/hub/`. Authentication endpoints and localStorage keys are unchanged.
 
-Before publishing for Apple enrollment, replace the current contact address with a verified working `@the-fish-tank.com` address and test sending and receiving mail. Do not publish an address that has not been provisioned.
+The company homepage currently publishes no email address. Once `contact@the-fish-tank.com` has been provisioned and verified, add it as the company contact. Never substitute a personal email address. Apple enrollment also needs a working email on the organization’s domain.
 
 ### Views
 
