@@ -27,26 +27,30 @@ FishTank is a one-person experiment taken to its logical end: what does software
 
 ```mermaid
 flowchart TD
-    U["👤 Me — two planned touchpoints:\nrequirements interview · approval gate"] --> P["Planning repo (private)\nPRDs → plans → status"]
-    U -->|"one MCP call: activate_feature()"| M["MCP server\nplans · scope gate · curated memory · knowledge graph"]
-    M -->|"status change · git push"| P
-    M -->|"scan signal on activation · tool-call observations"| B["Redis control bus\ncontrol commands · per-plan status streams · transcripts"]
-    B <-->|"signals · Replicant status · commands"| O["Orchestrator\ndependency gating · scope gate · retries · continuation · failure cascade"]
-    O <--> DB[("PostgreSQL")]
-    M <--> DB
-    subgraph C["Replicant — isolated LXC container per run"]
-        R["Selected runtime\nClaude Code or OpenAI Codex"]
-        A["Role\nimplementer · tester · researcher · reviewer\nAppArmor · seccomp · egress firewall"]
-        S["Supervisor sidecar\nevent observation · budget notices · watchdogs · salvage · shutdown"]
-        R --> A
-        A -.->|"hooks or decoded JSONL events"| S
+    Me(["👤 Me — requirements interview · approval gate"])
+    MCP["MCP server<br/>plans · scope gate · memory"]
+    Store[("Planning repo · PostgreSQL")]
+    Bus["Redis control bus<br/>signals · status · transcripts"]
+    Orch["Orchestrator<br/>dependencies · retries · continuation"]
+    Bridge["Completion bridge<br/>durable inbox per session"]
+
+    subgraph Rep["Replicant — a fresh LXC container per run"]
+        Agent["Runtime in a role<br/>Claude Code or OpenAI Codex<br/>AppArmor · seccomp · egress firewall"]
+        Sup["Supervisor sidecar<br/>budget notices · watchdogs · salvage"]
     end
-    O -->|"clone selected vendor's hardened template"| C
-    S <-->|"heartbeats · activity · transcript · terminal status · commands"| B
-    A <-->|"plans · context · status · journals · handoffs"| M
-    A -->|"commits; review-gated merge when flagged"| T["Target repos\nwebsite · game · trading platform"]
-    B -->|"terminal events"| W["Completion bridge\ndurable inbox per interactive session"]
-    W -.->|"notifies"| U
+    Repos["Target repos<br/>website · game · trading platform"]
+
+    Me ==>|"1 · activate_feature()"| MCP
+    MCP ==>|"2 · scan signal"| Bus
+    Bus ==>|"3 · dispatch"| Orch
+    Orch ==>|"4 · clones a hardened template"| Agent
+    Agent ==>|"5 · commits, review-gated when flagged"| Repos
+    MCP <--> Store
+    Agent -.->|"hooks or JSONL events"| Sup
+    Agent <-.->|"plan · context · handoffs"| MCP
+    Sup -.->|"heartbeats · status"| Bus
+    Bus -.->|"6 · terminal events"| Bridge
+    Bridge -.->|"notifies"| Me
 ```
 
 Plans are markdown files with metadata headers. A plan's `Profile` selects its Replicant's role and write permissions; `Vendor` and `Model` select its Claude Code or OpenAI Codex runtime, including OpenAI/Sol (`gpt-5.6-sol`). The two runtimes use separate container templates and credentials but enter the same orchestration, dependency, review, and role-confinement pipeline. Vendor and model selections persist across retries and generated follow-up plans.
