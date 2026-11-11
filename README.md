@@ -67,6 +67,7 @@ Replicants produce code, and the platform enforces the boundaries that make thei
 
 - **Write scope is enforced in layers.** Before a run, the scope gate rejects a plan whose declared files fall outside its role. During a run, Claude's pre-tool-use hook provides readable refusals for tool-mediated writes and fails closed when it cannot classify one, while both runtimes use role-specific AppArmor policies at the kernel and filesystem permissions on protected existing files. After a run, the supervisor checks every path that was pushed or salvaged against the same policy, and a violation fails the plan without a retry. The permissions pass cannot prevent creation of a new file in a writable directory, and Claude's hook does not extend to Codex. Those boundaries are why the layers overlap, and they matter when interpreting the probe results.
 - **Loaded is not the same as applied.** Early probes found AppArmor profiles loaded in enforce mode but attached to no Replicant process. Then a bug in the probe itself read a confined process as unconfined, and the wrong headline stood for several more runs. Verification now reads the running process's own confinement label; a loaded policy alone is not evidence that a Replicant is confined.
+- **Silence is not a pass.** A nightly drift check reported a clean result every morning for seven months because it was never actually running. It now reports a run that did not happen as a failure, not as “no drift”.
 - **Separation of duties.** Replicants acting as implementers cannot modify tests; testers can change tests and report defects but not application source; reviewers are read-only. Role definitions and protected repository policy are outside every role's write scope.
 - **Implementation and QA are paired.** By planning rule, each implementation plan is written with a companion QA plan. QA checks acceptance criteria and files structured bug reports that become correction plans.
 - **Review gates are explicit.** A plan that requires review stops in a review state when its Replicant finishes; it does not merge merely because the work is done.
@@ -105,7 +106,7 @@ Replication keeps the same plan attempt and is capped at three replacements per 
 
 FishTank runs on a single-node Proxmox homelab (Ryzen 7 7700, 64 GB DDR5, 2 TB NVMe, and a 2 × 12 TB ZFS mirror), managed as code:
 
-- **Infrastructure as code** — 40 Ansible roles, Molecule and pytest checks, vault-encrypted secrets, and a daily check-mode drift run that alerts on drift and on its own failure to run
+- **Infrastructure as code** — 40 Ansible roles, Molecule and pytest checks, vault-encrypted secrets, and a daily check-mode drift run that reports its own failure to run instead of a clean result
 - **One deploy path** — approved plans enter through the MCP activation path and the orchestrator owns the Replicant lifecycle
 - **Recoverability** — scheduled snapshot-mode guest backups, daily database dumps, and restore checks that load a dump into a scratch database to prove it
 - **Monitoring** — Prometheus, Loki, and Grafana (17 dashboards, 78 alert rules) with alerts delivered as mobile push; the same stack watches the shipped game's cloud-hosted production backend
