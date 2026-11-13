@@ -160,12 +160,23 @@ class TestPartySnapshotsTable:
         assert "fish                JSONB" in body
         assert "equipment           JSONB" in body
 
-    def test_unique_constraint(self):
+    def test_legacy_unique_constraint_is_dropped_not_created(self):
+        """Was test_unique_constraint, which expected UNIQUE(player_id, floor) in the table.
+
+        migrate.py stopped creating that constraint and drops the legacy one, so
+        that several snapshots per run are kept. The old assertion had been red
+        since, also against the unchanged source at 285660ee. This pins what the
+        migration does: the table is created without it, and a database that
+        still has it loses it, idempotently, after the table exists.
+        """
         sql = _schema_sql()
         match = re.search(
             r"CREATE TABLE IF NOT EXISTS party_snapshots\s*\((.*?)\);",
             sql, re.DOTALL)
-        assert "UNIQUE(player_id, floor)" in match.group(1)
+        assert "UNIQUE" not in match.group(1).upper()
+        drop = "ALTER TABLE party_snapshots DROP CONSTRAINT IF EXISTS party_snapshots_player_id_floor_key;"
+        assert sql.count(drop) == 1
+        assert sql.index(drop) > match.end()
 
     def test_timestamptz_default(self):
         sql = _schema_sql()
