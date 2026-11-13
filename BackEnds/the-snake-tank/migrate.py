@@ -2,16 +2,18 @@
 """Create Postgres schema for the Snake Tank weather pipeline.
 
 Creates all tables (weather + PvP) with proper Postgres types and indexes.
-Idempotent — safe to run multiple times.
+Idempotent — safe to run multiple times. With WEATHER_SCHEMA=weather-only
+the legacy PvP tables are neither created nor cleaned up.
 
 Usage:
     python migrate.py
 """
 
+import os
 import sys
 from db import get_connection
 
-SCHEMA_SQL = """
+WEATHER_SCHEMA_SQL = """
 -- Weather readings from Netatmo personal station
 CREATE TABLE IF NOT EXISTS readings (
     timestamp             BIGINT PRIMARY KEY,
@@ -92,6 +94,14 @@ CREATE TABLE IF NOT EXISTS prediction_history (
     UNIQUE(model_type, for_hour)
 );
 
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_readings_timestamp ON readings (timestamp);
+CREATE INDEX IF NOT EXISTS idx_predictions_model_time ON predictions (model_type, generated_at);
+CREATE INDEX IF NOT EXISTS idx_pred_hist_model_hour ON prediction_history (model_type, for_hour);
+CREATE INDEX IF NOT EXISTS idx_public_stations_time ON public_stations (fetched_at);
+"""
+
+LEGACY_PVP_SCHEMA_SQL = """
 -- PvP party snapshots for matchmaking
 CREATE TABLE IF NOT EXISTS party_snapshots (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -123,14 +133,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_players_platform
     ON players(platform, platform_id) WHERE platform_id IS NOT NULL;
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_readings_timestamp ON readings (timestamp);
-CREATE INDEX IF NOT EXISTS idx_predictions_model_time ON predictions (model_type, generated_at);
-CREATE INDEX IF NOT EXISTS idx_pred_hist_model_hour ON prediction_history (model_type, for_hour);
-CREATE INDEX IF NOT EXISTS idx_public_stations_time ON public_stations (fetched_at);
 CREATE INDEX IF NOT EXISTS idx_snapshots_matchmaking ON party_snapshots (floor, power_level);
 CREATE INDEX IF NOT EXISTS idx_snapshots_leaderboard ON party_snapshots (floor DESC, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_snapshots_retention ON party_snapshots (created_at);
 """
+
+SCHEMA_SQL = WEATHER_SCHEMA_SQL + LEGACY_PVP_SCHEMA_SQL
 
 # Retrofit UNIQUE(fetched_at, station_id) on public_stations tables created
 # before the constraint existed. Dedups first; skips if any unique index
@@ -155,10 +163,16 @@ END $$;
 """
 
 
+def weather_only():
+    return os.environ.get("WEATHER_SCHEMA") == "weather-only"
+
+
 def migrate():
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(SCHEMA_SQL)
+            cur.execute(WEATHER_SCHEMA_SQL)
+            if not weather_only():
+                cur.execute(LEGACY_PVP_SCHEMA_SQL)
             cur.execute(PUBLIC_STATIONS_UNIQUE_SQL)
         conn.commit()
     print("Migration complete — all tables and indexes created.")
@@ -170,7 +184,10 @@ def cleanup_old_data():
         "DELETE FROM predictions WHERE generated_at < (NOW() - INTERVAL '7 days')::TEXT",
         "DELETE FROM prediction_history WHERE predicted_at < (NOW() - INTERVAL '30 days')::TEXT",
         "DELETE FROM public_stations WHERE fetched_at < (NOW() - INTERVAL '30 days')::TEXT",
-        """DELETE FROM party_snapshots
+    ]
+    if not weather_only():
+        statements.append(
+            """DELETE FROM party_snapshots
            WHERE created_at < NOW() - INTERVAL '30 days'
              AND id NOT IN (
                  SELECT id FROM (
@@ -180,8 +197,7 @@ def cleanup_old_data():
                      FROM party_snapshots
                  ) ranked
                  WHERE rn <= 100
-             )""",
-    ]
+             )""")
     with get_connection() as conn:
         with conn.cursor() as cur:
             total = 0
