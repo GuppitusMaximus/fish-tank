@@ -24,6 +24,7 @@ Public Netatmo API → public-stations/ CSV/JSON  → weather-public.json (publi
 ```
 the-snake-tank/
 ├── app_ml.py               # FastAPI pipeline service (systemd unit fishtank-ml, port 8001)
+├── run_pipeline.py         # One-shot runner: one pipeline run, then exit (see "One-shot runner")
 ├── app_pvp.py              # Retired v1 Fathom Fall PvP service; the live one has moved (see "Fathom Fall PvP")
 ├── fetch_weather.py        # Fetches data from Netatmo API, scrubs PII; also fetches public station data
 ├── build_dataset.py        # Loads raw JSON into Postgres; syncs public_stations incrementally from CSVs
@@ -85,6 +86,33 @@ The data pipeline runs on a 20-minute cycle:
 Git is no longer in the data path. Until the 2026-03-10 VPS cutover a GitHub Actions workflow ran these steps and committed the generated JSON back to this repo; that workflow is retired and `data/` plus `models/*_meta.json` are gitignored (see below).
 
 The service has no internal scheduler — all scheduling is handled externally by the Cloudflare Cron Worker.
+
+## One-shot runner
+
+`run_pipeline.py` runs the same steps as `POST /ml/trigger` (it calls `app_ml._execute_pipeline`) once, then exits. It is meant for a host where a timer starts the pipeline instead of an HTTP caller. The VPS service does not use the command or any of the variables below; with all three unset and the command not called, the `fishtank-ml` path is intended to behave as before.
+
+```bash
+python run_pipeline.py [--skip-fetch]
+```
+
+Before any step it takes a non-blocking exclusive `flock` on `data/.pipeline.lock`, so a second run stops before it can call Netatmo, the database or R2.
+
+| Exit code | Meaning |
+|---|---|
+| 0 | `ok` |
+| 1 | `error`: a fatal step failed, or the run raised (only the exception's class name is printed) |
+| 2 | `partial`: an optional step failed |
+| 3 | another run holds the lock |
+
+Each run replaces `data/last_run.json` atomically (file mode `0600`). Its keys are `started_at` and `finished_at` (UTC, `YYYY-MM-DDTHH:MM:SSZ`), `status`, `duration_seconds`, `trained` (true when `train_model` ran and succeeded), `steps` (as returned by the pipeline) and `uploads` (one `{"key", "ok"}` entry per R2 object: `ok` is `true` for uploaded, `false` for failed, `null` for skipped). A run that stops on the lock writes no summary.
+
+`--skip-fetch` is for rehearsals: `fetch_weather` is reported as `skipped`, so no Netatmo call is made, and R2 uploads are disabled for the whole process.
+
+| Variable | Effect |
+|---|---|
+| `NETATMO_TOKEN_FILE` | When set, `fetch_weather.py` reads the refresh token from this file and, after each exchange, writes the new one back atomically (mode `0600`) before fetching any data. `NETATMO_REFRESH_TOKEN` is then only the seed, used while the file is missing or empty. If the write fails, the run fails. |
+| `WEATHER_SCHEMA` | `weather-only` makes `migrate.py` create only the four weather tables and makes `cleanup_old_data()` leave out the `party_snapshots` delete. Any other value, or unset, keeps the PvP tables. |
+| `WEATHER_DISABLE_UPLOADS` | `1` makes `upload_to_r2()` skip every upload before `boto3` is imported. `--skip-fetch` sets it, together with a module flag (`export_weather.UPLOADS_DISABLED`) that a later `.env` load cannot clear. |
 
 ## Data Collection
 

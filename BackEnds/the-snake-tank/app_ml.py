@@ -204,7 +204,7 @@ def _get_last_prediction():
         return None
 
 
-def _execute_pipeline():
+def _execute_pipeline(skip_fetch=False):
     global _last_run
 
     import fetch_weather
@@ -226,7 +226,10 @@ def _execute_pipeline():
         ("fetch_weather", fetch_weather.main),
         ("build_dataset", build_dataset.main),
     ]:
-        result = _run_step(sname, func)
+        if sname == "fetch_weather" and skip_fetch:
+            result = {"name": "fetch_weather", "status": "skipped", "duration_ms": 0}
+        else:
+            result = _run_step(sname, func)
         steps.append(result)
         _log_step(sname, result)
         if result["status"] == "error":
