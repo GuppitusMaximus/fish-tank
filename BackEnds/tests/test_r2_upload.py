@@ -63,10 +63,36 @@ def test_graceful_skip_when_env_not_set():
     assert 'if not all(' in func_src or 'if not all([' in func_src, \
         "upload_to_r2 does not check all env vars before proceeding"
 
-    # Verify there is a bare 'return' (early exit) in the function
+    # The guard must leave the function with no value (`return` or
+    # `return None`, the same behaviour) before a client is built or a file is
+    # sent. The executed form of this is case 24 in
+    # the-snake-tank/test_weather_homelab_runner.py.
     tree = ast.parse(func_src)
-    returns = [n for n in ast.walk(tree) if isinstance(n, ast.Return) and n.value is None]
-    assert returns, "upload_to_r2 has no early return (bare return) for missing env vars"
+
+    def _returns_nothing(node):
+        return isinstance(node, ast.Return) and (
+            node.value is None
+            or (isinstance(node.value, ast.Constant) and node.value.value is None))
+
+    guards = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.If) and 'all(' in ast.unparse(n.test)
+        and isinstance(n.test, ast.UnaryOp) and isinstance(n.test.op, ast.Not)
+        and any(_returns_nothing(child) for child in n.body)
+    ]
+    assert guards, "upload_to_r2 has no early return guarded by the env var check"
+
+    def _first_line(needle):
+        lines = [n.lineno for n in ast.walk(tree)
+                 if isinstance(n, ast.Call) and ast.unparse(n.func).endswith(needle)]
+        assert lines, f"upload_to_r2 never calls {needle}"
+        return min(lines)
+
+    guard_line = min(g.lineno for g in guards)
+    assert guard_line < _first_line('boto3.client'), \
+        "the missing-credentials guard comes after the client is built"
+    assert guard_line < _first_line('.upload_file'), \
+        "the missing-credentials guard comes after the upload"
 
 
 def test_error_handling():

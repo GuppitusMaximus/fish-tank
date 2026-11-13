@@ -4,6 +4,7 @@ Static analysis tests that verify migrate.py and backfill.py correctness
 without requiring a live Postgres connection.
 """
 
+import ast
 import re
 import os
 
@@ -16,10 +17,34 @@ def _read(filename):
 
 
 def _schema_sql():
-    content = _read("migrate.py")
-    match = re.search(r'SCHEMA_SQL\s*=\s*"""(.*?)"""', content, re.DOTALL)
-    assert match, "SCHEMA_SQL not found in migrate.py"
-    return match.group(1)
+    """The text migrate.py binds to SCHEMA_SQL, resolved without importing it.
+
+    SCHEMA_SQL used to be one string literal. impl-weather-homelab-runner split
+    it into WEATHER_SCHEMA_SQL + LEGACY_PVP_SCHEMA_SQL, so a regex for the
+    literal now stops at the weather half. Resolve the name the way the module
+    does: string literals, and sums of names already bound.
+    """
+    bound = {}
+
+    def resolve(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if isinstance(node, ast.Name):
+            return bound.get(node.id)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            left, right = resolve(node.left), resolve(node.right)
+            if left is not None and right is not None:
+                return left + right
+        return None
+
+    for node in ast.parse(_read("migrate.py")).body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            value = resolve(node.value)
+            if value is not None:
+                bound[node.targets[0].id] = value
+    assert "SCHEMA_SQL" in bound, "SCHEMA_SQL not found in migrate.py"
+    return bound["SCHEMA_SQL"]
 
 
 def _table_columns(sql, table_name):
