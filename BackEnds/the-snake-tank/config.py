@@ -15,6 +15,7 @@ R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME")
 NETATMO_CLIENT_ID = os.environ.get("NETATMO_CLIENT_ID")
 NETATMO_CLIENT_SECRET = os.environ.get("NETATMO_CLIENT_SECRET")
 NETATMO_REFRESH_TOKEN = os.environ.get("NETATMO_REFRESH_TOKEN")
+NETATMO_TOKEN_FILE = os.environ.get("NETATMO_TOKEN_FILE")
 NETATMO_PUBLIC_LAT_NE = os.environ.get("NETATMO_PUBLIC_LAT_NE")
 NETATMO_PUBLIC_LON_NE = os.environ.get("NETATMO_PUBLIC_LON_NE")
 NETATMO_PUBLIC_LAT_SW = os.environ.get("NETATMO_PUBLIC_LAT_SW")
@@ -27,6 +28,10 @@ NETATMO_PUBLIC_LON_SW = os.environ.get("NETATMO_PUBLIC_LON_SW")
 WEATHER_REF_LAT = os.environ.get("WEATHER_REF_LAT")
 WEATHER_REF_LON = os.environ.get("WEATHER_REF_LON")
 WEATHER_REF_LABEL = os.environ.get("WEATHER_REF_LABEL")
+
+# One-shot runner (run_pipeline.py) settings; see "One-shot runner" in the README.
+WEATHER_SCHEMA = os.environ.get("WEATHER_SCHEMA")
+WEATHER_DISABLE_UPLOADS = os.environ.get("WEATHER_DISABLE_UPLOADS")
 
 MODEL_DIR = os.path.join(SCRIPT_DIR, "models")
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")

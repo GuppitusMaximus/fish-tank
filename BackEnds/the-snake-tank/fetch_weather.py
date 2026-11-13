@@ -7,6 +7,7 @@ import glob
 import json
 import os
 import sys
+import tempfile
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -187,16 +188,49 @@ def store_public_stations(data, fetched_at):
                     shutil.rmtree(dir_path)
 
 
+def read_token_file(token_file):
+    """Return the refresh token stored in token_file, or None if absent or empty."""
+    try:
+        with open(token_file) as f:
+            return f.read().strip() or None
+    except FileNotFoundError:
+        return None
+
+
+def write_token_file(token_file, token):
+    """Atomically replace token_file with the given refresh token (mode 0600)."""
+    token_dir = os.path.dirname(os.path.abspath(token_file))
+    fd, tmp_path = tempfile.mkstemp(dir=token_dir, prefix=".netatmo-token-")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(token)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, token_file)
+    except BaseException:
+        os.unlink(tmp_path)
+        raise
+
+
 def main():
     client_id = os.environ["NETATMO_CLIENT_ID"]
     client_secret = os.environ["NETATMO_CLIENT_SECRET"]
-    refresh_token = os.environ["NETATMO_REFRESH_TOKEN"]
+    token_file = os.environ.get("NETATMO_TOKEN_FILE")
+    refresh_token = read_token_file(token_file) if token_file else None
+    if not refresh_token:
+        refresh_token = os.environ["NETATMO_REFRESH_TOKEN"]
 
     # --- Token refresh ---
     print("Refreshing access token...")
     access_token, new_refresh_token = refresh_access_token(
         client_id, client_secret, refresh_token
     )
+
+    # Netatmo has already rotated the token: save it before anything else can
+    # fail. A write error propagates so an unsaved rotation fails the run.
+    if token_file:
+        write_token_file(token_file, new_refresh_token)
+
     print("Token refreshed successfully.")
 
     # Persist the new refresh token so the workflow can update the secret.

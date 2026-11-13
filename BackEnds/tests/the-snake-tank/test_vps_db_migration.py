@@ -4,6 +4,7 @@ Static analysis tests that verify migrate.py and backfill.py correctness
 without requiring a live Postgres connection.
 """
 
+import ast
 import re
 import os
 
@@ -16,10 +17,34 @@ def _read(filename):
 
 
 def _schema_sql():
-    content = _read("migrate.py")
-    match = re.search(r'SCHEMA_SQL\s*=\s*"""(.*?)"""', content, re.DOTALL)
-    assert match, "SCHEMA_SQL not found in migrate.py"
-    return match.group(1)
+    """The text migrate.py binds to SCHEMA_SQL, resolved without importing it.
+
+    SCHEMA_SQL used to be one string literal. impl-weather-homelab-runner split
+    it into WEATHER_SCHEMA_SQL + LEGACY_PVP_SCHEMA_SQL, so a regex for the
+    literal now stops at the weather half. Resolve the name the way the module
+    does: string literals, and sums of names already bound.
+    """
+    bound = {}
+
+    def resolve(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if isinstance(node, ast.Name):
+            return bound.get(node.id)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            left, right = resolve(node.left), resolve(node.right)
+            if left is not None and right is not None:
+                return left + right
+        return None
+
+    for node in ast.parse(_read("migrate.py")).body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            value = resolve(node.value)
+            if value is not None:
+                bound[node.targets[0].id] = value
+    assert "SCHEMA_SQL" in bound, "SCHEMA_SQL not found in migrate.py"
+    return bound["SCHEMA_SQL"]
 
 
 def _table_columns(sql, table_name):
@@ -135,12 +160,23 @@ class TestPartySnapshotsTable:
         assert "fish                JSONB" in body
         assert "equipment           JSONB" in body
 
-    def test_unique_constraint(self):
+    def test_legacy_unique_constraint_is_dropped_not_created(self):
+        """Was test_unique_constraint, which expected UNIQUE(player_id, floor) in the table.
+
+        migrate.py stopped creating that constraint and drops the legacy one, so
+        that several snapshots per run are kept. The old assertion had been red
+        since, also against the unchanged source at 285660ee. This pins what the
+        migration does: the table is created without it, and a database that
+        still has it loses it, idempotently, after the table exists.
+        """
         sql = _schema_sql()
         match = re.search(
             r"CREATE TABLE IF NOT EXISTS party_snapshots\s*\((.*?)\);",
             sql, re.DOTALL)
-        assert "UNIQUE(player_id, floor)" in match.group(1)
+        assert "UNIQUE" not in match.group(1).upper()
+        drop = "ALTER TABLE party_snapshots DROP CONSTRAINT IF EXISTS party_snapshots_player_id_floor_key;"
+        assert sql.count(drop) == 1
+        assert sql.index(drop) > match.end()
 
     def test_timestamptz_default(self):
         sql = _schema_sql()

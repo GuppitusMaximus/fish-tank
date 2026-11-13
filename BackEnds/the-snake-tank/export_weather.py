@@ -26,8 +26,23 @@ from config import DATA_DIR, MODEL_DIR
 from db import get_connection
 from psycopg2.extras import RealDictCursor
 
+# Upload kill-switch. Once set, no later environment or .env load can clear it.
+UPLOADS_DISABLED = False
+
+# Outcome of each upload_to_r2 call made by the latest export() run.
+UPLOAD_RESULTS = []
+
+
 def upload_to_r2(file_path, object_key):
-    """Upload a file to Cloudflare R2 via S3-compatible API."""
+    """Upload a file to Cloudflare R2 via S3-compatible API.
+
+    Returns True after a successful upload, False when the upload raised, and
+    None when uploads are disabled or credentials are not configured.
+    """
+    if UPLOADS_DISABLED or os.environ.get("WEATHER_DISABLE_UPLOADS") == "1":
+        print(f"R2 uploads disabled, skipping upload of {object_key}")
+        return None
+
     import boto3
 
     endpoint_url = os.environ.get('R2_ENDPOINT_URL')
@@ -37,7 +52,7 @@ def upload_to_r2(file_path, object_key):
 
     if not all([endpoint_url, access_key, secret_key, bucket_name]):
         print("R2 credentials not configured, skipping upload")
-        return
+        return None
 
     s3 = boto3.client(
         's3',
@@ -51,8 +66,10 @@ def upload_to_r2(file_path, object_key):
     try:
         s3.upload_file(file_path, bucket_name, object_key, ExtraArgs={'ContentType': content_type})
         print(f"Uploaded {object_key} to R2")
+        return True
     except Exception as e:
         print(f"WARNING: R2 upload failed for {object_key}: {e}")
+        return False
 
 
 PREDICTIONS_DIR = os.path.join(DATA_DIR, "predictions")
@@ -861,6 +878,8 @@ def load_feature_rankings():
 
 
 def export(output_path, hours, history_path=None):
+    UPLOAD_RESULTS.clear()
+
     now = datetime.now(timezone.utc)
     result = {
         "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1022,8 +1041,12 @@ def export(output_path, hours, history_path=None):
         os.unlink(temp_path)
         raise
 
-    upload_to_r2(public_path, 'weather-public.json')
-    upload_to_r2(output_path, 'weather.json')
+    UPLOAD_RESULTS.append({
+        "key": 'weather-public.json',
+        "ok": upload_to_r2(public_path, 'weather-public.json')})
+    UPLOAD_RESULTS.append({
+        "key": 'weather.json',
+        "ok": upload_to_r2(output_path, 'weather.json')})
 
     print(f"Exported weather dashboard data to {output_path}")
     if result["current"]:
@@ -1039,7 +1062,9 @@ def export(output_path, hours, history_path=None):
     generate_manifest(manifest_dir)
     build_frontend_db(manifest_dir)
 
-    upload_to_r2(os.path.join(manifest_dir, 'frontend.db.gz'), 'frontend.db.gz')
+    UPLOAD_RESULTS.append({
+        "key": 'frontend.db.gz',
+        "ok": upload_to_r2(os.path.join(manifest_dir, 'frontend.db.gz'), 'frontend.db.gz')})
 
 
 def main():

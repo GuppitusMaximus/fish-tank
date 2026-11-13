@@ -617,7 +617,7 @@ Static analysis tests for the `upload_to_r2()` function in `export_weather.py` (
 - Function defined with correct `(file_path, object_key)` signature
 - Imports and calls `boto3.client('s3', ...)`
 - Reads all four R2 env vars (`R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`)
-- Has an early return (bare `return`) guarded by env var check — skips upload when not configured
+- Has an early return of no value (`return` or `return None`) guarded by the env var check, placed before the client is built and before the upload — skips upload when not configured
 - Has `try/except` around the upload call
 - Sets `ContentType: application/json` for `.json` files
 - Sets `ContentType: application/gzip` for non-json files
@@ -715,6 +715,43 @@ Round 2 progress tracking test (1 test):
 
 - `test_round_two` — trivial assertion (2 + 2 == 4) confirming test file creation in round 2
 
+### `the-snake-tank/test_weather_homelab_runner.py`
+
+**Plan:** `qa-weather-homelab-runner` (implementation: `impl-weather-homelab-runner`)
+
+The one-shot runner, the upload kill-switch, the Netatmo token file and the weather-only schema
+switch (51 cases). No network, database, R2 or real `.env`: every external call is a fake.
+
+- **Runner** (`run_pipeline.main(argv, execute=<fake>)`, `DATA_DIR` in `tmp_path`): exit codes
+  0/2/1 for `ok`/`partial`/`error`; a raising run exits 1, leaves a parseable `last_run.json` and
+  prints the exception class only (a connection-string marker appears nowhere); the summary's
+  keys; no temporary file left; `trained` follows the `train_model` step; `uploads` mirrors
+  `export_weather.UPLOAD_RESULTS`; a held lock exits 3 without calling `execute`.
+- **`--skip-fetch`**: `skip_fetch=True` reaches `execute`, uploads are disabled before it runs,
+  and no `boto3.client()` call happens even with `R2_*` set and re-loaded from a `.env` file
+  mid-run (also when that file sets `WEATHER_DISABLE_UPLOADS=0`). The same fake without the flag
+  does upload.
+- **Pipeline sequence**: `_execute_pipeline()` fetches by default, `skip_fetch=True` records the
+  step as `skipped` and still builds the dataset; `POST /ml/trigger` does not skip the fetch.
+- **Token file**: unset (the VPS path), set and absent or empty, set and present, written before
+  the first data call, a failed write fails the run, and no token on stdout or stderr.
+- **Schema switch**: which statements `migrate()` and `cleanup_old_data()` select with
+  `WEATHER_SCHEMA` unset and `weather-only`, and that every index and `ALTER TABLE` follows its
+  table. These use a recording fake connection: they show which statements are selected and in
+  what order, **not** that the SQL runs or that any table or privilege comes out as intended.
+- **Uploads**: `upload_to_r2` returns `None`/`True`/`False`; either kill-switch returns `None`
+  before `boto3` is imported.
+
+Controls splice the defect in memory and name the case they redden (lock acquisition removed,
+token file never read, `weather_only()` always false, statements reversed, an index without
+`IF NOT EXISTS`, the upload run without `--skip-fetch`).
+
+Host-dependent cases skip with a reason starting `NEEDS DEV-VM RUN:` that quotes the measured
+error. Where the real import fails, a minimal `psycopg2` (or `dotenv`) stand-in is put in
+`sys.modules` for the test and removed afterwards; where `flock(2)` is denied, the runner cases
+that are not about the lock get a lock that always succeeds, and the cases about the real lock
+skip.
+
 ### Not Yet Covered
 
 - `rebuild_dataset.py` — database rebuild from raw JSON files
@@ -722,3 +759,236 @@ Round 2 progress tracking test (1 test):
 - API authentication / Netatmo token refresh
 - Performance and timing (prediction latency, export duration)
 - Git add lockdown (excluding `weather.json`/`frontend.db.gz` from commits) — deferred to lockdown plan
+
+## Measured entries
+
+Newest first. Each entry is the baseline for the next QA run: grade by leaf name against it.
+
+### 2026-11-13 — `qa-weather-homelab-runner-host`: real libraries, real flock, real PostgreSQL 17 (dev-vm)
+
+Continues the entry below on a host that has what the worker lacked. **Result: pass.** All 51
+runner cases and their controls ran and passed with no `NEEDS DEV-VM RUN` skip; the whole suite
+has no red that is not also red, leaf for leaf, at the parent; the default migration's statement
+set is unchanged; both migration modes were proved on a real PostgreSQL 17. No source defect was
+found and no application source was changed.
+
+- **Revision:** `979f53409` (source `9a8b19910`, `impl-weather-homelab-runner`) plus the test
+  corrections in the commit that adds this entry. Parent for attribution: `origin/main` `285660ee`.
+- **Environment:** dev-vm, `/tmp/fathom-weather-qa-venv` (prepared by the coordinator from the
+  unchanged hashed `requirements.txt`): Python 3.12.3, pytest 9.0.2, httpx 0.28.1, fastapi
+  0.135.1, pandas 3.0.1, scikit-learn 1.8.0, lightgbm 4.6.0, boto3 1.42.64, psycopg2 2.9.11.
+  `fcntl.flock(LOCK_EX | LOCK_NB)` on a temporary file succeeds. No stand-in replaced an
+  installed library. No `the-snake-tank/.env` exists in the checkout and none was read;
+  `DATABASE_URL`, `R2_*` and `NETATMO_*` were unset. Nothing contacted Netatmo, R2, Supabase or
+  the VPS.
+- **Disposable database:** `docker run --rm --name weather-qa-pg17 -p 127.0.0.1:55439:5432
+  postgres:17.6` (PostgreSQL 17.6), databases `test_public_features`, `test_weather_default`,
+  `test_weather_only`. Removed afterwards; nothing listens on 55439.
+
+#### The four named files
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 /tmp/fathom-weather-qa-venv/bin/python -m pytest -q -p no:cacheprovider \
+  --continue-on-collection-errors -rfEs \
+  tests/the-snake-tank/test_weather_homelab_runner.py tests/the-snake-tank/test_ml_service.py \
+  tests/the-snake-tank/test_vps_db_migration.py tests/test_r2_upload.py
+```
+
+No `--noconftest`: `tests/conftest.py` imports with the real `psycopg2`.
+
+| | Before any edit | After the corrections |
+|---|---|---|
+| Result | `5 failed, 114 passed`, 0 skipped, 0 errors | **`119 passed`**, 0 skipped |
+| `test_weather_homelab_runner.py` | 51 passed | 51 passed |
+| `test_ml_service.py` | 21 passed, 4 failed | 25 passed |
+| `test_vps_db_migration.py` | 35 passed, 1 failed | 36 passed |
+| `test_r2_upload.py` | 7 passed | 7 passed |
+
+**Skip clearance.** The six cases the worker could not run all executed and passed here with
+the real lock and the real FastAPI app: `TestRunnerLock::test_held_lock_exits_3_without_running`,
+`::test_lock_is_released_when_the_run_ends`, `::test_control_no_lock_acquisition_reddens_case_6`,
+`TestPipelineSequence::test_default_call_runs_fetch`, `::test_skip_fetch_skips_only_the_fetch`,
+`::test_trigger_does_not_skip_fetch`. `test_ml_service.py`, a collection error on the worker,
+collected and ran. The file's in-memory controls (lock acquisition removed, token file never
+read, `weather_only()` always false, statements reversed, an index without `IF NOT EXISTS`, the
+upload run without `--skip-fetch`) all redden their cases.
+
+**Five stale cases, corrected to the contract the unchanged source already has.** Each was
+first measured red against the source at `285660ee` (same five leaves: `5 failed, 63 passed`
+over the three files that exist there), so none is a regression of this change. The corrected
+files were then run against that parent source as well and pass there.
+
+| Was | Why it was stale | Now |
+|---|---|---|
+| `TestTriggerAuth::test_trigger_no_token_configured_allows_request` (expected 200) | since the security hardening (`988c8a415`) an unset `ML_TRIGGER_TOKEN` closes the endpoint | `test_trigger_no_token_configured_is_refused`: 503 `Trigger endpoint not configured`, with and without a header, and the pipeline is not called |
+| `TestTriggerAuth::test_trigger_wrong_token_returns_403` | the service answers 401 for a wrong token | `test_trigger_wrong_token_returns_401`: 401 and the pipeline is not called |
+| `TestTriggerAuth::test_trigger_response_has_status_and_steps` | fixture patched the token to `None`, so the request stopped at 503 and the response under test was never produced | fixture authenticates; assertions unchanged |
+| `TestErrorResilience::test_step_level_errors_reported` | the same fixture | fixture authenticates; assertions unchanged |
+| `TestPartySnapshotsTable::test_unique_constraint` (expected `UNIQUE(player_id, floor)` in the table) | `migrate.py` creates the table without it and drops the legacy constraint, on purpose | `test_legacy_unique_constraint_is_dropped_not_created`: no `UNIQUE` in the table, exactly one idempotent `DROP CONSTRAINT IF EXISTS party_snapshots_player_id_floor_key`, after the table |
+
+One green case had the same stale fixture and was corrected with them:
+`TestErrorResilience::test_service_survives_pipeline_failure` patched the token to `None`, so the
+pipeline never raised and the case passed without a failed run. It now authenticates and asserts
+the pipeline was called once. No assertion was weakened and no case was removed or skipped.
+
+#### Whole suite, once
+
+```bash
+cd BackEnds
+PATH=/tmp/fathom-weather-qa-venv/bin:$PATH PYTHONDONTWRITEBYTECODE=1 \
+  SPATIAL_TEST_DATABASE_URL=postgresql://postgres:test@127.0.0.1:55439/test_public_features \
+  bash tests/run-all.sh
+```
+
+**`94 failed, 411 passed, 9 skipped, 1 error` (14.6 s)**, with the corrected files in place.
+`SPATIAL_TEST_DATABASE_URL` pointed at the disposable database, so the PostgreSQL-backed spatial
+cases ran instead of skipping. This is the first measured whole-suite entry for this directory.
+
+**Every red is inherited.** The 94 failed leaves and the one collection error were run, by exact
+node id and nothing else, against the source and tests at `285660ee` in a scratch copy with the
+same interpreter and environment: `94 failed, 1 error`, the identical set. None is red at the
+candidate and green at the parent, and none of the red files is one this change or its QA
+touched. The parent's whole suite was not run.
+
+| File | Red | | File | Red |
+|---|---|---|---|---|
+| `test_model_versioning.py` | 9 | | `test_sqlite_predict.py` | 4 |
+| `test_prediction_fallback.py` | 9 | | `test_sqlite_validate.py` | 4 |
+| `test_frontend_db_export.py` | 7 | | `spec_bdd_workflow_test.py` | 4 |
+| `the-snake-tank/test_web_leaderboard.py` | 7 | | `test_gb_error_loading.py` | 3 |
+| `test_model_rename_and_6hr_rc.py` | 6 | | `test_readings_count.py` | 3 |
+| `test_multi_model_export.py` | 6 | | `test_sqlite_export.py` | 3 |
+| `test_readme_accuracy.py` | 6 | | `test_docs_backend_new_features.py` | 2 |
+| `the-snake-tank/test_pvp_service.py` | 6 | | `test_code_quality.py`, `test_dedup_removed.py`, `test_docs_backend_readme.py`, `test_gb_predict.py`, `test_multi_model_code.py`, `test_public_station_csv.py`, `test_public_weather_export.py` | 1 each |
+| `test_full_model_training.py` | 4 | | `test_sqlite_train_errors.py` | collection error: `cannot import name 'PREDICTION_HISTORY_TABLE_SQL' from 'train_model'` |
+| `test_history_json_priority.py` | 4 | | | |
+
+They were not investigated or repaired: they are outside this plan, and many pin the SQLite
+era of the pipeline. The 9 skips are the files' own conditions: `test_browse_data_export.py` 5,
+`test_gb_lasso.py` 2, `test_wire_prediction_validation.py` 2.
+
+**Baseline for the next run:** `94 failed, 411 passed, 9 skipped, 1 error`, the reds as listed.
+
+#### Default migration: same statements as the parent
+
+`migrate()` was called with `WEATHER_SCHEMA` unset and a recording connection, at the candidate
+and at `285660ee`. Comment lines dropped, split on `;`, whitespace collapsed:
+
+| | Parent `285660ee` | Candidate |
+|---|---|---|
+| `execute` calls | 2 | 3 |
+| Statements | 20 | 20 |
+| SHA-256 of the sorted set | `201ecaf8…cf05` | `201ecaf8…cf05` |
+
+The sets are equal. Only the grouping into `execute` calls differs.
+
+#### Real PostgreSQL 17.6: both modes, twice, then cleanup
+
+`python migrate.py` from the candidate checkout against two fresh, empty databases.
+
+| | Default (`test_weather_default`) | `WEATHER_SCHEMA=weather-only` (`test_weather_only`) |
+|---|---|---|
+| First run | exit 0 | exit 0 |
+| Tables | 6: `party_snapshots`, `players`, `prediction_history`, `predictions`, `public_stations`, `readings` | exactly 4: `prediction_history`, `predictions`, `public_stations`, `readings` |
+| Indexes / sequences | 17 / 4 | 11 / 3 |
+| Second run | exit 0; tables, indexes, constraints, sequences and column count identical to the first | the same |
+| `migrate.py --cleanup` | exit 0, `4 rows deleted` | exit 0, `4 rows deleted` |
+| Cleanup committed | one row older than retention had been committed into each weather table; a **new connection** afterwards finds 0 in each | the same |
+
+In the weather-only database, one row per table inserted **without an id**, then a second:
+
+| Table | Generated ids | Duplicate natural key | Explicit id |
+|---|---|---|---|
+| `readings` (key `timestamp`) | no identity column | `UniqueViolation` | n/a |
+| `public_stations` | 2, 3 | `UniqueViolation` | `GeneratedAlways` (refused) |
+| `predictions` | 2, 3 | `UniqueViolation` | `GeneratedAlways` (refused) |
+| `prediction_history` | 2, 3 | `UniqueViolation` | `GeneratedAlways` (refused) |
+
+(Id 1 in each had gone to the old row that cleanup then removed.)
+
+**Negative control for the switch.** With an old `readings` row committed in the weather-only
+database, `migrate.py --cleanup` run **without** `WEATHER_SCHEMA` exits 1 (`party_snapshots`
+does not exist) and the old row is still there: the whole cleanup rolls back, which is the
+failure the switch exists to prevent. The same command with `WEATHER_SCHEMA=weather-only` then
+deletes it.
+
+What this does not prove: the three database roles and their privileges. They belong to the
+Ansible role and are gates 6 to 8 of the operator rehearsal.
+
+### 2026-11-13 — `qa-weather-homelab-runner`: four named files, tester worker
+
+- **Revision:** `dev` at `9a8b1991` (`impl-weather-homelab-runner`, PR #27) plus the test changes
+  in the commit that adds this entry.
+- **Whole suite:** not run here. Observed reasons: `tests/conftest.py` fails to import
+  (`ModuleNotFoundError: No module named 'psycopg2'`), and `fastapi`, `pandas`, `sklearn` and
+  `lightgbm` are absent. It is left to the dev-vm acceptance run. **No measured entry existed in
+  this README before this one**, so that run has no earlier whole-suite baseline to grade
+  against; the only parent measurement is the one given under "Red" below.
+- **Host, measured:** pytest 9.1.1, Python 3.12.3, 1 core, 1024 MB, no swap.
+
+  | Probe | Result |
+  |---|---|
+  | `fastapi`, `httpx`, `pandas`, `sklearn`, `lightgbm`, `boto3`, `psycopg2` | each `ModuleNotFoundError: No module named '<name>'` |
+  | `dotenv` | present (python-dotenv 1.2.3) |
+  | `fcntl.flock(LOCK_EX \| LOCK_NB)` on a temporary file | `PermissionError: [Errno 13] Permission denied` (same in `/tmp` and in the checkout) |
+
+- **Command** (from `BackEnds/`, run once):
+
+  ```bash
+  PYTHONDONTWRITEBYTECODE=1 /opt/fishtank/venvs/filterfeeder/bin/pytest -q -p no:cacheprovider \
+    --noconftest --continue-on-collection-errors -rs \
+    tests/the-snake-tank/test_weather_homelab_runner.py tests/the-snake-tank/test_ml_service.py \
+    tests/the-snake-tank/test_vps_db_migration.py tests/test_r2_upload.py
+  ```
+
+  `--noconftest` only because of the `psycopg2` import above; none of the four files uses a
+  conftest fixture. On dev-vm run it without that flag.
+- **Result:** `1 failed, 87 passed, 6 skipped, 1 error`.
+
+  | File | Passed | Failed | Skipped | Note |
+  |---|---|---|---|---|
+  | `the-snake-tank/test_weather_homelab_runner.py` | 45 | 0 | 6 | new |
+  | `the-snake-tank/test_vps_db_migration.py` | 35 | 1 | 0 | |
+  | `test_r2_upload.py` | 7 | 0 | 0 | |
+  | `the-snake-tank/test_ml_service.py` | 0 | 0 | 0 | collection error: `ModuleNotFoundError: No module named 'fastapi'`; none of its cases ran |
+
+- **Red (1), inherited:** `test_vps_db_migration.py::TestPartySnapshotsTable::test_unique_constraint`.
+  It pins `UNIQUE(player_id, floor)` inside `CREATE TABLE party_snapshots`; `migrate.py` has not
+  had that since before this change (it now drops the legacy constraint on purpose). Measured at
+  the parent: the file and `migrate.py` from `origin/main` `285660ee` give the same single
+  failure (`1 failed, 42 passed` with `test_r2_upload.py`). Left as it is, because this run was
+  limited to cases the implementation changed. It needs its own decision: the case should
+  probably assert the constraint is dropped.
+- **Skips (6), all in the new file, all `NEEDS DEV-VM RUN`:**
+  - `flock denied by AppArmor (PermissionError: [Errno 13] Permission denied)`:
+    `TestRunnerLock::test_held_lock_exits_3_without_running` (case 6),
+    `::test_lock_is_released_when_the_run_ends`,
+    `::test_control_no_lock_acquisition_reddens_case_6` (case 9).
+  - `fastapi absent (ModuleNotFoundError: No module named 'fastapi')`:
+    `TestPipelineSequence::test_default_call_runs_fetch`, `::test_skip_fetch_skips_only_the_fetch`
+    (case 10), `::test_trigger_does_not_skip_fetch` (case 11).
+
+  These six have never been executed anywhere. A failure in one of them on dev-vm may be a fault
+  in the case and not in the implementation.
+- **Ran with a stand-in here:** every case that imports `db` used the `psycopg2` stand-in, and the
+  runner cases other than the three lock cases ran with a lock that always succeeds, because
+  `flock` is denied. On dev-vm they run against the real module and the real lock.
+- **Existing cases updated, and why:**
+  - `test_vps_db_migration.py::_schema_sql` (helper): `SCHEMA_SQL` is now
+    `WEATHER_SCHEMA_SQL + LEGACY_PVP_SCHEMA_SQL`, so the old regex for one literal returned only
+    the weather half and six cases went red (`test_all_five_tables_exist`, the three
+    `TestPartySnapshotsTable` cases, `test_expected_indexes`, `test_index_count`). The helper now
+    resolves the name from the module's assignments. No assertion changed.
+  - `test_r2_upload.py::test_graceful_skip_when_env_not_set`: required a bare `return`; the
+    function now says `return None`. The case now asserts the guard returns no value before
+    `boto3.client` and before `upload_file`. The executed form is case 24 in the new file.
+  - `test_ml_service.py`: not changed. Read, not run: every case replaces `_execute_pipeline`
+    whole and none pins its arguments, so `skip_fetch` changes nothing it pins.
+- **Expect on dev-vm, from reading and not measured:** `test_ml_service.py` has cases that
+  disagree with trigger code that is identical on `main` and `dev` (no token configured gives 503,
+  a wrong token gives 401): `test_trigger_no_token_configured_allows_request`,
+  `test_trigger_wrong_token_returns_403`, `test_trigger_response_has_status_and_steps`,
+  `test_step_level_errors_reported`. If they are red there, they are inherited too.
+- **Not shown by this run:** that the migration SQL runs, that the tables come out as intended,
+  or that any privilege works. The schema cases record which statements are selected and in what
+  order, against a fake connection.

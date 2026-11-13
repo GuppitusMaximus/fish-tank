@@ -77,14 +77,31 @@ class TestHealth:
 
 
 # --- Step 3: Trigger endpoint auth ---
+#
+# The contract below is the one app_ml.trigger() has had since the security
+# hardening in 988c8a415: an unset ML_TRIGGER_TOKEN closes the endpoint (503)
+# rather than opening it, and a bad token is 401 like a missing one. Four cases
+# here still pinned the pre-hardening behaviour (open without a token, 403 for a
+# wrong one) and had been red since; they were measured red against the
+# unchanged source at 285660ee and corrected to the existing contract by
+# qa-weather-homelab-runner-host. No application source changed for them.
+
+_AUTH = {"Authorization": "Bearer secret-token"}
+
 
 class TestTriggerAuth:
-    def test_trigger_no_token_configured_allows_request(self, client):
-        """When ML_TRIGGER_TOKEN is not set, trigger should not require auth."""
+    def test_trigger_no_token_configured_is_refused(self, client):
+        """When ML_TRIGGER_TOKEN is not set the endpoint is closed, and nothing runs.
+
+        Was test_trigger_no_token_configured_allows_request, which expected 200.
+        """
         with patch("app_ml.ML_TRIGGER_TOKEN", None), \
-             patch("app_ml._execute_pipeline", return_value={"status": "ok", "steps": []}):
-            resp = client.post("/ml/trigger")
-            assert resp.status_code == 200
+             patch("app_ml._execute_pipeline", return_value={"status": "ok", "steps": []}) as run:
+            for headers in ({}, _AUTH):
+                resp = client.post("/ml/trigger", headers=headers)
+                assert resp.status_code == 503
+                assert resp.json() == {"detail": "Trigger endpoint not configured"}
+            assert run.call_count == 0
 
     def test_trigger_missing_auth_returns_401(self, client):
         """When token is configured, missing Authorization header → 401."""
@@ -92,11 +109,16 @@ class TestTriggerAuth:
             resp = client.post("/ml/trigger")
             assert resp.status_code == 401
 
-    def test_trigger_wrong_token_returns_403(self, client):
-        """When token is configured, wrong token → 403."""
-        with patch("app_ml.ML_TRIGGER_TOKEN", "secret-token"):
+    def test_trigger_wrong_token_returns_401(self, client):
+        """When token is configured, wrong token → 401, and nothing runs.
+
+        Was test_trigger_wrong_token_returns_403; the service answers 401.
+        """
+        with patch("app_ml.ML_TRIGGER_TOKEN", "secret-token"), \
+             patch("app_ml._execute_pipeline", return_value={"status": "ok", "steps": []}) as run:
             resp = client.post("/ml/trigger", headers={"Authorization": "Bearer wrong-token"})
-            assert resp.status_code == 403
+            assert resp.status_code == 401
+            assert run.call_count == 0
 
     def test_trigger_correct_token_succeeds(self, client):
         """When token is configured, correct token → 200."""
@@ -107,11 +129,13 @@ class TestTriggerAuth:
 
     def test_trigger_response_has_status_and_steps(self, client):
         """Trigger response includes status and steps array."""
-        with patch("app_ml.ML_TRIGGER_TOKEN", None), \
+        # Fixture corrected: with no token the endpoint answers 503 and never
+        # reaches the pipeline, so the response under test was never produced.
+        with patch("app_ml.ML_TRIGGER_TOKEN", "secret-token"), \
              patch("app_ml._execute_pipeline", return_value={
                  "status": "ok", "duration_seconds": 1.5,
                  "steps": [{"name": "fetch", "status": "ok", "duration_ms": 100}]}):
-            data = client.post("/ml/trigger").json()
+            data = client.post("/ml/trigger", headers=_AUTH).json()
             assert "status" in data
             assert "steps" in data
             assert isinstance(data["steps"], list)
@@ -122,13 +146,17 @@ class TestTriggerAuth:
 class TestErrorResilience:
     def test_service_survives_pipeline_failure(self, client):
         """After a failed pipeline run, the service should still respond."""
-        with patch("app_ml.ML_TRIGGER_TOKEN", None), \
-             patch("app_ml._execute_pipeline", side_effect=RuntimeError("boom")):
+        # Fixture corrected: with no token the request stopped at 503 and the
+        # pipeline never raised, so this passed without a failed run. It now
+        # authenticates, and asserts the failure really happened.
+        with patch("app_ml.ML_TRIGGER_TOKEN", "secret-token"), \
+             patch("app_ml._execute_pipeline", side_effect=RuntimeError("boom")) as run:
             client.app.state  # ensure app is alive
             try:
-                client.post("/ml/trigger")
+                client.post("/ml/trigger", headers=_AUTH)
             except Exception:
                 pass  # 500 is expected — we're testing the service stays up
+            assert run.call_count == 1
 
         # Health should still work after
         resp = client.get("/ml/health")
@@ -145,9 +173,10 @@ class TestErrorResilience:
                 {"name": "train_model", "status": "error", "duration_ms": 50, "error": "No data"},
             ]
         }
-        with patch("app_ml.ML_TRIGGER_TOKEN", None), \
+        # Fixture corrected as above: authenticate so the pipeline result is returned.
+        with patch("app_ml.ML_TRIGGER_TOKEN", "secret-token"), \
              patch("app_ml._execute_pipeline", return_value=step_results):
-            data = client.post("/ml/trigger").json()
+            data = client.post("/ml/trigger", headers=_AUTH).json()
             assert data["status"] == "partial"
             failed = [s for s in data["steps"] if s["status"] == "error"]
             assert len(failed) == 1
