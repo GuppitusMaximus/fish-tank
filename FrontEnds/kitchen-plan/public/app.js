@@ -898,19 +898,28 @@ function swapEditor(slot) {
     render();
   };
   const sorted = ingredients.slice().sort((a, b) => a.label.localeCompare(b.label));
-  const filter = editor.filter.trim().toLowerCase();
-  const matching = () => sorted.filter((item) => item.key === editor.replacementKey || !filter
-    || item.label.toLowerCase().includes(filter) || item.key.toLowerCase().includes(filter));
-  const targetOptions = () => [
-    h("option", { value: "", selected: !editor.replacementKey }, matching().length ? "— choose an ingredient —" : "— no ingredient matches —"),
-    matching().map((item) => h("option", { value: item.key, selected: editor.replacementKey === item.key }, item.label)),
-  ];
+  // Read editor.filter on every call: the search box narrows the list in place without a render.
+  const matching = () => {
+    const filter = editor.filter.trim().toLowerCase();
+    return sorted.filter((item) => item.key === editor.replacementKey || !filter
+      || item.label.toLowerCase().includes(filter) || item.key.toLowerCase().includes(filter));
+  };
+  const targetOptions = () => {
+    const items = matching();
+    return [
+      h("option", { value: "", selected: !editor.replacementKey }, items.length ? "— choose an ingredient —" : "— no ingredient matches —"),
+      items.map((item) => h("option", { value: item.key, selected: editor.replacementKey === item.key }, item.label)),
+    ];
+  };
   const targetSelect = h("select", {
     id: `swap-target-${slot.date}`,
     required: true,
     onChange: (event) => {
+      const previousKey = editor.replacementKey;
       editor.replacementKey = event.target.value;
       const item = ingredients.find((entry) => entry.key === editor.replacementKey);
+      // A custom name written for a different ingredient no longer describes this one.
+      if (previousKey && previousKey !== editor.replacementKey) editor.labelEdited = false;
       if (!editor.labelEdited) editor.replacementLabel = item?.label ?? "";
       render();
     },
