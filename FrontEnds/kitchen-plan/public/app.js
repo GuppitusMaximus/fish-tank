@@ -1236,12 +1236,12 @@ function extraRestocks() {
 function shoppingShareText() {
   const { shopping } = state.data;
   const lines = [];
+  // Rows are distinct by id: a dinner's need and a restock of the same
+  // ingredient and amount are two things to buy, so both are listed.
   const seen = new Set();
   for (const item of shopping.items) {
-    if (item.checked) continue;
-    const id = `${String(item.name).toLowerCase()}|${item.amount}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
+    if (item.checked || seen.has(item.id)) continue;
+    seen.add(item.id);
     const restock = restockText(item);
     lines.push(`- ${item.name}: ${item.amount}${restock ? ` (${restock.toLowerCase()})` : ""}`);
   }
