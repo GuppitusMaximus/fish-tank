@@ -38,3 +38,9 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+
+# Kitchen Plan runtime state and secrets (deploy/operations.md)
+/secrets/
+/var/
+*.sqlite
+*.sqlite-*

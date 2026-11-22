@@ -6,11 +6,17 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
-    "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
-    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "start": "node --disable-warning=ExperimentalWarning server/main.mjs",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/main.mjs",
+    "build": "npm run check",
+    "check": "for f in server/*.mjs public/*.js; do node --check \"$f\" || exit 1; done",
+    "test": "node --disable-warning=ExperimentalWarning --test",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "backup": "node --disable-warning=ExperimentalWarning server/backup.mjs backup",
+    "backup:verify": "node --disable-warning=ExperimentalWarning server/backup.mjs verify",
+    "restore": "node --disable-warning=ExperimentalWarning server/backup.mjs restore",
+    "feed-token": "node --disable-warning=ExperimentalWarning -e \"import('./server/calendar.mjs').then((m) => console.log(m.generateFeedToken()))\"",
+    "preview:vinext": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

@@ -1,0 +1,104 @@
+# Kitchen Plan reverse proxy, for Caddy 2.8+ running on the homelab host.
+# See deploy/operations.md.
+#
+# Two sites, each bound to one interface:
+#   - the private app (dashboard + /api) over HTTPS on the tailnet address only;
+#   - the public calendar feed, which forwards one exact request shape and
+#     answers 404 to everything else.
+# The Compose service publishes both upstreams on 127.0.0.1 only.
+#
+# Settings come from the environment (caddy.service EnvironmentFile), never
+# from this file:
+#   KITCHEN_APP_HOST    <machine>.<tailnet>.ts.net (must match KITCHEN_APP_ORIGIN)
+#   KITCHEN_TAILNET_IP  this host's 100.x.y.z tailnet address
+#   KITCHEN_FEED_HOST   public hostname of the feed (KITCHEN_FEED_PUBLIC_ORIGIN)
+#   KITCHEN_PUBLIC_IP   address of the interface the public feed listens on
+#
+# No site enables an access log. Handler error logs and reverse-proxy logs
+# can carry the request URI, which on the feed route is the token, so they
+# are excluded below; the Kitchen Plan service logs only method and status
+# for feed requests.
+
+{
+	admin localhost:2019
+	# Plain-HTTP requests are not redirected: a feed URL typed as http://
+	# has already exposed its token and must fail loudly, not quietly work.
+	auto_https disable_redirects
+	servers {
+		strict_sni_host on
+	}
+	log default {
+		output stderr
+		format json
+		exclude http.log.error http.handlers.reverse_proxy
+	}
+}
+
+# --- Private app: tailnet only -----------------------------------------------
+
+https://{$KITCHEN_APP_HOST} {
+	bind {$KITCHEN_TAILNET_IP}
+	tls {
+		get_certificate tailscale
+	}
+	request_body {
+		max_size 64KB
+	}
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+	}
+	# The private origin never serves the calendar feed.
+	@feed path /feed /feed/*
+	handle @feed {
+		respond 404
+	}
+	handle {
+		# Host is passed through unchanged; the service accepts only
+		# KITCHEN_APP_ORIGIN's host and loopback names.
+		reverse_proxy 127.0.0.1:3100
+	}
+}
+
+# --- Public feed: one route, deny by default ---------------------------------
+
+https://{$KITCHEN_FEED_HOST} {
+	bind {$KITCHEN_PUBLIC_IP}
+	request_body {
+		max_size 1KB
+	}
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+	}
+	# Matched against the raw request target exactly as received, before
+	# Caddy cleans or percent-decodes the path: no query string, no encoded
+	# characters, no dot or double-slash segments, no absolute-form target.
+	@feed {
+		method GET HEAD
+		expression `{http.request.orig_uri}.matches("^/feed/[A-Za-z0-9_-]{43,256}[.]ics$")`
+	}
+	handle @feed {
+		reverse_proxy 127.0.0.1:3101 {
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Set-Cookie
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+
+# Anything else reaching the public interface over plain HTTP (any Host).
+# ACME HTTP-01 challenges are still answered by Caddy before this route.
+http:// {
+	bind {$KITCHEN_PUBLIC_IP}
+	respond 404
+}
+
+# Unknown hostnames over HTTPS have no certificate and fail the TLS
+# handshake; strict_sni_host rejects a Host header that differs from SNI.

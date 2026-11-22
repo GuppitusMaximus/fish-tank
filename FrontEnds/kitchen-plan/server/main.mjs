@@ -117,7 +117,15 @@ const BACKUP_NAME = /^kitchen-plan-\d{8}T\d{6}Z\.sqlite$/;
 export function runScheduledBackup({ store, dir, keep, now = new Date() }) {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  const report = createBackup({ db: store.db, destPath: join(dir, `kitchen-plan-${stamp}.sqlite`) });
+  const destPath = join(dir, `kitchen-plan-${stamp}.sqlite`);
+  let report;
+  try {
+    report = createBackup({ db: store.db, destPath });
+  } catch (error) {
+    // createBackup leaves its temp file behind when VACUUM INTO itself fails.
+    rmSync(`${destPath}.partial-${process.pid}`, { force: true });
+    throw error;
+  }
   const scheduled = readdirSync(dir).filter((name) => BACKUP_NAME.test(name)).sort().reverse();
   const pruned = scheduled.slice(keep);
   for (const name of pruned) rmSync(join(dir, name), { force: true });
