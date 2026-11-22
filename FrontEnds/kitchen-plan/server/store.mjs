@@ -272,6 +272,28 @@ const MIGRATIONS = [
       CREATE INDEX restocks_revision ON restocks (revision);
     `,
   },
+  {
+    // Additive: each restock contribution records whether it was bought, so
+    // a later restock of the same ingredient lists only what is still owed
+    // and never reopens an amount already bought. A v2 contribution still
+    // open on a checked restock line was bought; the bucket expression
+    // mirrors amountOf() in swaps.mjs.
+    version: 3,
+    name: "bought restock contributions",
+    sql: `
+      ALTER TABLE restocks ADD COLUMN bought INTEGER NOT NULL DEFAULT 0 CHECK (bought IN (0, 1));
+      UPDATE restocks SET bought = 1
+       WHERE status = 'open' AND EXISTS (
+         SELECT 1 FROM shopping_items
+          WHERE shopping_items.checked = 1
+            AND shopping_items.id = 'restock|' || restocks.ingredient_key || '|' || CASE
+              WHEN restocks.quantity IS NULL THEN 'unquantified'
+              WHEN restocks.unit IN ('g', 'kg', 'oz', 'lb') THEN 'mass'
+              WHEN restocks.unit IN ('ml', 'l', 'tsp', 'tbsp', 'floz', 'cup', 'pint', 'quart') THEN 'volume'
+              ELSE COALESCE(restocks.unit, 'each')
+            END);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.at(-1).version;
@@ -461,6 +483,7 @@ function restockFromRow(row) {
     swapLabel: row.swap_label,
     revision: row.revision,
     status: row.status,
+    bought: row.bought === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -923,6 +946,8 @@ export class Store {
 
   // Replaces the derived list, keeping check marks on lines whose quantity did
   // not grow. A line that now needs more than was checked off is unchecked.
+  // An item that carries `checked` (a restock line, whose contributions
+  // record what was bought) sets its check mark instead.
   writeShopping(items, revision) {
     this.requireTransaction();
     const existing = new Map(this.listShopping().map((item) => [item.id, item]));
@@ -935,7 +960,7 @@ export class Store {
         this.ensureIngredient(item.ingredientKey, item.ingredientKey);
         this.run(
           `INSERT INTO shopping_items (id, ingredient_key, bucket, quantity, unit, dates, recipes, checked, rev, updated_revision)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
           item.id,
           item.ingredientKey,
           item.bucket,
@@ -943,6 +968,7 @@ export class Store {
           item.unit,
           dates,
           recipes,
+          bool(item.checked),
           revision,
         );
         continue;
@@ -951,9 +977,11 @@ export class Store {
         previous.quantity === item.quantity &&
         previous.unit === item.unit &&
         JSON.stringify(previous.dates) === dates &&
-        JSON.stringify(previous.recipes) === recipes;
+        JSON.stringify(previous.recipes) === recipes &&
+        (item.checked === undefined || item.checked === previous.checked);
       if (same) continue;
       const grew = item.quantity != null && previous.quantity != null && item.quantity > previous.quantity + 1e-9;
+      const checked = item.checked === undefined ? !grew && previous.checked : item.checked;
       this.run(
         `UPDATE shopping_items SET quantity = ?, unit = ?, dates = ?, recipes = ?, checked = ?, rev = rev + 1,
            updated_revision = ?
@@ -962,7 +990,7 @@ export class Store {
         item.unit,
         dates,
         recipes,
-        grew ? 0 : bool(previous.checked),
+        bool(checked),
         revision,
         item.id,
       );
@@ -1056,8 +1084,9 @@ export class Store {
     return this.all("SELECT * FROM restocks WHERE status != 'undone' ORDER BY created_at, id").map(restockFromRow);
   }
 
+  // A revision's restocks still owed: open and not bought.
   openRestocksOf(revision) {
-    return this.all("SELECT * FROM restocks WHERE revision = ? AND status = 'open' ORDER BY id", revision).map(restockFromRow);
+    return this.all("SELECT * FROM restocks WHERE revision = ? AND status = 'open' AND bought = 0 ORDER BY id", revision).map(restockFromRow);
   }
 
   insertRestock(restock) {
@@ -1086,6 +1115,11 @@ export class Store {
   setRestockStatus(id, status) {
     this.requireTransaction();
     this.run("UPDATE restocks SET status = ?, updated_at = ? WHERE id = ?", status, this.nowIso(), id);
+  }
+
+  setRestockBought(id, bought) {
+    this.requireTransaction();
+    this.run("UPDATE restocks SET bought = ?, updated_at = ? WHERE id = ?", bool(bought), this.nowIso(), id);
   }
 
   // --- Previews ---

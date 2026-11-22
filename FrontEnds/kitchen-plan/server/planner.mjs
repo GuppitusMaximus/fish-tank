@@ -36,6 +36,7 @@ import {
   parseSourceId,
   restockInfo,
   restockItems,
+  restockLines,
   restockRowId,
   shareText,
   slotSwaps,
@@ -1359,8 +1360,9 @@ export class KitchenService {
     return { status: 200, body: { revision, constraints } };
   }
 
-  // Checks a shopping line off (a checked restock counts as bought), or, with
-  // `clear: true`, removes a restock line and its open contributions.
+  // Checks a shopping line off, or, with `clear: true`, removes a restock
+  // line and its open contributions. Checking a restock line marks the
+  // contributions it shows bought; unchecking a checked one reopens them.
   setShoppingChecked(id, body) {
     requireObject(body, "body");
     rejectUnknown(body, ["checked", "rev", "clear"], "body");
@@ -1380,9 +1382,18 @@ export class KitchenService {
       this.recalculateShopping(this.store.revision());
       return { status: 200, body: { revision: this.store.revision(), item: null, cleared: true } };
     }
-    this.store.setShoppingChecked(id, checked);
+    if (isRestockRow(id)) {
+      const line = restockLines(this.store.listRestocks()).get(id);
+      if (line && line.checked !== checked) {
+        for (const restock of line.contributions) this.store.setRestockBought(restock.id, checked);
+      }
+      this.recalculateShopping(this.store.revision());
+    } else {
+      this.store.setShoppingChecked(id, checked);
+    }
     const ctx = loadContext(this.store);
-    return { status: 200, body: { revision: ctx.revision, item: shoppingItemView(ctx, this.store.getShoppingItem(id)) } };
+    const updated = this.store.getShoppingItem(id);
+    return { status: 200, body: { revision: ctx.revision, item: updated && shoppingItemView(ctx, updated) } };
   }
 
   // Owner-supplied plan: dates, recipes, servings, prep, locks, leftover
@@ -1759,7 +1770,10 @@ export class KitchenService {
     const ctx = loadContext(store);
     const plan = planDinnerSwap(store, ctx, request);
     const dates = [...new Set([...shoppingWindow(ctx), plan.date])];
-    const shoppingDiff = diffShopping(planShopping(ctx, ctx.view, dates), planShopping(plan.nextCtx, plan.next, dates));
+    // A bought (checked) restock line is not part of what is still owed: the
+    // new contribution starts its own amount rather than adding to it.
+    const owed = (items) => items.filter((item) => !(isRestockRow(item.id) && item.checked));
+    const shoppingDiff = diffShopping(owed(planShopping(ctx, ctx.view, dates)), owed(planShopping(plan.nextCtx, plan.next, dates)));
     const restockId = plan.restock ? restockRowId(plan.restock) : null;
     const listed = restockId ? store.getShoppingItem(restockId) : null;
     for (const entries of Object.values(shoppingDiff)) {
@@ -1768,7 +1782,7 @@ export class KitchenService {
       }
     }
     shoppingDiff.restocks = plan.restock
-      ? [{ id: restockId, ingredientKey: plan.restock.ingredientKey, label: plan.restock.label, quantity: plan.restock.quantity, unit: plan.restock.unit, amount: plan.restockView.amount, alreadyListed: Boolean(listed) }]
+      ? [{ id: restockId, ingredientKey: plan.restock.ingredientKey, label: plan.restock.label, quantity: plan.restock.quantity, unit: plan.restock.unit, amount: plan.restockView.amount, alreadyListed: Boolean(listed && !listed.checked) }]
       : [];
     const createdAt = store.nowIso();
     const preview = {
@@ -1857,8 +1871,8 @@ export class KitchenService {
   // with a new compensating revision. Refused when any of its dinners changed
   // since, so intervening edits are never overwritten. Restored slots, and
   // slots whose swaps are restored, get a new, higher calendar SEQUENCE.
-  // Restocks the change added are withdrawn unless already bought (checked)
-  // or cleared; every other restock stays.
+  // Restocks the change added are withdrawn unless already bought or
+  // cleared; every other restock stays.
   undo(body) {
     requireObject(body, "body");
     rejectUnknown(body, ["baseRevision", "revision"], "body");
@@ -1892,9 +1906,7 @@ export class KitchenService {
       writeDependencies(store, latest.dates, latest.before.dependencies);
       if (withSwaps) store.replaceSwaps(latest.dates, latest.before.swaps ?? []);
       store.deleteStaleSwaps(latest.dates);
-      for (const restock of store.openRestocksOf(latest.revision)) {
-        if (!store.getShoppingItem(restockRowId(restock))?.checked) store.setRestockStatus(restock.id, "undone");
-      }
+      for (const restock of store.openRestocksOf(latest.revision)) store.setRestockStatus(restock.id, "undone");
       const after = snapshot(store, latest.dates, withConstraints, withSwaps);
       store.recordChange({ kind: "undo", label: `Undo: ${latest.label}`.slice(0, 200), dates: latest.dates, before: now, after, undoes: latest.revision });
       this.recalculateShopping(revision);

@@ -10,7 +10,8 @@
 // Swapping out an ingredient restocks it: a durable contribution in the
 // restocks table, independent of the dinner, that restockItems() turns into
 // its own shopping line until it is cleared (or the swap that added it is
-// undone before it was bought).
+// undone before it was bought). Checking the line marks each contribution
+// on it bought, so a later restock lists only the new amount.
 //
 // The service methods live in planner.mjs; this module is pure.
 
@@ -226,29 +227,45 @@ export function isRestockRow(id) {
   return typeof id === "string" && id.startsWith(RESTOCK_PREFIX);
 }
 
-// Open restock contributions as shopping lines, one per ingredient and
-// compatible unit bucket. Pantry stock does not cancel a restock: it was
-// asked for explicitly.
-export function restockItems(restocks) {
-  const totals = new Map();
+// The contributions each restock line shows, by line id: those still owed,
+// or, once every open contribution is bought, the bought ones (the line is
+// then checked). A bought amount is never added to a later one still owed.
+export function restockLines(restocks) {
+  const lines = new Map();
   for (const restock of restocks) {
     if (restock.status !== "open") continue;
-    const amount = amountOf(restock.quantity, restock.unit);
     const id = restockRowId(restock);
-    let total = totals.get(id);
-    if (!total) {
-      total = { id, ingredientKey: restock.ingredientKey, bucket: amount.bucket, quantity: amount.amount == null ? null : 0, unit: amount.unit, dates: new Set(), recipes: new Set() };
-      totals.set(id, total);
-    }
-    if (total.quantity != null && amount.amount != null) total.quantity += amount.amount;
-    total.dates.add(restock.date);
+    if (!lines.has(id)) lines.set(id, { owed: [], bought: [] });
+    lines.get(id)[restock.bought ? "bought" : "owed"].push(restock);
   }
-  return [...totals.values()].map((total) => ({
-    ...total,
-    quantity: total.quantity == null ? null : Math.round(total.quantity * 1000) / 1000,
-    dates: [...total.dates].sort(),
-    recipes: [],
-  }));
+  return new Map(
+    [...lines].map(([id, { owed, bought }]) => [id, { checked: !owed.length, contributions: owed.length ? owed : bought }]),
+  );
+}
+
+// Open restock contributions as shopping lines, one per ingredient and
+// compatible unit bucket. Pantry stock does not cancel a restock: it was
+// asked for explicitly. The line's check mark follows its contributions.
+export function restockItems(restocks) {
+  const items = [];
+  for (const [id, line] of restockLines(restocks)) {
+    let total = null;
+    const dates = new Set();
+    for (const restock of line.contributions) {
+      const amount = amountOf(restock.quantity, restock.unit);
+      if (!total) total = { id, ingredientKey: restock.ingredientKey, bucket: amount.bucket, quantity: amount.amount == null ? null : 0, unit: amount.unit };
+      if (total.quantity != null && amount.amount != null) total.quantity += amount.amount;
+      dates.add(restock.date);
+    }
+    items.push({
+      ...total,
+      quantity: total.quantity == null ? null : Math.round(total.quantity * 1000) / 1000,
+      dates: [...dates].sort(),
+      recipes: [],
+      checked: line.checked,
+    });
+  }
+  return items;
 }
 
 // Displayable restock detail for one shopping row, or null for plan rows:
@@ -256,7 +273,7 @@ export function restockItems(restocks) {
 // contribution, and why each was restocked.
 export function restockInfo(restocks, item) {
   if (!isRestockRow(item.id)) return null;
-  const contributions = restocks.filter((restock) => restock.status === "open" && restockRowId(restock) === item.id);
+  const contributions = restockLines(restocks).get(item.id)?.contributions ?? [];
   const labels = [...new Set(contributions.map((restock) => restock.label))];
   const single = contributions.length === 1 ? contributions[0] : null;
   return {
