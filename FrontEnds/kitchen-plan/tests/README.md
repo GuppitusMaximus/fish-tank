@@ -3,19 +3,21 @@
 `node --test` (`npm test`) runs every `*.test.mjs` here against the Node service in
 `server/`. Nothing here touches household data, a device or a real calendar. Every
 case uses a disposable database (`:memory:`, or a file under the OS temp dir) and
-either the bundled archive (import checks only) or the synthetic Paprika archive
-built in `meals-acceptance.test.mjs`.
+either the bundled archive or a synthetic Paprika archive built in the test file
+(`meals-acceptance.test.mjs`, `swap-share.test.mjs`).
 
 | File | Covers |
 |---|---|
-| `rendered-html.test.mjs` | `node server/main.mjs` as a child process: private page, 14 empty dinners, 3-day review, zero-event feed, restart, weak token, cross-process lock |
+| `rendered-html.test.mjs` | `node server/main.mjs` as a child process: private page, 14 empty dinners, 3-day review, zero-event feed, schema version and swap tables, restart, weak token, cross-process lock |
 | `meals-acceptance.test.mjs` | Tuesday chicken → Wednesday leftovers through the HTTP API: import/UIDs/aliases, preview, ranking, hard rules, commit, Undo, ICS, DST, boundaries, restart, backups |
+| `swap-share.test.mjs` | Dinner swaps through the HTTP API: Brussels sprouts → roast carrots as a recipe line (two dates, one recipe) and as an owner-entered side (bundled library), preview/apply/idempotency/stale, shopping and restocks, Undo, rollover, hard rules, boundaries, restart, v1 → current migration |
+| `swap-share-browser.mjs` | The served app in headless Chrome over CDP: pick a dinner, swap a side for roast carrots, preview, cancel, apply, shopping, share/copy with stubs and fallbacks, Undo. **Not run by `npm test`** (see below) |
 
 **File-backed cases need POSIX file locks.** Confined QA workers deny SQLite's
 locks: the first write on any database file fails with `database is locked`, even in
-rollback-journal mode. A probe at load time detects this and skips the four cases
+rollback-journal mode. A probe at load time detects this and skips the six cases
 that need a real file, naming the probe error. On the dev VM, run with
-`KITCHEN_TEST_REQUIRE_FILE_DB=1`. That turns the probe off, so those four cases must
+`KITCHEN_TEST_REQUIRE_FILE_DB=1`. That turns the probe off, so those six cases must
 run and pass:
 
 ```bash
@@ -23,9 +25,162 @@ cd FrontEnds/kitchen-plan
 KITCHEN_TEST_REQUIRE_FILE_DB=1 node --disable-warning=ExperimentalWarning --test
 ```
 
-Expected there: `# tests 14`, `# pass 14`, `# skipped 0`.
+Expected there: `# tests 22`, `# pass 22`, `# skipped 0`.
+
+**The browser case needs Google Chrome or Chromium.** `swap-share-browser.mjs` does not
+match `node --test`'s default file pattern, so run it by name. Without a browser it
+skips. `KITCHEN_TEST_REQUIRE_BROWSER=1` makes it mandatory, and
+`KITCHEN_TEST_BROWSER=/path/to/chrome` picks the binary (otherwise PATH, the usual
+install paths and the Playwright cache are searched). It needs no new dependency. Chrome
+runs headless with a throwaway profile, resolves nothing but loopback, and sends
+everything else to a dead proxy. `navigator.share` and `navigator.clipboard` are
+capture stubs, so no share sheet opens and nothing is sent. On the dev VM:
+
+```bash
+cd FrontEnds/kitchen-plan
+KITCHEN_TEST_REQUIRE_BROWSER=1 node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+```
+
+Expected there: `# tests 1`, `# pass 1`, `# skipped 0`.
 
 Measured entries follow, newest first. Each one is the baseline for the next run.
+
+## 2026-11-22 — qa-kitchen-swap-share on `c60420b4` (origin/dev)
+
+Code under test: the dinner swap and share commits `2a30763c`…`4efa10bd`, plus
+`706baf52` (share lists every unchecked row) and `d39e5a4b` (schema v3: bought is
+recorded per restock contribution). Both of those landed while this run was in
+progress. The tests were graded at the pushed tip.
+
+**Baseline.** The previous entry was `e97ac22b`: 14 tests, 10 pass, 4 skipped. That entry
+is older than the swap commits, so the suite was measured once at `4efa10bd` before any
+test changed. Result: `# tests 14`, `# pass 9`, `# fail 1`, `# skipped 4`. The red was not
+in the baseline. It was `rendered-html` › fresh database, at `schemaVersion` (`2 !== 1`).
+`97c22cbf` added migration v2, which made that literal pin obsolete.
+
+Changed:
+
+- `rendered-html.test.mjs`, fresh database: `health.schemaVersion` must equal
+  `SCHEMA_VERSION` (it used to be the literal 1). Health reports the constant rather than
+  the database's value, so the case now also requires `GET /api/dinner-swaps?date=<today>`
+  to answer 404 `dinner_not_found`. That route reads the v2 tables, so it fails if the
+  migration never ran.
+- `meals-acceptance.test.mjs`: unchanged. It has no schema pin, and every case passed at
+  `4efa10bd` and at the tip.
+- New `swap-share.test.mjs` (8 cases) and `swap-share-browser.mjs` (1 case).
+
+`swap-share.test.mjs` covers:
+
+- **Line swap.** A synthetic traybake with `1 pound Brussels sprouts` is accepted on Tue
+  and Wed. The case checks the `GET /api/dinner-swaps` shape, and that a preview is
+  deterministic (masking `previewId` and `swapId`). The preview leaves the revision,
+  slots, shopping and the feed (byte-equal) alone. Apply without a key is 428. The retry
+  replays, and reusing the key is `idempotency_key_reused`. The other preview is then
+  `stale_revision` at the old base and 404 `preview_not_found` at the new one (every
+  recorded change clears all previews). Wed's slot, its sources and the library recipe are
+  unchanged. The list after apply is the list before plus the diff: sprouts 2→1 lb (Wed
+  only), carrot 1 lb on Tue, and a restock row of 1 lb with its reason. The Tue event keeps
+  its UID, gets SEQUENCE+1 and a `Swap: Roast carrots instead of Brussels sprouts` line.
+  Wed's event is identical. A note keeps the swap. Pantry stock never cancels a restock,
+  and a bought restock stays checked through recalculation. A different dinner drops the
+  swap and Undo brings it back. Last, after Tue's pound is bought, Wed's swap lists only
+  Wed's unbought pound, unchecked. That last check is the v3 fix, and it is red at
+  `4efa10bd`.
+- **Owner-entered side, bundled library.** The library has carrots and no Brussels sprouts,
+  and sprouts are not a catalogued replacement. A `Brussels sprouts` 1 lb side becomes
+  `Roast carrots` 4 each. `sourceId` omitted and `sourceId: null` preview the same. The
+  applied side id is the previewed one, and the same side again is `side_in_recipe`. The
+  list adds carrot 4 and a sprouts restock of 1 lb, and the share text lists the swap. No
+  library recipe changes. An unbought Undo restores the slot exactly (SEQUENCE+2), the
+  list, the sources and the feed description. A bought Undo keeps only the checked
+  restock.
+- **Undo of the latest of two swaps.** The shared restock row goes 1 → 2 lb and carrots
+  2.5 lb. Re-swapping a swapped line does not restock twice. Swapping it to what it already
+  is gives `same_ingredient`. Undo of Wed restores Wed (SEQUENCE+2) and the list as it was
+  with Tue's swap only. Tue's event and restock are untouched.
+- **Rollover.** A Monday 23:50 preview applied at 00:01 is `stale_preview`, with no write.
+  On Wednesday the restock is still listed, Tue's carrots are gone, and the past dinner
+  refuses swaps (422 `date`). The feed keeps Tue as it was cooked.
+- **Hard rules, no write.** Covers locked (409 `slot_locked`), diet exclusion,
+  `label_mismatch` (`Roast parsnips`), a label smuggling pork, `same_ingredient`,
+  `unknown_ingredient`, `leftover_reserved`, `leftover_consumer_line`, `side_in_recipe`,
+  `source_not_found`, a malformed source, source and side together, an empty dinner, a
+  pinch, quantity 0 and a stale base. An unavailable carrot is refused and not offered.
+  The pantry change also clears the earlier preview (404). Excluded pork is not offered.
+- **Boundaries.** No swap route on the feed listener. Cross-origin, cross-site, a missing
+  header and a form body are refused on preview and apply, and the configured app origin
+  is allowed. Responses are `no-store`. No token or `/feed/` appears in any swap response,
+  the shopping list or the log, and the share text has no links.
+- **File-backed (skipped here).** Restart keeps swaps, restocks, check marks, sequences and
+  the feed, and Undo works after restart. A schema-v1 file (v2 and v3 tables dropped,
+  `user_version` 1, swaps stripped from change images) migrates in place: dinners, UIDs,
+  sequences, revision and shopping are kept, Undo of the pre-v2 accept works, then a swap
+  works.
+
+Contract notes. These are adaptations, not defects. Apply also answers 404
+`preview_not_found` for a preview cleared by a later change. A swap made after the day
+turns gives `stale_preview`. `/api/shopping` restock rows carry `kind: "restock"` and
+`restock: {label, labels, quantity, unit, reasons[], amount}`. Row order is not part of
+the contract, so the shape comparisons sort by id.
+
+`swap-share-browser.mjs`, step by step:
+
+1. Seed two dates with one bundled dinner that has no carrots, and open `/`.
+2. On the first date, use the visible controls: choose "A separate side", type Brussels
+   sprouts 1 lb, then type `carrot` in the search box and check that the picker narrows
+   to carrot. The option is picked by setting the `<select>` and firing `change`, because
+   headless select popups cannot be clicked.
+3. Type `Roast carrots`, 4 each, and preview. The preview shows "Comes off", "Goes on" and
+   "Kept for restock", and the diff has Add carrot 4 and Add Brussels sprouts (restock)
+   1 lb. The revision and the feed are unchanged.
+4. Cancel: nothing changes. Fill again and Apply. The dinner card shows the swap, and the
+   other date does not.
+5. Open Shopping. Check that the restock row reads `Restock: 1 lb`, then check one row off.
+6. Share: the stub gets `{text}` with transient user activation, one line per unchecked
+   row with quantities, and the checked row left out.
+7. Share cancel shows "Nothing was sent". A share error shows the text fallback.
+8. Copy: writeText gets the same text, also under user activation. A denied clipboard
+   falls back to the text. With no Web Share API, Share copies instead.
+9. Check marks and the revision are unchanged on the server.
+10. Undo via the card's confirm dialog. The UID is the same, the SEQUENCE is higher, the
+    restock and carrots are gone, and the other date is unchanged.
+11. The run requests nothing off-origin, has no CSP violation, no page error and no token
+    in the log.
+
+**It has not run anywhere yet.** This worker has no Chrome or Chromium and no DOM library.
+What was checked here: the file passes `node --check`, it skips by default and fails under
+`KITCHEN_TEST_REQUIRE_BROWSER=1`, and with `KITCHEN_TEST_BROWSER=/bin/false` the service,
+the seeding and the dinner choice all run up to the Chrome launch. The injected page
+harness parses. The selectors follow `public/app.js` at `c60420b4`. Its first run is the
+dev-VM command above, and a red there may be a driver defect rather than a code defect.
+
+Command, from `FrontEnds/kitchen-plan`, Node v22.23.4, on a confined tester worker, at
+`c60420b4` (a `git archive` export of origin/dev, because this worker's checkout is
+`4efa10bd`):
+
+```bash
+node --disable-warning=ExperimentalWarning --test
+node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+```
+
+Result: `# tests 22`, `# pass 16`, `# fail 0`, `# skipped 6`, and then `# tests 1`,
+`# skipped 1`. Against the baseline: 8 cases were added (6 pass, 2 file-backed skips),
+and the `rendered-html` red is now green. 10 + 6 = 16 pass, 4 + 2 = 6 skipped. Every skip
+is `file-backed SQLite unavailable here (database is locked)`: the four listed in the
+`f80d86b4` entry, plus `swap-share` › restart and `swap-share` › schema-v1 migration.
+Neither new file-backed case has run anywhere yet. The browser skip reads `no Google
+Chrome or Chromium found`.
+
+Controls. Each splice went into a scratch copy of `c60420b4` outside the repository, one
+at a time. Every one turned the named cases red:
+
+| Splice | Red |
+|---|---|
+| a slot's swaps applied to every date (`view.swaps.get(date)` → all dates) | swap line, side, Undo of latest, rollover |
+| feed description drops `Swap:` lines | swap line, side, rollover |
+| Undo never withdraws a restock | side, Undo of latest |
+| migrations stop at v1 | `rendered-html` fresh database and weak token, every in-memory `swap-share` case |
+| the code before v3 (`4efa10bd`) | swap line (bought restock owed again) |
 
 ## 2026-11-22 — qa-kitchen-meals-retained-backup on `e97ac22b` (origin/dev)
 
