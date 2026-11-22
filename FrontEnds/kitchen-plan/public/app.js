@@ -268,7 +268,7 @@ function errorText(error) {
 
 function readRoute() {
   const recipe = location.pathname.match(/^\/recipes\/([A-Za-z0-9-]{1,64})$/);
-  if (recipe) return { name: "recipe", uid: recipe[1].toUpperCase() };
+  if (recipe) return { name: "recipe", uid: recipe[1] };
   const hash = location.hash.slice(1);
   return { name: VIEWS.includes(hash) ? hash : "plan", uid: null };
 }
