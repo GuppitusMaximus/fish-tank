@@ -227,6 +227,51 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // Additive: v1 rows and change images are read unchanged. A swap belongs
+    // to one slot and the recipe it was accepted with; a restock row outlives
+    // its swap and its dinner.
+    version: 2,
+    name: "dinner swaps and restocks",
+    sql: `
+      CREATE TABLE slot_swaps (
+        id TEXT PRIMARY KEY,
+        slot_date TEXT NOT NULL REFERENCES slots(date),
+        recipe_uid TEXT NOT NULL REFERENCES recipes(uid),
+        source_position INTEGER,
+        source_verbatim TEXT,
+        from_key TEXT NOT NULL,
+        from_label TEXT NOT NULL,
+        from_quantity REAL CHECK (from_quantity IS NULL OR from_quantity >= 0),
+        from_unit TEXT,
+        to_key TEXT NOT NULL REFERENCES ingredients(key),
+        to_label TEXT NOT NULL,
+        quantity REAL NOT NULL CHECK (quantity > 0),
+        unit TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        CHECK ((source_position IS NULL) = (source_verbatim IS NULL))
+      );
+      CREATE UNIQUE INDEX slot_swaps_line ON slot_swaps (slot_date, source_position) WHERE source_position IS NOT NULL;
+      CREATE TABLE restocks (
+        id TEXT PRIMARY KEY,
+        origin TEXT NOT NULL,
+        ingredient_key TEXT NOT NULL REFERENCES ingredients(key),
+        label TEXT NOT NULL,
+        quantity REAL CHECK (quantity IS NULL OR quantity >= 0),
+        unit TEXT,
+        slot_date TEXT NOT NULL,
+        recipe_uid TEXT,
+        swap_label TEXT NOT NULL DEFAULT '',
+        revision INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'cleared', 'undone')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX restocks_origin ON restocks (origin);
+      CREATE INDEX restocks_revision ON restocks (revision);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.at(-1).version;
@@ -380,6 +425,44 @@ function shoppingFromRow(row) {
     checked: row.checked === 1,
     rev: row.rev,
     updatedRevision: row.updated_revision,
+  };
+}
+
+function swapFromRow(row) {
+  return {
+    id: row.id,
+    date: row.slot_date,
+    recipeUid: row.recipe_uid,
+    sourcePosition: row.source_position,
+    sourceVerbatim: row.source_verbatim,
+    fromKey: row.from_key,
+    fromLabel: row.from_label,
+    fromQuantity: row.from_quantity,
+    fromUnit: row.from_unit,
+    toKey: row.to_key,
+    toLabel: row.to_label,
+    quantity: row.quantity,
+    unit: row.unit,
+    revision: row.revision,
+    createdAt: row.created_at,
+  };
+}
+
+function restockFromRow(row) {
+  return {
+    id: row.id,
+    origin: row.origin,
+    ingredientKey: row.ingredient_key,
+    label: row.label,
+    quantity: row.quantity,
+    unit: row.unit,
+    date: row.slot_date,
+    recipeUid: row.recipe_uid,
+    swapLabel: row.swap_label,
+    revision: row.revision,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -890,6 +973,119 @@ export class Store {
   setShoppingChecked(id, checked) {
     this.requireTransaction();
     this.run("UPDATE shopping_items SET checked = ?, rev = rev + 1 WHERE id = ?", bool(checked), id);
+  }
+
+  // --- Dinner swaps ---
+
+  listSwaps(dates) {
+    const swaps = [];
+    for (const date of [...new Set(dates)].sort()) {
+      swaps.push(...this.all("SELECT * FROM slot_swaps WHERE slot_date = ? ORDER BY id", date).map(swapFromRow));
+    }
+    return swaps;
+  }
+
+  // Every stored swap, keyed by slot date.
+  swapsByDate() {
+    const byDate = new Map();
+    for (const row of this.all("SELECT * FROM slot_swaps ORDER BY slot_date, id")) {
+      const swap = swapFromRow(row);
+      if (!byDate.has(swap.date)) byDate.set(swap.date, []);
+      byDate.get(swap.date).push(swap);
+    }
+    return byDate;
+  }
+
+  // Inserts or replaces a swap; a line swap also replaces any other swap of
+  // the same line on that date.
+  writeSwap(swap) {
+    this.requireTransaction();
+    this.run("DELETE FROM slot_swaps WHERE id = ?", swap.id);
+    if (swap.sourcePosition != null) {
+      this.run("DELETE FROM slot_swaps WHERE slot_date = ? AND source_position = ?", swap.date, swap.sourcePosition);
+    }
+    this.ensureIngredient(swap.toKey, swap.toKey);
+    this.run(
+      `INSERT INTO slot_swaps (id, slot_date, recipe_uid, source_position, source_verbatim, from_key, from_label, from_quantity,
+         from_unit, to_key, to_label, quantity, unit, revision, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      swap.id,
+      swap.date,
+      swap.recipeUid,
+      swap.sourcePosition ?? null,
+      swap.sourceVerbatim ?? null,
+      swap.fromKey,
+      swap.fromLabel,
+      swap.fromQuantity ?? null,
+      swap.fromUnit ?? null,
+      swap.toKey,
+      swap.toLabel,
+      swap.quantity,
+      swap.unit,
+      swap.revision,
+      swap.createdAt,
+    );
+  }
+
+  // Restores the swaps of `dates` to exactly `swaps` (an undo image).
+  replaceSwaps(dates, swaps) {
+    this.requireTransaction();
+    const set = new Set(dates);
+    for (const date of set) this.run("DELETE FROM slot_swaps WHERE slot_date = ?", date);
+    for (const swap of swaps) if (set.has(swap.date)) this.writeSwap(swap);
+  }
+
+  // Drops the swaps of `dates` whose slot no longer holds the accepted
+  // recipe they were made for: a different dinner was accepted there.
+  deleteStaleSwaps(dates) {
+    this.requireTransaction();
+    for (const date of new Set(dates)) {
+      this.run(
+        `DELETE FROM slot_swaps WHERE slot_date = ? AND NOT EXISTS (
+           SELECT 1 FROM slots WHERE slots.date = slot_swaps.slot_date AND slots.status = 'accepted'
+             AND slots.recipe_uid = slot_swaps.recipe_uid)`,
+        date,
+      );
+    }
+  }
+
+  // --- Restocks ---
+
+  // Every restock not undone, oldest first.
+  listRestocks() {
+    return this.all("SELECT * FROM restocks WHERE status != 'undone' ORDER BY created_at, id").map(restockFromRow);
+  }
+
+  openRestocksOf(revision) {
+    return this.all("SELECT * FROM restocks WHERE revision = ? AND status = 'open' ORDER BY id", revision).map(restockFromRow);
+  }
+
+  insertRestock(restock) {
+    this.requireTransaction();
+    this.ensureIngredient(restock.ingredientKey, restock.ingredientKey);
+    const at = this.nowIso();
+    this.run(
+      `INSERT INTO restocks (id, origin, ingredient_key, label, quantity, unit, slot_date, recipe_uid, swap_label, revision,
+         status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+      restock.id,
+      restock.origin,
+      restock.ingredientKey,
+      restock.label,
+      restock.quantity ?? null,
+      restock.unit ?? null,
+      restock.date,
+      restock.recipeUid ?? null,
+      restock.swapLabel ?? "",
+      restock.revision,
+      at,
+      at,
+    );
+  }
+
+  setRestockStatus(id, status) {
+    this.requireTransaction();
+    this.run("UPDATE restocks SET status = ?, updated_at = ? WHERE id = ?", status, this.nowIso(), id);
   }
 
   // --- Previews ---

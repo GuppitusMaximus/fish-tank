@@ -289,7 +289,9 @@ export const SEED_ALIASES = Object.freeze({
 // Assumed on hand unless the pantry says otherwise.
 export const STAPLES = Object.freeze(["salt", "black pepper", "water", "olive oil", "neutral oil"]);
 
-function baseForm(name) {
+// The normalized surface form of a name (descriptors dropped, words made
+// singular), before aliases. Dinner swaps use it to match a label to a key.
+export function baseForm(name) {
   const cleaned = name
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
