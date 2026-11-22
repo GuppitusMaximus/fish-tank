@@ -87,9 +87,11 @@ export function recipeUrl(appOrigin, recipeUid) {
   return appOrigin ? `${appOrigin}/recipes/${encodeURIComponent(recipeUid)}` : null;
 }
 
-// entries: [{slot, recipe}] for accepted slots. UID is the slot's stable
-// UUID; SEQUENCE is the slot's own counter, which every commit and undo that
-// changes the slot advances; DTSTAMP is the slot's last change in UTC.
+// entries: [{slot, recipe, swaps?}] for accepted slots, swaps being the
+// accepted ingredient swaps in force ({fromLabel, toLabel}). UID is the
+// slot's stable UUID; SEQUENCE is the slot's own counter, which every commit,
+// swap and undo that changes the slot advances; DTSTAMP is the slot's last
+// change in UTC.
 export function renderCalendar(entries, { appOrigin = null, name = "Kitchen Plan" } = {}) {
   const lines = [
     "BEGIN:VCALENDAR",
@@ -103,13 +105,14 @@ export function renderCalendar(entries, { appOrigin = null, name = "Kitchen Plan
     "X-PUBLISHED-TTL:PT1H",
   ];
   const sorted = [...entries].sort((a, b) => (a.slot.date < b.slot.date ? -1 : a.slot.date > b.slot.date ? 1 : 0));
-  for (const { slot, recipe } of sorted) {
+  for (const { slot, recipe, swaps = [] } of sorted) {
     if (slot.status !== "accepted" || !recipe) continue;
     const mpid = mealPlanId(slot.date);
     const url = recipeUrl(appOrigin, recipe.uid);
     const prep = slot.prepMinutes ?? recipe.prepMinutes;
     const description = [
       `Dinner for ${slot.servings}`,
+      ...swaps.map((swap) => `Swap: ${swap.toLabel} instead of ${swap.fromLabel}`),
       prep != null ? `Prep ${prep} min` : null,
       recipe.totalMinutes != null ? `Total ${recipe.totalMinutes} min` : null,
       url ? `Recipe: ${url}` : null,

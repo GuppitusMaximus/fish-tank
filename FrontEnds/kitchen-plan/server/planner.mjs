@@ -1,11 +1,14 @@
 // Kitchen Plan domain service: explicit plan acceptance, the three-day
 // ingredient review, the derived shopping list, deterministic swap previews,
-// revalidated commits and compensating Undo.
+// revalidated commits, slot-scoped ingredient swaps (swaps.mjs) and
+// compensating Undo.
 //
 // Consent rule: a slot becomes (or stops being) an accepted dinner only via
 // acceptPlan() with `accept: true`, commit() of a server-generated preview
-// option, or undo() of one of those. Imports, pantry edits and previews never
-// change accepted dinners; they may only recalculate the shopping list.
+// option, or undo() of one of those. An ingredient swap is accepted only by
+// applyDinnerSwap() of a stored server preview. Imports, pantry edits and
+// previews never change accepted dinners; they may only recalculate the
+// shopping list.
 //
 // The pure functions (resolveLine, computeShopping, reviewDays,
 // enumerateOptions, ...) take a context loaded once per transaction and do no
@@ -24,6 +27,25 @@ import {
   weekdayKey,
 } from "./store.mjs";
 import { UNITS, importPaprikaArchive, normalizeIngredientName, normalizeUnit, resolveIngredientKey } from "./import.mjs";
+import {
+  amountOf,
+  effectiveLines,
+  isRestockRow,
+  labelForm,
+  labelNamesKey,
+  parseSourceId,
+  restockInfo,
+  restockItems,
+  restockRowId,
+  shareText,
+  slotSwaps,
+  sourceIdOf,
+  sourceView,
+  swapAmount,
+  swapLabel,
+  swapSentence,
+  swapView,
+} from "./swaps.mjs";
 
 export const PREVIEW_TTL_MS = 15 * 60 * 1000;
 export const MAX_OPTIONS = 3;
@@ -159,9 +181,11 @@ export function loadContext(store) {
     ingredients: store.loadIngredients(),
     pantry: store.loadPantry(),
     constraints: store.constraints(),
+    restocks: store.listRestocks(),
     view: {
       slots: new Map(store.listAllSlots().map((slot) => [slot.date, slot])),
       deps: store.listDependencies(),
+      swaps: store.swapsByDate(),
     },
   };
 }
@@ -234,12 +258,13 @@ function sourceReservations(ctx, view, producerDate) {
   const result = new Map();
   const recipe = ctx.recipes.get(view.slots.get(producerDate)?.recipeUid);
   if (!recipe) return result;
+  const recipeLines = effectiveLines(ctx, view, producerDate);
   const pinned = new Map();
   const deps = view.deps
     .filter((dep) => dep.producerDate === producerDate && dep.sourceKey && view.slots.get(dep.consumerDate)?.status === "accepted")
     .sort((a, b) => compareText(linkKey(a), linkKey(b)));
   for (const dep of deps) {
-    const lines = recipe.lines.filter((line) => line.alternatives.includes(dep.sourceKey));
+    const lines = recipeLines.filter((line) => line.alternatives.includes(dep.sourceKey));
     let reserved;
     if (!lines.length) reserved = "leftover_source_missing";
     else if (isExcluded(ctx, dep.sourceKey)) reserved = "leftover_source_excluded";
@@ -374,7 +399,7 @@ export function computeShopping(ctx, view, dates) {
     if (slot?.status !== "accepted") continue;
     const recipe = ctx.recipes.get(slot.recipeUid);
     if (!recipe) continue;
-    for (const line of recipe.lines) {
+    for (const line of effectiveLines(ctx, view, date)) {
       if (coveringDependency(ctx, view, date, line)) continue;
       const resolved = planLine(ctx, view, date, line);
       if ((line.optional && !resolved.reserved) || resolved.status === "unavailable" || resolved.status === "excluded") continue;
@@ -410,6 +435,11 @@ export function computeShopping(ctx, view, dates) {
     });
   }
   return items.sort((a, b) => compareText(a.id, b.id));
+}
+
+// The stored shopping list: the accepted dinners' needs plus open restocks.
+export function planShopping(ctx, view, dates) {
+  return [...computeShopping(ctx, view, dates), ...restockItems(ctx.restocks ?? [])].sort((a, b) => compareText(a.id, b.id));
 }
 
 export function diffShopping(before, after) {
@@ -472,7 +502,7 @@ function slotIssues(ctx, view, date) {
   const recipe = slot?.recipeUid ? ctx.recipes.get(slot.recipeUid) : null;
   if (!recipe) return [];
   const issues = [];
-  for (const line of recipe.lines) {
+  for (const line of effectiveLines(ctx, view, date)) {
     if (line.optional || coveringDependency(ctx, view, date, line)) continue;
     const resolved = planLine(ctx, view, date, line);
     if (resolved.status === "unavailable" || resolved.status === "excluded") {
@@ -501,6 +531,7 @@ function slotView(ctx, view, slot) {
     note: slot.note,
     sequence: slot.sequence,
     recipe: recipe ? recipeSummary(recipe) : null,
+    swaps: slot.status === "accepted" ? slotSwaps(ctx, view, slot.date).map(swapView) : [],
     consumes: view.deps.filter((dep) => dep.consumerDate === slot.date).map((dep) => dependencyView(ctx, view, dep)),
     feeds: view.deps.filter((dep) => dep.producerDate === slot.date).map((dep) => dependencyView(ctx, view, dep)),
     issues: slot.status === "accepted" ? slotIssues(ctx, view, slot.date) : [],
@@ -508,10 +539,11 @@ function slotView(ctx, view, slot) {
 }
 
 function shoppingItemView(ctx, item) {
+  const restock = restockInfo(ctx.restocks ?? [], item);
   return {
     id: item.id,
     ingredientKey: item.ingredientKey,
-    name: ingredientName(ctx, item.ingredientKey),
+    name: restock?.label ?? ingredientName(ctx, item.ingredientKey),
     bucket: item.bucket,
     quantity: item.quantity,
     unit: item.unit,
@@ -520,6 +552,8 @@ function shoppingItemView(ctx, item) {
     recipes: item.recipes.map((uid) => ({ uid, name: ctx.recipes.get(uid)?.name ?? uid })),
     checked: item.checked ?? false,
     rev: item.rev ?? null,
+    kind: isRestockRow(item.id) ? "restock" : "plan",
+    restock: restock && { ...restock, amount: formatAmount(item.bucket, item.quantity, item.unit) },
   };
 }
 
@@ -533,8 +567,7 @@ export function reviewDays(ctx, view, dates) {
     if (slot?.status !== "accepted") {
       return { date, weekday: weekdayKey(date), status: "empty", slot: slot ? slotView(ctx, view, slot) : null, lines: [], counts: null };
     }
-    const recipe = ctx.recipes.get(slot.recipeUid);
-    const lines = (recipe?.lines ?? []).map((line) => {
+    const lines = effectiveLines(ctx, view, date).map((line) => {
       const base = {
         position: line.position,
         section: line.section,
@@ -544,6 +577,8 @@ export function reviewDays(ctx, view, dates) {
         alternatives: line.alternatives,
         optional: line.optional,
         ambiguous: line.ambiguous,
+        side: Boolean(line.side),
+        swap: line.swap ?? null,
       };
       const dep = coveringDependency(ctx, view, date, line);
       if (dep) return { ...base, ingredientKey: dep.ingredientKey, status: "leftover", leftoverFrom: dep.producerDate, useSoon: false, partial: false };
@@ -596,7 +631,7 @@ function mealProblems(ctx, view, date) {
   const problems = new Set();
   if (slot.servings < MIN_SERVINGS) problems.add("servings");
   if (categoryExcluded(ctx, recipe)) problems.add("dietary");
-  for (const line of recipe.lines) {
+  for (const line of effectiveLines(ctx, view, date)) {
     if (line.optional || coveringDependency(ctx, view, date, line)) continue;
     const resolved = planLine(ctx, view, date, line);
     if (resolved.status === "excluded") problems.add("dietary");
@@ -631,7 +666,7 @@ function applyAssignments(view, assignments) {
   for (const [date, recipeUid] of assignments) {
     slots.set(date, { ...slots.get(date), status: "accepted", recipeUid, prepMinutes: null });
   }
-  return { slots, deps: view.deps.filter((dep) => !assignments.has(dep.consumerDate)) };
+  return { slots, deps: view.deps.filter((dep) => !assignments.has(dep.consumerDate)), swaps: view.swaps };
 }
 
 function brokenByAssignments(ctx, next, assignments) {
@@ -842,7 +877,9 @@ function slotFields(slot) {
 
 // Before/after image of a change. `withConstraints` adds the planning
 // constraints, for an accept that also changed them, so Undo restores both.
-function snapshot(store, dates, withConstraints = false) {
+// `withSwaps` adds the dates' ingredient swaps; images written before swaps
+// existed have none and are compared and restored without them.
+function snapshot(store, dates, withConstraints = false, withSwaps = true) {
   const constraints = store.constraints();
   const set = new Set(dates);
   const image = {
@@ -853,6 +890,7 @@ function snapshot(store, dates, withConstraints = false) {
     dependencies: store.listDependencies().filter((dep) => set.has(dep.consumerDate) || set.has(dep.producerDate)),
   };
   if (withConstraints) image.constraints = constraints;
+  if (withSwaps) image.swaps = store.listSwaps([...set]);
   return image;
 }
 
@@ -882,6 +920,181 @@ function changeView(change, latestUndoable) {
     undoneBy: change.undoneBy,
     createdAt: change.createdAt,
     undoable: latestUndoable?.revision === change.revision,
+  };
+}
+
+// --- Dinner swaps --------------------------------------------------------------
+
+const SWAP_FIELDS = ["baseRevision", "date", "sourceId", "side", "replacementKey", "replacementLabel", "quantity", "unit"];
+
+// Validates a swap request's shape. Exactly one of sourceId (a line or an
+// already swapped side of the dinner) and side (an accompaniment the owner
+// enters, absent from the recipe) is given; the other is null or omitted.
+function parseSwapRequest(store, body) {
+  requireObject(body, "body");
+  rejectUnknown(body, SWAP_FIELDS, "body");
+  const date = requireDate(body.date, "date");
+  if ((body.sourceId == null) === (body.side == null)) throw invalid("sourceId", "Send either sourceId or side");
+  let sourceId = null;
+  let side = null;
+  if (body.sourceId != null) {
+    if (!parseSourceId(body.sourceId)) throw invalid("sourceId", "sourceId must be a source id from GET /api/dinner-swaps");
+    sourceId = body.sourceId;
+  } else {
+    requireObject(body.side, "side");
+    rejectUnknown(body.side, ["label", "quantity", "unit"], "side");
+    const label = swapLabel(body.side.label, "side.label");
+    const key = resolveIngredientKey(store, label);
+    if (!key || key.length > 80) throw invalid("side.label", "side.label must name an ingredient");
+    side = { label, key, ...swapAmount(body.side, "side") };
+  }
+  const rawKey = optionalString(body.replacementKey, "replacementKey", 80);
+  const toKey = rawKey ? resolveIngredientKey(store, rawKey) : "";
+  if (!toKey || toKey.length > 80) throw invalid("replacementKey", "replacementKey must name an ingredient");
+  const toLabel = swapLabel(body.replacementLabel, "replacementLabel");
+  return { date, sourceId, side, toKey, toLabel, ...swapAmount(body, "") };
+}
+
+// Plans one swap against `ctx` without writing: the swap row, the restock
+// contribution (null when this source's original is already restocked) and
+// the resulting view. Every hard rule is checked; a violation throws.
+// `swapId` keeps a preview's new side id stable through its apply.
+function planDinnerSwap(store, ctx, request, swapId = null) {
+  const { date, toKey, toLabel, quantity, unit } = request;
+  if (date < ctx.today) throw invalid("date", "Past dinners cannot be changed");
+  const view = ctx.view;
+  const slot = view.slots.get(date);
+  const recipe = slot?.status === "accepted" ? ctx.recipes.get(slot.recipeUid) : null;
+  if (!recipe) throw new ServiceError(404, "dinner_not_found", "No accepted dinner on that date");
+  if (slot.locked) throw new ServiceError(409, "slot_locked", "That dinner is locked");
+  const lines = effectiveLines(ctx, view, date);
+  const current = slotSwaps(ctx, view, date);
+  const problems = [];
+
+  // The source as cooked now, the swap it replaces (if any) and the original
+  // ingredient that is restocked.
+  let source;
+  let previous = null;
+  let original;
+  let fromKey;
+  if (request.sourceId) {
+    source = lines.find((line) => sourceIdOf(line) === request.sourceId);
+    if (!source) throw new ServiceError(404, "source_not_found", "sourceId is not part of that dinner", { field: "sourceId" });
+    previous = source.swap ? current.find((swap) => swap.id === source.swap.id) : null;
+    fromKey = source.swap ? source.ingredientKey : planLine(ctx, view, date, source).key;
+    const amount = source.quantityMax ?? source.quantity;
+    original = previous
+      ? { key: previous.fromKey, label: previous.fromLabel, quantity: previous.fromQuantity, unit: previous.fromUnit }
+      : { key: fromKey, label: source.name, quantity: amount ?? null, unit: amount == null ? null : source.unit ?? "each" };
+  } else {
+    const { key, label } = request.side;
+    const inDinner =
+      recipe.lines.find((line) => line.ingredientKey === key || line.alternatives.includes(key)) ??
+      lines.find((line) => line.alternatives.includes(key));
+    if (inDinner) {
+      throw new ServiceError(422, "side_in_recipe", `${label} is already part of this dinner; swap that line instead`, { sourceId: sourceIdOf(inDinner) });
+    }
+    const sameSide = current.find((swap) => swap.sourcePosition == null && swap.fromKey === key);
+    if (sameSide) {
+      throw new ServiceError(422, "side_in_recipe", `${label} was already swapped on this dinner; swap that side instead`, { sourceId: sourceIdOf(lines.find((line) => line.swap?.id === sameSide.id)) });
+    }
+    fromKey = key;
+    original = { key, label, quantity: request.side.quantity, unit: request.side.unit };
+    source = { position: null, name: label, alternatives: [key], ingredientKey: key, side: true };
+  }
+  const fromLabel = source.name;
+  if (toKey === fromKey) problems.push({ date, problem: "same_ingredient", ingredientKey: toKey });
+
+  // The replacement: a catalogued ingredient, named by its label, allowed by
+  // the diet (key and label alike, so a label cannot smuggle in an excluded
+  // food) and not marked unavailable.
+  const known = (key) => ctx.ingredients.has(key);
+  if (!known(toKey)) problems.push({ date, problem: "unknown_ingredient", ingredientKey: toKey });
+  else if (!labelNamesKey(toLabel, toKey, (text) => resolveIngredientKey(store, text), known)) {
+    problems.push({ date, problem: "label_mismatch", ingredientKey: toKey, label: toLabel });
+  }
+  if (isExcluded(ctx, toKey) || isExcluded(ctx, labelForm(toLabel))) problems.push({ date, problem: "dietary", ingredientKey: toKey });
+  if (ctx.pantry.get(toKey)?.status === "unavailable") problems.push({ date, problem: "unavailable", ingredientKey: toKey });
+
+  // Leftovers: a line fed by leftovers, or one a later dinner's leftovers are
+  // pinned to, stays as it is.
+  if (!source.side || source.swap) {
+    const covering = coveringDependency(ctx, view, date, source);
+    if (covering) problems.push({ date, problem: "leftover_consumer_line", producerDate: covering.producerDate, consumerDate: date });
+    let reservations = null;
+    for (const dep of view.deps) {
+      if (dep.producerDate !== date || !dep.sourceKey || !source.alternatives.includes(dep.sourceKey)) continue;
+      reservations ??= sourceReservations(ctx, view, date);
+      if (reservations.get(linkKey(dep)) === source.position) {
+        problems.push({ date, problem: "leftover_reserved", producerDate: date, consumerDate: dep.consumerDate, sourceKey: dep.sourceKey });
+      }
+    }
+  }
+
+  const swap = {
+    id: previous?.id ?? swapId ?? randomUUID(),
+    date,
+    recipeUid: recipe.uid,
+    sourcePosition: source.side ? null : source.position,
+    sourceVerbatim: source.side ? null : recipe.lines.find((line) => line.position === source.position).verbatim,
+    fromKey: original.key,
+    fromLabel: original.label,
+    fromQuantity: original.quantity,
+    fromUnit: original.unit,
+    toKey,
+    toLabel,
+    quantity,
+    unit,
+    revision: ctx.revision + 1,
+  };
+  const swaps = new Map(view.swaps);
+  swaps.set(date, [...current.filter((existing) => existing.id !== swap.id), swap]);
+  const next = { ...view, swaps };
+
+  // The dinner as it would be cooked, and every leftover link through it.
+  if (!problems.length) {
+    for (const problem of mealProblems(ctx, next, date)) problems.push({ date, problem });
+    for (const dep of next.deps) {
+      if (dep.producerDate !== date && dep.consumerDate !== date) continue;
+      const problem = dependencyProblem(ctx, next, dep);
+      if (problem && !dependencyProblem(ctx, view, dep)) {
+        problems.push({ date, problem: problem === "insufficient_yield" ? "insufficient_yield" : "broken_dependency", producerDate: dep.producerDate, consumerDate: dep.consumerDate, detail: problem });
+      }
+    }
+  }
+  if (problems.length) {
+    throw new ServiceError(422, "infeasible_swap", `This swap breaks a hard rule: ${problems[0].problem.replaceAll("_", " ")}`, { problems });
+  }
+
+  // One restock per original source: swapping a swapped line or side again
+  // does not restock twice.
+  const sourceId = source.side ? `side:${swap.id}` : `line:${source.position}`;
+  const origin = `${date}|${recipe.uid}|${sourceId}`;
+  const restocked = ctx.restocks.some((restock) => restock.origin === origin);
+  const amount = amountOf(original.quantity, original.unit);
+  const restock =
+    restocked || isExcluded(ctx, original.key)
+      ? null
+      : { id: randomUUID(), origin, ingredientKey: original.key, label: original.label, quantity: original.quantity, unit: original.unit, date, recipeUid: recipe.uid, swapLabel: toLabel, revision: ctx.revision + 1, status: "open" };
+  return {
+    date,
+    slot,
+    recipe,
+    sourceId,
+    fromLabel,
+    toLabel,
+    swap,
+    restock,
+    restockView: {
+      ingredientKey: original.key,
+      label: original.label,
+      quantity: original.quantity,
+      unit: original.unit,
+      amount: formatAmount(amount.bucket, amount.amount, amount.unit),
+      added: Boolean(restock),
+    },
+    next,
+    nextCtx: restock ? { ...ctx, restocks: [...ctx.restocks, restock] } : ctx,
   };
 }
 
@@ -918,7 +1131,7 @@ export class KitchenService {
 
   recalculateShopping(revision) {
     const ctx = loadContext(this.store);
-    this.store.writeShopping(computeShopping(ctx, ctx.view, shoppingWindow(ctx)), revision);
+    this.store.writeShopping(planShopping(ctx, ctx.view, shoppingWindow(ctx)), revision);
   }
 
   importArchive(buffer) {
@@ -1053,18 +1266,45 @@ export class KitchenService {
     return preview.body;
   }
 
+  // One accepted dinner's swappable sources (its lines as cooked now, and its
+  // swapped sides), the ingredients a source can be swapped to, and the
+  // swaps in force.
+  dinnerSwaps(date) {
+    const day = requireDate(date, "date");
+    const ctx = loadContext(this.store);
+    const slot = ctx.view.slots.get(day);
+    const recipe = slot?.status === "accepted" ? ctx.recipes.get(slot.recipeUid) : null;
+    if (!recipe) throw new ServiceError(404, "dinner_not_found", "No accepted dinner on that date");
+    const swaps = slotSwaps(ctx, ctx.view, day);
+    return {
+      revision: ctx.revision,
+      date: day,
+      locked: slot.locked,
+      recipe: { uid: recipe.uid, name: recipe.name },
+      sources: effectiveLines(ctx, ctx.view, day).map(sourceView),
+      ingredients: [...ctx.ingredients.values()]
+        .filter((item) => !isExcluded(ctx, item.key) && ctx.pantry.get(item.key)?.status !== "unavailable")
+        .map((item) => ({ key: item.key, label: item.display })),
+      swaps: swaps.map(swapView),
+      share: shareText(day, recipe.name, swaps),
+    };
+  }
+
   changes(limit = 20) {
     requireInt(limit, "limit", 1, 200);
     const latest = this.store.latestUndoableChange();
     return { revision: this.store.revision(), changes: this.store.listChanges(limit).map((change) => changeView(change, latest)) };
   }
 
-  // Accepted slots for the calendar feed, newest 30 days back onward.
+  // Accepted slots for the calendar feed, newest 30 days back onward, with
+  // the accepted swaps in force on each (never previews).
   calendarEntries() {
     const recipes = this.store.loadRecipes();
-    return this.store
-      .listAcceptedSlots(addDays(this.store.today(), -30))
-      .map((slot) => ({ slot, recipe: recipes.get(slot.recipeUid) }))
+    const slots = this.store.listAcceptedSlots(addDays(this.store.today(), -30));
+    const ctx = { recipes };
+    const view = { slots: new Map(slots.map((slot) => [slot.date, slot])), swaps: this.store.swapsByDate() };
+    return slots
+      .map((slot) => ({ slot, recipe: recipes.get(slot.recipeUid), swaps: slotSwaps(ctx, view, slot.date).map(swapView) }))
       .filter((entry) => entry.recipe);
   }
 
@@ -1119,15 +1359,26 @@ export class KitchenService {
     return { status: 200, body: { revision, constraints } };
   }
 
+  // Checks a shopping line off (a checked restock counts as bought), or, with
+  // `clear: true`, removes a restock line and its open contributions.
   setShoppingChecked(id, body) {
     requireObject(body, "body");
-    rejectUnknown(body, ["checked", "rev"], "body");
-    const checked = requireBool(body.checked, "checked");
+    rejectUnknown(body, ["checked", "rev", "clear"], "body");
+    const clear = body.clear == null ? false : requireBool(body.clear, "clear");
+    const checked = clear && body.checked === undefined ? null : requireBool(body.checked, "checked");
     const rev = requireInt(body.rev, "rev", 0, Number.MAX_SAFE_INTEGER);
     const item = typeof id === "string" && id.length <= 200 ? this.store.getShoppingItem(id) : null;
     if (!item) throw new ServiceError(404, "shopping_item_not_found", "That shopping item is no longer on the list");
     if (item.rev !== rev) {
       throw new ServiceError(409, "stale_item", "This shopping item changed; reload and try again", { currentRev: item.rev });
+    }
+    if (clear) {
+      if (!isRestockRow(id)) throw invalid("clear", "Only restock lines can be cleared");
+      for (const restock of this.store.listRestocks()) {
+        if (restock.status === "open" && restockRowId(restock) === id) this.store.setRestockStatus(restock.id, "cleared");
+      }
+      this.recalculateShopping(this.store.revision());
+      return { status: 200, body: { revision: this.store.revision(), item: null, cleared: true } };
     }
     this.store.setShoppingChecked(id, checked);
     const ctx = loadContext(this.store);
@@ -1271,7 +1522,7 @@ export class KitchenService {
         nextDeps.set(key, { ...dep, producerRecipeUid: producer.recipeUid });
       }
     }
-    const next = { slots: nextSlots, deps: [...nextDeps.values()].sort((a, b) => compareText(depKey(a), depKey(b))) };
+    const next = { slots: nextSlots, deps: [...nextDeps.values()].sort((a, b) => compareText(depKey(a), depKey(b))), swaps: original.swaps };
 
     // What really changes: slot fields, and links added, removed or altered.
     const linksBefore = new Map(original.deps.map((dep) => [depKey(dep), dep]));
@@ -1351,8 +1602,7 @@ export class KitchenService {
     }
     for (const dep of dropped.values()) {
       if (!dep.ingredientKey || !accepted(dep.consumerDate)) continue;
-      const recipe = ctx.recipes.get(nextSlots.get(dep.consumerDate).recipeUid);
-      const stranded = recipe.lines.some(
+      const stranded = effectiveLines(ctx, next, dep.consumerDate).some(
         (line) =>
           !line.optional &&
           line.alternatives.includes(dep.ingredientKey) &&
@@ -1384,6 +1634,7 @@ export class KitchenService {
       const revision = store.revision() + 1;
       for (const date of changedSlots) store.writeSlot(date, nextSlots.get(date), revision);
       writeDependencies(store, dates, next.deps);
+      store.deleteStaleSwaps(changedSlots);
       const after = snapshot(store, dates, constraintsChanged);
       const recorded = store.recordChange({ kind: "accept", label, dates, before, after });
       if (recorded !== revision) throw new Error("Revision changed inside a transaction");
@@ -1447,7 +1698,7 @@ export class KitchenService {
     if (preview.baseRevision !== current || preview.day !== store.today()) {
       throw new ServiceError(409, "stale_preview", "The plan changed since this preview; preview again");
     }
-    const option = preview.body.options.find((candidate) => candidate.optionId === body.optionId);
+    const option = (preview.body.options ?? []).find((candidate) => candidate.optionId === body.optionId);
     if (!option) throw new ServiceError(422, "unknown_option", "optionId is not one of this preview's options");
 
     const ctx = loadContext(store);
@@ -1478,6 +1729,7 @@ export class KitchenService {
         sortedDates,
         next.deps.map((dep) => (assignments.has(dep.producerDate) ? { ...dep, producerRecipeUid: assignments.get(dep.producerDate) } : dep)),
       );
+      store.deleteStaleSwaps(assignments.keys());
       const after = snapshot(store, sortedDates);
       const label = option.changes.map((change) => `${change.date}: ${change.toRecipeName}`).join("; ");
       store.recordChange({ kind: "commit", label: `Swapped ${label}`, dates: sortedDates, before, after });
@@ -1496,10 +1748,117 @@ export class KitchenService {
     });
   }
 
-  // Undoes the latest accepted change (accept or commit) with a new
-  // compensating revision. Refused when any of its dinners changed since,
-  // so intervening edits are never overwritten. Restored slots get a new,
-  // higher calendar SEQUENCE.
+  // Previews swapping one ingredient (or an owner-entered side) of one
+  // accepted dinner. Writes only the preview row: nothing is accepted, and
+  // shopping and the calendar feed are untouched. The shopping diff shows the
+  // replacement's effect and the original's restock line.
+  previewDinnerSwap(body) {
+    const store = this.store;
+    const request = parseSwapRequest(store, body);
+    this.checkRevision(body.baseRevision);
+    const ctx = loadContext(store);
+    const plan = planDinnerSwap(store, ctx, request);
+    const dates = [...new Set([...shoppingWindow(ctx), plan.date])];
+    const shoppingDiff = diffShopping(planShopping(ctx, ctx.view, dates), planShopping(plan.nextCtx, plan.next, dates));
+    const restockId = plan.restock ? restockRowId(plan.restock) : null;
+    const listed = restockId ? store.getShoppingItem(restockId) : null;
+    for (const entries of Object.values(shoppingDiff)) {
+      for (const entry of entries) {
+        entry.name = isRestockRow(entry.id) ? `${entry.id === restockId ? plan.restock.label : ingredientName(ctx, entry.ingredientKey)} (restock)` : ingredientName(ctx, entry.ingredientKey);
+      }
+    }
+    shoppingDiff.restocks = plan.restock
+      ? [{ id: restockId, ingredientKey: plan.restock.ingredientKey, label: plan.restock.label, quantity: plan.restock.quantity, unit: plan.restock.unit, amount: plan.restockView.amount, alreadyListed: Boolean(listed) }]
+      : [];
+    const createdAt = store.nowIso();
+    const preview = {
+      kind: "dinner_swap",
+      previewId: randomUUID(),
+      baseRevision: ctx.revision,
+      date: plan.date,
+      createdAt,
+      expiresAt: new Date(store.now().getTime() + PREVIEW_TTL_MS).toISOString(),
+      sourceId: plan.sourceId,
+      fromLabel: plan.fromLabel,
+      toLabel: plan.toLabel,
+      replacementKey: plan.swap.toKey,
+      quantity: plan.swap.quantity,
+      unit: plan.swap.unit,
+      restock: plan.restockView,
+      shoppingDiff,
+      request: { ...request, baseRevision: ctx.revision },
+      swapId: plan.swap.id,
+    };
+    store.insertPreview({ id: preview.previewId, baseRevision: ctx.revision, day: ctx.today, targetDate: plan.date, body: preview, createdAt, expiresAt: preview.expiresAt });
+    return { status: 201, body: preview };
+  }
+
+  // Applies a stored swap preview after revalidating it: same revision and
+  // day, and every hard rule still holding. The swap, its restock, the
+  // shopping list, the revision and the slot's calendar SEQUENCE change in
+  // this one transaction; Undo reverses it like any accepted change.
+  applyDinnerSwap(body) {
+    requireObject(body, "body");
+    rejectUnknown(body, ["baseRevision", "previewId"], "body");
+    const current = this.checkRevision(body.baseRevision);
+    const store = this.store;
+    const preview = typeof body.previewId === "string" && body.previewId.length <= 64 ? store.getPreview(body.previewId) : null;
+    if (!preview || preview.body.kind !== "dinner_swap") {
+      throw new ServiceError(404, "preview_not_found", "Preview not found; it may have been replaced by a newer change");
+    }
+    if (preview.expiresAt <= store.nowIso()) throw new ServiceError(409, "preview_expired", "This preview expired; preview again");
+    if (preview.baseRevision !== current || preview.day !== store.today()) {
+      throw new ServiceError(409, "stale_preview", "The plan changed since this preview; preview again");
+    }
+    const ctx = loadContext(store);
+    let plan;
+    try {
+      plan = planDinnerSwap(store, ctx, preview.body.request, preview.body.swapId);
+    } catch (error) {
+      if (!(error instanceof ServiceError)) throw error;
+      throw new ServiceError(409, "swap_invalid", "This swap is no longer valid; preview again", { reason: error.code, ...(error.details ?? {}) });
+    }
+    if (plan.fromLabel !== preview.body.fromLabel || canonicalJson(plan.restockView) !== canonicalJson(preview.body.restock)) {
+      throw new ServiceError(409, "swap_invalid", "This swap is no longer valid; preview again");
+    }
+
+    return store.tx(() => {
+      const revision = current + 1;
+      const dates = [plan.date];
+      const before = snapshot(store, dates);
+      store.writeSwap({ ...plan.swap, revision, createdAt: store.nowIso() });
+      if (plan.restock) store.insertRestock({ ...plan.restock, revision });
+      store.writeSlot(plan.date, slotFields(store.getSlot(plan.date)), revision);
+      const after = snapshot(store, dates);
+      const label = `Swapped ${plan.date}: ${swapSentence(plan.swap)}`.slice(0, 200);
+      const recorded = store.recordChange({ kind: "commit", label, dates, before, after });
+      if (recorded !== revision) throw new Error("Revision changed inside a transaction");
+      this.recalculateShopping(revision);
+
+      const result = loadContext(store);
+      const latest = store.latestUndoableChange();
+      const swaps = slotSwaps(result, result.view, plan.date);
+      return {
+        status: 200,
+        body: {
+          revision,
+          date: plan.date,
+          change: changeView(store.getChange(revision), latest),
+          changed: [slotView(result, result.view, result.view.slots.get(plan.date))],
+          swap: swapView(swaps.find((swap) => swap.id === plan.swap.id)),
+          restock: plan.restockView,
+          share: shareText(plan.date, plan.recipe.name, swaps),
+        },
+      };
+    });
+  }
+
+  // Undoes the latest accepted change (accept, commit or ingredient swap)
+  // with a new compensating revision. Refused when any of its dinners changed
+  // since, so intervening edits are never overwritten. Restored slots, and
+  // slots whose swaps are restored, get a new, higher calendar SEQUENCE.
+  // Restocks the change added are withdrawn unless already bought (checked)
+  // or cleared; every other restock stays.
   undo(body) {
     requireObject(body, "body");
     rejectUnknown(body, ["baseRevision", "revision"], "body");
@@ -1516,19 +1875,27 @@ export class KitchenService {
     // rule is re-applied: Undo restores the accepted state exactly, even if
     // the pantry has changed since.
     const withConstraints = latest.after?.constraints !== undefined;
-    const now = snapshot(store, latest.dates, withConstraints);
+    const withSwaps = latest.after?.swaps !== undefined;
+    const now = snapshot(store, latest.dates, withConstraints, withSwaps);
     if (canonicalJson(now) !== canonicalJson(latest.after)) {
       throw new ServiceError(409, "undo_conflict", "These dinners changed after that change; undo is no longer safe", { dates: latest.dates });
     }
     return store.tx(() => {
       const revision = current + 1;
       if (withConstraints) store.setSetting("constraints", latest.before.constraints);
+      const swapsOf = (image, date) => canonicalJson((image.swaps ?? []).filter((swap) => swap.date === date));
       for (const fields of latest.before.slots) {
         const slot = store.getSlot(fields.date);
-        if (slot && !sameFields(slot, fields)) store.writeSlot(fields.date, fields, revision);
+        const swapsChange = withSwaps && swapsOf(now, fields.date) !== swapsOf(latest.before, fields.date);
+        if (slot && (!sameFields(slot, fields) || swapsChange)) store.writeSlot(fields.date, fields, revision);
       }
       writeDependencies(store, latest.dates, latest.before.dependencies);
-      const after = snapshot(store, latest.dates, withConstraints);
+      if (withSwaps) store.replaceSwaps(latest.dates, latest.before.swaps ?? []);
+      store.deleteStaleSwaps(latest.dates);
+      for (const restock of store.openRestocksOf(latest.revision)) {
+        if (!store.getShoppingItem(restockRowId(restock))?.checked) store.setRestockStatus(restock.id, "undone");
+      }
+      const after = snapshot(store, latest.dates, withConstraints, withSwaps);
       store.recordChange({ kind: "undo", label: `Undo: ${latest.label}`.slice(0, 200), dates: latest.dates, before: now, after, undoes: latest.revision });
       this.recalculateShopping(revision);
 

@@ -251,14 +251,19 @@ export function restockItems(restocks) {
   }));
 }
 
-// Displayable restock detail for one shopping row, or null for plan rows.
+// Displayable restock detail for one shopping row, or null for plan rows:
+// the original labels, the amount as entered when there is one
+// contribution, and why each was restocked.
 export function restockInfo(restocks, item) {
   if (!isRestockRow(item.id)) return null;
   const contributions = restocks.filter((restock) => restock.status === "open" && restockRowId(restock) === item.id);
   const labels = [...new Set(contributions.map((restock) => restock.label))];
+  const single = contributions.length === 1 ? contributions[0] : null;
   return {
-    label: `Restock: ${labels.join(", ") || item.ingredientKey}`,
+    label: labels.join(", ") || item.ingredientKey,
     labels,
+    quantity: single ? single.quantity : item.quantity,
+    unit: single ? single.unit : item.unit,
     reasons: contributions.map((restock) => ({
       date: restock.date,
       fromLabel: restock.label,

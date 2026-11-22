@@ -13,21 +13,34 @@
 //   /api/pantry                      {revision, items[], ingredients[]}
 //   /api/constraints                 {revision, constraints}
 //   /api/shopping                    {revision, dates[], items[], blocked[]}
+//                                     items[]: {id, ingredientKey, name, bucket, quantity, unit, amount, dates, recipes,
+//                                     checked, rev, kind: plan|restock, restock: null|{label, labels[], reasons[{date,
+//                                     fromLabel, toLabel, quantity, unit, amount}]}}
+//   /api/dinner-swaps?date=YYYY-MM-DD {revision, date, locked, recipe: {uid, name},
+//                                     sources: [{id, label, quantity, unit, kind: line|side, amount, ingredientKey, verbatim, optional, swapped}],
+//                                     ingredients: [{key, label}], swaps: [{fromLabel, toLabel, quantity, unit, id, sourceId, kind, ingredientKey, amount, revision}],
+//                                     share: {title, text}}                (404 dinner_not_found unless accepted)
 //   /api/previews/:id                preview body (see POST /api/previews)
 //   /api/changes?limit=20            {revision, changes[]}
 // Mutations (require Content-Type: application/json, X-Kitchen-Plan: 1 and
 // a same-origin Origin when the browser sends one):
 //   PUT  /api/pantry/:ingredient     {status: have|need|unavailable|clear, quantity?, unit?, useSoon?, rev}
 //   PUT  /api/constraints            {baseRevision, constraints: {diners?, dietaryExclusions?, excludedCategories?, workload?, shoppingDays?}}
-//   PUT  /api/shopping/:id           {checked, rev}
+//   PUT  /api/shopping/:id           {checked, rev} | {clear: true, rev}  (clear: restock lines only)
 //   POST /api/plan/accept            {accept: true, baseRevision, slots: [{date, recipeUid|null, servings?, prepMinutes?, locked?, note?}],
 //                                     dependencies?: [{producerDate, consumerDate, servings, ingredientKey?, sourceKey?}],
 //                                     removeDependencies?: [{producerDate, consumerDate}], constraints?, label?}
 //   POST /api/previews               {baseRevision, date}                  -> 201 {previewId, options[<=3], rejected, ...}
 //   POST /api/commit                 {baseRevision, previewId, optionId}
+//   POST /api/dinner-swaps/preview   {baseRevision, date, sourceId, replacementKey, replacementLabel, quantity, unit?}
+//                                     or {baseRevision, date, side: {label, quantity, unit?}, replacementKey, replacementLabel, quantity, unit?}
+//                                     -> 201 {previewId, baseRevision, date, fromLabel, toLabel, restock: {label, quantity, unit, ingredientKey,
+//                                     amount, added}, shoppingDiff: {added, removed, increased, decreased, restocks}, sourceId, replacementKey,
+//                                     quantity, unit, expiresAt, ...}  (writes nothing but the preview)
+//   POST /api/dinner-swaps/apply     {baseRevision, previewId}            -> {revision, date, change, changed[], swap, restock, share}
 //   POST /api/undo                   {baseRevision, revision}             (revision = dashboard.undo.revision)
-// Idempotency-Key ([A-Za-z0-9_-]{8,128}) is required on accept, commit and
-// undo and honoured on every mutation; a retry returns the stored response
+// Idempotency-Key ([A-Za-z0-9_-]{8,128}) is required on accept, commit,
+// dinner-swaps/apply and undo and honoured on every mutation; a retry returns the stored response
 // with Idempotency-Replayed: true. Errors are {error: {code, message, details?}}.
 
 import { createHash } from "node:crypto";
@@ -83,6 +96,9 @@ function buildRoutes(service) {
     mutate("POST", "/api/previews", "optional", ({ body }) => service.preview(body)),
     get(/^\/api\/previews\/([^/]+)$/, ({ params }) => service.getPreview(params[0])),
     mutate("POST", "/api/commit", "required", ({ body }) => service.commit(body)),
+    get("/api/dinner-swaps", ({ query }) => service.dinnerSwaps(query.get("date") ?? undefined)),
+    mutate("POST", "/api/dinner-swaps/preview", "optional", ({ body }) => service.previewDinnerSwap(body)),
+    mutate("POST", "/api/dinner-swaps/apply", "required", ({ body }) => service.applyDinnerSwap(body)),
     get("/api/changes", ({ query }) => service.changes(intParam(query, "limit"))),
     mutate("POST", "/api/undo", "required", ({ body }) => service.undo(body)),
   ];
