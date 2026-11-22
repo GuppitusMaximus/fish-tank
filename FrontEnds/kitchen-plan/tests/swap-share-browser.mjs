@@ -73,6 +73,88 @@ const browserOptions = BROWSER || REQUIRE_BROWSER
 
 // --- Chrome and CDP ------------------------------------------------------------
 
+const SHUTDOWN_MS = 5_000;
+const PROFILE_REMOVE_MS = 10_000;
+const TRANSIENT_REMOVE = new Set(["ENOTEMPTY", "EBUSY", "EPERM"]);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Exited by a code or by a signal (a signalled child has exitCode null).
+const hasExited = (child) => child.exitCode !== null || child.signalCode !== null;
+
+// Settles once, when the child exits or fails to spawn at all. exitOf,
+// stopBrowser and removeProfile are exported only so the teardown can be
+// exercised without a browser.
+export function exitOf(child) {
+  return new Promise((resolve) => {
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+    child.once("error", (error) => {
+      if (child.pid === undefined) resolve({ error });
+    });
+  });
+}
+
+// True once the child has exited, false if it is still running after ms.
+async function waitForExit(child, exited, ms) {
+  if (hasExited(child)) return true;
+  let timer;
+  try {
+    return await Promise.race([exited.then(() => true), new Promise((resolve) => (timer = setTimeout(resolve, ms, false)))]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Asks this browser (by its own DevTools port) to close itself cleanly.
+async function closeViaCdp(port, ms = 2_000) {
+  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(ms) })).json();
+  const ws = new WebSocket(version.webSocketDebuggerUrl);
+  let timer;
+  try {
+    await Promise.race([
+      new Promise((resolve, reject) => {
+        ws.addEventListener("open", () => ws.send(JSON.stringify({ id: 1, method: "Browser.close" })), { once: true });
+        ws.addEventListener("message", resolve, { once: true });
+        ws.addEventListener("close", resolve, { once: true });
+        ws.addEventListener("error", () => reject(new Error("CDP browser socket error")), { once: true });
+      }),
+      new Promise((resolve) => (timer = setTimeout(resolve, ms))),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    ws.close();
+  }
+}
+
+// Browser.close, then SIGTERM, then SIGKILL, each with a bounded wait. Only
+// the spawned child is signalled; Node never signals a child it has reaped.
+export async function stopBrowser(child, exited, port, ms = SHUTDOWN_MS) {
+  if (hasExited(child)) return "exited";
+  if (child.pid === undefined) return "never-started";
+  if (port) {
+    await closeViaCdp(port).catch(() => {});
+    if (await waitForExit(child, exited, ms)) return "closed";
+  }
+  child.kill("SIGTERM");
+  if (await waitForExit(child, exited, ms)) return "SIGTERM";
+  child.kill("SIGKILL");
+  if (await waitForExit(child, exited, ms)) return "SIGKILL";
+  throw new Error(`Chrome (pid ${child.pid}) still running ${ms} ms after SIGKILL`);
+}
+
+// rmSync, retried while the directory is transiently busy or refilling.
+export async function removeProfile(dir, ms = PROFILE_REMOVE_MS) {
+  const deadline = Date.now() + ms;
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+      return attempt;
+    } catch (error) {
+      if (!TRANSIENT_REMOVE.has(error.code) || Date.now() >= deadline) throw error;
+      await sleep(100);
+    }
+  }
+}
+
 async function launchChrome(t) {
   const profile = mkdtempSync(join(tmpdir(), "kitchen-chrome-"));
   const args = [
@@ -100,25 +182,30 @@ async function launchChrome(t) {
   ];
   if (process.getuid?.() === 0) args.unshift("--no-sandbox");
   const child = spawn(BROWSER, args, { stdio: ["ignore", "ignore", "pipe"] });
+  const exited = exitOf(child);
   let stderr = "";
+  let port = null;
   child.stderr.on("data", (chunk) => {
     stderr += chunk;
   });
+  // Chrome's helpers can still be writing the profile when the browser
+  // process is gone, so the profile is removed with bounded retries after a
+  // bounded shutdown of this child (and nothing else).
   t.after(async () => {
-    if (child.exitCode == null) {
-      child.kill("SIGKILL");
-      await new Promise((resolve) => child.once("exit", resolve));
+    try {
+      await stopBrowser(child, exited, port);
+    } finally {
+      await removeProfile(profile);
     }
-    rmSync(profile, { recursive: true, force: true });
   });
   const portFile = join(profile, "DevToolsActivePort");
   const deadline = Date.now() + 30_000;
   while (!existsSync(portFile) || !readFileSync(portFile, "utf8").includes("\n")) {
-    if (child.exitCode != null) throw new Error(`Chrome exited with ${child.exitCode}: ${stderr.slice(-2000)}`);
+    if (hasExited(child)) throw new Error(`Chrome exited with ${child.exitCode ?? child.signalCode}: ${stderr.slice(-2000)}`);
     if (Date.now() > deadline) throw new Error(`Chrome did not open DevTools: ${stderr.slice(-2000)}`);
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  const port = Number(readFileSync(portFile, "utf8").split("\n")[0]);
+  port = Number(readFileSync(portFile, "utf8").split("\n")[0]);
   const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   const page = targets.find((target) => target.type === "page");
   assert.ok(page, "Chrome has a page target");

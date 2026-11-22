@@ -45,6 +45,73 @@ Expected there: `# tests 1`, `# pass 1`, `# skipped 0`.
 
 Measured entries follow, newest first. Each one is the baseline for the next run.
 
+## 2026-11-22 — qa-kitchen-browser-cleanup on `7b4a8ebd` (origin/dev)
+
+Why: on the dev VM, standalone Chrome runs passed every functional check but the
+teardown sometimes failed with `ENOTEMPTY: rmdir …/kitchen-chrome-*/Default`. The old
+teardown SIGKILLed the browser and called `rmSync` once, but Chrome's helper processes
+can still be writing the profile then. It also waited only when `exitCode` was null,
+and a child that a signal killed has `exitCode` null too, so the teardown would wait
+forever for an `exit` that had already fired. This was a test defect. No production
+file changed.
+
+What changed (only `swap-share-browser.mjs`, only in teardown):
+
+- `stopBrowser` stops only the spawned child. It sends `Browser.close` through that
+  browser's own DevTools port, then SIGTERM, then SIGKILL. It waits up to 5 s after
+  each one and returns at once if the child has already exited by code or by signal,
+  or never spawned. It never signals anything else, and Node never signals a child it
+  has reaped.
+- `removeProfile` retries `rmSync` every 100 ms for up to 10 s on `ENOTEMPTY`,
+  `EBUSY` or `EPERM`. Any other error is rethrown at once, and so is the last error
+  after the deadline. The profile is removed even if `stopBrowser` throws.
+- The launch loop reports a signal exit (`Chrome exited with SIGKILL`), not `null`.
+- The assertions, the service and household cleanup, and the real-browser requirement
+  are unchanged. `exitOf`, `stopBrowser` and `removeProfile` are exported only so the
+  teardown can be exercised without a browser.
+
+Checked here without a browser, using a scratch driver outside the repository that
+imports those exports:
+
+| Case | Result |
+|---|---|
+| fake browser that exits on `Browser.close` (minimal CDP endpoint) | `closed`, 226 ms |
+| fake browser that ignores `Browser.close` and SIGTERM (0.5 s waits) | `SIGKILL`, 3.0 s |
+| no DevTools port, child exits on SIGTERM | `SIGTERM` |
+| already exited (code 3) / killed by SIGKILL beforehand / spawn ENOENT | `exited`, no wait |
+| old teardown on the SIGKILLed child (control) | still waiting after 1.5 s |
+| `Default/` refilled by a writer while removing, 20 rounds | plain `rmSync`: `ENOTEMPTY` 20/20 (control). `removeProfile`: 20/20 removed, at most 3 attempts |
+| writer that never stops (1 s bound) | gives up with `ENOTEMPTY` after 1.09 s |
+| missing directory / `EACCES` | 1 attempt / rethrown at once |
+
+Command, from `FrontEnds/kitchen-plan`, Node v22.23.4, on a confined tester worker:
+
+```bash
+node --disable-warning=ExperimentalWarning --test
+node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+KITCHEN_TEST_REQUIRE_BROWSER=1 node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+```
+
+Result: `# tests 22`, `# pass 16`, `# fail 0`, `# skipped 6`. This matches the
+`c60420b4` entry exactly, with the same six `file-backed SQLite unavailable here
+(database is locked)` skips. Then `# tests 1`, `# skipped 1` (`no Google Chrome or
+Chromium found`). With `KITCHEN_TEST_REQUIRE_BROWSER=1` it is `# fail 1`, as intended,
+because this worker has no browser.
+
+**Not run here: the Chrome path.** The operator's host evidence at `7b4a8ebd` is a
+22/22 mandatory SQLite suite and a passing second Chrome run. That was the old teardown,
+on the host, not a worker run. The new teardown needs repeated real-browser runs on the
+dev VM:
+
+```bash
+cd FrontEnds/kitchen-plan
+for i in $(seq 10); do KITCHEN_TEST_REQUIRE_BROWSER=1 node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs | grep -E '^# (pass|fail)'; done
+ls -d "${TMPDIR:-/tmp}"/kitchen-chrome-* 2>/dev/null   # expect nothing left behind
+```
+
+Expected there: `# pass 1`, `# fail 0` on every run, and no `kitchen-chrome-*`
+directory left over.
+
 ## 2026-11-22 — qa-kitchen-swap-share on `c60420b4` (origin/dev)
 
 Code under test: the dinner swap and share commits `2a30763c`…`4efa10bd`, plus
