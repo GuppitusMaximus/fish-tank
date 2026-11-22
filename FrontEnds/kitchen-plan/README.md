@@ -1,51 +1,13 @@
 # Kitchen Plan
 
-The first runnable product slice for the kitchen iPad meal-planning system.
+Kitchen Plan is the household dinner dashboard for two adults. It shows fourteen dinner dates, a three-day ingredient review, shopping and a private recipe library. SQLite is the accepted source for both the dashboard and the read-only Meals calendar. A fresh installation has empty dinner dates. The bundled Paprika archive provides recipe choices. The September meal plan and static ICS are historical fixtures.
 
-## Included now
-
-- a responsive three-day ingredient review;
-- **Have**, **Need**, and **Unavailable** states;
-- a shopping list generated from **Need** ingredients;
-- deterministic replacement previews for unavailable ingredients;
-- replacement commit and one-step Undo;
-- the 15 base recipes already imported into Paprika;
-- local device persistence for this product slice;
-- an installable PWA manifest and offline app-shell cache;
-- a calendar-feed adapter route at `/calendar/kitchen-plan.ics`;
-- a Docker Compose starting point for the homelab.
-
-The feed currently publishes the three seed meals. The next engineering slice moves plan state from device storage to server-side SQLite, then generates the feed from that shared database. Do not subscribe Proton to the feed until that server-backed slice is complete.
+Use the private app to record ingredient availability, compare proposed replacements and their shopping changes, accept a choice, or Undo it. The public subscription URL is a secret. Copy it from the private app when setting up Proton Calendar.
 
 ## Run locally
 
-Requires Node.js 22.13 or newer.
+Use Node.js 22.13 or newer. Run `npm start` to start the service, `npm test` for the tests and `npm run check` for syntax checks. Local data defaults to the ignored var directory.
 
-```bash
-npm install
-npm run dev
-```
+## Household operations
 
-Open `http://localhost:3000`.
-
-## Run with Docker Compose
-
-```bash
-docker compose up --build -d
-```
-
-The app will be available on port `3000`. Put Caddy or another HTTPS reverse proxy in front of it before installing it on the iPad.
-
-## Validation
-
-```bash
-npm test
-```
-
-## Next slice
-
-1. Add server-side SQLite and revision transactions.
-2. Import the full Paprika recipe content into the database.
-3. Generate the dashboard and ICS feed from accepted plan revisions.
-4. Add a long random calendar token and expose only that feed through Caddy.
-5. Add Tailscale household access and then install the PWA on the kitchen iPad.
+Use [deployment and recovery instructions](deploy/operations.md) for the service, backup and feed configuration. The household's approved access route and device setup are recorded in the FishTank Planning repository at `docs/guides/kitchen-plan-meals.md`. Future orchestrator sessions should start there and use `skills/kitchen-plan/meals-calendar/SKILL.md` for dinner changes and subscription verification.
