@@ -583,6 +583,9 @@ export function assignmentProblems(ctx, assignments) {
   for (const date of [...assignments.keys()].sort()) {
     for (const problem of slotProblems(ctx, original, next, date)) problems.push({ date, problem });
   }
+  for (const dep of lockedThroughLinks(original, next, assignments)) {
+    problems.push({ date: dep.consumerDate, problem: "locked_dependent", producerDate: dep.producerDate });
+  }
   for (const dep of brokenByAssignments(ctx, next, assignments)) {
     problems.push({ date: dep.consumerDate, problem: "broken_dependency", producerDate: dep.producerDate });
   }
@@ -729,6 +732,7 @@ export function enumerateOptions(ctx, targetDate) {
       const problems = slotProblems(ctx, original, next, date);
       if (problems.length) return problems.forEach(reject);
     }
+    if (lockedThroughLinks(original, next, assignments).length) return reject("locked_dependent");
     const broken = brokenByAssignments(ctx, next, assignments);
     if (broken.length) {
       const consumer = original.slots.get(broken[0].consumerDate);
@@ -1391,31 +1395,33 @@ export class KitchenService {
     for (const dep of ctx.view.deps) if (assignments.has(dep.consumerDate)) dates.add(dep.producerDate);
     for (const dep of next.deps) if (assignments.has(dep.producerDate)) dates.add(dep.consumerDate);
     const sortedDates = [...dates].sort();
-    const revision = current + 1;
-    const before = snapshot(store, sortedDates);
-    for (const [date, recipeUid] of assignments) {
-      store.writeSlot(date, { ...slotFields(ctx.view.slots.get(date)), recipeUid, prepMinutes: null }, revision);
-    }
-    writeDependencies(
-      store,
-      sortedDates,
-      next.deps.map((dep) => (assignments.has(dep.producerDate) ? { ...dep, producerRecipeUid: assignments.get(dep.producerDate) } : dep)),
-    );
-    const after = snapshot(store, sortedDates);
-    const label = option.changes.map((change) => `${change.date}: ${change.toRecipeName}`).join("; ");
-    store.recordChange({ kind: "commit", label: `Swapped ${label}`, dates: sortedDates, before, after });
-    this.recalculateShopping(revision);
+    return store.tx(() => {
+      const revision = current + 1;
+      const before = snapshot(store, sortedDates);
+      for (const [date, recipeUid] of assignments) {
+        store.writeSlot(date, { ...slotFields(ctx.view.slots.get(date)), recipeUid, prepMinutes: null }, revision);
+      }
+      writeDependencies(
+        store,
+        sortedDates,
+        next.deps.map((dep) => (assignments.has(dep.producerDate) ? { ...dep, producerRecipeUid: assignments.get(dep.producerDate) } : dep)),
+      );
+      const after = snapshot(store, sortedDates);
+      const label = option.changes.map((change) => `${change.date}: ${change.toRecipeName}`).join("; ");
+      store.recordChange({ kind: "commit", label: `Swapped ${label}`, dates: sortedDates, before, after });
+      this.recalculateShopping(revision);
 
-    const result = loadContext(store);
-    const latest = store.latestUndoableChange();
-    return {
-      status: 200,
-      body: {
-        revision,
-        change: changeView(store.getChange(revision), latest),
-        changed: option.changes.map((change) => slotView(result, result.view, result.view.slots.get(change.date))),
-      },
-    };
+      const result = loadContext(store);
+      const latest = store.latestUndoableChange();
+      return {
+        status: 200,
+        body: {
+          revision,
+          change: changeView(store.getChange(revision), latest),
+          changed: option.changes.map((change) => slotView(result, result.view, result.view.slots.get(change.date))),
+        },
+      };
+    });
   }
 
   // Undoes the latest accepted change (accept or commit) with a new
@@ -1433,30 +1439,38 @@ export class KitchenService {
     if (latest.revision !== target) {
       throw new ServiceError(409, "not_latest_change", "Only the latest accepted change can be undone", { latestRevision: latest.revision });
     }
-    const now = snapshot(store, latest.dates);
+    // An accept that also changed constraints recorded them in its images;
+    // Undo then requires them unchanged since and restores them too. No hard
+    // rule is re-applied: Undo restores the accepted state exactly, even if
+    // the pantry has changed since.
+    const withConstraints = latest.after?.constraints !== undefined;
+    const now = snapshot(store, latest.dates, withConstraints);
     if (canonicalJson(now) !== canonicalJson(latest.after)) {
       throw new ServiceError(409, "undo_conflict", "These dinners changed after that change; undo is no longer safe", { dates: latest.dates });
     }
-    const revision = current + 1;
-    for (const fields of latest.before.slots) {
-      const slot = store.getSlot(fields.date);
-      if (slot && !sameFields(slot, fields)) store.writeSlot(fields.date, fields, revision);
-    }
-    writeDependencies(store, latest.dates, latest.before.dependencies);
-    const after = snapshot(store, latest.dates);
-    store.recordChange({ kind: "undo", label: `Undo: ${latest.label}`.slice(0, 200), dates: latest.dates, before: now, after, undoes: latest.revision });
-    this.recalculateShopping(revision);
+    return store.tx(() => {
+      const revision = current + 1;
+      if (withConstraints) store.setSetting("constraints", latest.before.constraints);
+      for (const fields of latest.before.slots) {
+        const slot = store.getSlot(fields.date);
+        if (slot && !sameFields(slot, fields)) store.writeSlot(fields.date, fields, revision);
+      }
+      writeDependencies(store, latest.dates, latest.before.dependencies);
+      const after = snapshot(store, latest.dates, withConstraints);
+      store.recordChange({ kind: "undo", label: `Undo: ${latest.label}`.slice(0, 200), dates: latest.dates, before: now, after, undoes: latest.revision });
+      this.recalculateShopping(revision);
 
-    const result = loadContext(store);
-    const nextLatest = store.latestUndoableChange();
-    return {
-      status: 200,
-      body: {
-        revision,
-        change: changeView(store.getChange(revision), nextLatest),
-        undone: latest.revision,
-        changed: latest.dates.map((date) => slotView(result, result.view, result.view.slots.get(date))),
-      },
-    };
+      const result = loadContext(store);
+      const nextLatest = store.latestUndoableChange();
+      return {
+        status: 200,
+        body: {
+          revision,
+          change: changeView(store.getChange(revision), nextLatest),
+          undone: latest.revision,
+          changed: latest.dates.filter((date) => result.view.slots.has(date)).map((date) => slotView(result, result.view, result.view.slots.get(date))),
+        },
+      };
+    });
   }
 }
