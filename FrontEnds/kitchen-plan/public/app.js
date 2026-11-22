@@ -1,0 +1,1065 @@
+// Kitchen Plan private dashboard. Every value shown comes from the kitchen
+// server's /api; nothing about the plan is stored on this device. Mutations
+// are sent once, when the owner presses a button, and are never queued or
+// replayed in the background. After a network failure the owner can retry the
+// same request explicitly; it reuses its Idempotency-Key, so a request that
+// did reach the server is answered from the stored result instead of applied
+// twice.
+
+const POLL_MS = 60_000;
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const WEEKDAY_NAMES = { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };
+const VIEWS = ["plan", "review", "shopping", "recipes", "household"];
+
+const state = {
+  route: { name: "plan", uid: null },
+  data: null, // {dashboard, review, shopping, pantry, constraints, changes}
+  recipes: null,
+  recipeDetails: new Map(),
+  loadedAt: null,
+  loadError: null,
+  online: navigator.onLine,
+  stale: false,
+  busy: false,
+  message: null, // {kind: info|ok|error, text}
+  pending: null, // failed request the owner may retry: {label, method, path, body, key}
+  draft: new Map(), // date -> {recipeUid, servings, prepMinutes, locked, note, base: {recipeUid, sequence}}
+  draftDeps: [], // [{producerDate, consumerDate, servings, ingredientKey}]
+  draftRemoveDeps: [], // [{producerDate, consumerDate}]
+  editor: null, // slot editor fields while open
+  preview: null,
+  previewStale: false,
+  constraintsForm: null,
+  subscription: null, // {url} | {url: null, reason} — memory only
+};
+
+// --- DOM helpers ----------------------------------------------------------
+
+function h(tag, props, ...children) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(props ?? {})) {
+    if (value == null || value === false) continue;
+    if (key.startsWith("on")) el.addEventListener(key.slice(2).toLowerCase(), value);
+    else if (key === "class") el.className = value;
+    else if (key === "value" || key === "checked" || key === "selected" || key === "disabled") el[key] = value;
+    else el.setAttribute(key, value === true ? "" : String(value));
+  }
+  append(el, children);
+  return el;
+}
+
+function append(el, children) {
+  for (const child of children.flat(Infinity)) {
+    if (child == null || child === false) continue;
+    el.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+}
+
+const $ = (id) => document.getElementById(id);
+
+function replace(el, ...children) {
+  el.replaceChildren();
+  append(el, children);
+}
+
+// --- Formatting -----------------------------------------------------------
+
+const dateFormat = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+
+function formatDate(date) {
+  return dateFormat.format(new Date(`${date}T12:00:00Z`));
+}
+
+function shortDay(date) {
+  return formatDate(date).split(",")[0];
+}
+
+function relativeDay(date) {
+  const today = state.data?.dashboard.today;
+  if (!today) return null;
+  const diff = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+  return diff === 0 ? "Today" : diff === 1 ? "Tomorrow" : null;
+}
+
+function minutes(value) {
+  if (value == null) return null;
+  if (value < 60) return `${value} min`;
+  const hours = Math.floor(value / 60);
+  const rest = value % 60;
+  return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
+}
+
+const plural = (count, word, many = `${word}s`) => `${count} ${count === 1 ? word : many}`;
+const humanize = (code) => String(code ?? "").replaceAll("_", " ");
+
+// --- API ------------------------------------------------------------------
+
+class NetworkError extends Error {}
+
+class ApiError extends Error {
+  constructor(status, error) {
+    super(error?.message ?? `Request failed (${status})`);
+    this.status = status;
+    this.code = error?.code ?? `http_${status}`;
+    this.details = error?.details ?? null;
+  }
+}
+
+function newKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function api(path, { method = "GET", body, key } = {}) {
+  const headers = { Accept: "application/json" };
+  if (method !== "GET") {
+    headers["Content-Type"] = "application/json";
+    headers["X-Kitchen-Plan"] = "1";
+    if (key) headers["Idempotency-Key"] = key;
+  }
+  let response;
+  try {
+    response = await fetch(path, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: "no-store",
+      credentials: "same-origin",
+      redirect: "error",
+    });
+  } catch {
+    throw new NetworkError("The kitchen server could not be reached");
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new ApiError(response.status, data?.error);
+  return { data, replayed: response.headers.get("Idempotency-Replayed") === "true" };
+}
+
+const get = async (path) => (await api(path)).data;
+
+async function loadAll({ quiet = false } = {}) {
+  if (!quiet) state.loadError = null;
+  try {
+    const [dashboard, review, shopping, pantry, constraints, changes, recipes] = await Promise.all([
+      get("/api/dashboard"),
+      get("/api/review?days=3"),
+      get("/api/shopping"),
+      get("/api/pantry"),
+      get("/api/constraints"),
+      get("/api/changes?limit=12"),
+      state.recipes ? Promise.resolve({ recipes: state.recipes }) : get("/api/recipes"),
+    ]);
+    const revisions = new Set([dashboard.revision, review.revision, shopping.revision, pantry.revision, constraints.revision]);
+    if (revisions.size > 1) return loadAll({ quiet }); // a change landed between reads
+    const previous = state.data?.dashboard.revision;
+    state.data = { dashboard, review, shopping, pantry, constraints, changes };
+    state.recipes = recipes.recipes.slice().sort((a, b) => a.name.localeCompare(b.name));
+    state.loadedAt = new Date();
+    state.loadError = null;
+    state.stale = false;
+    state.online = true;
+    if (previous !== undefined && previous !== dashboard.revision) {
+      if (state.preview) state.previewStale = true;
+      reconcileDraft();
+    }
+    if (!state.constraintsForm || previous !== dashboard.revision) state.constraintsForm = constraintsToForm(constraints.constraints);
+  } catch (error) {
+    state.loadError = error;
+    if (error instanceof NetworkError) state.online = false;
+  }
+  render();
+}
+
+// Drops draft entries for dinners that changed elsewhere, so accepting the
+// draft never overwrites a change the owner has not seen.
+function reconcileDraft() {
+  const slots = slotMap();
+  const dropped = [];
+  for (const [date, entry] of state.draft) {
+    const slot = slots.get(date);
+    if (!slot || slot.sequence !== entry.base.sequence || slot.recipe?.uid !== entry.base.recipeUid) {
+      state.draft.delete(date);
+      dropped.push(date);
+    }
+  }
+  if (dropped.length) {
+    state.message = { kind: "info", text: `The plan changed on another device. Your unaccepted draft for ${dropped.map(shortDay).join(", ")} was discarded; choose again if you still want it.` };
+  }
+}
+
+async function checkForChanges() {
+  if (document.visibilityState !== "visible" || state.busy || !state.data) return;
+  try {
+    const health = await get("/api/health");
+    const wasOffline = !state.online;
+    state.online = true;
+    // Re-render only when something changed, so an idle poll never steals
+    // focus from a field being edited.
+    if (health.revision === state.data.dashboard.revision) return wasOffline ? render() : undefined;
+    if (state.draft.size || state.draftDeps.length || state.draftRemoveDeps.length || state.preview || state.editor) {
+      state.stale = true;
+      if (state.preview) state.previewStale = true;
+      render();
+    } else {
+      await loadAll({ quiet: true });
+    }
+  } catch (error) {
+    if (error instanceof NetworkError && state.online) {
+      state.online = false;
+      render();
+    }
+  }
+}
+
+const canMutate = () => state.online && !state.busy && !state.stale && Boolean(state.data);
+
+// Sends one mutation the owner asked for. Never retried automatically.
+async function mutate(label, method, path, body, { key = newKey(), onSuccess } = {}) {
+  if (!navigator.onLine || !state.online) {
+    state.message = { kind: "error", text: `You're offline, so “${label}” was not sent. Nothing is queued; try again once the kitchen server is reachable.` };
+    return render();
+  }
+  state.busy = true;
+  state.message = { kind: "info", text: `${label}…` };
+  render();
+  try {
+    const result = await api(path, { method, body, key });
+    state.pending = null;
+    state.message = { kind: "ok", text: result.replayed ? `${label}: already saved earlier — showing that result.` : `${label}: saved.` };
+    onSuccess?.(result.data);
+  } catch (error) {
+    if (error instanceof NetworkError) {
+      state.online = false;
+      state.pending = { label, method, path, body, key, onSuccess };
+      state.message = { kind: "error", text: `The kitchen server didn't answer, so it's unknown whether “${label}” was saved. Nothing will be resent automatically.` };
+    } else {
+      state.pending = null;
+      state.message = { kind: "error", text: errorText(error) };
+      if (error.code === "stale_revision" || error.code === "stale_preview" || error.code === "preview_expired" || error.code === "option_invalid") {
+        if (state.preview) state.previewStale = true;
+      }
+    }
+  } finally {
+    state.busy = false;
+  }
+  await loadAll({ quiet: true });
+}
+
+function retryPending() {
+  const pending = state.pending;
+  if (!pending) return;
+  state.online = navigator.onLine;
+  mutate(pending.label, pending.method, pending.path, pending.body, { key: pending.key, onSuccess: pending.onSuccess });
+}
+
+function errorText(error) {
+  if (error instanceof NetworkError) return "The kitchen server could not be reached.";
+  const extra = [];
+  if (error.code === "stale_revision") return "The plan changed on another device since this screen loaded. It has been reloaded — check it and try again.";
+  if (error.code === "stale_item") return "That item changed on another device. It has been reloaded — try again.";
+  if (error.code === "stale_preview" || error.code === "preview_expired") return `${error.message}. Nothing was changed.`;
+  if (error.details?.problems) extra.push(error.details.problems.map((problem) => `${problem.date ? `${shortDay(problem.date)}: ` : ""}${humanize(problem.problem ?? problem)}`).join("; "));
+  if (error.details?.field) extra.push(`(${error.details.field})`);
+  return [error.message, ...extra].join(" ");
+}
+
+// --- Routing --------------------------------------------------------------
+
+function readRoute() {
+  const recipe = location.pathname.match(/^\/recipes\/([A-Za-z0-9-]{1,64})$/);
+  if (recipe) return { name: "recipe", uid: recipe[1].toUpperCase() };
+  const hash = location.hash.slice(1);
+  return { name: VIEWS.includes(hash) ? hash : "plan", uid: null };
+}
+
+function navigate(href) {
+  history.pushState(null, "", href);
+  state.route = readRoute();
+  window.scrollTo(0, 0);
+  render();
+}
+
+function link(href, props, ...children) {
+  return h("a", {
+    ...props,
+    href,
+    onClick: (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      navigate(href);
+    },
+  }, ...children);
+}
+
+// --- Derived data ---------------------------------------------------------
+
+function slotMap() {
+  return new Map((state.data?.dashboard.slots ?? []).map((slot) => [slot.date, slot]));
+}
+
+const recipeByUid = (uid) => state.recipes?.find((recipe) => recipe.uid === uid) ?? null;
+
+function pantryItem(key) {
+  return state.data?.pantry.items.find((item) => item.ingredientKey === key) ?? null;
+}
+
+async function recipeDetail(uid) {
+  if (state.recipeDetails.has(uid)) return state.recipeDetails.get(uid);
+  const { recipe } = await get(`/api/recipes/${encodeURIComponent(uid)}`);
+  state.recipeDetails.set(uid, recipe);
+  return recipe;
+}
+
+const draftCount = () => state.draft.size + state.draftDeps.length + state.draftRemoveDeps.length;
+
+// --- Rendering ------------------------------------------------------------
+
+function render() {
+  renderStatus();
+  renderNav();
+  renderBanners();
+  const view = $("view");
+  if (!state.data) {
+    if (state.loadError) {
+      replace(view, h("div", { class: "large-empty" },
+        h("span", { "aria-hidden": "true" }, "!"),
+        h("h3", null, state.loadError instanceof NetworkError ? "Can't reach the kitchen server" : "The plan could not be loaded"),
+        h("p", null, state.loadError instanceof NetworkError
+          ? "The plan lives on the kitchen server, not on this device, so nothing can be shown offline."
+          : errorText(state.loadError)),
+        h("button", { type: "button", class: "primary-action", onClick: () => loadAll() }, "Try again")));
+    }
+    return;
+  }
+  const route = state.route.name;
+  if (route === "recipe") return renderRecipePage(view);
+  if (route === "review") return replace(view, reviewView());
+  if (route === "shopping") return replace(view, shoppingView());
+  if (route === "recipes") return replace(view, recipesView());
+  if (route === "household") return replace(view, householdView());
+  return replace(view, planView());
+}
+
+function renderStatus() {
+  const dashboard = state.data?.dashboard;
+  const label = !state.online
+    ? "Offline · read-only"
+    : state.stale
+      ? "Plan changed elsewhere"
+      : dashboard
+        ? `Revision ${dashboard.revision} · ${state.loadedAt ? timeFormat.format(state.loadedAt) : ""}`
+        : "Connecting…";
+  const undo = dashboard?.undo?.undoable ? dashboard.undo : null;
+  replace($("status"),
+    undo ? h("button", {
+      class: "undo-button",
+      type: "button",
+      disabled: !canMutate(),
+      title: `Undo “${undo.label}” with a new revision that restores the dinners it changed`,
+      onClick: () => undoLatest(undo),
+    }, `Undo: ${undo.label}`) : null,
+    h("div", { class: `sync-state ${!state.online ? "offline" : state.stale ? "stale" : ""}` },
+      h("span", { class: "sync-dot", "aria-hidden": "true" }),
+      h("span", null, label)));
+}
+
+function renderNav() {
+  const shopping = state.data?.dashboard.shopping;
+  const labels = {
+    plan: `14-day plan${draftCount() ? ` · ${draftCount()} draft` : ""}`,
+    review: "Next 3 days",
+    shopping: `Shopping${shopping?.unchecked ? ` · ${shopping.unchecked}` : ""}`,
+    recipes: `Recipes${state.recipes ? ` · ${state.recipes.length}` : ""}`,
+    household: "Household",
+  };
+  const current = state.route.name === "recipe" ? "recipes" : state.route.name;
+  replace($("nav"), VIEWS.map((name) => link(`/#${name}`, { "aria-current": current === name ? "page" : null }, labels[name])));
+}
+
+function renderBanners() {
+  const banners = [];
+  if (!state.online) {
+    banners.push(h("div", { class: "banner offline", role: "status" },
+      h("strong", null, "Offline."),
+      state.data ? ` Showing the plan as loaded at ${state.loadedAt ? timeFormat.format(state.loadedAt) : "—"}. Changes are disabled and nothing is queued.` : " Waiting for the kitchen server.",
+      h("button", { type: "button", class: "secondary-action", onClick: () => loadAll() }, "Reconnect")));
+  }
+  if (state.stale) {
+    banners.push(h("div", { class: "banner stale", role: "status" },
+      h("strong", null, "The plan changed on another device."),
+      " Reload before changing anything. Draft dinners for dates that changed will be discarded; open previews must be run again.",
+      h("button", { type: "button", class: "primary-action", onClick: () => loadAll() }, "Reload plan")));
+  }
+  if (state.pending) {
+    banners.push(h("div", { class: "banner error", role: "alert" },
+      h("strong", null, `“${state.pending.label}” may not have been saved.`),
+      " Retrying sends the same request once; if it already reached the server you'll see the saved result.",
+      h("button", { type: "button", class: "primary-action", disabled: state.busy, onClick: retryPending }, "Retry once"),
+      h("button", { type: "button", class: "secondary-action", onClick: () => { state.pending = null; state.message = null; loadAll(); } }, "Discard")));
+  }
+  if (state.message) {
+    banners.push(h("div", { class: `banner ${state.message.kind}`, role: state.message.kind === "error" ? "alert" : "status" },
+      state.message.text,
+      h("button", { type: "button", class: "dismiss", "aria-label": "Dismiss message", onClick: () => { state.message = null; render(); } }, "×")));
+  }
+  replace($("banners"), banners);
+}
+
+function sectionHeading(eyebrow, title, note) {
+  return h("div", { class: "section-heading" },
+    h("div", null, h("span", { class: "eyebrow" }, eyebrow), h("h2", null, title)),
+    note ? h("span", { class: "review-note" }, note) : null);
+}
+
+// --- Plan (14 dates) ------------------------------------------------------
+
+function planView() {
+  const { dashboard } = state.data;
+  const slots = dashboard.slots;
+  const accepted = slots.filter((slot) => slot.status === "accepted").length;
+  return h("div", null,
+    sectionHeading("Accepted dinners", "Next 14 days", `${accepted} of ${slots.length} dates planned · ${plural(dashboard.diners, "diner")}`),
+    draftPanel(),
+    state.preview ? previewPanel() : null,
+    accepted === 0 && !state.draft.size
+      ? h("div", { class: "notice" }, "No dinners are accepted yet. Choose a recipe for any date below, review the draft, then accept it. Nothing reaches the calendar until you accept.")
+      : null,
+    h("ol", { class: "slot-list" }, slots.map(slotCard)));
+}
+
+function slotCard(slot) {
+  const draft = state.draft.get(slot.date);
+  const editing = state.editor?.date === slot.date;
+  const recipe = slot.recipe;
+  const day = relativeDay(slot.date);
+  return h("li", { class: `slot-card ${slot.status}${draft ? " drafted" : ""}${slot.issues.length ? " has-issues" : ""}` },
+    h("div", { class: "slot-head" },
+      h("div", null,
+        h("span", { class: "eyebrow" }, `${formatDate(slot.date)}${day ? ` · ${day}` : ""}`),
+        recipe
+          ? h("h3", null, link(recipe.path, { class: "recipe-link" }, recipe.name))
+          : h("h3", { class: "empty-title" }, "No dinner planned")),
+      h("div", { class: "badges" },
+        h("span", { class: `badge ${slot.status}` }, slot.status === "accepted" ? "Accepted" : "Empty"),
+        slot.locked ? h("span", { class: "badge locked" }, "Locked") : null,
+        draft ? h("span", { class: "badge draft" }, "Draft change") : null)),
+    recipe ? h("p", { class: "slot-meta" }, [
+      `Dinner for ${slot.servings}`,
+      slot.prepMinutes != null ? `prep ${minutes(slot.prepMinutes)}${slot.prepOverride ? " (set by you)" : ""}` : null,
+      recipe.totalMinutes != null ? `total ${minutes(recipe.totalMinutes)}` : null,
+      recipe.servings?.text ? `recipe makes ${recipe.servings.text}` : null,
+    ].filter(Boolean).join(" · ")) : h("p", { class: "slot-meta" }, "Empty date — nothing is on the calendar for this evening."),
+    slot.note ? h("p", { class: "slot-note" }, slot.note) : null,
+    slot.consumes.map((dep) => h("div", { class: `dependency${dep.problem ? " broken" : ""}` },
+      `↳ Uses ${plural(dep.servings, "leftover serving")}${dep.ingredientKey ? ` (${dep.ingredientKey})` : ""} from ${shortDay(dep.producerDate)}`,
+      dep.problem ? ` — ${humanize(dep.problem)}` : null)),
+    slot.feeds.map((dep) => h("div", { class: `dependency${dep.problem ? " broken" : ""}` },
+      `↪ Makes ${plural(dep.servings, "extra serving")}${dep.sourceKey ? ` of ${dep.sourceKey}` : ""} for ${shortDay(dep.consumerDate)}`,
+      dep.problem ? ` — ${humanize(dep.problem)}` : null)),
+    slot.issues.filter((issue) => issue.kind !== "dependency").length
+      ? h("ul", { class: "issues" }, slot.issues.filter((issue) => issue.kind !== "dependency").map((issue) => h("li", null,
+        issue.kind === "excluded" ? "Excluded by a household rule: " : "Unavailable: ", issue.verbatim ?? issue.ingredientKey)))
+      : null,
+    draft ? h("p", { class: "draft-line" }, `Draft: ${describeDraft(slot, draft)}`) : null,
+    h("div", { class: "actions" },
+      h("button", { type: "button", class: "secondary-action", disabled: !state.data || state.stale, onClick: () => openEditor(slot) },
+        recipe || draft ? "Change dinner" : "Choose a dinner"),
+      slot.status === "accepted" && !slot.locked
+        ? h("button", { type: "button", class: "secondary-action", disabled: !canMutate(), onClick: () => requestPreview(slot.date) }, "Suggest swaps")
+        : null,
+      draft ? h("button", { type: "button", class: "link-button", onClick: () => { state.draft.delete(slot.date); render(); } }, "Remove from draft") : null),
+    editing ? slotEditor(slot) : null);
+}
+
+function describeDraft(slot, draft) {
+  const parts = [];
+  const to = draft.recipeUid ? recipeByUid(draft.recipeUid)?.name ?? draft.recipeUid : "no dinner";
+  if (draft.recipeUid !== (slot.recipe?.uid ?? null)) parts.push(`${slot.recipe?.name ?? "empty"} → ${to}`);
+  else parts.push(to);
+  if (draft.servings !== slot.servings) parts.push(`${draft.servings} servings`);
+  if (draft.prepMinutes !== (slot.prepOverride ? slot.prepMinutes : null)) parts.push(draft.prepMinutes == null ? "recipe prep time" : `prep ${draft.prepMinutes} min`);
+  if (draft.locked !== slot.locked) parts.push(draft.locked ? "lock" : "unlock");
+  if (draft.note !== slot.note) parts.push(draft.note ? `note “${draft.note}”` : "clear note");
+  return parts.join(", ");
+}
+
+function openEditor(slot) {
+  const draft = state.draft.get(slot.date);
+  state.editor = {
+    date: slot.date,
+    recipeUid: draft ? draft.recipeUid : slot.recipe?.uid ?? null,
+    servings: draft?.servings ?? slot.servings ?? state.data.dashboard.diners,
+    prepMinutes: draft ? draft.prepMinutes : slot.prepOverride ? slot.prepMinutes : null,
+    locked: draft?.locked ?? slot.locked,
+    note: draft?.note ?? slot.note ?? "",
+    depProducer: "",
+    depServings: state.data.dashboard.diners,
+    depIngredient: "",
+    ingredients: null,
+  };
+  loadEditorIngredients();
+  render();
+}
+
+async function loadEditorIngredients() {
+  const editor = state.editor;
+  if (!editor?.recipeUid) return;
+  try {
+    const recipe = await recipeDetail(editor.recipeUid);
+    if (state.editor === editor) {
+      editor.ingredients = recipe.ingredients;
+      render();
+    }
+  } catch {
+    // The leftover picker stays hidden; the rest of the editor still works.
+  }
+}
+
+function slotEditor(slot) {
+  const editor = state.editor;
+  const slots = slotMap();
+  const producers = [...slots.values()].filter((other) => other.date < slot.date && (state.draft.get(other.date)?.recipeUid ?? (other.status === "accepted" ? other.recipe?.uid : null)));
+  const update = (field, parse = (value) => value) => (event) => {
+    editor[field] = parse(event.target.type === "checkbox" ? event.target.checked : event.target.value);
+  };
+  const intOrNull = (value) => (value === "" ? null : Number(value));
+  return h("form", {
+    class: "slot-editor",
+    onSubmit: (event) => {
+      event.preventDefault();
+      addToDraft(slot);
+    },
+  },
+  h("label", null, "Dinner",
+    h("select", {
+      onChange: (event) => {
+        editor.recipeUid = event.target.value || null;
+        editor.ingredients = null;
+        editor.depIngredient = "";
+        loadEditorIngredients();
+        render();
+      },
+    },
+    h("option", { value: "", selected: !editor.recipeUid }, "— No dinner (empty date) —"),
+    state.recipes.map((recipe) => h("option", { value: recipe.uid, selected: editor.recipeUid === recipe.uid },
+      `${recipe.name}${recipe.totalMinutes != null ? ` · ${minutes(recipe.totalMinutes)}` : ""}`)))),
+  h("div", { class: "field-row" },
+    h("label", null, "Servings", h("input", { type: "number", min: 1, max: 20, required: true, value: editor.servings, onInput: update("servings", Number) })),
+    h("label", null, "Prep minutes", h("input", { type: "number", min: 0, max: 720, placeholder: "recipe default", value: editor.prepMinutes ?? "", onInput: update("prepMinutes", intOrNull) })),
+    h("label", { class: "check" }, h("input", { type: "checkbox", checked: editor.locked, onChange: update("locked") }), "Lock (suggestions never change it)")),
+  h("label", null, "Note", h("input", { type: "text", maxlength: 200, value: editor.note, onInput: update("note") })),
+  editor.recipeUid && producers.length && editor.ingredients ? h("fieldset", { class: "leftover-picker" },
+    h("legend", null, "Use leftovers from an earlier dinner (optional)"),
+    h("div", { class: "field-row" },
+      h("label", null, "From",
+        h("select", { onChange: update("depProducer") },
+          h("option", { value: "", selected: !editor.depProducer }, "— none —"),
+          producers.map((other) => h("option", { value: other.date, selected: editor.depProducer === other.date },
+            `${shortDay(other.date)} · ${recipeByUid(state.draft.get(other.date)?.recipeUid ?? other.recipe?.uid)?.name ?? ""}`)))),
+      h("label", null, "Ingredient it replaces",
+        h("select", { onChange: update("depIngredient") },
+          h("option", { value: "", selected: !editor.depIngredient }, "— whole dish —"),
+          [...new Map(editor.ingredients.map((line) => [line.ingredientKey, line])).values()].map((line) =>
+            h("option", { value: line.ingredientKey, selected: editor.depIngredient === line.ingredientKey }, line.verbatim)))),
+      h("label", null, "Servings", h("input", { type: "number", min: 1, max: 20, value: editor.depServings, onInput: update("depServings", Number) })))) : null,
+  slot.consumes.length ? h("div", { class: "existing-deps" }, slot.consumes.map((dep) => {
+    const removing = state.draftRemoveDeps.some((item) => item.producerDate === dep.producerDate && item.consumerDate === dep.consumerDate);
+    return h("label", { class: "check" },
+      h("input", {
+        type: "checkbox",
+        checked: removing,
+        onChange: (event) => {
+          state.draftRemoveDeps = state.draftRemoveDeps.filter((item) => !(item.producerDate === dep.producerDate && item.consumerDate === dep.consumerDate));
+          if (event.target.checked) state.draftRemoveDeps.push({ producerDate: dep.producerDate, consumerDate: dep.consumerDate });
+        },
+      }),
+      `Stop using leftovers from ${shortDay(dep.producerDate)}`);
+  })) : null,
+  h("div", { class: "actions" },
+    h("button", { type: "submit", class: "primary-action" }, "Add to draft"),
+    h("button", { type: "button", class: "secondary-action", onClick: () => { state.editor = null; render(); } }, "Cancel")));
+}
+
+function addToDraft(slot) {
+  const editor = state.editor;
+  if (!Number.isInteger(editor.servings) || editor.servings < 1 || editor.servings > 20) {
+    state.message = { kind: "error", text: "Servings must be a whole number from 1 to 20." };
+    return render();
+  }
+  const changed = editor.recipeUid !== (slot.recipe?.uid ?? null) || editor.servings !== slot.servings
+    || editor.prepMinutes !== (slot.prepOverride ? slot.prepMinutes : null) || editor.locked !== slot.locked || editor.note !== slot.note;
+  if (changed) {
+    state.draft.set(slot.date, {
+      recipeUid: editor.recipeUid,
+      servings: editor.servings,
+      prepMinutes: editor.prepMinutes,
+      locked: editor.locked,
+      note: editor.note.trim(),
+      base: { recipeUid: slot.recipe?.uid ?? null, sequence: slot.sequence },
+    });
+  } else {
+    state.draft.delete(slot.date);
+  }
+  state.draftDeps = state.draftDeps.filter((dep) => dep.consumerDate !== slot.date);
+  if (editor.recipeUid && editor.depProducer) {
+    state.draftDeps.push({
+      producerDate: editor.depProducer,
+      consumerDate: slot.date,
+      servings: editor.depServings,
+      ingredientKey: editor.depIngredient || null,
+      base: { sequence: slot.sequence },
+    });
+    if (!state.draft.has(slot.date)) {
+      state.draft.set(slot.date, { recipeUid: editor.recipeUid, servings: editor.servings, prepMinutes: editor.prepMinutes, locked: editor.locked, note: editor.note.trim(), base: { recipeUid: slot.recipe?.uid ?? null, sequence: slot.sequence } });
+    }
+  }
+  state.editor = null;
+  render();
+}
+
+function draftPanel() {
+  if (!draftCount()) return null;
+  const slots = slotMap();
+  const dates = [...state.draft.keys()].sort();
+  return h("section", { class: "draft-panel", "aria-label": "Unaccepted draft" },
+    h("div", { class: "side-heading" }, h("h3", null, "Draft — not accepted yet"), h("span", null, plural(draftCount(), "change"))),
+    h("p", null, "These choices exist only on this screen. Nothing changes on the calendar or the shopping list until you accept them."),
+    h("ul", { class: "draft-list" },
+      dates.map((date) => h("li", null, h("strong", null, formatDate(date)), " ", describeDraft(slots.get(date), state.draft.get(date)))),
+      state.draftDeps.map((dep) => h("li", null, h("strong", null, formatDate(dep.consumerDate)), ` uses ${plural(dep.servings, "serving")}${dep.ingredientKey ? ` of ${dep.ingredientKey}` : ""} left over from ${shortDay(dep.producerDate)}`)),
+      state.draftRemoveDeps.map((dep) => h("li", null, h("strong", null, formatDate(dep.consumerDate)), ` stops using leftovers from ${shortDay(dep.producerDate)}`))),
+    h("div", { class: "actions" },
+      h("button", { type: "button", class: "primary-action", disabled: !canMutate(), onClick: acceptDraft }, `Accept ${plural(draftCount(), "change")}`),
+      h("button", { type: "button", class: "secondary-action", onClick: () => { state.draft.clear(); state.draftDeps = []; state.draftRemoveDeps = []; render(); } }, "Discard draft")));
+}
+
+function acceptDraft() {
+  const { dashboard } = state.data;
+  const body = {
+    accept: true,
+    baseRevision: dashboard.revision,
+    label: `Accepted ${[...state.draft.keys()].sort().map(shortDay).join(", ") || "leftover links"}`.slice(0, 120),
+    slots: [...state.draft.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([date, entry]) => ({
+      date,
+      recipeUid: entry.recipeUid,
+      servings: entry.servings,
+      prepMinutes: entry.prepMinutes,
+      locked: entry.locked,
+      note: entry.note,
+    })),
+    dependencies: state.draftDeps.map(({ producerDate, consumerDate, servings, ingredientKey }) => ({ producerDate, consumerDate, servings, ...(ingredientKey ? { ingredientKey } : {}) })),
+    removeDependencies: state.draftRemoveDeps,
+  };
+  mutate("Accept dinners", "POST", "/api/plan/accept", body, {
+    onSuccess: (result) => {
+      state.draft.clear();
+      state.draftDeps = [];
+      state.draftRemoveDeps = [];
+      state.preview = null;
+      if (result.warnings?.length) {
+        state.message = { kind: "info", text: `Accepted. Check: ${result.warnings.map((warning) => `${shortDay(warning.date)} ${humanize(warning.problem)}`).join("; ")}.` };
+      }
+    },
+  });
+}
+
+// --- Swap previews --------------------------------------------------------
+
+async function requestPreview(date) {
+  state.preview = null;
+  state.previewStale = false;
+  await mutate(`Suggest swaps for ${shortDay(date)}`, "POST", "/api/previews", { baseRevision: state.data.dashboard.revision, date }, {
+    onSuccess: (preview) => {
+      state.preview = preview;
+      state.message = null;
+    },
+  });
+}
+
+function previewPanel() {
+  const preview = state.preview;
+  const expired = Date.parse(preview.expiresAt) <= Date.now();
+  const stale = state.previewStale || expired || preview.baseRevision !== state.data.dashboard.revision;
+  return h("section", { class: "attention-card preview-panel", "aria-label": "Swap suggestions" },
+    h("div", { class: "side-heading" },
+      h("h3", null, `Swap suggestions for ${formatDate(preview.targetDate)}`),
+      h("button", { type: "button", class: "link-button", onClick: () => { state.preview = null; render(); } }, "Close")),
+    h("p", null, `Currently ${preview.current.recipe?.name ?? "empty"}. A preview changes nothing; only “Commit this swap” does.`,
+      ` Valid until ${timeFormat.format(new Date(preview.expiresAt))}.`),
+    stale ? h("div", { class: "banner stale" }, expired ? "This preview expired." : "The plan changed since this preview.", " Commit is disabled — preview again.",
+      h("button", { type: "button", class: "secondary-action", disabled: !state.online || state.busy, onClick: async () => { if (state.stale) await loadAll(); requestPreview(preview.targetDate); } }, "Preview again")) : null,
+    preview.options.length ? h("ol", { class: "options" }, preview.options.map((option) => optionCard(preview, option, stale))) : h("p", { class: "notice" },
+      "No replacement satisfies the household rules for this date.",
+      Object.keys(preview.rejected ?? {}).length ? ` Rejected: ${Object.entries(preview.rejected).map(([reason, count]) => `${humanize(reason)} (${count})`).join(", ")}.` : null));
+}
+
+function optionCard(preview, option, stale) {
+  const diff = option.shoppingDiff;
+  const diffRows = [
+    ...diff.added.map((item) => ["Add", item.ingredientKey, item.amountAfter]),
+    ...diff.increased.map((item) => ["More", item.ingredientKey, `${item.amountBefore} → ${item.amountAfter}`]),
+    ...diff.decreased.map((item) => ["Less", item.ingredientKey, `${item.amountBefore} → ${item.amountAfter}`]),
+    ...diff.removed.map((item) => ["Remove", item.ingredientKey, item.amountBefore]),
+  ];
+  return h("li", { class: "option-card" },
+    h("div", { class: "side-heading" }, h("strong", null, `Option ${option.rank}`), h("span", null, plural(option.changes.length, "dinner"))),
+    h("ul", { class: "changes" }, option.changes.map((change, index) => h("li", null,
+      h("span", { class: "eyebrow" }, `${formatDate(change.date)}${index ? " · dependent dinner" : ""}`),
+      h("span", null, change.fromRecipeName ?? "Empty"), h("small", null, " → "), link(`/recipes/${encodeURIComponent(change.toRecipeUid)}`, null, change.toRecipeName)))),
+    h("ul", { class: "reasons" }, option.reasons.map((reason) => h("li", null, reason))),
+    option.droppedDependencies.length ? h("p", { class: "dependency broken" }, `Drops leftovers: ${option.droppedDependencies.map((dep) => `${shortDay(dep.producerDate)} → ${shortDay(dep.consumerDate)}`).join(", ")}`) : null,
+    h("details", { class: "shopping-diff", open: true },
+      h("summary", null, diffRows.length ? `Shopping list changes (${diffRows.length})` : "No shopping list changes"),
+      diffRows.length ? h("table", null,
+        h("tbody", null, diffRows.map(([kind, name, amount]) => h("tr", null, h("td", { class: `diff-kind ${kind.toLowerCase()}` }, kind), h("td", null, name), h("td", null, amount))))) : null),
+    option.impactedDates.length > 1 ? h("p", { class: "slot-meta" }, `Affects ${option.impactedDates.map(shortDay).join(", ")}`) : null,
+    h("button", {
+      type: "button",
+      class: "primary-action",
+      disabled: stale || !canMutate(),
+      onClick: () => mutate(`Swap ${option.changes.map((change) => `${shortDay(change.date)} to ${change.toRecipeName}`).join(", ")}`, "POST", "/api/commit",
+        { baseRevision: preview.baseRevision, previewId: preview.previewId, optionId: option.optionId },
+        { onSuccess: () => { state.preview = null; } }),
+    }, "Commit this swap"));
+}
+
+function undoLatest(undo) {
+  if (!window.confirm(`Undo “${undo.label}”? A new revision restores the dinners it changed; the calendar updates on its next refresh.`)) return;
+  mutate(`Undo ${undo.label}`, "POST", "/api/undo", { baseRevision: state.data.dashboard.revision, revision: undo.revision }, {
+    onSuccess: () => { state.preview = null; },
+  });
+}
+
+// --- Three-day ingredient review -----------------------------------------
+
+const STATUS_LABELS = { have: "Have", need: "Need", unavailable: "Unavailable", excluded: "Excluded", leftover: "Leftover" };
+
+function reviewView() {
+  const { review } = state.data;
+  return h("div", null,
+    sectionHeading("Ingredient check", "Next 3 days", "Mark what you have; the shopping list follows"),
+    h("div", { class: "review-days" }, review.days.map(reviewDay)));
+}
+
+function reviewDay(day) {
+  const recipe = day.slot?.recipe;
+  if (day.status !== "accepted") {
+    return h("section", { class: "meal-card empty" },
+      h("span", { class: "eyebrow" }, `${formatDate(day.date)}${relativeDay(day.date) ? ` · ${relativeDay(day.date)}` : ""}`),
+      h("h2", null, "No dinner accepted"),
+      h("p", null, "There is nothing to check for this date. ", link("/#plan", null, "Choose a dinner on the plan.")));
+  }
+  const counts = day.counts;
+  const ready = counts.need + counts.unavailable + counts.excluded === 0;
+  return h("section", { class: "meal-card" },
+    h("div", { class: "meal-heading" },
+      h("div", null,
+        h("span", { class: "eyebrow" }, `${formatDate(day.date)}${relativeDay(day.date) ? ` · ${relativeDay(day.date)}` : ""}`),
+        h("h2", null, link(recipe.path, { class: "recipe-link" }, recipe.name)),
+        h("p", null, `Dinner for ${day.slot.servings}${day.slot.locked ? " · locked" : ""}`)),
+      h("span", { class: `readiness ${counts.unavailable || counts.excluded ? "risk" : ready ? "ready" : "need"}` },
+        counts.unavailable || counts.excluded ? "At risk" : ready ? "Ready" : `${counts.need} to buy`)),
+    h("p", { class: "slot-meta" }, [
+      `${counts.have} have`, `${counts.need} need`, counts.unavailable ? `${counts.unavailable} unavailable` : null,
+      counts.excluded ? `${counts.excluded} excluded` : null, counts.leftover ? `${counts.leftover} from leftovers` : null,
+      counts.useSoon ? `${counts.useSoon} use soon` : null,
+    ].filter(Boolean).join(" · ")),
+    h("div", { class: "ingredient-list" }, day.lines.map((line) => ingredientRow(day, line))),
+    (counts.unavailable || counts.excluded) && !day.slot.locked ? h("div", { class: "actions" },
+      h("button", { type: "button", class: "primary-action", disabled: !canMutate(), onClick: async () => { await requestPreview(day.date); if (state.preview) navigate("/#plan"); } }, "Suggest replacements")) : null);
+}
+
+function ingredientRow(day, line) {
+  const item = line.ingredientKey ? pantryItem(line.ingredientKey) : null;
+  const detail = [line.amount, line.optional ? "optional" : null, line.partial ? "pantry amount falls short" : null, line.ambiguous ? "check the recipe wording" : null]
+    .filter(Boolean).join(" · ");
+  const controls = line.status === "leftover"
+    ? h("span", { class: "state-button leftover" }, `Leftover from ${shortDay(line.leftoverFrom)}`)
+    : line.status === "excluded"
+      ? h("span", { class: "state-button excluded" }, "Excluded by household rule")
+      : h("div", { class: "state-controls", role: "group", "aria-label": `${line.name} status` },
+        ["have", "need", "unavailable"].map((status) => h("button", {
+          type: "button",
+          class: `state-button ${status}`,
+          "aria-pressed": String(item?.status === status),
+          disabled: !canMutate(),
+          onClick: () => setPantry(line.ingredientKey, status, item),
+        }, STATUS_LABELS[status])),
+        h("button", {
+          type: "button",
+          class: `state-button soon${item?.useSoon ? " on" : ""}`,
+          "aria-pressed": String(Boolean(item?.useSoon)),
+          disabled: !canMutate() || !item || item.status !== "have",
+          title: "Prefer recipes that use this soon",
+          onClick: () => setPantry(line.ingredientKey, item.status, item, !item.useSoon),
+        }, "Use soon"));
+  return h("div", { class: `ingredient-row status-${line.status}` },
+    h("div", null,
+      h("strong", null, line.verbatim),
+      h("span", null, `${STATUS_LABELS[line.status] ?? line.status}${item ? "" : line.status === "have" ? " (staple)" : ""} · ${detail}`)),
+    controls);
+}
+
+function setPantry(key, status, item, useSoon = item?.useSoon ?? false) {
+  const body = { status, rev: item?.rev ?? 0, useSoon: status === "have" ? useSoon : false };
+  if (item?.quantity != null) {
+    body.quantity = item.quantity;
+    if (item.unit) body.unit = item.unit;
+  }
+  mutate(`${key}: ${STATUS_LABELS[status] ?? status}${useSoon && status === "have" ? " (use soon)" : ""}`, "PUT", `/api/pantry/${encodeURIComponent(key)}`, body);
+}
+
+// --- Shopping -------------------------------------------------------------
+
+function shoppingView() {
+  const { shopping } = state.data;
+  const groups = new Map();
+  for (const item of shopping.items) {
+    const first = item.dates[0] ?? "";
+    if (!groups.has(first)) groups.set(first, []);
+    groups.get(first).push(item);
+  }
+  return h("div", null,
+    sectionHeading("Generated from accepted dinners", "Shopping list", `For ${shopping.dates.map(shortDay).join(", ")}`),
+    shopping.blocked.length ? h("section", { class: "attention-card" },
+      h("h3", null, "Can't be bought"),
+      h("ul", null, shopping.blocked.map((item) => h("li", null, `${shortDay(item.date)}: ${item.verbatim ?? item.ingredientKey} (${item.kind})`))),
+      h("p", null, "Use “Suggest swaps” on the plan to replace these dinners.")) : null,
+    shopping.items.length ? h("div", { class: "shopping-groups" }, [...groups.entries()].sort().map(([date, items]) => h("section", { class: "shopping-group" },
+      h("h3", null, `First needed ${formatDate(date)}`),
+      h("ul", null, items.map((item) => h("li", { class: item.checked ? "checked" : null },
+        h("label", { class: "shopping-item-control" },
+          h("input", {
+            type: "checkbox",
+            checked: item.checked,
+            disabled: !canMutate(),
+            onChange: (event) => mutate(`${item.name}: ${event.target.checked ? "bought" : "not bought"}`, "PUT", `/api/shopping/${encodeURIComponent(item.id)}`, { checked: event.target.checked, rev: item.rev }),
+          }),
+          h("span", null, h("strong", null, item.name), h("small", null, `${item.amount} · ${item.recipes.map((recipe) => recipe.name).join(", ")}`))),
+        h("span", { class: "needed-day" }, item.dates.map(shortDay).join(", "))))))))
+      : h("div", { class: "large-empty" }, h("span", { "aria-hidden": "true" }, "✓"), h("h3", null, "Nothing to buy"),
+        h("p", null, state.data.dashboard.slots.some((slot) => slot.status === "accepted") ? "The pantry covers the accepted dinners in this window." : "Accept dinners on the plan and their ingredients appear here.")));
+}
+
+// --- Recipes --------------------------------------------------------------
+
+function recipesView() {
+  return h("div", null,
+    sectionHeading("Household library", "Recipes", `${state.recipes.length} recipes`),
+    h("div", { class: "recipe-grid" }, state.recipes.map((recipe) => link(recipe.path, { class: "recipe-card" },
+      h("h3", null, recipe.name),
+      h("p", null, [minutes(recipe.totalMinutes), recipe.servings?.text, plural(recipe.ingredientCount, "ingredient")].filter(Boolean).join(" · ")),
+      h("small", null, recipe.categories.filter((category) => category !== "Meal Plan").join(", "))))));
+}
+
+async function renderRecipePage(view) {
+  const uid = state.route.uid;
+  let recipe = state.recipeDetails.get(uid);
+  if (!recipe) {
+    replace(view, h("p", { class: "loading" }, "Loading recipe…"));
+    try {
+      recipe = await recipeDetail(uid);
+    } catch (error) {
+      if (state.route.uid !== uid) return;
+      return replace(view, h("div", { class: "large-empty" }, h("h3", null, error.code === "recipe_not_found" ? "Recipe not found" : "The recipe could not be loaded"),
+        h("p", null, error instanceof NetworkError ? "Recipes are read from the kitchen server and aren't stored on this device." : errorText(error)),
+        link("/#recipes", { class: "secondary-action" }, "All recipes")));
+    }
+    if (state.route.uid !== uid) return;
+  }
+  document.title = `${recipe.name} · Kitchen Plan`;
+  const planned = state.data.dashboard.slots.filter((slot) => slot.recipe?.uid === recipe.uid);
+  const sections = new Map();
+  for (const line of recipe.ingredients) {
+    const key = line.section ?? "";
+    if (!sections.has(key)) sections.set(key, []);
+    sections.get(key).push(line);
+  }
+  const sourceUrl = /^https?:\/\//i.test(recipe.sourceUrl ?? "") ? recipe.sourceUrl : null;
+  replace(view, h("article", { class: "recipe-page" },
+    h("div", { class: "section-heading" },
+      h("div", null, h("span", { class: "eyebrow" }, recipe.categories.filter((category) => category !== "Meal Plan").join(" · ") || "Recipe"), h("h2", null, recipe.name)),
+      link("/#recipes", { class: "secondary-action" }, "All recipes")),
+    recipe.description ? h("p", { class: "recipe-description" }, recipe.description) : null,
+    h("dl", { class: "recipe-facts" },
+      fact("Makes", recipe.servings?.text),
+      fact("Prep", recipe.prepText || minutes(recipe.prepMinutes)),
+      fact("Cook", recipe.cookText || minutes(recipe.cookMinutes)),
+      fact("Total", recipe.totalText || minutes(recipe.totalMinutes))),
+    planned.length ? h("p", { class: "dependency" }, `Planned for ${planned.map((slot) => `${formatDate(slot.date)} (${slot.servings} servings)`).join(", ")}`) : null,
+    h("div", { class: "recipe-body" },
+      h("section", { class: "recipe-ingredients" },
+        h("h3", null, "Ingredients"),
+        [...sections.entries()].map(([section, lines]) => h("div", null,
+          section ? h("h4", null, section) : null,
+          h("table", null, h("tbody", null, lines.map((line) => h("tr", { class: line.optional ? "optional" : null },
+            h("td", { class: "amount" }, line.amount),
+            h("td", null, line.verbatim, line.optional ? h("small", null, " (optional)") : null)))))))),
+      h("section", { class: "recipe-directions" },
+        h("h3", null, "Instructions"),
+        textBlocks(recipe.directions, true),
+        recipe.notes ? h("div", { class: "recipe-notes" }, h("h3", null, "Notes"), textBlocks(recipe.notes, false)) : null)),
+    recipe.source || sourceUrl ? h("p", { class: "slot-meta" }, "Source: ", sourceUrl ? h("a", { href: sourceUrl, rel: "noopener noreferrer", target: "_blank" }, recipe.source || sourceUrl) : recipe.source) : null));
+}
+
+function fact(label, value) {
+  return value ? h("div", null, h("dt", null, label), h("dd", null, value)) : null;
+}
+
+function textBlocks(text, numbered) {
+  const lines = String(text ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return h("p", { class: "slot-meta" }, "No instructions recorded.");
+  if (numbered && lines.every((line) => /^\d+[.)]\s/.test(line))) {
+    return h("ol", { class: "directions" }, lines.map((line) => h("li", null, line.replace(/^\d+[.)]\s+/, ""))));
+  }
+  return lines.map((line) => {
+    const heading = line.match(/^__(.+)__$/);
+    if (heading) return h("h4", null, heading[1]);
+    if (/^[-*]\s/.test(line)) return h("p", { class: "bullet" }, `• ${line.replace(/^[-*]\s+/, "")}`);
+    return h("p", null, line);
+  });
+}
+
+// --- Household ------------------------------------------------------------
+
+function constraintsToForm(constraints) {
+  return {
+    diners: constraints.diners,
+    dietaryExclusions: constraints.dietaryExclusions.join(", "),
+    excludedCategories: constraints.excludedCategories.join(", "),
+    maxPrep: constraints.workload.default.maxPrepMinutes ?? "",
+    maxTotal: constraints.workload.default.maxTotalMinutes ?? "",
+    byWeekday: Object.fromEntries(WEEKDAYS.map((day) => [day, {
+      maxPrep: constraints.workload.byWeekday[day]?.maxPrepMinutes ?? "",
+      maxTotal: constraints.workload.byWeekday[day]?.maxTotalMinutes ?? "",
+    }])),
+    shoppingDays: constraints.shoppingDays,
+  };
+}
+
+function formToConstraints(form) {
+  const list = (value) => String(value).split(",").map((item) => item.trim()).filter(Boolean);
+  const int = (value) => (value === "" || value == null ? null : Number(value));
+  const byWeekday = {};
+  for (const day of WEEKDAYS) {
+    const row = form.byWeekday[day];
+    if (row.maxPrep !== "" || row.maxTotal !== "") byWeekday[day] = { maxPrepMinutes: int(row.maxPrep), maxTotalMinutes: int(row.maxTotal) };
+  }
+  return {
+    diners: Number(form.diners),
+    dietaryExclusions: list(form.dietaryExclusions),
+    excludedCategories: list(form.excludedCategories),
+    workload: { default: { maxPrepMinutes: int(form.maxPrep), maxTotalMinutes: int(form.maxTotal) }, byWeekday },
+    shoppingDays: Number(form.shoppingDays),
+  };
+}
+
+function householdView() {
+  const form = state.constraintsForm;
+  const bind = (target, field) => (event) => { target[field] = event.target.value; };
+  const categories = [...new Set(state.recipes.flatMap((recipe) => recipe.categories))].sort();
+  return h("div", { class: "household" },
+    sectionHeading("Shared by every device", "Household", null),
+    h("form", {
+      class: "side-card constraints-form",
+      onSubmit: (event) => {
+        event.preventDefault();
+        mutate("Household rules", "PUT", "/api/constraints", { baseRevision: state.data.dashboard.revision, constraints: formToConstraints(form) });
+      },
+    },
+    h("h3", null, "Planning rules"),
+    h("p", { class: "slot-meta" }, "Used when suggesting swaps. Accepted dinners are never changed by editing these."),
+    h("div", { class: "field-row" },
+      h("label", null, "Adults eating", h("input", { type: "number", min: 1, max: 12, required: true, value: form.diners, onInput: bind(form, "diners") })),
+      h("label", null, "Shopping window (days)", h("input", { type: "number", min: 1, max: 14, required: true, value: form.shoppingDays, onInput: bind(form, "shoppingDays") }))),
+    h("label", null, "Never use these ingredients (comma-separated)", h("input", { type: "text", value: form.dietaryExclusions, onInput: bind(form, "dietaryExclusions") })),
+    h("label", null, "Skip recipes in these categories", h("input", { type: "text", list: "category-options", value: form.excludedCategories, onInput: bind(form, "excludedCategories") })),
+    h("datalist", { id: "category-options" }, categories.map((category) => h("option", { value: category }))),
+    h("fieldset", null,
+      h("legend", null, "Weeknight workload limits (minutes, blank = no limit)"),
+      h("table", { class: "workload" },
+        h("thead", null, h("tr", null, h("th", null, ""), h("th", null, "Max prep"), h("th", null, "Max total"))),
+        h("tbody", null,
+          h("tr", null, h("th", null, "Every day"),
+            h("td", null, h("input", { type: "number", min: 0, max: 720, value: form.maxPrep, onInput: bind(form, "maxPrep"), "aria-label": "Default max prep minutes" })),
+            h("td", null, h("input", { type: "number", min: 0, max: 1440, value: form.maxTotal, onInput: bind(form, "maxTotal"), "aria-label": "Default max total minutes" }))),
+          WEEKDAYS.map((day) => h("tr", null, h("th", null, WEEKDAY_NAMES[day]),
+            h("td", null, h("input", { type: "number", min: 0, max: 720, value: form.byWeekday[day].maxPrep, onInput: bind(form.byWeekday[day], "maxPrep"), "aria-label": `${WEEKDAY_NAMES[day]} max prep minutes` })),
+            h("td", null, h("input", { type: "number", min: 0, max: 1440, value: form.byWeekday[day].maxTotal, onInput: bind(form.byWeekday[day], "maxTotal"), "aria-label": `${WEEKDAY_NAMES[day]} max total minutes` }))))))),
+    h("div", { class: "actions" },
+      h("button", { type: "submit", class: "primary-action", disabled: !canMutate() }, "Save rules"),
+      h("button", { type: "button", class: "secondary-action", onClick: () => { state.constraintsForm = constraintsToForm(state.data.constraints.constraints); render(); } }, "Reset"))),
+    pantryCard(),
+    subscriptionCard(),
+    changesCard());
+}
+
+function pantryCard() {
+  const items = state.data.pantry.items.slice().sort((a, b) => a.name.localeCompare(b.name));
+  return h("section", { class: "side-card" },
+    h("div", { class: "side-heading" }, h("h3", null, "Pantry notes"), h("span", null, plural(items.length, "item"))),
+    items.length ? h("ul", { class: "shopping-list" }, items.map((item) => h("li", null,
+      h("span", null, h("strong", null, item.name), h("small", null, [STATUS_LABELS[item.status], item.quantity != null ? `${item.quantity} ${item.unit ?? ""}`.trim() : null, item.useSoon ? "use soon" : null].filter(Boolean).join(" · "))),
+      h("button", { type: "button", class: "link-button", disabled: !canMutate(), onClick: () => mutate(`${item.name}: cleared`, "PUT", `/api/pantry/${encodeURIComponent(item.ingredientKey)}`, { status: "clear", rev: item.rev }) }, "Clear"))))
+      : h("p", { class: "slot-meta" }, "Nothing recorded. Mark ingredients in “Next 3 days”."));
+}
+
+function subscriptionCard() {
+  const sub = state.subscription;
+  return h("section", { class: "side-card subscription" },
+    h("h3", null, "Calendar subscription"),
+    h("p", { class: "slot-meta" }, "The private address Proton Calendar subscribes to. Anyone holding it can read the accepted dinner names, so it is shown only when you ask, kept only on this screen, and never stored on this device."),
+    sub?.url ? h("div", { class: "subscription-url" },
+      h("input", { type: "text", readonly: true, value: sub.url, "aria-label": "Calendar subscription URL", onFocus: (event) => event.target.select() }),
+      h("div", { class: "actions" },
+        h("button", { type: "button", class: "primary-action", onClick: copySubscription }, "Copy"),
+        h("button", { type: "button", class: "secondary-action", onClick: () => { state.subscription = null; render(); } }, "Hide")))
+      : sub ? h("p", { class: "notice" }, sub.reason)
+        : h("button", { type: "button", class: "secondary-action", disabled: !state.online || state.busy, onClick: revealSubscription }, "Show subscription URL"));
+}
+
+async function revealSubscription() {
+  try {
+    const { data } = await api("/owner/subscription", { method: "POST", body: {} });
+    state.subscription = data;
+  } catch (error) {
+    state.message = { kind: "error", text: errorText(error) };
+  }
+  render();
+}
+
+async function copySubscription() {
+  const url = state.subscription?.url;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    state.message = { kind: "ok", text: "Subscription URL copied. Paste it into Proton Calendar → Add calendar → From URL." };
+  } catch {
+    state.message = { kind: "info", text: "Copying isn't allowed here — select the address and copy it manually." };
+  }
+  render();
+}
+
+function changesCard() {
+  const changes = state.data.changes.changes;
+  return h("section", { class: "side-card" },
+    h("h3", null, "Recent changes"),
+    changes.length ? h("ul", { class: "shopping-list" }, changes.map((change) => h("li", null,
+      h("span", null, h("strong", null, change.label), h("small", null, `Revision ${change.revision} · ${change.kind}${change.undoneBy ? " · undone" : ""} · ${new Date(change.createdAt).toLocaleString()}`)))))
+      : h("p", { class: "slot-meta" }, "No changes yet."));
+}
+
+// --- Start ----------------------------------------------------------------
+
+window.addEventListener("popstate", () => { state.route = readRoute(); render(); });
+window.addEventListener("hashchange", () => { state.route = readRoute(); render(); });
+window.addEventListener("online", () => { state.online = true; loadAll({ quiet: true }); });
+window.addEventListener("offline", () => { state.online = false; render(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkForChanges(); });
+setInterval(checkForChanges, POLL_MS);
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
+
+state.route = readRoute();
+loadAll();

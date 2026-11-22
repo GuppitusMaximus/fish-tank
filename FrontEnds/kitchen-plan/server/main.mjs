@@ -2,9 +2,9 @@
 //
 //   node server/main.mjs
 //
-// Two listeners: the private app API (default 127.0.0.1:3100) and the public
-// calendar feed (default 127.0.0.1:3101), which only starts when a valid
-// feed token is configured. First boot imports the bundled recipe library
+// Two listeners: the private app (default 127.0.0.1:3100: the /api JSON API
+// plus the dashboard/PWA from ui.mjs) and the public calendar feed (default
+// 127.0.0.1:3101), which only starts when a valid feed token is configured. First boot imports the bundled recipe library
 // and creates 14 empty dinner dates from Eastern today for two adults;
 // nothing is accepted until the owner accepts it through the API.
 //
@@ -18,16 +18,22 @@
 //   KITCHEN_APP_ORIGIN       https origin of the private app (recipe URLs, Host/Origin allowlist)
 //   KITCHEN_ALLOWED_ORIGINS  comma-separated extra origins allowed to mutate
 //   KITCHEN_ALLOWED_HOSTS    comma-separated extra Host names accepted
+//   KITCHEN_FEED_PUBLIC_ORIGIN  https origin the public feed is reached at; with a
+//                            valid token the owner can reveal the subscription URL
+//   KITCHEN_BACKUP_DIR       directory for scheduled backups (unset: no schedule)
+//   KITCHEN_BACKUP_INTERVAL_HOURS  hours between backups (default 6)
+//   KITCHEN_BACKUP_KEEP      scheduled backups kept, newest first (default 28)
 
 import http from "node:http";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { openStore } from "./store.mjs";
 import { createKitchenService } from "./planner.mjs";
 import { createAppHandler } from "./http.mjs";
 import { createFeedHandler, feedTokenDigest, normalizeAppOrigin } from "./calendar.mjs";
-import { acquireLock } from "./backup.mjs";
+import { acquireLock, createBackup } from "./backup.mjs";
+import { createUiHandler } from "./ui.mjs";
 
 export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
@@ -36,6 +42,13 @@ function port(value, fallback, name) {
   if (value == null || value === "") return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) throw new Error(`${name} must be a port number`);
+  return parsed;
+}
+
+function positive(value, fallback, name) {
+  if (value == null || value === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${name} must be a positive number`);
   return parsed;
 }
 
@@ -55,6 +68,10 @@ export function loadConfig(env = process.env) {
     appOrigin: env.KITCHEN_APP_ORIGIN ?? null,
     allowedOrigins: list(env.KITCHEN_ALLOWED_ORIGINS),
     allowedHosts: list(env.KITCHEN_ALLOWED_HOSTS),
+    feedPublicOrigin: env.KITCHEN_FEED_PUBLIC_ORIGIN || null,
+    backupDir: env.KITCHEN_BACKUP_DIR || null,
+    backupIntervalHours: positive(env.KITCHEN_BACKUP_INTERVAL_HOURS, 6, "KITCHEN_BACKUP_INTERVAL_HOURS"),
+    backupKeep: Math.floor(positive(env.KITCHEN_BACKUP_KEEP, 28, "KITCHEN_BACKUP_KEEP")),
   };
 }
 
@@ -77,6 +94,34 @@ export function createKitchenApp({ store, appOrigin = null, allowedOrigins = [],
     appHandler: createAppHandler({ service, appOrigin: origin, allowedOrigins, allowedHosts, fallback, log }),
     feedHandler: createFeedHandler({ service, token: feedToken, appOrigin: origin, log }),
   };
+}
+
+// Full subscription URL for the owner, or null while the feed is disabled.
+// Only ever handed to ui.mjs, which returns it in a no-store response.
+export function subscriptionUrl(feedPublicOrigin, feedToken) {
+  if (!feedPublicOrigin || !feedTokenDigest(feedToken)) return null;
+  let origin;
+  try {
+    origin = normalizeAppOrigin(feedPublicOrigin);
+  } catch {
+    throw new Error("KITCHEN_FEED_PUBLIC_ORIGIN must be an https:// origin without path, query or credentials");
+  }
+  return `${origin}/feed/${feedToken.trim()}.ics`;
+}
+
+const BACKUP_NAME = /^kitchen-plan-\d{8}T\d{6}Z\.sqlite$/;
+
+// Writes one consistent snapshot (VACUUM INTO from the live connection;
+// transactions are synchronous, so none is open between events) and prunes
+// scheduled backups beyond `keep`. Other files in the directory are left alone.
+export function runScheduledBackup({ store, dir, keep, now = new Date() }) {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const report = createBackup({ db: store.db, destPath: join(dir, `kitchen-plan-${stamp}.sqlite`) });
+  const scheduled = readdirSync(dir).filter((name) => BACKUP_NAME.test(name)).sort().reverse();
+  const pruned = scheduled.slice(keep);
+  for (const name of pruned) rmSync(join(dir, name), { force: true });
+  return { file: report.path, bytes: report.bytes, revision: report.revision, pruned: pruned.length };
 }
 
 function listen(server, portNumber, host) {
@@ -102,8 +147,10 @@ const urlFor = (address) => `http://${address.family === "IPv6" ? `[${address.ad
 // Starts the service. Every loadConfig() field can be overridden, plus
 // `now` (clock), `log`, `fallback`, and `env`. Use dbPath ':memory:' and
 // port/feedPort 0 for isolated test instances; archivePath null skips import.
+// Non-/api requests go to the dashboard (ui.mjs) unless `fallback` is given;
+// pass fallback null for an API-only listener.
 export async function startKitchenService(overrides = {}) {
-  const { env, now, log: logOverride, fallback, ...rest } = overrides;
+  const { env, now, log: logOverride, fallback: fallbackOverride, ...rest } = overrides;
   const config = { ...loadConfig(env ?? process.env), ...rest };
   const log = logOverride ?? createLogger();
   const memory = config.dbPath === ":memory:";
@@ -111,7 +158,11 @@ export async function startKitchenService(overrides = {}) {
   let store = null;
   const servers = [];
   let timer = null;
+  let backupTimer = null;
   try {
+    const fallback = fallbackOverride !== undefined
+      ? fallbackOverride
+      : createUiHandler({ subscriptionUrl: subscriptionUrl(config.feedPublicOrigin, config.feedToken), log });
     store = openStore({ path: config.dbPath, now });
     const app = createKitchenApp({ store, ...config, fallback, log });
     if (config.archivePath && existsSync(config.archivePath)) {
@@ -146,6 +197,22 @@ export async function startKitchenService(overrides = {}) {
     }, REFRESH_INTERVAL_MS);
     timer.unref();
 
+    const backupNow = () => {
+      try {
+        const result = runScheduledBackup({ store, dir: config.backupDir, keep: config.backupKeep });
+        log("backup_written", result);
+        return result;
+      } catch (error) {
+        log("backup_failed", { message: error.message });
+        return null;
+      }
+    };
+    if (config.backupDir && !memory) {
+      backupTimer = setInterval(backupNow, config.backupIntervalHours * 3_600_000);
+      backupTimer.unref();
+      log("backups_scheduled", { dir: config.backupDir, everyHours: config.backupIntervalHours, keep: config.backupKeep });
+    }
+
     let closed = false;
     return {
       store,
@@ -157,10 +224,13 @@ export async function startKitchenService(overrides = {}) {
       appUrl: urlFor(appAddress),
       // Origin only; the token path is never returned or logged.
       feedOrigin: feedAddress ? urlFor(feedAddress) : null,
+      // Writes a scheduled-style backup now; null when backups are not configured.
+      backupNow: config.backupDir && !memory ? backupNow : () => null,
       async close() {
         if (closed) return;
         closed = true;
         clearInterval(timer);
+        clearInterval(backupTimer);
         await Promise.all(servers.map(closeServer));
         store.close();
         releaseLock();
@@ -168,6 +238,7 @@ export async function startKitchenService(overrides = {}) {
     };
   } catch (error) {
     clearInterval(timer);
+    clearInterval(backupTimer);
     await Promise.all(servers.map(closeServer));
     store?.close();
     releaseLock();
