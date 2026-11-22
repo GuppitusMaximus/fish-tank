@@ -8,9 +8,9 @@
 
 import assert from "node:assert/strict";
 import http from "node:http";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { crc32, gzipSync } from "node:zlib";
@@ -818,21 +818,65 @@ test("scheduled backups are verified 0600 snapshots without the token; restore r
   assert.deepEqual([report.recipes, report.acceptedSlots, report.revision], [FIXTURE.length, 2, atBackup.revision]);
   assert.ok(!readFileSync(written.file).includes(Buffer.from(fx.token)), "the token is not in the database");
 
-  // Pruning keeps the newest `keep` scheduled backups only.
-  for (const hours of [1, 2, 3]) runScheduledBackup({ store: fx.running.store, dir: backupDir, keep: 2, now: new Date(clock.t + hours * 3_600_000) });
-  const kept = runScheduledBackup({ store: fx.running.store, dir: backupDir, keep: 2, now: new Date(clock.t + 4 * 3_600_000) });
-  assert.equal(kept.pruned, 1);
+  // Pruning keeps the newest `keep` scheduled backups only. backupNow stamps
+  // the file with real time and these with the simulated clock, so which
+  // five names survive depends on the day the suite runs: derive the
+  // expected survivors from the names written, never from written.file.
+  const scheduledNames = () => readdirSync(backupDir).filter((name) => /^kitchen-plan-\d{8}T\d{6}Z\.sqlite$/.test(name)).sort();
+  const writtenNames = [basename(written.file)];
+  assert.deepEqual(scheduledNames(), writtenNames);
+  const pruned = [];
+  for (const hours of [1, 2, 3, 4]) {
+    const result = runScheduledBackup({ store: fx.running.store, dir: backupDir, keep: 2, now: new Date(clock.t + hours * 3_600_000) });
+    assert.equal(result.revision, atBackup.revision);
+    writtenNames.push(basename(result.file));
+    pruned.push(result.pruned);
+  }
+  assert.equal(new Set(writtenNames).size, 5, `five distinct stamps: ${writtenNames.join(", ")}`);
+  assert.deepEqual(pruned, [0, 1, 1, 1], "each backup past the second prunes exactly one");
+  const retained = [...writtenNames].sort().reverse().slice(0, 2);
+  assert.deepEqual(scheduledNames(), [...retained].sort(), "exactly the two newest stamps remain");
+  for (const name of writtenNames.filter((name) => !retained.includes(name))) assert.ok(!existsSync(join(backupDir, name)), `${name} was pruned`);
+  assert.equal(statSync(backupDir).mode & 0o777, 0o700);
+  for (const name of retained) {
+    const file = join(backupDir, name);
+    assert.equal(statSync(file).mode & 0o777, 0o600, name);
+    const kept = verifyBackup(file);
+    assert.equal(kept.ok, true, `${name}: ${kept.problems.join("; ")}`);
+    assert.deepEqual([kept.recipes, kept.acceptedSlots, kept.revision], [FIXTURE.length, 2, atBackup.revision], name);
+    assert.ok(!readFileSync(file).includes(Buffer.from(fx.token)), `${name} holds the token`);
+  }
+  const snapshot = join(backupDir, retained[0]);
 
-  // A later change, then restore the snapshot.
-  assert.equal((await accept(fx, { slots: [{ date: "2026-11-27", recipeUid: R.tacos }] })).status, 200);
-  assert.throws(() => restoreBackup({ backupPath: written.file, dbPath }), /Stop the Kitchen Plan service/);
+  // A later change, then restore a retained snapshot.
+  const change = await accept(fx, { slots: [{ date: "2026-11-27", recipeUid: R.tacos }] });
+  assert.equal(change.status, 200, change.text);
+  assert.equal(change.body.revision, atBackup.revision + 1);
+  assert.equal(slotOn(await get(fx, "/api/dashboard"), "2026-11-27").recipe.uid, R.tacos);
+  assert.throws(() => restoreBackup({ backupPath: snapshot, dbPath }), /Stop the Kitchen Plan service/);
+  assert.equal(await revision(fx), atBackup.revision + 1, "a refused restore leaves the running service alone");
   await fx.running.close();
-  const restored = restoreBackup({ backupPath: written.file, dbPath });
+  const restored = restoreBackup({ backupPath: snapshot, dbPath });
+  assert.equal(restored.from, snapshot);
   assert.equal(restored.revision, atBackup.revision);
-  assert.ok(restored.safetyBackup && verifyBackup(restored.safetyBackup).ok);
+  assert.equal(statSync(dbPath).mode & 0o777, 0o600);
+  assert.ok(!existsSync(`${dbPath}.lock`), "restore releases its lock");
+
+  // The pre-restore safety copy holds the change the restore discarded.
+  assert.ok(restored.safetyBackup, "restore keeps a safety backup");
+  assert.equal(statSync(restored.safetyBackup).mode & 0o777, 0o600);
+  const safety = verifyBackup(restored.safetyBackup);
+  assert.equal(safety.ok, true, safety.problems.join("; "));
+  assert.deepEqual([safety.revision, safety.acceptedSlots], [atBackup.revision + 1, 3]);
+  for (const file of [dbPath, restored.safetyBackup]) assert.ok(!readFileSync(file).includes(Buffer.from(fx.token)), `${file} holds the token`);
+  assert.deepEqual(scheduledNames(), [...retained].sort(), "restore leaves the scheduled backups alone");
 
   const reopened = await startFixture(t, { now: clock.now, dbPath });
   const dashboard = await get(reopened, "/api/dashboard");
   assert.equal(dashboard.revision, atBackup.revision);
   assert.deepEqual(dashboard.slots, atBackup.slots);
+  assert.equal(slotOn(dashboard, "2026-11-27").status, "empty");
+  const logText = JSON.stringify([...fx.logs, ...reopened.logs]);
+  assert.ok(!logText.includes(fx.token) && !logText.includes(reopened.token), "no token in the log");
+  assert.ok(!logText.includes("/feed/"), "no feed path in the log");
 });

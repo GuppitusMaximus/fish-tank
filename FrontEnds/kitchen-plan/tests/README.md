@@ -27,6 +27,48 @@ Expected there: `# tests 14`, `# pass 14`, `# skipped 0`.
 
 Measured entries follow, newest first. Each one is the baseline for the next run.
 
+## 2026-11-22 — qa-kitchen-meals-retained-backup on `e97ac22b` (origin/dev)
+
+Why: on the dev VM at `e97ac22b` with `KITCHEN_TEST_REQUIRE_FILE_DB=1` the result was
+13 pass, 1 fail, 0 skipped. The red was `meals-acceptance` › scheduled backups. It
+restored `written.file`, but that file can already be pruned. `backupNow` stamps its
+file with real time, while the four `runScheduledBackup` calls use the simulated
+Monday clock (+1 h to +4 h). So which two names survive `keep: 2` depends on the day
+the suite runs. This was a test defect, not a code defect. No production file changed.
+
+Rewritten case, which holds under either ordering:
+
+- Records all five names written. Each scheduled call reports the snapshot revision
+  and `pruned` is `[0, 1, 1, 1]`. The directory then holds exactly the two newest
+  stamps, and every other name is gone. The backup dir is `0700`.
+- Each retained file is `0600`, passes `verifyBackup` (recipes, 2 accepted slots,
+  snapshot revision) and does not contain the token.
+- The newest retained snapshot is used after a later accept (revision +1, tacos on
+  2026-11-27). While the service runs, restore is refused and the revision is unchanged.
+- After stop, restore reports `from` = that snapshot and the snapshot revision. The
+  db is `0600` and the lock is released. The safety backup is `0600` and verified,
+  holding revision +1 with 3 accepted slots. Neither the db nor the safety backup
+  contains the token. The scheduled backups are untouched.
+- After reopen: the revision and every slot equal the snapshot, 2026-11-27 is
+  `empty`, and neither the token nor `/feed/` appears in either service log.
+
+No other case changed.
+
+Command, from `FrontEnds/kitchen-plan`, Node v22.23.4, on a confined tester worker:
+
+```bash
+node --disable-warning=ExperimentalWarning --test
+```
+
+Result: `# tests 14`, `# pass 10`, `# fail 0`, `# skipped 4`. The counts and the skip
+list are the same as in the `f80d86b4` entry below. All four skips have the same
+cause: `file-backed SQLite unavailable here (database is locked)`. This worker also
+refuses `VACUUM INTO` a temp file from `:memory:` (`database is locked`). So **the
+rewritten case has not run here, and no worker coverage is claimed for it**, only a
+`node --check` syntax pass. It was also not possible to run a control on this worker.
+The dev-VM run with `KITCHEN_TEST_REQUIRE_FILE_DB=1` is the first execution of the
+rewritten case, and the expected result there is `# pass 14`, `# skipped 0`.
+
 ## 2026-11-22 — qa-kitchen-meals-acceptance at `f80d86b4` (origin/dev)
 
 Command, from `FrontEnds/kitchen-plan`, Node v22.23.4, on a confined tester worker:
