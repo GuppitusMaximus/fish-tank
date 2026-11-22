@@ -24,7 +24,8 @@ const BASE_HEADERS = {
   "X-Frame-Options": "DENY",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Cross-Origin-Resource-Policy": "same-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+  // The owner shares or copies the unchecked shopping list from this origin.
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=(), web-share=(self), clipboard-write=(self)",
   "Content-Security-Policy": [
     "default-src 'none'",
     "script-src 'self'",

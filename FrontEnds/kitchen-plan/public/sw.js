@@ -2,7 +2,7 @@
 // (/owner) and anything else are always fetched from the network and never
 // written to a cache, and mutations pass straight through: nothing is queued
 // or replayed while offline.
-const CACHE_NAME = "kitchen-plan-shell-v2";
+const CACHE_NAME = "kitchen-plan-shell-v3";
 const APP_SHELL = ["/", "/app.js", "/app.css", "/manifest.webmanifest", "/favicon.svg"];
 
 self.addEventListener("install", (event) => {

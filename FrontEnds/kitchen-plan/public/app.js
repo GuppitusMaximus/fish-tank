@@ -404,6 +404,12 @@ function renderBanners() {
       " Reload before changing anything. Draft dinners for dates that changed will be discarded; open previews must be run again.",
       h("button", { type: "button", class: "primary-action", onClick: () => loadAll() }, "Reload plan")));
   }
+  if (state.shellUpdated) {
+    banners.push(h("div", { class: "banner info", role: "status" },
+      h("strong", null, "Kitchen Plan was updated."),
+      " Reload to use the new version. Unaccepted drafts and previews on this screen are not kept.",
+      h("button", { type: "button", class: "primary-action", onClick: () => location.reload() }, "Reload app")));
+  }
   if (state.pending) {
     banners.push(h("div", { class: "banner error", role: "alert" },
       h("strong", null, `“${state.pending.label}” may not have been saved.`),
@@ -746,7 +752,7 @@ function optionCard(preview, option, stale) {
 function undoLatest(undo) {
   if (!window.confirm(`Undo “${undo.label}”? A new revision restores the dinners it changed; the calendar updates on its next refresh.`)) return;
   mutate(`Undo ${undo.label}`, "POST", "/api/undo", { baseRevision: state.data.dashboard.revision, revision: undo.revision }, {
-    onSuccess: () => { state.preview = null; },
+    onSuccess: () => { state.preview = null; state.swapPreview = null; },
   });
 }
 
@@ -1154,6 +1160,7 @@ function shoppingView() {
   }
   return h("div", null,
     sectionHeading("Generated from accepted dinners", "Shopping list", `For ${shopping.dates.map(shortDay).join(", ")}`),
+    shareCard(),
     shopping.blocked.length ? h("section", { class: "attention-card" },
       h("h3", null, "Can't be bought"),
       h("ul", null, shopping.blocked.map((item) => h("li", null, `${shortDay(item.date)}: ${item.verbatim ?? item.ingredientKey} (${item.kind})`))),
@@ -1168,10 +1175,141 @@ function shoppingView() {
             disabled: !canMutate(),
             onChange: (event) => mutate(`${item.name}: ${event.target.checked ? "bought" : "not bought"}`, "PUT", `/api/shopping/${encodeURIComponent(item.id)}`, { checked: event.target.checked, rev: item.rev }),
           }),
-          h("span", null, h("strong", null, item.name), h("small", null, `${item.amount} · ${item.recipes.map((recipe) => recipe.name).join(", ")}`))),
+          h("span", null, h("strong", null, item.name), h("small", null, `${item.amount} · ${item.recipes.map((recipe) => recipe.name).join(", ")}`),
+            restockText(item) ? h("small", { class: "restock-note" }, restockText(item)) : null)),
         h("span", { class: "needed-day" }, item.dates.map(shortDay).join(", "))))))))
-      : h("div", { class: "large-empty" }, h("span", { "aria-hidden": "true" }, "✓"), h("h3", null, "Nothing to buy"),
-        h("p", null, state.data.dashboard.slots.some((slot) => slot.status === "accepted") ? "The pantry covers the accepted dinners in this window." : "Accept dinners on the plan and their ingredients appear here.")));
+      : extraRestocks().length ? null : h("div", { class: "large-empty" }, h("span", { "aria-hidden": "true" }, "✓"), h("h3", null, "Nothing to buy"),
+        h("p", null, state.data.dashboard.slots.some((slot) => slot.status === "accepted") ? "The pantry covers the accepted dinners in this window." : "Accept dinners on the plan and their ingredients appear here.")),
+    extraRestocks().length ? h("section", { class: "shopping-group restock-group" },
+      h("h3", null, "Restock (kept from swapped dinners)"),
+      h("ul", null, extraRestocks().map((restock) => h("li", null,
+        h("span", { class: "shopping-item-control" }, h("span", null, h("strong", null, restock.label), h("small", null, restockAmount(restock)))))))) : null);
+}
+
+// --- Sharing the unchecked list --------------------------------------------
+// Builds plain text from the loaded rows only; sharing never changes a check
+// mark and never sends anything until the owner picks a destination.
+
+function restockAmount(restock) {
+  return restock.amount ?? quantityText(restock.quantity, restock.unit);
+}
+
+// A restock attached to a shopping row (item.restock), or a row that is
+// itself a restock.
+function restockText(item) {
+  if (item.restock && typeof item.restock === "object") {
+    const label = item.restock.label && item.restock.label !== item.name ? `${item.restock.label} ` : "";
+    return `Restock: ${label}${restockAmount(item.restock)}`.trim();
+  }
+  return item.kind === "restock" || item.restock === true ? "Restock" : null;
+}
+
+// Restocks listed beside the items (shopping.restocks) that no unchecked or
+// checked row already covers, so nothing is listed twice.
+function extraRestocks() {
+  const { shopping } = state.data;
+  const covered = new Set();
+  for (const item of shopping.items) {
+    covered.add(String(item.ingredientKey ?? "").toLowerCase());
+    covered.add(String(item.name ?? "").toLowerCase());
+    if (item.restock?.label) covered.add(item.restock.label.toLowerCase());
+  }
+  const seen = new Set();
+  return (Array.isArray(shopping.restocks) ? shopping.restocks : []).filter((restock) => {
+    const key = String(restock.key ?? restock.ingredientKey ?? restock.label ?? "").toLowerCase();
+    const label = String(restock.label ?? "").toLowerCase();
+    if (!label || restock.checked || covered.has(key) || covered.has(label) || seen.has(label)) return false;
+    seen.add(label);
+    return true;
+  });
+}
+
+function shoppingShareText() {
+  const { shopping } = state.data;
+  const lines = [];
+  const seen = new Set();
+  for (const item of shopping.items) {
+    if (item.checked) continue;
+    const id = `${String(item.name).toLowerCase()}|${item.amount}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const restock = restockText(item);
+    lines.push(`- ${item.name}: ${item.amount}${restock ? ` (${restock.toLowerCase()})` : ""}`);
+  }
+  for (const restock of extraRestocks()) lines.push(`- ${restock.label}: ${restockAmount(restock)} (restock)`);
+  if (!lines.length) return "";
+  const dates = shopping.dates.length ? ` for ${shopping.dates.map(shortDay).join(", ")}` : "";
+  return `Shopping list${dates}\n${lines.join("\n")}\n`;
+}
+
+const shareLocked = () => !state.online || state.stale;
+const canShare = () => typeof navigator.share === "function" && window.isSecureContext;
+
+// navigator.share must be called inside the tap itself, so nothing is awaited
+// or rendered before it.
+function shareShopping() {
+  if (shareLocked()) return;
+  const text = shoppingShareText();
+  if (!text) {
+    state.message = { kind: "info", text: "Nothing unchecked to share." };
+    return render();
+  }
+  if (!canShare() || (navigator.canShare && !navigator.canShare({ text }))) return copyShopping();
+  navigator.share({ text }).then(() => {
+    state.message = { kind: "ok", text: "Shopping list handed to the app you picked. Check marks were not changed." };
+    render();
+  }, (error) => {
+    if (error?.name === "AbortError") {
+      state.message = { kind: "info", text: "Sharing cancelled. Nothing was sent." };
+    } else {
+      state.shareFallback = true;
+      state.message = { kind: "info", text: "Sharing isn't available here — the list is shown below as text to select and copy." };
+    }
+    render();
+  });
+}
+
+async function copyShopping() {
+  if (shareLocked()) return;
+  const text = shoppingShareText();
+  if (!text) {
+    state.message = { kind: "info", text: "Nothing unchecked to copy." };
+    return render();
+  }
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+    await navigator.clipboard.writeText(text);
+    state.message = { kind: "ok", text: `Copied ${plural(text.trim().split("\n").length - 1, "item")}. Paste it into Notes or Messages.` };
+  } catch {
+    state.shareFallback = true;
+    state.message = { kind: "info", text: "Copying isn't allowed here — select the list below and copy it manually." };
+  }
+  render();
+}
+
+function shareCard() {
+  const text = shoppingShareText();
+  const count = text ? text.trim().split("\n").length - 1 : 0;
+  const locked = shareLocked();
+  return h("section", { class: "share-card", "aria-label": "Share the unchecked shopping list" },
+    h("div", { class: "share-actions" },
+      h("button", { type: "button", class: "primary-action share-button", disabled: locked || !count, onClick: shareShopping },
+        "Share unchecked list"),
+      h("button", { type: "button", class: "secondary-action share-button", disabled: locked || !count, onClick: copyShopping }, "Copy list"),
+      h("button", { type: "button", class: "link-button", "aria-expanded": String(state.shareFallback), disabled: !count, onClick: () => { state.shareFallback = !state.shareFallback; render(); } },
+        state.shareFallback ? "Hide text" : "Show as text")),
+    h("p", { class: "slot-meta" }, !count
+      ? "Nothing unchecked to share — every item is bought or the list is empty."
+      : locked
+        ? "Reconnect or reload the plan first, so the list you send is the current one."
+        : `${plural(count, "unchecked item")}, with amounts. You choose where it goes (Notes, Messages…); nothing is sent automatically and check marks don't change.${canShare() ? "" : " This browser can't open the share sheet, so Share copies the list instead."}`),
+    state.shareFallback && count && !locked ? h("textarea", {
+      class: "share-text",
+      readonly: true,
+      rows: Math.min(count + 2, 14),
+      "aria-label": "Unchecked shopping list as text",
+      onFocus: (event) => event.target.select(),
+    }, text) : null);
 }
 
 // --- Recipes --------------------------------------------------------------
@@ -1391,7 +1529,19 @@ window.addEventListener("offline", () => { state.online = false; render(); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkForChanges(); });
 setInterval(checkForChanges, POLL_MS);
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
+if ("serviceWorker" in navigator) {
+  // A new deploy installs a new worker that takes over at once; offer a
+  // reload instead of forcing one, so an open draft or preview is not lost.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return;
+    state.shellUpdated = true;
+    render();
+  });
+  navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+    .then((registration) => document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") registration.update().catch(() => undefined); }))
+    .catch(() => undefined);
+}
 
 state.route = readRoute();
 loadAll();
