@@ -418,6 +418,16 @@ test("a Brussels sprouts line swapped for roast carrots on one of two traybake d
   assert.equal(undone.undone, replaced.revision);
   const back = slotOn(await get(fx, "/api/dashboard"), TUE);
   assert.deepEqual([back.recipe.uid, back.swaps.map((swap) => swap.toLabel)], [R.traybake, [ROAST_CARROTS]]);
+
+  // Wednesday's sprouts swapped too: the bought pound is not owed again.
+  // The restock line lists only Wednesday's unbought pound, unchecked.
+  const wedPreview = await previewSwap(fx, { ...request, date: WED });
+  assert.equal(wedPreview.status, 201, wedPreview.text);
+  assert.deepEqual(wedPreview.body.shoppingDiff.restocks.map((entry) => [entry.id, entry.amount]), [[restockId, "1 lb"]]);
+  const wedApplied = await applySwap(fx, { baseRevision: wedPreview.body.baseRevision, previewId: wedPreview.body.previewId });
+  assert.equal(wedApplied.status, 200, wedApplied.text);
+  const owed = byId((await get(fx, "/api/shopping")).items).get(restockId);
+  assert.deepEqual([owed.amount, owed.checked, owed.restock.reasons.map((reason) => reason.date)], ["1 lb", false, [WED]]);
 });
 
 // --- Owner-entered side on the bundled library -------------------------------
