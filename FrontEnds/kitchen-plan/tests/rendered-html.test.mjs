@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { generateFeedToken } from "../server/calendar.mjs";
 import { parsePaprikaArchive } from "../server/import.mjs";
-import { addDays, easternDate } from "../server/store.mjs";
+import { SCHEMA_VERSION, addDays, easternDate } from "../server/store.mjs";
 import { DatabaseSync } from "node:sqlite";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -140,7 +140,9 @@ test("server/main.mjs on a fresh database serves the private page, 14 empty dinn
   const health = await json(`${listening.app}/api/health`);
   assert.equal(health.status, 200);
   assert.equal(health.body.ok, true);
-  assert.equal(health.body.schemaVersion, 1);
+  // A fresh database runs every migration: health reports the newest one.
+  assert.equal(health.body.schemaVersion, SCHEMA_VERSION);
+  assert.ok(Number.isInteger(SCHEMA_VERSION) && SCHEMA_VERSION >= 2, "the swap migration (v2) is in the service");
 
   // 14 empty dinner dates from Eastern today for two adults; nothing accepted.
   const dashboard = await json(`${listening.app}/api/dashboard`);
@@ -163,6 +165,11 @@ test("server/main.mjs on a fresh database serves the private page, 14 empty dinn
   assert.deepEqual(dashboard.body.review.map((day) => [day.date, day.status, day.counts]), [0, 1, 2].map((n) => [addDays(today, n), "empty", null]));
   assert.deepEqual(dashboard.body.shopping, { total: 0, unchecked: 0 });
   assert.equal(dashboard.body.undo ?? null, null, "nothing to undo");
+
+  // The v2 tables exist: the swap route reads them and finds no dinner.
+  const swaps = await json(`${listening.app}/api/dinner-swaps?date=${today}`);
+  assert.equal(swaps.status, 404, swaps.text);
+  assert.equal(swaps.body.error.code, "dinner_not_found");
 
   const review = await json(`${listening.app}/api/review`);
   assert.deepEqual(review.body.days.map((day) => [day.date, day.status, day.lines.length]), [0, 1, 2].map((n) => [addDays(today, n), "empty", 0]));
