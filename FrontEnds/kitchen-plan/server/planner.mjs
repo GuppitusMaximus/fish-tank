@@ -13,6 +13,7 @@
 
 import { createHash, randomUUID } from "node:crypto";
 import {
+  DEFAULT_DINERS,
   HORIZON_DAYS,
   ServiceError,
   TIME_ZONE,
@@ -32,6 +33,8 @@ const VARIETY_WINDOW_DAYS = 6;
 const MAX_PLAN_DAYS_AHEAD = 366;
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const LEFTOVER_CATEGORIES = /^(?:freezer|batch|leftovers)$/i;
+// Every accepted dinner feeds at least both adults, whatever `diners` says.
+const MIN_SERVINGS = DEFAULT_DINERS;
 
 const compareText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const round = (value) => Math.round(value * 1000) / 1000;
@@ -84,6 +87,16 @@ function requireArray(value, field, max) {
 function requireDate(value, field) {
   if (!isValidDate(value)) throw invalid(field, `${field} must be a YYYY-MM-DD date`);
   return value;
+}
+
+// Recipe uids are kept as Paprika supplied them, and older databases hold
+// them upper-cased, so a client uid matches exactly first, then ignoring case.
+function resolveRecipeUid(recipes, uid) {
+  if (uid == null) return null;
+  if (recipes.has(uid)) return uid;
+  const wanted = uid.toUpperCase();
+  for (const key of recipes.keys()) if (key.toUpperCase() === wanted) return key;
+  return null;
 }
 
 function validateWorkload(value, field) {
@@ -224,10 +237,16 @@ export function dependencyProblem(ctx, view, dep) {
   return null;
 }
 
+// Leftovers are still food: an excluded leftover never covers a line, so the
+// line falls back to its other alternatives or shows as excluded.
+function leftoverExcluded(ctx, dep) {
+  return [dep.ingredientKey, dep.sourceKey].some((key) => key && isExcluded(ctx, key));
+}
+
 function coveringDependency(ctx, view, date, line) {
   for (const dep of view.deps) {
     if (dep.consumerDate !== date || !dep.ingredientKey || !line.alternatives.includes(dep.ingredientKey)) continue;
-    if (!dependencyProblem(ctx, view, dep)) return dep;
+    if (!leftoverExcluded(ctx, dep) && !dependencyProblem(ctx, view, dep)) return dep;
   }
   return null;
 }
@@ -490,25 +509,55 @@ function workloadLimits(ctx, date) {
   };
 }
 
-// Hard rules for one changed slot. Yield is checked separately because a
-// dependent slot can be changed to free servings.
-function slotProblems(ctx, original, next, date) {
-  const problems = new Set();
-  if (original.slots.get(date)?.locked) problems.add("locked");
-  const recipe = ctx.recipes.get(next.slots.get(date).recipeUid);
+// Prep and total minutes with the slot's prep override applied. The override
+// replaces the recipe's prep inside its total; without a known total it is
+// added to the cook time. Unknown minutes stay null and fail a set limit.
+function effectiveMinutes(recipe, prepOverride) {
+  if (prepOverride == null) return { prep: recipe.prepMinutes, total: recipe.totalMinutes };
+  let total = recipe.totalMinutes;
+  if (recipe.totalMinutes != null && recipe.prepMinutes != null) total = recipe.totalMinutes - recipe.prepMinutes + prepOverride;
+  else if (recipe.cookMinutes != null) total = prepOverride + recipe.cookMinutes;
+  return { prep: prepOverride, total };
+}
+
+// Hard rules for one accepted dinner as planned in `view`: servings, dietary
+// (category, lines and leftovers), unavailable ingredients and workload with
+// the effective prep. Locks and yield are checked by the callers.
+function mealProblems(ctx, view, date) {
+  const slot = view.slots.get(date);
+  const recipe = ctx.recipes.get(slot.recipeUid);
   if (!recipe) return ["unknown_recipe"];
+  const problems = new Set();
+  if (slot.servings < MIN_SERVINGS) problems.add("servings");
   if (categoryExcluded(ctx, recipe)) problems.add("dietary");
   for (const line of recipe.lines) {
-    if (line.optional || coveringDependency(ctx, next, date, line)) continue;
+    if (line.optional || coveringDependency(ctx, view, date, line)) continue;
     const resolved = resolveLine(ctx, line);
     if (resolved.status === "excluded") problems.add("dietary");
     else if (resolved.status === "unavailable") problems.add("unavailable");
   }
   const limits = workloadLimits(ctx, date);
-  const overPrep = limits.maxPrepMinutes != null && (recipe.prepMinutes == null || recipe.prepMinutes > limits.maxPrepMinutes);
-  const overTotal = limits.maxTotalMinutes != null && (recipe.totalMinutes == null || recipe.totalMinutes > limits.maxTotalMinutes);
+  const minutes = effectiveMinutes(recipe, slot.prepMinutes);
+  const overPrep = limits.maxPrepMinutes != null && (minutes.prep == null || minutes.prep > limits.maxPrepMinutes);
+  const overTotal = limits.maxTotalMinutes != null && (minutes.total == null || minutes.total > limits.maxTotalMinutes);
   if (overPrep || overTotal) problems.add("workload");
   return [...problems];
+}
+
+// Hard rules for one changed slot. Yield is checked separately because a
+// dependent slot can be changed to free servings.
+function slotProblems(ctx, original, next, date) {
+  const problems = mealProblems(ctx, next, date);
+  if (!original.slots.get(date)?.locked || problems[0] === "unknown_recipe") return problems;
+  return ["locked", ...problems];
+}
+
+// Leftover links whose producer changes under a consumer that stays locked:
+// the locked dinner would silently eat leftovers of a different recipe.
+function lockedThroughLinks(original, next, assignments) {
+  return next.deps
+    .filter((dep) => assignments.has(dep.producerDate) && !assignments.has(dep.consumerDate) && original.slots.get(dep.consumerDate)?.locked)
+    .sort((a, b) => compareText(a.consumerDate, b.consumerDate) || compareText(a.producerDate, b.producerDate));
 }
 
 function applyAssignments(view, assignments) {
@@ -720,16 +769,20 @@ function slotFields(slot) {
   };
 }
 
-function snapshot(store, dates) {
-  const diners = store.constraints().diners;
+// Before/after image of a change. `withConstraints` adds the planning
+// constraints, for an accept that also changed them, so Undo restores both.
+function snapshot(store, dates, withConstraints = false) {
+  const constraints = store.constraints();
   const set = new Set(dates);
-  return {
+  const image = {
     slots: [...set].sort().map((date) => {
       const slot = store.getSlot(date);
-      return slot ? slotFields(slot) : { date, status: "empty", recipeUid: null, servings: diners, prepMinutes: null, locked: false, note: "" };
+      return slot ? slotFields(slot) : { date, status: "empty", recipeUid: null, servings: constraints.diners, prepMinutes: null, locked: false, note: "" };
     }),
     dependencies: store.listDependencies().filter((dep) => set.has(dep.consumerDate) || set.has(dep.producerDate)),
   };
+  if (withConstraints) image.constraints = constraints;
+  return image;
 }
 
 function writeDependencies(store, dates, deps) {
@@ -1006,7 +1059,12 @@ export class KitchenService {
   }
 
   // Owner-supplied plan: dates, recipes, servings, prep, locks, leftover
-  // dependencies and constraints, accepted explicitly in one revision.
+  // dependencies and constraints, accepted explicitly in one revision. The
+  // final linked plan is checked against the same hard rules as a swap
+  // before anything is written, so a rejected request changes nothing. A
+  // locked dinner only accepts being unlocked; dinners whose content does not
+  // change (a note, a lock, an unchanged re-send) are not re-judged, so one
+  // flagged for review by a later pantry or constraint change stays as it is.
   acceptPlan(body) {
     requireObject(body, "body");
     rejectUnknown(body, ["accept", "baseRevision", "slots", "dependencies", "removeDependencies", "constraints", "label"], "body");
@@ -1031,16 +1089,13 @@ export class KitchenService {
       return value;
     };
 
-    let constraintsChanged = false;
-    if (body.constraints !== undefined) {
-      const current = store.constraints();
-      const next = validateConstraints(body.constraints, current);
-      constraintsChanged = canonicalJson(next) !== canonicalJson(current);
-      if (constraintsChanged) store.setSetting("constraints", next);
-    }
-    const ctx = loadContext(store);
-    const diners = ctx.constraints.diners;
-    const nextSlots = new Map(ctx.view.slots);
+    const currentConstraints = store.constraints();
+    const constraints = body.constraints === undefined ? currentConstraints : validateConstraints(body.constraints, currentConstraints);
+    const constraintsChanged = canonicalJson(constraints) !== canonicalJson(currentConstraints);
+    const ctx = { ...loadContext(store), constraints };
+    const original = ctx.view;
+    const diners = constraints.diners;
+    const nextSlots = new Map(original.slots);
     const touched = new Set();
 
     slotInputs.forEach((input, index) => {
@@ -1055,8 +1110,8 @@ export class KitchenService {
       if (input.recipeUid !== undefined) {
         if (input.recipeUid === null) recipeUid = null;
         else {
-          const uid = optionalString(input.recipeUid, `${field}.recipeUid`, 64)?.toUpperCase();
-          if (!ctx.recipes.has(uid)) throw new ServiceError(422, "unknown_recipe", `${field}.recipeUid is not a known recipe`, { field: `${field}.recipeUid` });
+          const uid = resolveRecipeUid(ctx.recipes, optionalString(input.recipeUid, `${field}.recipeUid`, 64));
+          if (!uid) throw new ServiceError(422, "unknown_recipe", `${field}.recipeUid is not a known recipe`, { field: `${field}.recipeUid` });
           recipeUid = uid;
         }
       }
@@ -1072,12 +1127,18 @@ export class KitchenService {
     });
 
     // Dependencies: a consumer whose recipe changed or emptied loses its
-    // leftover links unless they are re-supplied.
+    // leftover links unless they are re-supplied (`dropped` keeps the ones
+    // lost that way). A link that names its source ingredient follows a
+    // changed producer recipe as long as the new recipe still has it.
     const depKey = (dep) => `${dep.consumerDate}|${dep.producerDate}`;
     const nextDeps = new Map();
-    for (const dep of ctx.view.deps) {
+    const dropped = new Map();
+    for (const dep of original.deps) {
       const consumer = nextSlots.get(dep.consumerDate);
-      if (consumer.recipeUid !== ctx.view.slots.get(dep.consumerDate)?.recipeUid || consumer.status !== "accepted") continue;
+      if (consumer.recipeUid !== original.slots.get(dep.consumerDate)?.recipeUid || consumer.status !== "accepted") {
+        dropped.set(depKey(dep), dep);
+        continue;
+      }
       nextDeps.set(depKey(dep), dep);
     }
     removeInputs.forEach((input, index) => {
@@ -1124,64 +1185,146 @@ export class KitchenService {
         servings: requireInt(input.servings, `${field}.servings`, 1, 20),
       };
       nextDeps.set(depKey(dep), dep);
+      dropped.delete(depKey(dep));
       touched.add(consumerDate);
       touched.add(producerDate);
     });
+    for (const [key, dep] of nextDeps) {
+      const producer = nextSlots.get(dep.producerDate);
+      if (dep.sourceKey && producer?.status === "accepted" && producer.recipeUid !== dep.producerRecipeUid) {
+        nextDeps.set(key, { ...dep, producerRecipeUid: producer.recipeUid });
+      }
+    }
+    const next = { slots: nextSlots, deps: [...nextDeps.values()].sort((a, b) => compareText(depKey(a), depKey(b))) };
 
-    const next = { slots: nextSlots, deps: [...nextDeps.values()] };
+    // What really changes: slot fields, and links added, removed or altered.
+    const linksBefore = new Map(original.deps.map((dep) => [depKey(dep), dep]));
+    const changedLinks = [];
+    for (const key of [...new Set([...linksBefore.keys(), ...nextDeps.keys()])].sort()) {
+      const previous = linksBefore.get(key);
+      const updated = nextDeps.get(key);
+      if (previous && updated && canonicalJson(previous) === canonicalJson(updated)) continue;
+      changedLinks.push({ dep: updated ?? previous, kept: Boolean(updated), implicit: !updated && dropped.has(key) });
+    }
+    const affected = new Set(touched);
+    for (const { dep } of changedLinks) {
+      affected.add(dep.consumerDate);
+      affected.add(dep.producerDate);
+    }
+    const dates = [...affected].sort();
+    const changedSlots = dates.filter((date) => {
+      const previous = original.slots.get(date);
+      const updated = nextSlots.get(date);
+      return updated && (!previous ? updated.status === "accepted" : !sameFields(previous, updated));
+    });
+    if (!changedSlots.length && !changedLinks.length && !constraintsChanged) {
+      return { status: 200, body: { revision: store.revision(), changed: [], change: null, warnings: [] } };
+    }
+
+    // Locks, including changes that reach a locked dinner through a link.
+    const wasLocked = (date) => Boolean(original.slots.get(date)?.locked);
+    const lockProblems = new Map();
+    const lockProblem = (problem) => lockProblems.set(canonicalJson(problem), problem);
+    for (const date of changedSlots) {
+      const previous = original.slots.get(date);
+      const updated = nextSlots.get(date);
+      if (wasLocked(date) && !sameFields({ ...previous, locked: updated.locked }, updated)) lockProblem({ date, problem: "locked" });
+    }
+    for (const { dep, implicit } of changedLinks) {
+      if (implicit) continue; // follows from its consumer's own change, checked above
+      for (const date of [dep.consumerDate, dep.producerDate]) {
+        if (wasLocked(date)) lockProblem({ date, problem: "locked_dependency", producerDate: dep.producerDate, consumerDate: dep.consumerDate });
+      }
+    }
     for (const dep of next.deps) {
-      if (!touched.has(dep.consumerDate) && !touched.has(dep.producerDate)) continue;
+      if (wasLocked(dep.consumerDate) && original.slots.get(dep.producerDate)?.recipeUid !== nextSlots.get(dep.producerDate)?.recipeUid) {
+        lockProblem({ date: dep.consumerDate, problem: "locked_dependency", producerDate: dep.producerDate, consumerDate: dep.consumerDate });
+      }
+    }
+    if (lockProblems.size) {
+      const problems = [...lockProblems.values()];
+      throw new ServiceError(409, "slot_locked", `The ${problems[0].date} dinner is locked; unlock it on its own first`, { problems });
+    }
+
+    // Every dinner whose meal or consumed leftovers change is judged in full;
+    // every producer whose demand changes must still cover all reservations.
+    const sameMeal = (a, b) => a.status === b.status && a.recipeUid === b.recipeUid && a.servings === b.servings && (a.prepMinutes ?? null) === (b.prepMinutes ?? null);
+    const accepted = (date) => nextSlots.get(date)?.status === "accepted";
+    const judged = new Set(changedSlots.filter((date) => accepted(date) && (!original.slots.get(date) || !sameMeal(original.slots.get(date), nextSlots.get(date)))));
+    const yieldDates = new Set(judged);
+    const keptLinks = new Set();
+    for (const { dep, kept } of changedLinks) {
+      if (kept) keptLinks.add(depKey(dep));
+      if (accepted(dep.consumerDate)) judged.add(dep.consumerDate);
+      if (accepted(dep.producerDate)) yieldDates.add(dep.producerDate);
+    }
+
+    for (const dep of next.deps) {
+      if (!keptLinks.has(depKey(dep)) && !judged.has(dep.consumerDate) && !yieldDates.has(dep.producerDate)) continue;
       const problem = dependencyProblem(ctx, next, dep);
       if (problem) {
         throw new ServiceError(422, problem === "insufficient_yield" ? "insufficient_yield" : "broken_dependency", `Leftovers from ${dep.producerDate} for ${dep.consumerDate}: ${problem.replaceAll("_", " ")}`, { producerDate: dep.producerDate, consumerDate: dep.consumerDate, problem });
       }
     }
 
-    const affected = new Set(touched);
-    for (const dep of ctx.view.deps) if (!nextDeps.has(depKey(dep))) {
-      affected.add(dep.consumerDate);
-      affected.add(dep.producerDate);
+    const problems = [];
+    for (const { dep, kept } of changedLinks) {
+      if (kept && leftoverExcluded(ctx, dep)) {
+        problems.push({ date: dep.consumerDate, problem: "dietary", producerDate: dep.producerDate, ingredientKey: dep.ingredientKey });
+      }
     }
-    const dates = [...affected].sort();
-    const before = snapshot(store, dates);
-    const changedSlots = dates.filter((date) => {
-      const previous = ctx.view.slots.get(date);
-      const updated = nextSlots.get(date);
-      return updated && (!previous ? updated.status === "accepted" : !sameFields(previous, updated));
-    });
-    const depsBefore = canonicalJson(before.dependencies);
-    const depsAfter = canonicalJson(next.deps.filter((dep) => affected.has(dep.consumerDate) || affected.has(dep.producerDate)).sort((a, b) => compareText(depKey(a), depKey(b))));
-    if (!changedSlots.length && depsBefore === depsAfter && !constraintsChanged) {
-      return { status: 200, body: { revision: store.revision(), changed: [], change: null, warnings: [] } };
+    for (const dep of dropped.values()) {
+      if (!dep.ingredientKey || !accepted(dep.consumerDate)) continue;
+      const recipe = ctx.recipes.get(nextSlots.get(dep.consumerDate).recipeUid);
+      const stranded = recipe.lines.some(
+        (line) =>
+          !line.optional &&
+          line.alternatives.includes(dep.ingredientKey) &&
+          !coveringDependency(ctx, next, dep.consumerDate, line) &&
+          ["unavailable", "excluded"].includes(resolveLine(ctx, line).status),
+      );
+      if (stranded) {
+        problems.push({ date: dep.consumerDate, problem: "leftover_link_required", producerDate: dep.producerDate, ingredientKey: dep.ingredientKey });
+      }
+    }
+    for (const date of [...judged].sort()) for (const problem of mealProblems(ctx, next, date)) problems.push({ date, problem });
+    for (const date of [...yieldDates].sort()) if (!yieldCovers(ctx, next, date)) problems.push({ date, problem: "insufficient_yield" });
+    if (problems.length) {
+      throw new ServiceError(422, "infeasible_plan", `The ${problems[0].date} dinner breaks a hard rule: ${problems[0].problem.replaceAll("_", " ")}`, { problems });
     }
 
-    const revision = store.revision() + 1;
-    for (const date of changedSlots) store.writeSlot(date, nextSlots.get(date), revision);
-    writeDependencies(store, dates, next.deps);
-    const after = snapshot(store, dates);
-    const recorded = store.recordChange({ kind: "accept", label, dates, before, after });
-    if (recorded !== revision) throw new Error("Revision changed inside a transaction");
-    this.recalculateShopping(revision);
-
-    const result = loadContext(store);
+    // Dinners that change only in note or lock keep any existing issues as
+    // warnings for review.
     const warnings = [];
     for (const date of changedSlots) {
-      if (result.view.slots.get(date).status !== "accepted") continue;
-      for (const problem of slotProblems(result, result.view, result.view, date)) {
-        if (problem !== "locked") warnings.push({ date, problem });
-      }
-      if (!yieldCovers(result, result.view, date)) warnings.push({ date, problem: "insufficient_yield" });
+      if (!accepted(date) || judged.has(date)) continue;
+      for (const problem of mealProblems(ctx, next, date)) warnings.push({ date, problem });
+      if (!yieldCovers(ctx, next, date)) warnings.push({ date, problem: "insufficient_yield" });
     }
-    const latest = store.latestUndoableChange();
-    return {
-      status: 200,
-      body: {
-        revision,
-        change: changeView(store.getChange(revision), latest),
-        changed: changedSlots.map((date) => slotView(result, result.view, result.view.slots.get(date))),
-        warnings,
-      },
-    };
+
+    return store.tx(() => {
+      const before = snapshot(store, dates, constraintsChanged);
+      if (constraintsChanged) store.setSetting("constraints", constraints);
+      const revision = store.revision() + 1;
+      for (const date of changedSlots) store.writeSlot(date, nextSlots.get(date), revision);
+      writeDependencies(store, dates, next.deps);
+      const after = snapshot(store, dates, constraintsChanged);
+      const recorded = store.recordChange({ kind: "accept", label, dates, before, after });
+      if (recorded !== revision) throw new Error("Revision changed inside a transaction");
+      this.recalculateShopping(revision);
+
+      const result = loadContext(store);
+      const latest = store.latestUndoableChange();
+      return {
+        status: 200,
+        body: {
+          revision,
+          change: changeView(store.getChange(revision), latest),
+          changed: changedSlots.map((date) => slotView(result, result.view, result.view.slots.get(date))),
+          warnings,
+        },
+      };
+    });
   }
 
   // Deterministic swap preview for one dinner. Writes only the preview row;
