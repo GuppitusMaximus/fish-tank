@@ -33,6 +33,7 @@ const VARIETY_WINDOW_DAYS = 6;
 const MAX_PLAN_DAYS_AHEAD = 366;
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const LEFTOVER_CATEGORIES = /^(?:freezer|batch|leftovers)$/i;
+const SOURCE_BLOCKED = new Set(["leftover_source_excluded", "leftover_source_unavailable", "leftover_source_conflict"]);
 // Every accepted dinner feeds at least both adults, whatever `diners` says.
 const MIN_SERVINGS = DEFAULT_DINERS;
 
@@ -221,8 +222,44 @@ function recipeContains(recipe, key) {
   return recipe.lines.some((line) => line.alternatives.includes(key));
 }
 
-// Why a leftover dependency no longer holds, or null when it does. Without a
-// source ingredient the dependency is tied to the exact producing recipe.
+const linkKey = (dep) => `${dep.consumerDate}|${dep.producerDate}`;
+
+// The producer line each source-named leftover reserves on `producerDate`,
+// keyed by link: a line position, or why the source cannot be cooked there.
+// The source must be allowed by the diet and not unavailable, and a line
+// listing it must not already be reserved for a different alternative, so
+// "chicken or pork" cannot feed both a chicken and a pork leftover. Links
+// claim lines in consumer-date order.
+function sourceReservations(ctx, view, producerDate) {
+  const result = new Map();
+  const recipe = ctx.recipes.get(view.slots.get(producerDate)?.recipeUid);
+  if (!recipe) return result;
+  const pinned = new Map();
+  const deps = view.deps
+    .filter((dep) => dep.producerDate === producerDate && dep.sourceKey && view.slots.get(dep.consumerDate)?.status === "accepted")
+    .sort((a, b) => compareText(linkKey(a), linkKey(b)));
+  for (const dep of deps) {
+    const lines = recipe.lines.filter((line) => line.alternatives.includes(dep.sourceKey));
+    let reserved;
+    if (!lines.length) reserved = "leftover_source_missing";
+    else if (isExcluded(ctx, dep.sourceKey)) reserved = "leftover_source_excluded";
+    else if (ctx.pantry.get(dep.sourceKey)?.status === "unavailable") reserved = "leftover_source_unavailable";
+    else {
+      const line = lines.find((candidate) => (pinned.get(candidate.position) ?? dep.sourceKey) === dep.sourceKey);
+      if (line) {
+        pinned.set(line.position, dep.sourceKey);
+        reserved = line.position;
+      } else reserved = "leftover_source_conflict";
+    }
+    result.set(linkKey(dep), reserved);
+  }
+  return result;
+}
+
+// Why a leftover dependency no longer holds, or null when it does. With a
+// source ingredient the producer must really cook it (see
+// sourceReservations); without one the dependency is tied to the exact
+// producing recipe.
 export function dependencyProblem(ctx, view, dep) {
   const producer = view.slots.get(dep.producerDate);
   const consumer = view.slots.get(dep.consumerDate);
@@ -230,7 +267,10 @@ export function dependencyProblem(ctx, view, dep) {
   if (consumer?.status !== "accepted") return "consumer_not_accepted";
   const recipe = ctx.recipes.get(producer.recipeUid);
   if (!recipe) return "producer_recipe_missing";
-  if (dep.sourceKey ? !recipeContains(recipe, dep.sourceKey) : producer.recipeUid !== dep.producerRecipeUid) {
+  if (dep.sourceKey) {
+    const reserved = sourceReservations(ctx, view, dep.producerDate).get(linkKey(dep));
+    if (typeof reserved === "string") return reserved;
+  } else if (producer.recipeUid !== dep.producerRecipeUid) {
     return "leftover_source_missing";
   }
   if (!yieldCovers(ctx, view, dep.producerDate)) return "insufficient_yield";
@@ -249,6 +289,29 @@ function coveringDependency(ctx, view, date, line) {
     if (!leftoverExcluded(ctx, dep) && !dependencyProblem(ctx, view, dep)) return dep;
   }
   return null;
+}
+
+// The source ingredient a live leftover reserves on this producer line, or
+// null. A reserved line is cooked with that ingredient, even when another
+// alternative is on hand or the line is optional.
+function reservedSource(ctx, view, date, line) {
+  let reservations = null;
+  for (const dep of view.deps) {
+    if (dep.producerDate !== date || !dep.sourceKey || !line.alternatives.includes(dep.sourceKey)) continue;
+    reservations ??= sourceReservations(ctx, view, date);
+    if (reservations.get(linkKey(dep)) !== line.position) continue;
+    if (!leftoverExcluded(ctx, dep) && !dependencyProblem(ctx, view, dep)) return dep.sourceKey;
+  }
+  return null;
+}
+
+// One line of the dinner on `date` as planned in `view`: a reserved line
+// uses its source ingredient; any other line resolves as usual.
+function planLine(ctx, view, date, line) {
+  const key = reservedSource(ctx, view, date, line);
+  if (!key) return { ...resolveLine(ctx, line), reserved: false };
+  const have = pantryHas(ctx, key);
+  return { status: have ? "have" : "need", key, useSoon: have && Boolean(ctx.pantry.get(key)?.useSoon), reserved: true };
 }
 
 // --- Amounts -----------------------------------------------------------------
@@ -312,9 +375,9 @@ export function computeShopping(ctx, view, dates) {
     const recipe = ctx.recipes.get(slot.recipeUid);
     if (!recipe) continue;
     for (const line of recipe.lines) {
-      if (line.optional || coveringDependency(ctx, view, date, line)) continue;
-      const resolved = resolveLine(ctx, line);
-      if (resolved.status === "unavailable" || resolved.status === "excluded") continue;
+      if (coveringDependency(ctx, view, date, line)) continue;
+      const resolved = planLine(ctx, view, date, line);
+      if ((line.optional && !resolved.reserved) || resolved.status === "unavailable" || resolved.status === "excluded") continue;
       const item = ctx.pantry.get(resolved.key);
       if (resolved.status === "have" && (!item || item.quantity == null || line.quantity == null)) continue;
       const amount = lineAmount(line);
@@ -411,7 +474,7 @@ function slotIssues(ctx, view, date) {
   const issues = [];
   for (const line of recipe.lines) {
     if (line.optional || coveringDependency(ctx, view, date, line)) continue;
-    const resolved = resolveLine(ctx, line);
+    const resolved = planLine(ctx, view, date, line);
     if (resolved.status === "unavailable" || resolved.status === "excluded") {
       issues.push({ kind: resolved.status, ingredientKey: resolved.key, verbatim: line.verbatim });
     }
@@ -419,7 +482,7 @@ function slotIssues(ctx, view, date) {
   for (const dep of view.deps) {
     if (dep.consumerDate !== date && dep.producerDate !== date) continue;
     const problem = dependencyProblem(ctx, view, dep);
-    if (problem) issues.push({ kind: "dependency", problem, producerDate: dep.producerDate, consumerDate: dep.consumerDate });
+    if (problem) issues.push({ kind: "dependency", problem, producerDate: dep.producerDate, consumerDate: dep.consumerDate, sourceKey: dep.sourceKey });
   }
   return issues;
 }
@@ -484,9 +547,12 @@ export function reviewDays(ctx, view, dates) {
       };
       const dep = coveringDependency(ctx, view, date, line);
       if (dep) return { ...base, ingredientKey: dep.ingredientKey, status: "leftover", leftoverFrom: dep.producerDate, useSoon: false, partial: false };
-      const resolved = resolveLine(ctx, line);
-      const partial = resolved.status === "have" && !line.optional && line.quantity != null && short.has(resolved.key) && ctx.pantry.get(resolved.key)?.quantity != null;
-      return { ...base, ingredientKey: resolved.key, status: partial ? "need" : resolved.status, useSoon: resolved.useSoon, partial };
+      // A line reserved for a later leftover shows its source ingredient and
+      // is required, since that dinner depends on it.
+      const resolved = planLine(ctx, view, date, line);
+      const optional = line.optional && !resolved.reserved;
+      const partial = resolved.status === "have" && !optional && line.quantity != null && short.has(resolved.key) && ctx.pantry.get(resolved.key)?.quantity != null;
+      return { ...base, optional, ingredientKey: resolved.key, status: partial ? "need" : resolved.status, useSoon: resolved.useSoon, partial };
     });
     const counts = { have: 0, need: 0, unavailable: 0, excluded: 0, leftover: 0, useSoon: 0 };
     for (const line of lines) {
@@ -532,7 +598,7 @@ function mealProblems(ctx, view, date) {
   if (categoryExcluded(ctx, recipe)) problems.add("dietary");
   for (const line of recipe.lines) {
     if (line.optional || coveringDependency(ctx, view, date, line)) continue;
-    const resolved = resolveLine(ctx, line);
+    const resolved = planLine(ctx, view, date, line);
     if (resolved.status === "excluded") problems.add("dietary");
     else if (resolved.status === "unavailable") problems.add("unavailable");
   }
@@ -616,13 +682,13 @@ function scoreOption(ctx, assignments) {
   for (const date of changedDates) {
     const recipe = ctx.recipes.get(assignments.get(date));
     for (const line of recipe.lines) {
-      if (line.optional) continue;
+      const resolved = planLine(ctx, next, date, line);
+      if (line.optional && !resolved.reserved) continue;
       total += 1;
       if (coveringDependency(ctx, next, date, line)) {
         covered += 1;
         continue;
       }
-      const resolved = resolveLine(ctx, line);
       if (resolved.status === "have") {
         covered += 1;
         if (resolved.useSoon) useSoon.add(resolved.key);
@@ -710,7 +776,8 @@ export function compareOptions(a, b) {
 }
 
 // Enumerates replacement recipes for the target slot. When a replacement
-// breaks a leftover dependency (missing source ingredient or not enough
+// breaks a leftover dependency (source ingredient missing, excluded,
+// unavailable or reserved by another leftover, or not enough
 // yield for diners plus dependents), the dependent slot is enumerated in the
 // same option, up to MAX_CHANGED_SLOTS slots.
 export function enumerateOptions(ctx, targetDate) {
@@ -966,7 +1033,11 @@ export class KitchenService {
     const ctx = loadContext(this.store);
     const blocked = [];
     for (const date of shoppingWindow(ctx)) {
-      for (const issue of slotIssues(ctx, ctx.view, date)) if (issue.kind !== "dependency") blocked.push({ date, ...issue });
+      for (const issue of slotIssues(ctx, ctx.view, date)) {
+        if (issue.kind !== "dependency") blocked.push({ date, ...issue });
+        // A leftover source the producer cannot cook is shown on its day.
+        else if (issue.producerDate === date && SOURCE_BLOCKED.has(issue.problem)) blocked.push({ date, ...issue, ingredientKey: issue.sourceKey });
+      }
     }
     return {
       revision: ctx.revision,
@@ -1134,7 +1205,7 @@ export class KitchenService {
     // Dependencies: a consumer whose recipe changed or emptied loses its
     // leftover links unless they are re-supplied (`dropped` keeps the ones
     // lost that way). A link that names its source ingredient follows a
-    // changed producer recipe as long as the new recipe still has it.
+    // changed producer recipe as long as the new recipe can still cook it.
     const depKey = (dep) => `${dep.consumerDate}|${dep.producerDate}`;
     const nextDeps = new Map();
     const dropped = new Map();
@@ -1286,7 +1357,7 @@ export class KitchenService {
           !line.optional &&
           line.alternatives.includes(dep.ingredientKey) &&
           !coveringDependency(ctx, next, dep.consumerDate, line) &&
-          ["unavailable", "excluded"].includes(resolveLine(ctx, line).status),
+          ["unavailable", "excluded"].includes(planLine(ctx, next, dep.consumerDate, line).status),
       );
       if (stranded) {
         problems.push({ date: dep.consumerDate, problem: "leftover_link_required", producerDate: dep.producerDate, ingredientKey: dep.ingredientKey });
