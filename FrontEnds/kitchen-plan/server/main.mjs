@@ -167,7 +167,12 @@ export async function startKitchenService(overrides = {}) {
     const app = createKitchenApp({ store, ...config, fallback, log });
     if (config.archivePath && existsSync(config.archivePath)) {
       const result = app.service.importArchive(readFileSync(config.archivePath));
-      log("recipes_imported", { added: result.added, updated: result.updated, unchanged: result.unchanged, skipped: result.skipped.length });
+      log("recipes_imported", { added: result.added, updated: result.updated, unchanged: result.unchanged, skipped: result.skipped.length, conflicts: result.conflicts.length });
+      // Revised recipes that accepted dinners use are kept as accepted and
+      // reported; startup continues.
+      for (const conflict of result.conflicts) {
+        log("recipe_import_conflict", { uid: conflict.uid, reason: conflict.reason, dates: conflict.dates.length });
+      }
     } else if (config.archivePath) {
       log("recipe_archive_missing", { path: config.archivePath });
     }

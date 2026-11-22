@@ -930,7 +930,8 @@ export class KitchenService {
   }
 
   recipe(uid) {
-    const recipe = typeof uid === "string" && uid.length <= 64 ? this.store.getRecipe(uid.toUpperCase()) : null;
+    const stored = typeof uid === "string" && uid.length <= 64 ? this.store.findRecipeUid(uid) : null;
+    const recipe = stored ? this.store.getRecipe(stored) : null;
     if (!recipe) throw new ServiceError(404, "recipe_not_found", "No recipe with that uid");
     return {
       recipe: {

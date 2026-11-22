@@ -4,12 +4,13 @@
 // method 0) of `<UID>.paprikarecipe` entries, each one plain JSON. Paprika's
 // own exports gzip every entry and usually deflate the zip, so both layers are
 // detected rather than assumed. Import is idempotent: recipes are keyed by the
-// Paprika `uid` and only rewritten when their retained content changes. It
-// never touches dinner slots; historical dinners are not imported.
+// Paprika `uid`, kept exactly as supplied, and only rewritten when their
+// retained content changes and no accepted dinner uses them. It never touches
+// dinner slots; historical dinners are not imported.
 
 import { createHash } from "node:crypto";
 import { gunzipSync, inflateRawSync } from "node:zlib";
-import { canonicalJson } from "./store.mjs";
+import { addDays, canonicalJson } from "./store.mjs";
 
 const PARSER_VERSION = 1;
 const MAX_ENTRIES = 2000;
@@ -527,8 +528,8 @@ const text = (value, limit = 20_000) => (typeof value === "string" ? value.slice
 
 export function parseRecipe(source) {
   if (!source || typeof source !== "object") throw new Error("Recipe entry is not an object");
-  const uid = typeof source.uid === "string" ? source.uid.trim().toUpperCase() : "";
-  if (!/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(uid)) {
+  const uid = typeof source.uid === "string" ? source.uid.trim() : "";
+  if (!/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i.test(uid)) {
     throw new Error("Recipe entry has no valid Paprika uid");
   }
   const name = text(source.name, 300).trim();
@@ -560,8 +561,10 @@ export function parseRecipe(source) {
     sourceUrl: text(source.source_url, 2000),
   };
   recipe.lines = parseIngredients(recipe.ingredientsText);
+  // The uid is kept as supplied but hashed upper-cased, as it always was, so
+  // the same content hashes the same whatever case the export used.
   recipe.sourceHash = createHash("sha256")
-    .update(canonicalJson({ parser: PARSER_VERSION, ...recipe, lines: undefined }))
+    .update(canonicalJson({ parser: PARSER_VERSION, ...recipe, uid: uid.toUpperCase(), lines: undefined }))
     .digest("hex");
   return recipe;
 }
@@ -581,15 +584,17 @@ export function parsePaprikaArchive(buffer) {
       skipped.push({ entry: entry.name, reason: error.message });
     }
   }
-  recipes.sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
+  const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  recipes.sort((a, b) => compare(a.uid.toUpperCase(), b.uid.toUpperCase()) || compare(a.uid, b.uid));
   const seen = new Set();
   return {
     recipes: recipes.filter((recipe) => {
-      if (seen.has(recipe.uid)) {
+      const key = recipe.uid.toUpperCase();
+      if (seen.has(key)) {
         skipped.push({ entry: recipe.uid, reason: "duplicate uid" });
         return false;
       }
-      seen.add(recipe.uid);
+      seen.add(key);
       return true;
     }),
     skipped,
@@ -608,16 +613,36 @@ export function seedIngredientCatalog(store) {
 
 // Upserts every recipe whose retained content changed. Returns counts and the
 // uids written; the caller records a revision when anything changed.
+//
+// A recipe is matched to its stored row ignoring case, and keeps the stored
+// key, so a legacy upper-cased row is neither duplicated nor re-keyed under
+// its accepted dinners and links. Revised content for a recipe that an
+// accepted dinner (or its leftovers) uses from IN_USE_LOOKBACK_DAYS ago on,
+// the calendar feed's window, is not written: it is returned in `conflicts`
+// and the accepted dinner keeps the recipe, ingredients and calendar event it
+// was accepted with.
+const IN_USE_LOOKBACK_DAYS = 30;
+
 export function importPaprikaArchive(store, buffer) {
   const { recipes, skipped } = parsePaprikaArchive(buffer);
   return store.tx(() => {
     seedIngredientCatalog(store);
-    const result = { added: 0, updated: 0, unchanged: 0, skipped, changed: [] };
-    for (const recipe of recipes) {
-      const existing = store.recipeHash(recipe.uid);
-      if (existing === recipe.sourceHash) {
+    const result = { added: 0, updated: 0, unchanged: 0, skipped, changed: [], conflicts: [] };
+    const inUseFrom = addDays(store.today(), -IN_USE_LOOKBACK_DAYS);
+    for (const parsed of recipes) {
+      const storedUid = store.findRecipeUid(parsed.uid);
+      const existing = storedUid ? store.recipeHash(storedUid) : null;
+      if (existing === parsed.sourceHash) {
         result.unchanged += 1;
         continue;
+      }
+      const recipe = storedUid ? { ...parsed, uid: storedUid } : parsed;
+      if (storedUid) {
+        const dates = store.recipeUses(storedUid, inUseFrom);
+        if (dates.length) {
+          result.conflicts.push({ uid: storedUid, suppliedUid: parsed.uid, reason: "recipe_in_use", dates });
+          continue;
+        }
       }
       store.upsertRecipe(recipe);
       for (const line of recipe.lines) {

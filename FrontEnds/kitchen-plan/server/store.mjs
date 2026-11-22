@@ -644,6 +644,29 @@ export class Store {
     return this.get("SELECT source_hash FROM recipes WHERE uid = ?", uid)?.source_hash ?? null;
   }
 
+  // The stored key for a Paprika uid: an exact match first, then one that
+  // differs only in case (databases written before uids kept their case hold
+  // them upper-cased).
+  findRecipeUid(uid) {
+    return (
+      this.get("SELECT uid FROM recipes WHERE uid = ? COLLATE NOCASE ORDER BY uid = ? DESC, uid LIMIT 1", uid, uid)?.uid ?? null
+    );
+  }
+
+  // Dates from `from` on whose accepted dinner, or whose leftovers, come
+  // from this recipe.
+  recipeUses(uid, from) {
+    return this.all(
+      `SELECT date FROM slots WHERE recipe_uid = ? AND status = 'accepted' AND date >= ?
+       UNION SELECT consumer_date AS date FROM dependencies WHERE producer_recipe_uid = ? AND consumer_date >= ?
+       ORDER BY date`,
+      uid,
+      from,
+      uid,
+      from,
+    ).map((row) => row.date);
+  }
+
   upsertRecipe(recipe) {
     this.requireTransaction();
     const at = this.nowIso();
