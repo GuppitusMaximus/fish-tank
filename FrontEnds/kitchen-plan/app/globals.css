@@ -421,6 +421,30 @@ a.recipe-card:hover { border-color: #aeb4a8; }
 .subscription-url { display: grid; gap: 8px; }
 .subscription-url input { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; }
 
+.swap-lines { display: grid; gap: 6px; }
+.swap-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; padding: 8px 11px; border-radius: 10px; background: var(--green-soft); font-size: 0.82rem; }
+.swap-line .eyebrow { flex-basis: 100%; }
+.swap-line s, .swap-summary s { color: var(--muted); }
+.meal-heading .swap-lines { margin-top: 8px; }
+.swap-editor { display: grid; gap: 12px; padding-top: 10px; border-top: 1px solid #ebe7de; }
+.swap-editor label { display: grid; gap: 4px; color: var(--muted); font-size: 0.75rem; font-weight: 600; }
+.swap-editor input[type="text"], .swap-editor input[type="number"], .swap-editor input[type="search"], .swap-editor select {
+  width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #c8cbc3; border-radius: 10px; color: var(--ink); background: #fff; font-size: 1rem;
+}
+.swap-editor fieldset { display: grid; gap: 10px; }
+.choice-list { display: grid; gap: 6px; }
+.swap-editor label.choice { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.swap-editor label.choice:has(input:checked) { border-color: var(--green); background: var(--green-soft); }
+.choice input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--green); }
+.choice > span { display: flex; flex-direction: column; gap: 2px; }
+.choice strong { font-size: 0.88rem; font-weight: 600; }
+.choice small { color: var(--muted); font-size: 0.75rem; font-weight: 500; }
+.swap-editor .actions .primary-action, .swap-editor .actions .secondary-action, .swap-preview .actions .primary-action, .swap-preview .actions .secondary-action { min-height: 44px; padding: 9px 16px; font-size: 0.85rem; }
+.swap-preview { display: grid; gap: 12px; }
+.swap-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; margin: 0; }
+.swap-summary dt { color: var(--muted); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.swap-summary dd { margin: 2px 0 0; font-size: 0.88rem; }
+
 @media (max-width: 760px) {
   #banners { padding-left: 18px; padding-right: 18px; }
   .recipe-body { grid-template-columns: 1fr; }

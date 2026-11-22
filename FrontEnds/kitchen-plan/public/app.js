@@ -31,6 +31,13 @@ const state = {
   previewStale: false,
   constraintsForm: null,
   subscription: null, // {url} | {url: null, reason} — memory only
+  swaps: new Map(), // date -> GET /api/dinner-swaps body for accepted dinners at the loaded revision
+  swapEditor: null, // {date, data, loading, error, mode: source|side, sourceId, side*, replacement*, filter}
+  swapPreview: null, // POST /api/dinner-swaps/preview body plus {request}
+  swapPreviewStale: false,
+  lastSwap: null, // {date, revision} of the swap applied on this screen, for its Undo button
+  shareFallback: false, // show the unchecked list as selectable text
+  shellUpdated: false,
 };
 
 // --- DOM helpers ----------------------------------------------------------
@@ -161,8 +168,11 @@ async function loadAll({ quiet = false } = {}) {
     state.online = true;
     if (previous !== undefined && previous !== dashboard.revision) {
       if (state.preview) state.previewStale = true;
+      if (state.swapPreview) state.swapPreviewStale = true;
       reconcileDraft();
+      if (state.swapEditor) loadSwapEditor(state.swapEditor);
     }
+    loadSwaps(dashboard);
     if (!state.constraintsForm || previous !== dashboard.revision) state.constraintsForm = constraintsToForm(constraints.constraints);
   } catch (error) {
     state.loadError = error;
@@ -197,9 +207,10 @@ async function checkForChanges() {
     // Re-render only when something changed, so an idle poll never steals
     // focus from a field being edited.
     if (health.revision === state.data.dashboard.revision) return wasOffline ? render() : undefined;
-    if (state.draft.size || state.draftDeps.length || state.draftRemoveDeps.length || state.preview || state.editor) {
+    if (state.draft.size || state.draftDeps.length || state.draftRemoveDeps.length || state.preview || state.editor || state.swapEditor || state.swapPreview) {
       state.stale = true;
       if (state.preview) state.previewStale = true;
+      if (state.swapPreview) state.swapPreviewStale = true;
       render();
     } else {
       await loadAll({ quiet: true });
@@ -238,6 +249,7 @@ async function mutate(label, method, path, body, { key = newKey(), onSuccess } =
       state.message = { kind: "error", text: errorText(error) };
       if (error.code === "stale_revision" || error.code === "stale_preview" || error.code === "preview_expired" || error.code === "option_invalid") {
         if (state.preview) state.previewStale = true;
+        if (state.swapPreview) state.swapPreviewStale = true;
       }
     }
   } finally {
@@ -259,6 +271,7 @@ function errorText(error) {
   if (error.code === "stale_revision") return "The plan changed on another device since this screen loaded. It has been reloaded — check it and try again.";
   if (error.code === "stale_item") return "That item changed on another device. It has been reloaded — try again.";
   if (error.code === "stale_preview" || error.code === "preview_expired") return `${error.message}. Nothing was changed.`;
+  if (error.code === "slot_locked" || error.code === "locked") return `${error.message}. Nothing was changed — unlock the dinner with “Change dinner” first if you still want this swap.`;
   if (error.details?.problems) extra.push(error.details.problems.map((problem) => `${problem.date ? `${shortDay(problem.date)}: ` : ""}${humanize(problem.problem ?? problem)}`).join("; "));
   if (error.details?.field) extra.push(`(${error.details.field})`);
   return [error.message, ...extra].join(" ");
@@ -451,6 +464,7 @@ function slotCard(slot) {
       recipe.servings?.text ? `recipe makes ${recipe.servings.text}` : null,
     ].filter(Boolean).join(" · ")) : h("p", { class: "slot-meta" }, "Empty date — nothing is on the calendar for this evening."),
     slot.note ? h("p", { class: "slot-note" }, slot.note) : null,
+    slot.status === "accepted" ? swapLines(slot) : null,
     slot.consumes.map((dep) => h("div", { class: `dependency${dep.problem ? " broken" : ""}` },
       `↳ Uses ${plural(dep.servings, "leftover serving")}${dep.ingredientKey ? ` (${dep.ingredientKey})` : ""} from ${shortDay(dep.producerDate)}`,
       dep.problem ? ` — ${humanize(dep.problem)}` : null)),
@@ -468,8 +482,13 @@ function slotCard(slot) {
       slot.status === "accepted" && !slot.locked
         ? h("button", { type: "button", class: "secondary-action", disabled: !canMutate(), onClick: () => requestPreview(slot.date) }, "Suggest swaps")
         : null,
+      slot.status === "accepted"
+        ? h("button", { type: "button", class: "secondary-action", disabled: !state.data || state.stale || state.swapEditor?.date === slot.date, onClick: () => openSwapEditor(slot) }, "Replace ingredient or side")
+        : null,
       draft ? h("button", { type: "button", class: "link-button", onClick: () => { state.draft.delete(slot.date); render(); } }, "Remove from draft") : null),
-    editing ? slotEditor(slot) : null);
+    editing ? slotEditor(slot) : null,
+    state.swapEditor?.date === slot.date ? swapEditor(slot) : null,
+    state.swapPreview?.date === slot.date ? swapPreviewPanel(slot) : null);
 }
 
 function describeDraft(slot, draft) {
@@ -731,6 +750,318 @@ function undoLatest(undo) {
   });
 }
 
+// --- Dinner swaps (replace one ingredient or side) -------------------------
+
+// Units the kitchen server understands, with the words shown to the owner.
+const SWAP_UNITS = [
+  ["each", "each"], ["lb", "lb"], ["oz", "oz"], ["g", "g"], ["kg", "kg"],
+  ["cup", "cup"], ["tbsp", "tbsp"], ["tsp", "tsp"], ["floz", "fl oz"], ["ml", "ml"], ["l", "l"], ["pint", "pint"], ["quart", "quart"],
+  ["bunch", "bunch"], ["head", "head"], ["bag", "bag"], ["package", "package"], ["box", "box"], ["can", "can"], ["jar", "jar"],
+  ["clove", "clove"], ["stalk", "stalk"], ["slice", "slice"],
+];
+const UNIT_LABELS = Object.fromEntries(SWAP_UNITS);
+
+function quantityText(quantity, unit) {
+  if (quantity == null || quantity === "") return "as needed";
+  const value = Number(quantity);
+  const number = Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
+  if (!unit || unit === "each") return number;
+  return `${number} ${UNIT_LABELS[unit] ?? unit}`;
+}
+
+// Swaps accepted on a dinner: from the dashboard slot when the server puts
+// them there, otherwise from GET /api/dinner-swaps for that date.
+function slotSwaps(slot) {
+  if (Array.isArray(slot.swaps)) return slot.swaps;
+  return state.swaps.get(slot.date)?.swaps ?? [];
+}
+
+async function loadSwaps(dashboard) {
+  const dates = dashboard.slots.filter((slot) => slot.status === "accepted" && !Array.isArray(slot.swaps)).map((slot) => slot.date);
+  const results = await Promise.all(dates.map((date) => get(`/api/dinner-swaps?date=${encodeURIComponent(date)}`).catch(() => null)));
+  if (state.data?.dashboard !== dashboard) return;
+  const next = new Map();
+  dates.forEach((date, index) => {
+    if (results[index]?.revision === dashboard.revision) next.set(date, results[index]);
+  });
+  const shown = (map) => JSON.stringify([...map].map(([date, body]) => [date, body.swaps ?? []]).filter(([, swaps]) => swaps.length));
+  const changed = shown(next) !== shown(state.swaps);
+  state.swaps = next;
+  // Only re-render when an accepted swap appeared or went away, so a field
+  // being edited keeps its focus.
+  if (changed) render();
+}
+
+function swapLines(slot) {
+  const swaps = slotSwaps(slot);
+  const undo = state.data.dashboard.undo;
+  const undoable = state.lastSwap?.date === slot.date && undo?.undoable && undo.revision === state.lastSwap.revision;
+  if (!swaps.length && !undoable) return null;
+  return h("div", { class: "swap-lines" },
+    swaps.map((swap) => h("p", { class: "swap-line" },
+      h("span", { class: "eyebrow" }, "Swapped for this dinner"),
+      h("span", null, h("s", null, swap.fromLabel), " → ", h("strong", null, swap.toLabel), swap.quantity != null ? ` · ${quantityText(swap.quantity, swap.unit)}` : null))),
+    swaps.length ? h("p", { class: "slot-meta" }, "The recipe in the library is unchanged; the swap applies to this date only.") : null,
+    undoable ? h("button", { type: "button", class: "secondary-action", disabled: !canMutate(), onClick: () => undoLatest(undo) }, "Undo this swap") : null);
+}
+
+function openSwapEditor(slot) {
+  state.editor = null;
+  state.swapPreview = null;
+  state.swapPreviewStale = false;
+  state.swapEditor = {
+    date: slot.date,
+    data: null,
+    loading: true,
+    error: null,
+    mode: "source", // source = a line of the recipe, side = a separate side the owner types
+    sourceId: "",
+    sideLabel: "",
+    sideQuantity: "",
+    sideUnit: "lb",
+    replacementKey: "",
+    replacementLabel: "",
+    labelEdited: false,
+    quantity: "",
+    unit: "lb",
+    filter: "",
+  };
+  loadSwapEditor(state.swapEditor);
+  render();
+}
+
+async function loadSwapEditor(editor) {
+  editor.loading = true;
+  try {
+    const data = await get(`/api/dinner-swaps?date=${encodeURIComponent(editor.date)}`);
+    if (state.swapEditor !== editor) return;
+    editor.data = data;
+    editor.error = null;
+    if (editor.sourceId && !data.sources.some((source) => String(source.id) === editor.sourceId)) editor.sourceId = "";
+    if (state.data && data.revision !== state.data.dashboard.revision) state.stale = true;
+  } catch (error) {
+    if (state.swapEditor !== editor) return;
+    editor.error = error;
+    if (error instanceof NetworkError) state.online = false;
+  }
+  editor.loading = false;
+  render();
+}
+
+function closeSwapEditor() {
+  state.swapEditor = null;
+  state.swapPreview = null;
+  state.swapPreviewStale = false;
+  state.message = { kind: "info", text: "Swap cancelled. Nothing was changed." };
+  render();
+}
+
+function swapEditor(slot) {
+  const editor = state.swapEditor;
+  const wrap = (...children) => h("form", {
+    class: "swap-editor",
+    "aria-label": `Replace an ingredient or side on ${formatDate(slot.date)}`,
+    onSubmit: (event) => {
+      event.preventDefault();
+      previewSwap(slot);
+    },
+  }, h("div", { class: "side-heading" }, h("h3", null, `Replace an ingredient or side · ${formatDate(slot.date)}`)), ...children);
+  if (!editor.data) {
+    return wrap(
+      editor.loading ? h("p", { class: "loading" }, "Loading this dinner's ingredients…") : null,
+      editor.error ? h("p", { class: "notice" }, errorText(editor.error)) : null,
+      h("div", { class: "actions" },
+        editor.error ? h("button", { type: "button", class: "secondary-action", disabled: editor.loading, onClick: () => loadSwapEditor(editor) }, "Try again") : null,
+        h("button", { type: "button", class: "secondary-action", onClick: closeSwapEditor }, "Cancel")));
+  }
+  const { sources, ingredients } = editor.data;
+  const update = (field) => (event) => { editor[field] = event.target.value; };
+  const unitSelect = (field, label) => {
+    const current = editor[field];
+    const units = UNIT_LABELS[current] || !current ? SWAP_UNITS : [[current, current], ...SWAP_UNITS];
+    return h("label", null, label,
+      h("select", { onChange: update(field) }, units.map(([value, text]) => h("option", { value, selected: current === value }, text))));
+  };
+  const chooseSource = (source) => {
+    editor.mode = "source";
+    editor.sourceId = String(source.id);
+    if (editor.quantity === "" && source.quantity != null) {
+      editor.quantity = String(source.quantity);
+      if (source.unit) editor.unit = source.unit;
+    }
+    render();
+  };
+  const sorted = ingredients.slice().sort((a, b) => a.label.localeCompare(b.label));
+  const filter = editor.filter.trim().toLowerCase();
+  const matching = () => sorted.filter((item) => item.key === editor.replacementKey || !filter
+    || item.label.toLowerCase().includes(filter) || item.key.toLowerCase().includes(filter));
+  const targetOptions = () => [
+    h("option", { value: "", selected: !editor.replacementKey }, matching().length ? "— choose an ingredient —" : "— no ingredient matches —"),
+    matching().map((item) => h("option", { value: item.key, selected: editor.replacementKey === item.key }, item.label)),
+  ];
+  const targetSelect = h("select", {
+    id: `swap-target-${slot.date}`,
+    required: true,
+    onChange: (event) => {
+      editor.replacementKey = event.target.value;
+      const item = ingredients.find((entry) => entry.key === editor.replacementKey);
+      if (!editor.labelEdited) editor.replacementLabel = item?.label ?? "";
+      render();
+    },
+  }, targetOptions());
+  const source = sources.find((entry) => String(entry.id) === editor.sourceId) ?? null;
+  return wrap(
+    h("p", { class: "slot-meta" }, "Choose what comes off this dinner and what goes on instead. Nothing changes until you preview the swap and press Apply."),
+    h("fieldset", { class: "swap-from" },
+      h("legend", null, "1. What to replace"),
+      sources.length
+        ? h("div", { class: "choice-list", role: "radiogroup", "aria-label": "Ingredient or side to replace" }, sources.map((entry) => h("label", { class: "choice" },
+          h("input", { type: "radio", name: `swap-source-${slot.date}`, value: String(entry.id), checked: editor.mode === "source" && editor.sourceId === String(entry.id), onChange: () => chooseSource(entry) }),
+          h("span", null, h("strong", null, entry.label), h("small", null, quantityText(entry.quantity, entry.unit))))))
+        : h("p", { class: "slot-meta" }, "This dinner has no recipe lines that can be swapped."),
+      h("label", { class: "choice" },
+        h("input", { type: "radio", name: `swap-source-${slot.date}`, value: "side", checked: editor.mode === "side", onChange: () => { editor.mode = "side"; editor.sourceId = ""; render(); } }),
+        h("span", null, h("strong", null, "A separate side not in the recipe"), h("small", null, "e.g. Brussels sprouts served alongside"))),
+      editor.mode === "side" ? h("div", { class: "field-row" },
+        h("label", null, "Side served now", h("input", { type: "text", maxlength: 80, required: true, placeholder: "Brussels sprouts", value: editor.sideLabel, onInput: update("sideLabel") })),
+        h("label", null, "Amount", h("input", { type: "number", inputmode: "decimal", min: 0, step: "any", required: true, value: editor.sideQuantity, onInput: update("sideQuantity") })),
+        unitSelect("sideUnit", "Unit")) : null,
+      source ? h("p", { class: "slot-meta" }, `Original: ${source.label}, ${quantityText(source.quantity, source.unit)} — kept for restock, not thrown away.`) : null),
+    h("fieldset", { class: "swap-to" },
+      h("legend", null, "2. Replace with"),
+      h("div", { class: "field-row" },
+        h("label", null, "Find an ingredient",
+          h("input", {
+            type: "search",
+            placeholder: "carrot",
+            value: editor.filter,
+            autocomplete: "off",
+            onInput: (event) => {
+              // Narrow the list in place so the search box keeps its focus.
+              editor.filter = event.target.value;
+              replace(targetSelect, targetOptions());
+            },
+          })),
+        h("label", { for: `swap-target-${slot.date}` }, "Ingredient", targetSelect)),
+      h("label", null, "Name on the dinner",
+        h("input", {
+          type: "text",
+          maxlength: 80,
+          required: true,
+          placeholder: "Roast carrots",
+          value: editor.replacementLabel,
+          onInput: (event) => { editor.replacementLabel = event.target.value; editor.labelEdited = true; },
+        })),
+      h("div", { class: "field-row" },
+        h("label", null, "Amount to cook", h("input", { type: "number", inputmode: "decimal", min: 0, step: "any", required: true, value: editor.quantity, onInput: update("quantity") })),
+        unitSelect("unit", "Unit"))),
+    h("div", { class: "actions" },
+      h("button", { type: "submit", class: "primary-action", disabled: !canMutate() }, "Preview swap"),
+      h("button", { type: "button", class: "secondary-action", onClick: closeSwapEditor }, "Cancel")));
+}
+
+function swapRequest(editor) {
+  const quantity = Number(editor.quantity);
+  const label = editor.replacementLabel.trim();
+  if (!editor.replacementKey) return { error: "Choose the ingredient that replaces it." };
+  if (!label) return { error: "Give the replacement a name, such as “Roast carrots”." };
+  if (editor.quantity === "" || !Number.isFinite(quantity) || quantity <= 0) return { error: "Enter how much of the replacement to cook." };
+  const body = {
+    baseRevision: state.data.dashboard.revision,
+    date: editor.date,
+    replacementKey: editor.replacementKey,
+    replacementLabel: label,
+    quantity,
+    unit: editor.unit,
+  };
+  if (editor.mode === "side") {
+    const sideQuantity = Number(editor.sideQuantity);
+    if (!editor.sideLabel.trim()) return { error: "Enter the side being replaced, such as “Brussels sprouts”." };
+    if (editor.sideQuantity === "" || !Number.isFinite(sideQuantity) || sideQuantity <= 0) return { error: "Enter how much of that side you have." };
+    return { body: { ...body, sourceId: null, side: { label: editor.sideLabel.trim(), quantity: sideQuantity, unit: editor.sideUnit } } };
+  }
+  if (!editor.sourceId) return { error: "Choose the ingredient or side to replace." };
+  const source = editor.data.sources.find((entry) => String(entry.id) === editor.sourceId);
+  return { body: { ...body, sourceId: source?.id ?? editor.sourceId } };
+}
+
+async function previewSwap(slot, request = null) {
+  let body = request;
+  if (!body) {
+    const built = swapRequest(state.swapEditor);
+    if (built.error) {
+      state.message = { kind: "error", text: built.error };
+      return render();
+    }
+    body = built.body;
+  }
+  body = { ...body, baseRevision: state.data.dashboard.revision };
+  state.swapPreview = null;
+  state.swapPreviewStale = false;
+  await mutate(`Preview swap for ${shortDay(slot.date)}`, "POST", "/api/dinner-swaps/preview", body, {
+    onSuccess: (preview) => {
+      state.swapPreview = { ...preview, date: preview.date ?? slot.date, request: body };
+      state.message = null;
+    },
+  });
+}
+
+function shoppingDiffDetails(diff) {
+  const name = (item) => item.name ?? item.label ?? item.ingredientKey;
+  const rows = [
+    ...(diff?.added ?? []).map((item) => ["Add", name(item), item.amountAfter]),
+    ...(diff?.increased ?? []).map((item) => ["More", name(item), `${item.amountBefore} → ${item.amountAfter}`]),
+    ...(diff?.decreased ?? []).map((item) => ["Less", name(item), `${item.amountBefore} → ${item.amountAfter}`]),
+    ...(diff?.removed ?? []).map((item) => ["Remove", name(item), item.amountBefore]),
+  ];
+  return h("details", { class: "shopping-diff", open: true },
+    h("summary", null, rows.length ? `Shopping list changes (${rows.length})` : "No shopping list changes"),
+    rows.length ? h("table", null,
+      h("tbody", null, rows.map(([kind, item, amount]) => h("tr", null, h("td", { class: `diff-kind ${kind.toLowerCase()}` }, kind), h("td", null, item), h("td", null, amount))))) : null);
+}
+
+function swapPreviewPanel(slot) {
+  const preview = state.swapPreview;
+  const expired = preview.expiresAt ? Date.parse(preview.expiresAt) <= Date.now() : false;
+  const stale = state.swapPreviewStale || expired || preview.baseRevision !== state.data.dashboard.revision;
+  const restock = preview.restock;
+  const label = `Swap ${preview.fromLabel} for ${preview.toLabel} on ${shortDay(preview.date)}`;
+  return h("section", { class: "attention-card swap-preview", "aria-label": "Swap preview" },
+    h("div", { class: "side-heading" },
+      h("h3", null, "Preview — not applied yet"),
+      h("button", { type: "button", class: "link-button", onClick: () => { state.swapPreview = null; state.swapPreviewStale = false; render(); } }, "Discard preview")),
+    h("dl", { class: "swap-summary" },
+      h("div", null, h("dt", null, "Dinner"), h("dd", null, `${formatDate(preview.date)}${slot.recipe ? ` · ${slot.recipe.name}` : ""}`)),
+      h("div", null, h("dt", null, "Comes off"), h("dd", null, h("s", null, preview.fromLabel))),
+      h("div", null, h("dt", null, "Goes on"), h("dd", null, h("strong", null, preview.toLabel),
+        preview.request?.quantity != null ? ` · ${quantityText(preview.request.quantity, preview.request.unit)}` : null)),
+      restock ? h("div", null, h("dt", null, "Kept for restock"), h("dd", null, `${restock.label} · ${restock.amount ?? quantityText(restock.quantity, restock.unit)}`)) : null),
+    shoppingDiffDetails(preview.shoppingDiff),
+    h("p", { class: "slot-meta" }, "This preview changed nothing. Apply accepts the swap once; the recipe in the library stays as it is, and Undo restores the dinner."),
+    stale ? h("div", { class: "banner stale" }, expired ? "This preview expired." : "The plan changed since this preview.", " Apply is disabled — preview again.",
+      h("button", {
+        type: "button",
+        class: "secondary-action",
+        disabled: !state.online || state.busy,
+        onClick: async () => { if (state.stale) await loadAll(); previewSwap(slot, preview.request); },
+      }, "Preview again")) : null,
+    h("div", { class: "actions" },
+      h("button", {
+        type: "button",
+        class: "primary-action",
+        disabled: stale || !canMutate(),
+        onClick: () => mutate(label, "POST", "/api/dinner-swaps/apply", { baseRevision: preview.baseRevision, previewId: preview.previewId }, {
+          onSuccess: (result) => {
+            state.swapPreview = null;
+            state.swapEditor = null;
+            state.lastSwap = { date: preview.date, revision: result?.revision ?? null };
+            state.message = { kind: "ok", text: `${label}: applied. The shopping list follows; use “Undo this swap” to put it back.` };
+          },
+        }),
+      }, "Apply swap"),
+      h("button", { type: "button", class: "secondary-action", onClick: closeSwapEditor }, "Cancel")));
+}
+
 // --- Three-day ingredient review -----------------------------------------
 
 const STATUS_LABELS = { have: "Have", need: "Need", unavailable: "Unavailable", excluded: "Excluded", leftover: "Leftover" };
@@ -757,7 +1088,8 @@ function reviewDay(day) {
       h("div", null,
         h("span", { class: "eyebrow" }, `${formatDate(day.date)}${relativeDay(day.date) ? ` · ${relativeDay(day.date)}` : ""}`),
         h("h2", null, link(recipe.path, { class: "recipe-link" }, recipe.name)),
-        h("p", null, `Dinner for ${day.slot.servings}${day.slot.locked ? " · locked" : ""}`)),
+        h("p", null, `Dinner for ${day.slot.servings}${day.slot.locked ? " · locked" : ""}`),
+        swapLines(day.slot)),
       h("span", { class: `readiness ${counts.unavailable || counts.excluded ? "risk" : ready ? "ready" : "need"}` },
         counts.unavailable || counts.excluded ? "At risk" : ready ? "Ready" : `${counts.need} to buy`)),
     h("p", { class: "slot-meta" }, [
