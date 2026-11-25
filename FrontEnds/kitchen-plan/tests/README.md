@@ -11,7 +11,7 @@ either the bundled archive or a synthetic Paprika archive built in the test file
 | `rendered-html.test.mjs` | `node server/main.mjs` as a child process: private page, 14 empty dinners, 3-day review, zero-event feed, schema version and swap tables, restart, weak token, cross-process lock |
 | `meals-acceptance.test.mjs` | Tuesday chicken → Wednesday leftovers through the HTTP API: import/UIDs/aliases, preview, ranking, hard rules, commit, Undo, ICS, DST, boundaries, restart, backups |
 | `swap-share.test.mjs` | Dinner swaps through the HTTP API: Brussels sprouts → roast carrots as a recipe line (two dates, one recipe) and as an owner-entered side (bundled library), preview/apply/idempotency/stale, shopping and restocks, Undo, rollover, hard rules, boundaries, restart, v1 → current migration |
-| `swap-share-browser.mjs` | The served app in headless Chrome over CDP: pick a dinner, swap a side for roast carrots, preview, cancel, apply, shopping, share/copy with stubs and fallbacks, Undo. **Not run by `npm test`** (see below) |
+| `swap-share-browser.mjs` | The served app in headless Chrome over CDP: pick a dinner, swap a side for roast carrots, preview, cancel, apply, shopping, share/copy with stubs and fallbacks, Undo; and a dinner's 1 lemon beside a restocked 1 lemon, both kept in the shared and copied text. **Not run by `npm test`** (see below) |
 
 **File-backed cases need POSIX file locks.** Confined QA workers deny SQLite's
 locks: the first write on any database file fails with `database is locked`, even in
@@ -41,9 +41,79 @@ cd FrontEnds/kitchen-plan
 KITCHEN_TEST_REQUIRE_BROWSER=1 node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
 ```
 
-Expected there: `# tests 1`, `# pass 1`, `# skipped 0`.
+Expected there: `# tests 2`, `# pass 2`, `# skipped 0`.
 
 Measured entries follow, newest first. Each one is the baseline for the next run.
+
+## 2026-11-25 — qa-kitchen-identical-lemon-share on `c57fb76c` (origin/dev)
+
+Why: `706baf52` stopped the share text from keying rows on name and amount, because a
+dinner's need and a restock with the same name and amount (two 1-lemon rows) were
+merged into one line. No case drove that collision through the real Share and Copy
+controls. This entry adds one. No production file changed.
+
+What changed (only `swap-share-browser.mjs`):
+
+- New case 2, "a dinner's 1 lemon and a restocked 1 lemon are both in the shared and
+  the copied list". The setup is a fresh in-memory household. The bundled dinner whose
+  only lemon line is `1 lemon` (each) is accepted for tomorrow and the day after. On the
+  second date the lemon line is swapped for a carrot through the API, so the lemon is
+  restocked. `arrangeIdenticalLemons` then checks the setup against the fixture's own
+  `/api/shopping` response. There are exactly two rows named `lemon`. Their ids differ
+  (`lemon|each`, `restock|lemon|each`). Both are unchecked with amount `1`. One is the
+  first dinner's plan need, and the other is the restock dated on the swapped dinner.
+- In Chrome, the list shows two `lemon` rows, and exactly one of them carries the
+  `Restock: 1` note. The real Share and Copy buttons are clicked inside user activation.
+  `expectBothLemons` checks each captured payload: one line per unchecked row, and the
+  lemon lines are exactly `- lemon: 1` plus `- lemon: 1 (restock: 1)`, so the annotation
+  and the count are both checked. Copy must equal Share, and the banner must say
+  `Copied 9 items.`. Neither action changes a check mark or the revision. The page
+  requests nothing outside loopback, with no CSP violations and no page errors.
+- Case 1 is unchanged. Its household and Chrome/CDP setup moved into `startHousehold`
+  and `openApp`, so case 2 shares them. `startHousehold`, `arrangeIdenticalLemons` and
+  `expectBothLemons` are exported only so they can be exercised without a browser.
+
+Checked here without a browser, with a scratch driver outside the repository. The
+driver ran the real fixture, then ran the real `shoppingShareText` (and its helpers,
+cut out of `public/app.js`) in a `vm` on the fixture's rows:
+
+| Case | Result |
+|---|---|
+| fixture preconditions | pass: `lemon\|each` plan `1` (D1) and `restock\|lemon\|each` restock `1` (D2), 9 unchecked rows |
+| real `shoppingShareText`, rows in API order, then reversed | pass both: `- lemon: 1` and `- lemon: 1 (restock: 1)` |
+| control: pre-`706baf52` name+amount dedupe spliced into the app, need first / restock first | caught both (8 lines for 9 rows) |
+| control: restock line dropped / need line dropped | caught both |
+| control: need dropped while another line keeps the count at 9 | caught (lemon lines differ) |
+| control: annotation dropped / on both lines / restock line doubled | caught all three |
+| control: the app's `restockText` call spliced out | caught |
+
+Command, from `FrontEnds/kitchen-plan`, Node v22.23.4, on a confined tester worker:
+
+```bash
+node --disable-warning=ExperimentalWarning --test
+node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+KITCHEN_TEST_REQUIRE_BROWSER=1 node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+```
+
+Result: `# tests 22`, `# pass 16`, `# fail 0`, `# skipped 6`. This matches the
+`7b4a8ebd` entry exactly, with the same six `file-backed SQLite unavailable here
+(database is locked)` skips. Then `# tests 2`, `# skipped 2` (`no Google Chrome or
+Chromium found`). With `KITCHEN_TEST_REQUIRE_BROWSER=1` it is `# tests 2`, `# fail 2`,
+as intended, because this worker has no browser.
+
+`eslint tests/swap-share-browser.mjs` reports two `no-useless-escape` errors in case 1's
+`Sharing cancelled\.` regex. The same errors are at `c57fb76c` (line 573 there), so they
+are inherited and were left alone. The new lines lint clean.
+
+**Not run here: the Chrome path.** Both cases must pass on the dev VM:
+
+```bash
+cd FrontEnds/kitchen-plan
+KITCHEN_TEST_REQUIRE_BROWSER=1 node --disable-warning=ExperimentalWarning --test tests/swap-share-browser.mjs
+ls -d "${TMPDIR:-/tmp}"/kitchen-chrome-* 2>/dev/null   # expect nothing left behind
+```
+
+Expected there: `# tests 2`, `# pass 2`, `# fail 0`, `# skipped 0`.
 
 ## 2026-11-22 — qa-kitchen-browser-cleanup on `7b4a8ebd` (origin/dev)
 

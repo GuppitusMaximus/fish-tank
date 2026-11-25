@@ -382,13 +382,10 @@ function parseEvents(ics) {
 const unescapeText = (value) => value.replace(/\\([nN,;\\])/g, (_, c) => (c === "n" || c === "N" ? "\n" : c));
 const eventOn = (ics, date) => parseEvents(ics).find((event) => event["DTSTART;VALUE=DATE"] === date.replaceAll("-", ""));
 
-// --- The path ----------------------------------------------------------------------
-
-test("in Chrome: pick a dinner, swap a Brussels sprouts side for roast carrots, preview, cancel, apply, share and copy the unchecked list, Undo", browserOptions, async (t) => {
-  if (!BROWSER) throw new Error("KITCHEN_TEST_REQUIRE_BROWSER=1 but no Google Chrome or Chromium was found; set KITCHEN_TEST_BROWSER");
-
-  // A disposable household on the real clock (the page checks preview expiry
-  // against the browser's clock).
+// A disposable household on the real clock (the page checks preview expiry
+// against the browser's clock). Exported, like the identical-lemon fixture
+// and its assertion below, only so they can be exercised without a browser.
+export async function startHousehold(t) {
   const dir = mkdtempSync(join(tmpdir(), "kitchen-browser-"));
   const archivePath = join(dir, "bundled.paprikarecipes");
   writeFileSync(archivePath, readFileSync(BUNDLED));
@@ -418,22 +415,12 @@ test("in Chrome: pick a dinner, swap a Brussels sprouts side for roast carrots, 
     return response.body;
   };
   const feed = async () => (await raw(`${running.feedOrigin}/feed/${token}.ics`)).text;
-  const store = running.store;
-  const carrotKey = resolveIngredientKey(store, "carrots");
-  const sproutKey = resolveIngredientKey(store, SPROUTS);
+  return { running, app, json, feed, token, logs, store: running.store };
+}
 
-  // Two dates with the same bundled dinner, which has no carrots.
-  const bundled = parsePaprikaArchive(readFileSync(BUNDLED)).recipes;
-  const dinner = bundled.find((recipe) => !recipe.lines.some((line) => line.ingredientKey === carrotKey || line.alternatives?.includes(carrotKey)) && !recipe.categories.includes("Side"));
-  assert.ok(dinner, "a bundled dinner without carrots");
-  const { today, revision: start } = await json("/api/dashboard");
-  const D1 = addDays(today, 1);
-  const D2 = addDays(today, 2);
-  await json("/api/plan/accept", { method: "POST", body: { accept: true, baseRevision: start, slots: [{ date: D1, recipeUid: dinner.uid }, { date: D2, recipeUid: dinner.uid }] } });
-  const seeded = await json("/api/dashboard");
-  const feedSeeded = await feed();
-
-  // Chrome on the served app.
+// Chrome on the served app, with the capture stubs installed, recording page
+// errors, requests and dialogs.
+async function openApp(t, app) {
   const chrome = await launchChrome(t);
   const cdp = new Cdp(chrome.wsUrl);
   await cdp.open();
@@ -456,8 +443,33 @@ test("in Chrome: pick a dinner, swap a Brussels sprouts side for roast carrots, 
   await cdp.send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: PAGE_HARNESS });
   const page = pageApi(cdp);
-  const { evaluate, waitFor, click, type, choose } = page;
   await cdp.send("Page.navigate", { url: `${app}/` });
+  return { page, problems, requests, dialogs };
+}
+
+// --- The path ----------------------------------------------------------------------
+
+test("in Chrome: pick a dinner, swap a Brussels sprouts side for roast carrots, preview, cancel, apply, share and copy the unchecked list, Undo", browserOptions, async (t) => {
+  if (!BROWSER) throw new Error("KITCHEN_TEST_REQUIRE_BROWSER=1 but no Google Chrome or Chromium was found; set KITCHEN_TEST_BROWSER");
+
+  const { app, json, feed, token, logs, store } = await startHousehold(t);
+  const carrotKey = resolveIngredientKey(store, "carrots");
+  const sproutKey = resolveIngredientKey(store, SPROUTS);
+
+  // Two dates with the same bundled dinner, which has no carrots.
+  const bundled = parsePaprikaArchive(readFileSync(BUNDLED)).recipes;
+  const dinner = bundled.find((recipe) => !recipe.lines.some((line) => line.ingredientKey === carrotKey || line.alternatives?.includes(carrotKey)) && !recipe.categories.includes("Side"));
+  assert.ok(dinner, "a bundled dinner without carrots");
+  const { today, revision: start } = await json("/api/dashboard");
+  const D1 = addDays(today, 1);
+  const D2 = addDays(today, 2);
+  await json("/api/plan/accept", { method: "POST", body: { accept: true, baseRevision: start, slots: [{ date: D1, recipeUid: dinner.uid }, { date: D2, recipeUid: dinner.uid }] } });
+  const seeded = await json("/api/dashboard");
+  const feedSeeded = await feed();
+
+  // Chrome on the served app.
+  const { page, problems, requests, dialogs } = await openApp(t, app);
+  const { evaluate, waitFor, click, type, choose } = page;
 
   const card = (date) => `window.__qa.card(${JSON.stringify(date)})`;
   const inCard = (date, selector) => `${card(date)}?.querySelector(${JSON.stringify(selector)})`;
@@ -638,4 +650,106 @@ test("in Chrome: pick a dinner, swap a Brussels sprouts side for roast carrots, 
   assert.deepEqual(problems, [], "no page errors");
   const logText = JSON.stringify(logs);
   assert.ok(!logText.includes(token) && !logText.includes("/feed/"), "no token or feed path in the log");
+});
+
+// --- Two identical lemons ------------------------------------------------------------
+// A dinner's need and a restock of the same ingredient and amount are two
+// things to buy. Both show as "lemon" and "1", so a share text keyed on name
+// and amount would keep only one of them.
+
+const LEMON = "lemon";
+
+// One dinner with a "1 lemon" line on two dates; on the second date the lemon
+// is swapped out, so it is restocked. That leaves two unchecked rows that both
+// display "lemon", "1": the first dinner's need and the persistent restock.
+export async function arrangeIdenticalLemons({ json, store }) {
+  const lemonKey = resolveIngredientKey(store, LEMON);
+  const carrotKey = resolveIngredientKey(store, "carrots");
+  const oneLemon = (line) => line.ingredientKey === lemonKey && line.quantity === 1 && line.unit === "each";
+  const dinner = parsePaprikaArchive(readFileSync(BUNDLED)).recipes.find((recipe) => {
+    const lemons = recipe.lines.filter((line) => line.ingredientKey === lemonKey || line.alternatives?.includes(lemonKey));
+    return lemons.length === 1 && oneLemon(lemons[0]) && !recipe.categories.includes("Side");
+  });
+  assert.ok(dinner, "a bundled dinner whose only lemon line is 1 lemon");
+  const { today, revision: start } = await json("/api/dashboard");
+  const D1 = addDays(today, 1);
+  const D2 = addDays(today, 2);
+  await json("/api/plan/accept", { method: "POST", body: { accept: true, baseRevision: start, slots: [{ date: D1, recipeUid: dinner.uid }, { date: D2, recipeUid: dinner.uid }] } });
+  const sources = await json(`/api/dinner-swaps?date=${D2}`);
+  const source = sources.sources.find((entry) => entry.kind === "line" && entry.ingredientKey === lemonKey);
+  assert.deepEqual([source?.label, source?.quantity, source?.unit], [LEMON, 1, "each"], "the second dinner's lemon line");
+  const preview = await json("/api/dinner-swaps/preview", {
+    method: "POST",
+    body: { baseRevision: sources.revision, date: D2, sourceId: source.id, replacementKey: carrotKey, replacementLabel: "carrot", quantity: 1, unit: "each" },
+  });
+  assert.deepEqual([preview.restock?.label, preview.restock?.amount, preview.restock?.added], [LEMON, "1", true], "the swapped-out lemon is restocked");
+  const applied = await json("/api/dinner-swaps/apply", { method: "POST", body: { baseRevision: sources.revision, previewId: preview.previewId } });
+
+  // The preconditions, from the fixture's own /api/shopping response.
+  const { items } = await json("/api/shopping");
+  const lemons = items.filter((item) => item.name === LEMON);
+  assert.equal(lemons.length, 2, `two rows named ${LEMON}: ${JSON.stringify(lemons)}`);
+  assert.notEqual(lemons[0].id, lemons[1].id, "the two rows are distinct");
+  for (const row of lemons) assert.deepEqual([row.ingredientKey, row.amount, row.checked], [lemonKey, "1", false], `${row.id} is an unchecked 1 lemon`);
+  const need = lemons.find((row) => row.kind === "plan");
+  const restock = lemons.find((row) => row.kind === "restock");
+  assert.ok(need && restock, `one plan need and one restock: ${lemons.map((row) => row.kind)}`);
+  assert.deepEqual([need.dates, need.restock, need.recipes.map((recipe) => recipe.uid)], [[D1], null, [dinner.uid]], "the need is the first dinner's");
+  assert.deepEqual([restock.dates, restock.restock.label, restock.restock.amount], [[D2], LEMON, "1"], "the restock is the swapped-out lemon");
+  return { items, need, restock, revision: applied.revision };
+}
+
+// A shared or copied text lists every unchecked row once, and both lemons:
+// the need plainly and the restock with its annotation.
+export function expectBothLemons(text, items) {
+  assert.match(text, /^Shopping list for /);
+  const lines = text.trim().split("\n").slice(1);
+  const unchecked = items.filter((item) => !item.checked);
+  assert.equal(lines.length, unchecked.length, `one line per unchecked row:\n${text}`);
+  const lemonLines = lines.filter((line) => line.startsWith(`- ${LEMON}:`));
+  assert.deepEqual(lemonLines.sort(), [`- ${LEMON}: 1`, `- ${LEMON}: 1 (restock: 1)`], `the dinner's lemon and the restocked lemon, once each:\n${text}`);
+}
+
+test("in Chrome: a dinner's 1 lemon and a restocked 1 lemon are both in the shared and the copied list", browserOptions, async (t) => {
+  if (!BROWSER) throw new Error("KITCHEN_TEST_REQUIRE_BROWSER=1 but no Google Chrome or Chromium was found; set KITCHEN_TEST_BROWSER");
+
+  const household = await startHousehold(t);
+  const { app, json, token } = household;
+  const { items, need, restock, revision } = await arrangeIdenticalLemons(household);
+
+  const { page, problems, requests } = await openApp(t, app);
+  const { evaluate, waitFor, click } = page;
+  await click("Shopping", `[...document.querySelectorAll('#nav a')].find((a) => a.textContent.startsWith('Shopping'))`);
+  const lemonRows = `[...document.querySelectorAll('.shopping-group li')].filter((li) => window.__qa.text(li.querySelector('strong')) === ${JSON.stringify(LEMON)})`;
+  await waitFor("both lemon rows on the list", `document.querySelector('.share-card') && ${lemonRows}.length === 2`);
+  const shown = await evaluate(`${lemonRows}.map((li) => [window.__qa.text(li.querySelector('small')), window.__qa.text(li.querySelector('.restock-note'))])`);
+  assert.deepEqual(shown.map(([, note]) => note).sort(), ["", "Restock: 1"], `one plain row and one restock row: ${JSON.stringify(shown)}`);
+  for (const [amount] of shown) assert.match(amount, /^1\b/);
+
+  // Share: the captured payload is text only and has both lemons.
+  await click("Share unchecked list", `window.__qa.button(document.querySelector('.share-card'), "Share unchecked list")`);
+  const shared = await waitFor("navigator.share", "window.__qa.shares.length === 1 && window.__qa.shares[0]");
+  assert.equal(shared.active, true, "share runs within the tap's user activation");
+  assert.deepEqual(Object.keys(shared.data), ["text"]);
+  expectBothLemons(shared.data.text, items);
+  await waitFor("the share confirmation", `/handed to the app you picked/.test(window.__qa.banner())`);
+
+  // Copy: the same text, both lemons, counted as two items.
+  await click("Copy list", `window.__qa.button(document.querySelector('.share-card'), "Copy list")`);
+  const copied = await waitFor("clipboard.writeText", "window.__qa.clipboard.length === 1 && window.__qa.clipboard[0]");
+  assert.equal(copied.active, true, "writeText runs within the tap's user activation");
+  expectBothLemons(copied.text, items);
+  assert.equal(copied.text, shared.data.text);
+  await waitFor("the copy confirmation", `/Copied ${items.filter((item) => !item.checked).length} items\\./.test(window.__qa.banner())`);
+
+  // Sharing and copying changed nothing on the server.
+  const after = await json("/api/shopping");
+  assert.deepEqual(after.items.filter((item) => item.id === need.id || item.id === restock.id).map((item) => [item.id, item.checked]).sort(), [[need.id, false], [restock.id, false]].sort());
+  assert.equal((await json("/api/health")).revision, revision);
+
+  const origin = new URL(app).origin;
+  assert.deepEqual(requests.filter((url) => !url.startsWith(`${origin}/`) && !/^(data|blob|about|chrome-extension):/.test(url)), [], "the page requested nothing but the kitchen server");
+  assert.deepEqual(await evaluate("window.__qa.csp"), [], "no CSP violations");
+  assert.deepEqual(problems, [], "no page errors");
+  assert.ok(!shared.data.text.includes(token), "no secrets in the list");
 });
